@@ -29,6 +29,7 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.quartz.SchedulerException;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -63,6 +64,8 @@ import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.core.GobblinServiceManager;
+import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
@@ -151,6 +154,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         this.eventProducer = observabilityEventProducer;
   }
 
+  public enum NewState {
+    FINISHED,
+    RUNNING,
+    SAME_AS_PREVIOUS,
+  }
+
   @Override
   protected void startUp() {
     super.startUp();
@@ -203,7 +212,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         }
 
         try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
-          Pair<org.apache.gobblin.configuration.State, Boolean> updatedJobStatus = recalcJobStatus(jobStatus, this.stateStore);
+          Pair<org.apache.gobblin.configuration.State, NewState> updatedJobStatus = recalcJobStatus(jobStatus, this.stateStore);
           jobStatus = updatedJobStatus.getLeft();
 
           String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
@@ -214,13 +223,14 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           String storeName = jobStatusStoreName(flowGroup, flowName);
           String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
 
-          if (updatedJobStatus.getRight()) {
+          if (updatedJobStatus.getRight() == NewState.FINISHED) {
             this.eventProducer.emitObservabilityEvent(jobStatus);
-
             if (this.dagProcEngineEnabled) {
               // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
               this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
             }
+          } else if (updatedJobStatus.getRight() == NewState.RUNNING) {
+            clearStartDeadlineTriggerAndDagAction(flowGroup, flowName, flowExecutionId, jobName);
           }
 
           // update the state store after adding a dag action to guaranty at-least-once adding of dag action
@@ -246,6 +256,19 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     }
   }
 
+  private void clearStartDeadlineTriggerAndDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName) {
+
+    DagActionStore.DagAction enforceStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
+        String.valueOf(flowExecutionId), jobName, DagActionStore.DagActionType.ENFORCE_START_DEADLINE);
+    try {
+      GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(enforceStartDeadlineDagAction);
+      GobblinServiceManager.getClass(DagActionStore.class).deleteDagAction(enforceStartDeadlineDagAction);
+    } catch (SchedulerException | IOException e) {
+      log.warn("Failed to unschedule the reminder for {}", enforceStartDeadlineDagAction);
+    }
+  }
+
+
   /**
    * It fills missing fields in job status and also merge the fields with the existing job status in the state store.
    * Merging is required because we do not want to lose the information sent by other GobblinTrackingEvents.
@@ -254,7 +277,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
    * @throws IOException
    */
   @VisibleForTesting
-  static Pair<org.apache.gobblin.configuration.State, Boolean> recalcJobStatus(org.apache.gobblin.configuration.State jobStatus,
+  static Pair<org.apache.gobblin.configuration.State, NewState> recalcJobStatus(org.apache.gobblin.configuration.State jobStatus,
       StateStore<org.apache.gobblin.configuration.State> stateStore) throws IOException {
     try {
       if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
@@ -304,11 +327,21 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
 
       modifyStateIfRetryRequired(jobStatus);
-      return ImmutablePair.of(jobStatus, isNewStateTransitionToFinal(jobStatus, states));
+      return ImmutablePair.of(jobStatus, newState(jobStatus, states));
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
       throw new IOException(e);
+    }
+  }
+
+  private static NewState newState(org.apache.gobblin.configuration.State jobStatus, List<org.apache.gobblin.configuration.State> states) {
+    if (isNewStateTransitionToFinal(jobStatus, states)) {
+      return NewState.FINISHED;
+    } else if (isNewStateTransitionToRunning(jobStatus, states)) {
+      return NewState.RUNNING;
+    } else {
+      return NewState.SAME_AS_PREVIOUS;
     }
   }
 
@@ -338,6 +371,14 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     }
     return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
         && !FlowStatusGenerator.FINISHED_STATUSES.contains(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+  }
+
+  static boolean isNewStateTransitionToRunning(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
+    if (prevStates.isEmpty()) {
+      return ExecutionStatus.RUNNING.name().equals(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+    }
+    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && ExecutionStatus.RUNNING.name().equals(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
+        && !ExecutionStatus.RUNNING.name().equals(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
   }
 
   /**

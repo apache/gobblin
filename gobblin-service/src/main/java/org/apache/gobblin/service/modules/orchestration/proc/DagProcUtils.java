@@ -19,25 +19,32 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 import java.util.concurrent.Future;
 
 import com.google.common.collect.Maps;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+
+import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
 
 
 /**
@@ -45,6 +52,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  */
 @Slf4j
 public class DagProcUtils {
+  private static final DagActionStore dagActionStore = GobblinServiceManager.getClass(DagActionStore.class);
 
   /**
    * - submits a {@link JobSpec} to a {@link SpecExecutor}
@@ -82,6 +90,9 @@ public class DagProcUtils {
       // either successfully or unsuccessfully. To catch any exceptions in the job submission, the DagManagerThread
       // blocks (by calling Future#get()) until the submission is completed.
       dagManagementStateStore.tryAcquireQuota(Collections.singleton(dagNode));
+
+      sendEnforceStartDeadlineDagAction(dagNode);
+
       Future<?> addSpecFuture = producer.addSpec(jobSpec);
       // todo - we should add future.get() instead of the complete future into the JobExecutionPlan
       dagNode.getValue().setJobFuture(com.google.common.base.Optional.of(addSpecFuture));
@@ -110,5 +121,53 @@ public class DagProcUtils {
       }
       throw new RuntimeException(e);
     }
+  }
+
+  public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, DagManagementStateStore dagManagementStateStore) throws IOException {
+    Properties props = new Properties();
+    DagManager.DagId dagId = DagManagerUtils.generateDagId(dagNodeToCancel);
+    if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
+      props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
+          dagNodeToCancel.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
+    }
+
+    try {
+      if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
+        Future future = dagNodeToCancel.getValue().getJobFuture().get();
+        String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
+        props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
+        sendCancellationEvent(dagNodeToCancel.getValue());
+      } else {
+        log.warn("No Job future when canceling DAG node (hence, not sending cancellation event) - {}",
+            dagNodeToCancel.getValue().getJobSpec().getUri());
+      }
+      DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), props).get();
+      // todo - why was it not being cleaned up in DagManager?
+      dagManagementStateStore.deleteDagNodeState(dagId, dagNodeToCancel);
+    } catch (Exception e) {
+      throw new IOException(e);
+    }
+  }
+
+  public static void cancelDag(Dag<JobExecutionPlan> dag, DagManagementStateStore dagManagementStateStore) throws IOException {
+    List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = dag.getNodes();
+    log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), DagManagerUtils.generateDagId(dag));
+
+    for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
+      DagProcUtils.cancelDagNode(dagNodeToCancel, dagManagementStateStore);
+    }
+  }
+
+  public static void sendCancellationEvent(JobExecutionPlan jobExecutionPlan) {
+    Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
+    DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_CANCEL).stop(jobMetadata);
+    jobExecutionPlan.setExecutionStatus(CANCELLED);
+  }
+
+  private static void sendEnforceStartDeadlineDagAction(Dag.DagNode<JobExecutionPlan> dagNode)
+      throws IOException {
+    dagActionStore.addJobDagAction(dagNode.getValue().getFlowGroup(), dagNode.getValue().getFlowName(),
+        String.valueOf(dagNode.getValue().getFlowExecutionId()), dagNode.getValue().getJobName(),
+        DagActionStore.DagActionType.ENFORCE_START_DEADLINE);
   }
 }

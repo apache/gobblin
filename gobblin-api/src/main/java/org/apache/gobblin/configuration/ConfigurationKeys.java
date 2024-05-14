@@ -1072,7 +1072,7 @@ public class ConfigurationKeys {
   public static final String GOBBLIN_JOB_START_SLA_TIME = "gobblin.job.start.sla.time";
   public static final String GOBBLIN_JOB_START_SLA_TIME_UNIT = "gobblin.job.start.sla.timeunit";
   public static final long FALLBACK_GOBBLIN_JOB_START_SLA_TIME = 10L;
-  public static final String FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT = "MINUTES";
+  public static final String FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT = TimeUnit.MINUTES.name();
   public static final String DATASET_SUBPATHS_KEY = "gobblin.flow.dataset.subPaths";
   public static final String DATASET_BASE_INPUT_PATH_KEY = "gobblin.flow.dataset.baseInputPath";
   public static final String DATASET_BASE_OUTPUT_PATH_KEY = "gobblin.flow.dataset.baseOutputPath";

@@ -23,13 +23,17 @@ import java.util.Set;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
+import org.quartz.SchedulerException;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
+import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
@@ -39,7 +43,6 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 
 
 /**
- * suggest:
  * A {@link DagProc} to launch any subsequent (dependent) job(s) once all pre-requisite job(s) in the Dag have succeeded.
  * When there are no more jobs to run and no more running, it cleans up the Dag.
  * (In future), if there are multiple new jobs to be launched, separate launch dag actions are created for each of them.
@@ -76,8 +79,8 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
   }
 
   @Override
-  protected void act(DagManagementStateStore dagManagementStateStore, Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> dagNodeWithJobStatus)
-      throws IOException {
+  protected void act(DagManagementStateStore dagManagementStateStore, Pair<Optional<Dag.DagNode<JobExecutionPlan>>,
+      Optional<JobStatus>> dagNodeWithJobStatus) throws IOException {
     if (!dagNodeWithJobStatus.getLeft().isPresent()) {
       // one of the reason this could arise is when the MALA leasing doesn't work cleanly and another DagProc::process
       // has cleaned up the Dag, yet did not complete the lease before this current one acquired its own
@@ -115,6 +118,8 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       } else {
         dagManagementStateStore.markDagFailed(dag);
       }
+
+      clearFinishDeadlineTriggerAndDagAction();
     }
   }
 
@@ -190,5 +195,17 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
 
   private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
     throw new UnsupportedOperationException("More than one start job is not allowed");
+  }
+
+  private void clearFinishDeadlineTriggerAndDagAction() {
+    DagActionStore.DagAction enforceFinishDeadlineDagAction = new DagActionStore.DagAction(getDagNodeId().getFlowGroup(),
+        getDagNodeId().getFlowName(), String.valueOf(getDagNodeId().getFlowExecutionId()), getDagNodeId().getJobName(),
+        DagActionStore.DagActionType.ENFORCE_FINISH_DEADLINE);
+    try {
+      GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(getDagTask().getDagAction());
+      GobblinServiceManager.getClass(DagActionStore.class).deleteDagAction(enforceFinishDeadlineDagAction);
+    } catch (SchedulerException | IOException e) {
+      log.warn("Failed to unschedule the reminder for {}", enforceFinishDeadlineDagAction);
+    }
   }
 }

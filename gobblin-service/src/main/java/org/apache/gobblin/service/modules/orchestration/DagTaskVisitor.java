@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import org.apache.gobblin.service.modules.orchestration.task.EnforceFinishDeadlineDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
@@ -24,8 +26,10 @@ import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 
 
 public interface DagTaskVisitor<T> {
+  T meet(EnforceFinishDeadlineDagTask enforceFinishDeadlineDagTask);
+  T meet(EnforceStartDeadlineDagTask enforceStartDeadlineDagTask);
+  T meet(KillDagTask killDagTask);
   T meet(LaunchDagTask launchDagTask);
   T meet(ReevaluateDagTask reevaluateDagTask);
-  T meet(KillDagTask killDagTask);
   T meet(ResumeDagTask resumeDagTask);
 }

@@ -91,7 +91,8 @@ public class DagProcessingEngineTest {
     this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
-            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)), false);
+            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)), false,
+            this.dagManagementStateStore);
     this.dagProcFactory = new DagProcFactory(null);
 
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =

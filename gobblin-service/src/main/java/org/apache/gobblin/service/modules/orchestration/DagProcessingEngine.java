@@ -113,8 +113,8 @@ public class DagProcessingEngine extends AbstractIdleService {
 
     @Override
     public void run() {
+      log.info("Starting DagProcEngineThread to process dag tasks. Thread id: {}", threadID);
       while (true) {
-        log.info("Starting DagProcEngineThread to process dag tasks. Thread id: {}", threadID);
         DagTask dagTask = dagTaskStream.next(); // blocking call
         if (dagTask == null) {
           //todo - add a metrics to count the times dagTask was null

@@ -33,6 +33,7 @@ import org.quartz.TriggerBuilder;
 import org.quartz.impl.StdSchedulerFactory;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -44,6 +45,7 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
  * {#scheduleReminderJob} on a flow action that it failed to acquire a lease on but has not yet completed. The reminder
  * will fire once the previous lease owner's lease is expected to expire.
  */
+@Singleton
 public class DagActionReminderScheduler {
   public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
   private final Scheduler quartzScheduler;

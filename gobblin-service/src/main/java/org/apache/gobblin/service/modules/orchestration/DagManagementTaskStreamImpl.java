@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.quartz.SchedulerException;
 
 import com.google.inject.Inject;
@@ -39,11 +40,15 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.util.InjectionNames;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -80,12 +85,14 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   @Inject
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
+  private final DagManagementStateStore dagManagementStateStore;
 
   @Inject
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
       @Named(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter,
       Optional<DagActionReminderScheduler> dagActionReminderScheduler,
-      @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled) {
+      @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled,
+      DagManagementStateStore dagManagementStateStore) {
     this.config = config;
     if (!dagActionStore.isPresent()) {
       /* DagActionStore is optional because there are other configurations that do not require it and it's initialized
@@ -102,12 +109,13 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     this.isMultiActiveExecutionEnabled = isMultiActiveExecutionEnabled;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
+    this.dagManagementStateStore = dagManagementStateStore;
   }
 
   @Override
   public synchronized void addDagAction(DagActionStore.DagAction dagAction) {
     // TODO: Used to track missing dag issue, remove later as needed
-    log.info("Add dagAction{}", dagAction);
+    log.info("Add dagAction {}", dagAction);
 
     if (!this.dagActionQueue.offer(dagAction)) {
       throw new RuntimeException("Could not add dag action " + dagAction + " to the queue");
@@ -124,15 +132,39 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       while (true) {
         try {
           DagActionStore.DagAction dagAction = this.dagActionQueue.take();
-          LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(dagAction);
-          if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
-            return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
+          if (dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_START_DEADLINE) {
+            createStartDeadlineTrigger(dagAction);
+          } else if (dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_FINISH_DEADLINE) {
+            createFinishDeadlineTrigger(dagAction);
+          } else {
+            LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(dagAction);
+            if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
+              return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
+            }
           }
         } catch (Exception e) {
           //TODO: need to handle exceptions gracefully
           log.error("Exception getting DagAction from the queue / creating DagTask", e);
         }
       }
+  }
+
+  private void createStartDeadlineTrigger(DagActionStore.DagAction dagAction)
+      throws SchedulerException {
+    Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> dagNodeToCreateTriggerFor =
+        this.dagManagementStateStore.getDagNodeWithJobStatus(dagAction.getDagNodeId());
+    long timeOutForJobStart = DagManagerUtils.getJobStartSla(dagNodeToCreateTriggerFor.getLeft().get(), 1000000L);//, this.defaultJobStartSlaTimeMillis);
+
+    dagActionReminderScheduler.get().scheduleReminder(dagAction, timeOutForJobStart);
+  }
+
+  private void createFinishDeadlineTrigger(DagActionStore.DagAction dagAction)
+      throws SchedulerException {
+    Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> dagNodeToCreateTriggerFor =
+        this.dagManagementStateStore.getDagNodeWithJobStatus(dagAction.getDagNodeId());
+    long timeOutForJobFinish = DagManagerUtils.getFlowSLA(dagNodeToCreateTriggerFor.getLeft().get());
+
+    dagActionReminderScheduler.get().scheduleReminder(dagAction, timeOutForJobFinish);
   }
 
   /**
@@ -162,12 +194,16 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     DagActionStore.DagActionType dagActionType = dagAction.getDagActionType();
 
     switch (dagActionType) {
+      case ENFORCE_FINISH_DEADLINE:
+        return new EnforceStartDeadlineDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+      case ENFORCE_START_DEADLINE:
+        return new EnforceStartDeadlineDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+      case KILL:
+        return new KillDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
       case LAUNCH:
         return new LaunchDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
       case REEVALUATE:
         return new ReevaluateDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
-      case KILL:
-        return new KillDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
       case RESUME:
         return new ResumeDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
       default:
