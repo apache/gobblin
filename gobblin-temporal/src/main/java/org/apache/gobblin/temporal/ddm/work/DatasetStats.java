@@ -20,14 +20,12 @@ package org.apache.gobblin.temporal.ddm.work;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 
 /**
- * Stats for a dataset that was processed.
+ * Stats for a dataset that was committed.
  */
 @Data
 @NonNull
-@RequiredArgsConstructor
 @NoArgsConstructor
 public class DatasetStats {
   @NonNull private long recordsWritten;

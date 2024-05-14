@@ -20,7 +20,6 @@ package org.apache.gobblin.runtime;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
 
 import org.apache.gobblin.metrics.DatasetMetric;
 
@@ -30,12 +29,12 @@ import org.apache.gobblin.metrics.DatasetMetric;
  * that can be reported as a single event in the commit phase.
  */
 @Data
-@RequiredArgsConstructor
+@NoArgsConstructor
 public class DatasetTaskSummary {
   @NonNull private String datasetUrn;
   @NonNull private long recordsWritten;
   @NonNull private long bytesWritten;
-  @NonNull private boolean successfullyCommitted;
+  @NonNull private boolean successfullyCommitted;A
 
   /**
    * Convert a {@link DatasetTaskSummary} to a {@link DatasetMetric}.
