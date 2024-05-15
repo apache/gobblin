@@ -97,7 +97,11 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
       this.dagStateStore = createDagStateStore(config, topologySpecMap);
       this.failedDagStateStore = createDagStateStore(ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config),
           topologySpecMap);
-      initQuota(getDags());
+      // This implementation does not need to update quota usage when the service restarts or when its leadership status
+      // changes because quota usage are persisted in mysql table. For the same reason, there is no need to call getDags also.
+      // Also, calling getDags during startUp may fail, because the topologies that are required to deserialize dags may
+      // not have been added to the topology catalog yet.
+      // initQuota(getDags());
       dagStoresInitialized = true;
     }
   }

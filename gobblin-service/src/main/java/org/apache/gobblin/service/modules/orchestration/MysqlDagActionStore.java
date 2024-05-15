@@ -61,7 +61,7 @@ public class MysqlDagActionStore implements DagActionStore {
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (" +
   "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, "
       + "flow_execution_id varchar(" + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, "
-      + "job_name varchar(" + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, "
+      + "job_name varchar(" + ServiceConfigKeys.MAX_JOB_NAME_LENGTH + ") NOT NULL, "
       + "dag_action varchar(50) NOT NULL, modified_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP  on update CURRENT_TIMESTAMP NOT NULL, "
       + "PRIMARY KEY (flow_group,flow_name,flow_execution_id,job_name,dag_action))";
   // Deletes rows older than retention time period (in seconds) to prevent this table from growing unbounded.
