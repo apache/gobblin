@@ -86,6 +86,7 @@ public class EnforceStartDeadlineDagProc extends DagProc<Optional<Dag<JobExecuti
 
     ExecutionStatus executionStatus = valueOf(jobStatus.get().getEventName());
     long jobOrchestratedTime = jobStatus.get().getOrchestratedTime();
+    // note that second condition should be true because that's how the triggered dag action reached here
     if (executionStatus == ORCHESTRATED && System.currentTimeMillis() > jobOrchestratedTime + timeOutForJobStart) {
       log.info("Job {} of flow {} exceeded the job start SLA of {} ms. Killing the job now...",
           DagManagerUtils.getJobName(dagNode), DagManagerUtils.getFullyQualifiedDagName(dag.get()), timeOutForJobStart);

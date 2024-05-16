@@ -139,7 +139,7 @@ public class DagManager extends AbstractIdleService {
   public static final String DAG_MANAGER_HEARTBEAT = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "dagManager.heartbeat-%s";
   // Default job start SLA time if configured, measured in minutes. Default is 10 minutes
   public static final String JOB_START_SLA_TIME = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME;
-  private static final String JOB_START_SLA_UNITS = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT;
+  public static final String JOB_START_SLA_UNITS = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT;
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private static final int INITIAL_HOUSEKEEPING_THREAD_DELAY = 2;
   /**

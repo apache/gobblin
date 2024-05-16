@@ -90,7 +90,7 @@ dependencies {
   testRuntime externalDependency.derby
   testCompile externalDependency.hamcrest
   testCompile externalDependency.jhyde
-  testCompile externalDependency.mockito
+  testCompile externalDependency.mockitoInline
   testCompile externalDependency.testContainers
   testCompile externalDependency.testContainersMysql
 }

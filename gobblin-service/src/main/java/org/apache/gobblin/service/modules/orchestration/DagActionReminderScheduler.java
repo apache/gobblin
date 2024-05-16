@@ -98,8 +98,8 @@ public class DagActionReminderScheduler {
       log.info("DagProc reminder triggered for (flowGroup: " + flowGroup + ", flowName: " + flowName
           + ", flowExecutionId: " + flowId + ", jobName: " + jobName +")");
 
-      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowId, jobName,
-          dagActionType);
+      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowId, jobName, dagActionType);
+      dagAction.setReminder(true);
 
       try {
         DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class);
@@ -143,10 +143,9 @@ public class DagActionReminderScheduler {
    */
   public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis,
       Supplier<Long> getCurrentTimeMillis) {
-    Trigger trigger = TriggerBuilder.newTrigger()
+    return TriggerBuilder.newTrigger()
         .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())
         .startAt(new Date(getCurrentTimeMillis.get() + reminderDurationMillis))
         .build();
-    return trigger;
   }
 }

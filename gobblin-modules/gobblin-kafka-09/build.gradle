@@ -56,7 +56,7 @@ dependencies {
   testCompile project(path: ":gobblin-metastore", configuration: "testFixtures")
   testCompile project(":gobblin-test-utils")
   testCompile externalDependency.jsonAssert
-  testCompile externalDependency.mockito
+  testCompile externalDependency.mockitoInline
   testCompile externalDependency.testng
   testCompile(externalDependency.kafka09Test){
     exclude group: "com.sun.jmx", module: "jmxri"

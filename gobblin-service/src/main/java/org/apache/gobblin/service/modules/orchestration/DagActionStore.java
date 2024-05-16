@@ -47,6 +47,7 @@ public interface DagActionStore {
     final String flowExecutionId;
     final String jobName;
     final DagActionType dagActionType;
+    boolean isReminder = false;
 
     public static DagAction forFlow(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) {
       return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
@@ -70,6 +71,10 @@ public interface DagActionStore {
     public DagNodeId getDagNodeId() {
       return new DagNodeId(this.flowGroup, this.flowName,
           Long.parseLong(this.flowExecutionId), this.flowGroup, this.jobName);
+    }
+
+    public void setReminder(boolean isReminder) {
+      this.isReminder = isReminder;
     }
   }
 
