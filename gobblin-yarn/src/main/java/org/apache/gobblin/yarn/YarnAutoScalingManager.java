@@ -115,7 +115,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private static int maxIdleTimeInMinutesBeforeScalingDown = DEFAULT_MAX_CONTAINER_IDLE_TIME_BEFORE_SCALING_DOWN_MINUTES;
   private final int maxTimeInMinutesBeforeReleasingContainerHavingStuckTask;
   private final boolean enableReleasingContainerHavingStuckTask;
-  private final boolean enableDetectStuckTask;
+  private final boolean enableDetectionStuckTask;
   private final HashSet<TaskPartitionState> detectionForTaskStates;
   private static final HashSet<TaskPartitionState>
       UNUSUAL_HELIX_TASK_STATES = Sets.newHashSet(TaskPartitionState.ERROR, TaskPartitionState.DROPPED, TaskPartitionState.COMPLETED, TaskPartitionState.TIMED_OUT);
@@ -153,13 +153,13 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         DEFAULT_MAX_TIME_MINUTES_TO_RELEASE_CONTAINER_HAVING_HELIX_TASK_THAT_IS_STUCK);
     this.enableReleasingContainerHavingStuckTask = ConfigUtils.getBoolean(this.config,
         RELEASE_CONTAINER_IF_TASK_IS_STUCK, false);
-    this.enableDetectStuckTask = ConfigUtils.getBoolean(this.config, DETECT_IF_TASK_IS_STUCK, false);
+    this.enableDetectionStuckTask = ConfigUtils.getBoolean(this.config, DETECT_IF_TASK_IS_STUCK, false);
     this.detectionForTaskStates = getTaskStatesForWhichDetectionIsEnabled();
   }
 
   private HashSet<TaskPartitionState> getTaskStatesForWhichDetectionIsEnabled() {
     HashSet<TaskPartitionState> taskStates = new HashSet<>();
-    if (this.enableDetectStuckTask) {
+    if (this.enableDetectionStuckTask) {
       List<String> taskStatesEnabledForDetection = ConfigUtils.getStringList(this.config, ENABLE_DETECTION_FOR_TASK_STATES);
       for (String taskState : taskStatesEnabledForDetection) {
         try {
@@ -172,10 +172,6 @@ public class YarnAutoScalingManager extends AbstractIdleService {
         } catch (IllegalArgumentException e) {
           log.warn("Invalid task state {} provided for detection, ignoring", taskState);
         }
-      }
-      if (taskStatesEnabledForDetection.isEmpty()) {
-        // if config was not set, default case enable only for INIT state
-        taskStates.add(TaskPartitionState.INIT);
       }
     }
     log.info("Detection of task being stuck is enabled on following task states {}", taskStates);
@@ -196,7 +192,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
             this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor(), this.defaultHelixInstanceTags,
             this.defaultContainerMemoryMbs, this.defaultContainerCores, this.taskAttemptsThreshold,
             this.splitWorkUnitReachThreshold, this.maxTimeInMinutesBeforeReleasingContainerHavingStuckTask,
-            this.enableReleasingContainerHavingStuckTask, this.enableDetectStuckTask, this.detectionForTaskStates),
+            this.enableReleasingContainerHavingStuckTask, this.enableDetectionStuckTask, this.detectionForTaskStates),
         initialDelay, scheduleInterval, TimeUnit.SECONDS);
   }
 
@@ -227,7 +223,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     private final boolean splitWorkUnitReachThreshold;
     private final int maxTimeInMinutesBeforeReleasingContainerHavingStuckTask;
     private final boolean enableReleasingContainerHavingStuckTask;
-    private final boolean enableDetectStuckTask;
+    private final boolean enableDetectionStuckTask;
     private final HashSet<TaskPartitionState> taskStates;
 
     /**
@@ -331,7 +327,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
                 .map(i -> getInuseParticipantForHelixPartition(jobContext, i))
                 .filter(Objects::nonNull).collect(Collectors.toSet()));
 
-            if (enableDetectStuckTask) {
+            if (enableDetectionStuckTask) {
               // if feature is not enabled the set helixInstancesContainingStuckTasks will always be empty
               helixInstancesContainingStuckTasks.addAll(jobContext.getPartitionSet().stream()
                   .map(helixPartition -> getParticipantInGivenStateForHelixPartition(jobContext, helixPartition, taskStates))
