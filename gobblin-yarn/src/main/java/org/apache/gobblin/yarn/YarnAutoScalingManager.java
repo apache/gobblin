@@ -116,7 +116,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
   private final int maxTimeInMinutesBeforeReleasingContainerHavingStuckTask;
   private final boolean enableReleasingContainerHavingStuckTask;
   private final boolean enableDetectionStuckTask;
-  private final HashSet<TaskPartitionState> detectionForTaskStates;
+  private final HashSet<TaskPartitionState> detectionForStuckTaskStates;
   private static final HashSet<TaskPartitionState>
       UNUSUAL_HELIX_TASK_STATES = Sets.newHashSet(TaskPartitionState.ERROR, TaskPartitionState.DROPPED, TaskPartitionState.COMPLETED, TaskPartitionState.TIMED_OUT);
 
@@ -154,7 +154,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
     this.enableReleasingContainerHavingStuckTask = ConfigUtils.getBoolean(this.config,
         RELEASE_CONTAINER_IF_TASK_IS_STUCK, false);
     this.enableDetectionStuckTask = ConfigUtils.getBoolean(this.config, DETECT_IF_TASK_IS_STUCK, false);
-    this.detectionForTaskStates = getTaskStatesForWhichDetectionIsEnabled();
+    this.detectionForStuckTaskStates = getTaskStatesForWhichDetectionIsEnabled();
   }
 
   private HashSet<TaskPartitionState> getTaskStatesForWhichDetectionIsEnabled() {
@@ -192,7 +192,7 @@ public class YarnAutoScalingManager extends AbstractIdleService {
             this.slidingFixedSizeWindow, this.helixManager.getHelixDataAccessor(), this.defaultHelixInstanceTags,
             this.defaultContainerMemoryMbs, this.defaultContainerCores, this.taskAttemptsThreshold,
             this.splitWorkUnitReachThreshold, this.maxTimeInMinutesBeforeReleasingContainerHavingStuckTask,
-            this.enableReleasingContainerHavingStuckTask, this.enableDetectionStuckTask, this.detectionForTaskStates),
+            this.enableReleasingContainerHavingStuckTask, this.enableDetectionStuckTask, this.detectionForStuckTaskStates),
         initialDelay, scheduleInterval, TimeUnit.SECONDS);
   }
 
