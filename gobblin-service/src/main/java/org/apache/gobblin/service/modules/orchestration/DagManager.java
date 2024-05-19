@@ -138,6 +138,7 @@ public class DagManager extends AbstractIdleService {
   public static final Integer DEFAULT_FAILED_DAG_POLLING_INTERVAL = 60;
   public static final String DAG_MANAGER_HEARTBEAT = ServiceMetricNames.GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "dagManager.heartbeat-%s";
   // Default job start SLA time if configured, measured in minutes. Default is 10 minutes
+  // todo - rename "sla" -> "deadline", and move them to DagProcUtils
   public static final String JOB_START_SLA_TIME = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME;
   public static final String JOB_START_SLA_UNITS = DAG_MANAGER_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT;
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;

@@ -23,8 +23,10 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -43,6 +45,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
 
@@ -91,7 +94,7 @@ public class DagProcUtils {
       // blocks (by calling Future#get()) until the submission is completed.
       dagManagementStateStore.tryAcquireQuota(Collections.singleton(dagNode));
 
-      sendEnforceStartDeadlineDagAction(dagNode);
+      sendEnforceJobStartDeadlineDagAction(dagNode);
 
       Future<?> addSpecFuture = producer.addSpec(jobSpec);
       // todo - we should add future.get() instead of the complete future into the JobExecutionPlan
@@ -164,10 +167,23 @@ public class DagProcUtils {
     jobExecutionPlan.setExecutionStatus(CANCELLED);
   }
 
-  private static void sendEnforceStartDeadlineDagAction(Dag.DagNode<JobExecutionPlan> dagNode)
+  private static void sendEnforceJobStartDeadlineDagAction(Dag.DagNode<JobExecutionPlan> dagNode)
       throws IOException {
     dagActionStore.addJobDagAction(dagNode.getValue().getFlowGroup(), dagNode.getValue().getFlowName(),
         String.valueOf(dagNode.getValue().getFlowExecutionId()), dagNode.getValue().getJobName(),
-        DagActionStore.DagActionType.ENFORCE_START_DEADLINE);
+        DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+  }
+
+  public static void sendEnforceFlowFinishDeadlineDagAction(DagActionStore.DagAction launchDagAction)
+      throws IOException {
+    dagActionStore.addFlowDagAction(launchDagAction.getFlowGroup(), launchDagAction.getFlowName(),
+        launchDagAction.getFlowExecutionId(), DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+  }
+
+  public static long getDefaultJobStartDeadline(Config config) {
+    TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
+        config, DagManager.JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
+    return jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, DagManager.JOB_START_SLA_TIME,
+        ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
   }
 }

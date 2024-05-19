@@ -21,9 +21,7 @@ import java.io.IOException;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
-import java.util.concurrent.TimeUnit;
 
-import org.apache.commons.lang3.tuple.Pair;
 import org.quartz.SchedulerException;
 
 import com.google.inject.Inject;
@@ -44,14 +42,13 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
-import org.apache.gobblin.service.modules.orchestration.task.EnforceFinishDeadlineDagTask;
-import org.apache.gobblin.service.modules.orchestration.task.EnforceStartDeadlineDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -85,7 +82,6 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   protected MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter;
   protected Optional<DagActionReminderScheduler> dagActionReminderScheduler;
   private final boolean isMultiActiveExecutionEnabled;
-  @Inject
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.DagAction> dagActionQueue = new LinkedBlockingQueue<>();
   private final DagManagementStateStore dagManagementStateStore;
@@ -135,11 +131,13 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       while (true) {
         try {
           DagActionStore.DagAction dagAction = this.dagActionQueue.take();
-          // create triggers for original (non-reminder) dag actions of type ENFORCE_START_DEADLINE and ENFORCE_FINISH_DEADLINE
-          if (!dagAction.isReminder() && dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_START_DEADLINE) {
-            createStartDeadlineTrigger(dagAction);
-          } else if (!dagAction.isReminder() && dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_FINISH_DEADLINE) {
-            createFinishDeadlineTrigger(dagAction);
+          // create triggers for original (non-reminder) dag actions of type ENFORCE_JOB_START_DEADLINE and ENFORCE_FLOW_FINISH_DEADLINE
+          // reminder triggers are used to inform hosts once the deadline for ENFORCE_JOB_START and ENFORCE_FLOW_FINISH passed
+          // then only is lease arbitration done to enforce the deadline violation and fail the job or flow if needed
+          if (!dagAction.isReminder() && dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE) {
+            createJobStartDeadlineTrigger(dagAction);
+          } else if (!dagAction.isReminder() && dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE) {
+            createFlowFinishDeadlineTrigger(dagAction);
           } else {
             LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(dagAction);
             if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
@@ -153,29 +151,20 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       }
   }
 
-  private void createStartDeadlineTrigger(DagActionStore.DagAction dagAction)
-      throws SchedulerException {
-    Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> dagNodeToCreateTriggerFor =
-        this.dagManagementStateStore.getDagNodeWithJobStatus(dagAction.getDagNodeId());
-
-    TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(this.config, DagManager.JOB_START_SLA_UNITS,
-        ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
-    long defaultJobStartSlaTimeMillis = jobStartTimeUnit.toMillis(ConfigUtils.getLong(this.config,
-        DagManager.JOB_START_SLA_TIME, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
-
-    long timeOutForJobStart = DagManagerUtils.getJobStartSla(dagNodeToCreateTriggerFor.getLeft().get(), defaultJobStartSlaTimeMillis);
-    long jobOrchestratedTime = dagNodeToCreateTriggerFor.getRight().get().getOrchestratedTime();
-    long reminderDuration = jobOrchestratedTime + timeOutForJobStart - System.currentTimeMillis();
+  private void createJobStartDeadlineTrigger(DagActionStore.DagAction dagAction) throws SchedulerException, IOException {
+    long timeOutForJobStart = DagManagerUtils.getJobStartSla(this.dagManagementStateStore.getDag(
+        dagAction.getDagId()).get().getNodes().get(0), DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
+    // todo - this timestamp is just an approximation, the real job submission has happened in past, and that is when a
+    // ENFORCE_JOB_START_DEADLINE dag action was created; we are just processing that dag action here
+    long jobSubmissionTime = System.currentTimeMillis();
+    long reminderDuration = jobSubmissionTime + timeOutForJobStart - System.currentTimeMillis();
 
     dagActionReminderScheduler.get().scheduleReminder(dagAction, reminderDuration);
   }
 
-  private void createFinishDeadlineTrigger(DagActionStore.DagAction dagAction)
-      throws SchedulerException {
-    Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> dagNodeToCreateTriggerFor =
-        this.dagManagementStateStore.getDagNodeWithJobStatus(dagAction.getDagNodeId());
+  private void createFlowFinishDeadlineTrigger(DagActionStore.DagAction dagAction) throws SchedulerException, IOException {
     long timeOutForJobFinish;
-    Dag.DagNode<JobExecutionPlan> dagNode = dagNodeToCreateTriggerFor.getLeft().get();
+    Dag.DagNode<JobExecutionPlan> dagNode = this.dagManagementStateStore.getDag(dagAction.getDagId()).get().getNodes().get(0);
 
     try {
       timeOutForJobFinish = DagManagerUtils.getFlowSLA(dagNode);
@@ -187,7 +176,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       timeOutForJobFinish = DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS;
     }
 
-    long flowStartTime = dagNodeToCreateTriggerFor.getLeft().get().getValue().getFlowStartTime();
+    long flowStartTime = DagManagerUtils.getFlowStartTime(dagNode);
     long reminderDuration = flowStartTime + timeOutForJobFinish - System.currentTimeMillis();
 
     dagActionReminderScheduler.get().scheduleReminder(dagAction, reminderDuration);
@@ -220,10 +209,10 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     DagActionStore.DagActionType dagActionType = dagAction.getDagActionType();
 
     switch (dagActionType) {
-      case ENFORCE_FINISH_DEADLINE:
-        return new EnforceFinishDeadlineDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
-      case ENFORCE_START_DEADLINE:
-        return new EnforceStartDeadlineDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+      case ENFORCE_FLOW_FINISH_DEADLINE:
+        return new EnforceFlowFinishDeadlineDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+      case ENFORCE_JOB_START_DEADLINE:
+        return new EnforceJobStartDeadlineDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
       case KILL:
         return new KillDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
       case LAUNCH:

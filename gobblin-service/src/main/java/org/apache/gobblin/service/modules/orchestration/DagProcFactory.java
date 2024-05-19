@@ -22,15 +22,15 @@ import com.google.inject.Singleton;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
-import org.apache.gobblin.service.modules.orchestration.proc.EnforceFinishDeadlineDagProc;
-import org.apache.gobblin.service.modules.orchestration.proc.EnforceStartDeadlineDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.EnforceFlowFinishDeadlineDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.EnforceJobStartDeadlineDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.KillDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.ReevaluateDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.ResumeDagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
-import org.apache.gobblin.service.modules.orchestration.task.EnforceFinishDeadlineDagTask;
-import org.apache.gobblin.service.modules.orchestration.task.EnforceStartDeadlineDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
@@ -56,13 +56,13 @@ public class DagProcFactory implements DagTaskVisitor<DagProc> {
   }
 
   @Override
-  public DagProc meet(EnforceFinishDeadlineDagTask enforceFinishDeadlineDagTask) {
-    return new EnforceFinishDeadlineDagProc(enforceFinishDeadlineDagTask);
+  public DagProc meet(EnforceFlowFinishDeadlineDagTask enforceFlowFinishDeadlineDagTask) {
+    return new EnforceFlowFinishDeadlineDagProc(enforceFlowFinishDeadlineDagTask);
   }
 
   @Override
-  public DagProc meet(EnforceStartDeadlineDagTask enforceStartDeadlineDagTask) {
-    return new EnforceStartDeadlineDagProc(enforceStartDeadlineDagTask);
+  public DagProc meet(EnforceJobStartDeadlineDagTask enforceJobStartDeadlineDagTask) {
+    return new EnforceJobStartDeadlineDagProc(enforceJobStartDeadlineDagTask);
   }
 
 

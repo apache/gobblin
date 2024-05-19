@@ -28,8 +28,8 @@ import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
  * {@link org.apache.gobblin.configuration.ConfigurationKeys#GOBBLIN_FLOW_SLA_TIME} time.
  */
 
-public class EnforceStartDeadlineDagTask extends DagTask {
-  public EnforceStartDeadlineDagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
+public class EnforceJobStartDeadlineDagTask extends DagTask {
+  public EnforceJobStartDeadlineDagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
       DagActionStore dagActionStore) {
     super(dagAction, leaseObtainedStatus, dagActionStore);
   }

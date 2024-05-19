@@ -88,18 +88,18 @@ public class DagActionReminderScheduler {
     @Override
     public void execute(JobExecutionContext context) {
       // Get properties from the trigger to create a dagAction
-      JobDataMap jobDataMap = context.getTrigger().getJobDataMap();
+      JobDataMap jobDataMap = context.getMergedJobDataMap();
       String flowName = jobDataMap.getString(ConfigurationKeys.FLOW_NAME_KEY);
       String flowGroup = jobDataMap.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String jobName = jobDataMap.getString(ConfigurationKeys.JOB_NAME_KEY);
-      String flowId = jobDataMap.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+      String flowExecutionId = jobDataMap.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
       DagActionStore.DagActionType dagActionType = (DagActionStore.DagActionType) jobDataMap.get(FLOW_ACTION_TYPE_KEY);
 
       log.info("DagProc reminder triggered for (flowGroup: " + flowGroup + ", flowName: " + flowName
-          + ", flowExecutionId: " + flowId + ", jobName: " + jobName +")");
+          + ", flowExecutionId: " + flowExecutionId + ", jobName: " + jobName + ", dagActionType: " + dagActionType + ")");
 
-      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowId, jobName, dagActionType);
-      dagAction.setReminder(true);
+      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
+      //dagAction.setReminder(true);
 
       try {
         DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class);

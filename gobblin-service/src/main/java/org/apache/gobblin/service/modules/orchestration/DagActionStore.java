@@ -22,6 +22,7 @@ import java.sql.SQLException;
 import java.util.Collection;
 
 import lombok.Data;
+import lombok.RequiredArgsConstructor;
 
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
@@ -31,23 +32,28 @@ public interface DagActionStore {
   public static final String NO_JOB_NAME_DEFAULT = "";
   enum DagActionType {
     CANCEL, // Invoked through DagManager if flow has been stuck in Orchestrated state for a while
+    ENFORCE_JOB_START_DEADLINE, // Enforce job start deadline
+    ENFORCE_FLOW_FINISH_DEADLINE, // Enforce flow finish deadline
     KILL, // Kill invoked through API call
     LAUNCH, // Launch new flow execution invoked adhoc or through scheduled trigger
     REEVALUATE, // Re-evaluate what needs to be done upon receipt of a final job status
     RESUME, // Resume flow invoked through API call
     RETRY, // Invoked through DagManager for flows configured to allow retries
-    ENFORCE_START_DEADLINE, // Enforce job start deadline
-    ENFORCE_FINISH_DEADLINE, // Enforce job finish deadline
   }
 
   @Data
+  @RequiredArgsConstructor
   class DagAction {
     final String flowGroup;
     final String flowName;
     final String flowExecutionId;
     final String jobName;
     final DagActionType dagActionType;
-    boolean isReminder = false;
+    final boolean isReminder;
+
+    public DagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) {
+      this(flowGroup, flowName, flowExecutionId, jobName, dagActionType, false);
+    }
 
     public static DagAction forFlow(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) {
       return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
@@ -73,8 +79,11 @@ public interface DagActionStore {
           Long.parseLong(this.flowExecutionId), this.flowGroup, this.jobName);
     }
 
-    public void setReminder(boolean isReminder) {
-      this.isReminder = isReminder;
+    /**
+     * Creates and returns a {@link DagManager.DagId} for this DagAction.
+     */
+    public DagManager.DagId getDagId() {
+      return new DagManager.DagId(this.flowGroup, this.flowName, this.flowExecutionId);
     }
   }
 

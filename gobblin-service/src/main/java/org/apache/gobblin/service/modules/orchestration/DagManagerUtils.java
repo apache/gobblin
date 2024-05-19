@@ -96,7 +96,7 @@ public class DagManagerUtils {
     return getFlowExecId(dagNode.getValue().getJobSpec());
   }
 
-  static long getFlowExecId(JobSpec jobSpec) {
+  public static long getFlowExecId(JobSpec jobSpec) {
     return jobSpec.getConfig().getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
   }
 
@@ -287,15 +287,8 @@ public class DagManagerUtils {
     dagNode.getValue().setCurrentGeneration(dagNode.getValue().getCurrentGeneration() + 1);
   }
 
-  /**
-   * Flow start time is the same as the flow execution id which is the timestamp flow request was received, unless it
-   * is a resumed flow, in which case it is {@link JobExecutionPlan#getFlowStartTime()}
-   * @param dagNode dag node in context
-   * @return flow start time
-   */
   public static long getFlowStartTime(DagNode<JobExecutionPlan> dagNode) {
-    long flowStartTime = dagNode.getValue().getFlowStartTime();
-    return flowStartTime == 0L ? getFlowExecId(dagNode) : flowStartTime;
+    return dagNode.getValue().getFlowStartTime();
   }
 
   /**
@@ -330,6 +323,8 @@ public class DagManagerUtils {
         ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME))
         : defaultJobStartSla;
   }
+
+
 
   static int getDagQueueId(Dag<JobExecutionPlan> dag, int numThreads) {
     return getDagQueueId(DagManagerUtils.getFlowExecId(dag), numThreads);

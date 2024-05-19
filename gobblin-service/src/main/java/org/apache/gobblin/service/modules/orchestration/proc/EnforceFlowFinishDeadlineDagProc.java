@@ -27,7 +27,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
-import org.apache.gobblin.service.modules.orchestration.task.EnforceFinishDeadlineDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
@@ -36,10 +36,10 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  * {@link org.apache.gobblin.configuration.ConfigurationKeys#GOBBLIN_FLOW_SLA_TIME} time.
  */
 @Slf4j
-public class EnforceFinishDeadlineDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
+public class EnforceFlowFinishDeadlineDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
 
-  public EnforceFinishDeadlineDagProc(EnforceFinishDeadlineDagTask enforceFinishDeadlineDagTask) {
-    super(enforceFinishDeadlineDagTask);
+  public EnforceFlowFinishDeadlineDagProc(EnforceFlowFinishDeadlineDagTask enforceFlowFinishDeadlineDagTask) {
+    super(enforceFlowFinishDeadlineDagTask);
   }
 
   @Override
@@ -60,18 +60,18 @@ public class EnforceFinishDeadlineDagProc extends DagProc<Optional<Dag<JobExecut
       return;
     }
 
-    enforceFinishDeadline(dagManagementStateStore, dag);
+    enforceFlowFinishDeadline(dagManagementStateStore, dag);
   }
 
-  private void enforceFinishDeadline(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
+  private void enforceFlowFinishDeadline(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
       throws IOException {
     Dag.DagNode<JobExecutionPlan> dagNode = dag.get().getNodes().get(0);
     long flowSla = DagManagerUtils.getFlowSLA(dagNode);
     long flowStartTime = DagManagerUtils.getFlowStartTime(dagNode);
 
+    // note that this condition should be true because the triggered dag action has waited enough before reaching here
     if (System.currentTimeMillis() > flowStartTime + flowSla) {
       log.info("Dag {} exceeded the SLA of {} ms. Killing it now...", getDagId(), flowSla);
-      //dagManagementStateStore.getDagManagerMetrics().incrementExecutorSlaExceeded(node);
       List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = dag.get().getNodes();
       log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), getDagId());
 

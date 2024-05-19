@@ -29,7 +29,8 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
-import org.apache.gobblin.service.modules.orchestration.task.EnforceStartDeadlineDagTask;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 import static org.apache.gobblin.service.ExecutionStatus.ORCHESTRATED;
@@ -41,10 +42,10 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
  * {@link org.apache.gobblin.service.modules.orchestration.DagManager#JOB_START_SLA_TIME} time.
  */
 @Slf4j
-public class EnforceStartDeadlineDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
+public class EnforceJobStartDeadlineDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
 
-  public EnforceStartDeadlineDagProc(EnforceStartDeadlineDagTask enforceStartDeadlineDagTask) {
-    super(enforceStartDeadlineDagTask);
+  public EnforceJobStartDeadlineDagProc(EnforceJobStartDeadlineDagTask enforceJobStartDeadlineDagTask) {
+    super(enforceJobStartDeadlineDagTask);
   }
 
   @Override
@@ -65,20 +66,21 @@ public class EnforceStartDeadlineDagProc extends DagProc<Optional<Dag<JobExecuti
       return;
     }
 
-    enforceStartDeadline(dagManagementStateStore, dag);
+    enforceJobStartDeadline(dagManagementStateStore, dag);
   }
 
-  private void enforceStartDeadline(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
+  private void enforceJobStartDeadline(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
       throws IOException {
     Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<org.apache.gobblin.service.monitoring.JobStatus>>
         dagNodeToCheckDeadline = dagManagementStateStore.getDagNodeWithJobStatus(getDagNodeId());
     if (!dagNodeToCheckDeadline.getLeft().isPresent()) {
       // this should never happen; a job for which DEADLINE_ENFORCEMENT dag action is created must have a dag node in store
+      log.error("Dag node {} not found for EnforceJobStartDeadlineDagProc", getDagNodeId());
       return;
     }
 
     Dag.DagNode<JobExecutionPlan> dagNode = dagNodeToCheckDeadline.getLeft().get();
-    long timeOutForJobStart = DagManagerUtils.getJobStartSla(dagNode, 1000000L);//, this.defaultJobStartSlaTimeMillis);
+    long timeOutForJobStart = DagManagerUtils.getJobStartSla(dagNode, DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
     Optional<org.apache.gobblin.service.monitoring.JobStatus> jobStatus = dagNodeToCheckDeadline.getRight();
     if (!jobStatus.isPresent()) {
       return;
@@ -86,7 +88,7 @@ public class EnforceStartDeadlineDagProc extends DagProc<Optional<Dag<JobExecuti
 
     ExecutionStatus executionStatus = valueOf(jobStatus.get().getEventName());
     long jobOrchestratedTime = jobStatus.get().getOrchestratedTime();
-    // note that second condition should be true because that's how the triggered dag action reached here
+    // note that second condition should be true because the triggered dag action has waited enough before reaching here
     if (executionStatus == ORCHESTRATED && System.currentTimeMillis() > jobOrchestratedTime + timeOutForJobStart) {
       log.info("Job {} of flow {} exceeded the job start SLA of {} ms. Killing the job now...",
           DagManagerUtils.getJobName(dagNode), DagManagerUtils.getFullyQualifiedDagName(dag.get()), timeOutForJobStart);

@@ -42,8 +42,8 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStoreTest;
-import org.apache.gobblin.service.modules.orchestration.task.EnforceFinishDeadlineDagTask;
-import org.apache.gobblin.service.modules.orchestration.task.EnforceStartDeadlineDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
@@ -70,8 +70,12 @@ public class EnforceDeadlineDagProcsTest {
     this.mockedGobblinServiceManager.close();
   }
 
+  /*
+    This test simulate submitting a dag with a very little job start deadline and then verifies that the starting job is
+     killed because not being able to start in the deadline time.
+   */
   @Test
-  public void enforceStartDeadlineTest() throws Exception {
+  public void enforceJobStartDeadlineTest() throws Exception {
     String flowGroup = "fg";
     String flowName = "fn";
     long flowExecutionId = System.currentTimeMillis();
@@ -91,10 +95,10 @@ public class EnforceDeadlineDagProcsTest {
     this.mockedGobblinServiceManager.when(() -> GobblinServiceManager.getClass(DagActionStore.class)).thenReturn(mock(DagActionStore.class));
     dagManagementStateStore.checkpointDag(dag);  // simulate having a dag that has not yet started running
 
-    EnforceStartDeadlineDagProc enforceStartDeadlineDagProc = new EnforceStartDeadlineDagProc(
-        new EnforceStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(flowExecutionId),
-            "job0", DagActionStore.DagActionType.ENFORCE_START_DEADLINE), null, mock(DagActionStore.class)));
-    enforceStartDeadlineDagProc.process(dagManagementStateStore);
+    EnforceJobStartDeadlineDagProc enforceJobStartDeadlineDagProc = new EnforceJobStartDeadlineDagProc(
+        new EnforceJobStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(flowExecutionId),
+            "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null, mock(DagActionStore.class)));
+    enforceJobStartDeadlineDagProc.process(dagManagementStateStore);
 
     int expectedNumOfDeleteDagNodeStates = 1; // the one dag node corresponding to the EnforceStartDeadlineDagProc
     Assert.assertEquals(expectedNumOfDeleteDagNodeStates,
@@ -102,8 +106,12 @@ public class EnforceDeadlineDagProcsTest {
             .filter(a -> a.getMethod().getName().equals("deleteDagNodeState")).count());
   }
 
+  /*
+   This test simulate submitting a dag with a very little flow finish deadline and then verifies that all of its job are
+   killed because the dag did not finish in the deadline time.
+ */
   @Test
-  public void enforceFinishDeadlineTest() throws Exception {
+  public void enforceFlowFinishDeadlineTest() throws Exception {
     String flowGroup = "fg";
     String flowName = "fn";
     long flowExecutionId = System.currentTimeMillis();
@@ -124,10 +132,10 @@ public class EnforceDeadlineDagProcsTest {
     this.mockedGobblinServiceManager.when(() -> GobblinServiceManager.getClass(DagActionStore.class)).thenReturn(mock(DagActionStore.class));
     dagManagementStateStore.checkpointDag(dag);  // simulate having a dag that is in running state
 
-    EnforceFinishDeadlineDagProc enforceFinishDeadlineDagProc = new EnforceFinishDeadlineDagProc(
-        new EnforceFinishDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(flowExecutionId),
-            "job0", DagActionStore.DagActionType.ENFORCE_START_DEADLINE), null, mock(DagActionStore.class)));
-    enforceFinishDeadlineDagProc.process(dagManagementStateStore);
+    EnforceFlowFinishDeadlineDagProc enforceFlowFinishDeadlineDagProc = new EnforceFlowFinishDeadlineDagProc(
+        new EnforceFlowFinishDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(flowExecutionId),
+            "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null, mock(DagActionStore.class)));
+    enforceFlowFinishDeadlineDagProc.process(dagManagementStateStore);
 
     Assert.assertEquals(numOfDagNodes,
         Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()

@@ -26,6 +26,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.google.inject.name.Named;
 import com.typesafe.config.Config;
 
 import lombok.AllArgsConstructor;
@@ -61,10 +62,12 @@ public class DagProcessingEngine extends AbstractIdleService {
   private final Optional<DagProcFactory> dagProcFactory;
   private ScheduledExecutorService scheduledExecutorPool;
   private static final Integer TERMINATION_TIMEOUT = 30;
+  public static final String DEFAULT_JOB_START_DEADLINE_TIME_MS = "defaultJobStartDeadlineTimeMillis";
+  @Getter static long defaultJobStartSlaTimeMillis;
 
   @Inject
-  public DagProcessingEngine(Config config, Optional<DagTaskStream> dagTaskStream,
-      Optional<DagProcFactory> dagProcFactory, Optional<DagManagementStateStore> dagManagementStateStore) {
+  public DagProcessingEngine(Config config, Optional<DagTaskStream> dagTaskStream, Optional<DagProcFactory> dagProcFactory,
+      Optional<DagManagementStateStore> dagManagementStateStore, @Named(DEFAULT_JOB_START_DEADLINE_TIME_MS) long deadlineTimeMs) {
     this.config = config;
     this.dagProcFactory = dagProcFactory;
     this.dagTaskStream = dagTaskStream;
@@ -77,6 +80,11 @@ public class DagProcessingEngine extends AbstractIdleService {
           this.dagManagementStateStore.isPresent() ? "present" : "MISSING"));
     }
     log.info("DagProcessingEngine initialized.");
+    setDefaultJobStartDeadlineTimeMs(deadlineTimeMs);
+  }
+
+  private static void setDefaultJobStartDeadlineTimeMs(long deadlineTimeMs) {
+    defaultJobStartSlaTimeMillis = deadlineTimeMs;
   }
 
   @Override

@@ -259,12 +259,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private void clearStartDeadlineTriggerAndDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName) {
 
     DagActionStore.DagAction enforceStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
-        String.valueOf(flowExecutionId), jobName, DagActionStore.DagActionType.ENFORCE_START_DEADLINE);
+        String.valueOf(flowExecutionId), jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
     try {
       GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(enforceStartDeadlineDagAction);
       GobblinServiceManager.getClass(DagActionStore.class).deleteDagAction(enforceStartDeadlineDagAction);
     } catch (SchedulerException | IOException e) {
-      log.warn("Failed to unschedule the reminder for {}", enforceStartDeadlineDagAction);
+      log.error("Failed to unschedule the reminder for {}", enforceStartDeadlineDagAction);
     }
   }
 
