@@ -126,7 +126,7 @@ public class FlowLaunchHandler {
     } else if (leaseAttempt instanceof LeaseAttemptStatus.LeasedToAnotherStatus) { // already have one: just return it
       return Optional.of((LeaseAttemptStatus.LeasedToAnotherStatus) leaseAttempt);
     } else if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus) { // remind w/o delay to immediately re-attempt handling
-      return Optional.of(new LeaseAttemptStatus.LeasedToAnotherStatus(leaseAttempt.getConsensusDagAction(), 0L));
+      return Optional.of(new LeaseAttemptStatus.LeasedToAnotherStatus(leaseAttempt.getConsensusDagAction(), ((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt).getEventTimeMillis(), 0L));
     } else {
       throw new RuntimeException("unexpected `LeaseAttemptStatus` derived type: '" + leaseAttempt.getClass().getName() + "' in '" + leaseAttempt + "'");
     }

@@ -28,15 +28,16 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 
 
 public class FlowLaunchHandlerTest {
-  long eventToRevisit = 123000L;
+  long flowExecutionId = 123000L;
+  long eventToRevisit = 641000L;
   long minimumLingerDurationMillis = 2000L;
   String cronExpression = FlowLaunchHandler.createCronFromDelayPeriod(minimumLingerDurationMillis);
   String cronExpressionSuffix = truncateFirstTwoFieldsOfCronExpression(cronExpression);
   int schedulerBackOffMillis = 10;
   DagActionStore.DagAction dagAction = new DagActionStore.DagAction("flowName", "flowGroup",
-      String.valueOf(eventToRevisit), "jobName", DagActionStore.DagActionType.LAUNCH);
+      String.valueOf(flowExecutionId), "jobName", DagActionStore.DagActionType.LAUNCH);
   LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus =
-      new LeaseAttemptStatus.LeasedToAnotherStatus(dagAction, minimumLingerDurationMillis);
+      new LeaseAttemptStatus.LeasedToAnotherStatus(dagAction, eventToRevisit, minimumLingerDurationMillis);
 
   /**
    * Remove first two fields from cron expression representing seconds and minutes to return truncated cron expression
