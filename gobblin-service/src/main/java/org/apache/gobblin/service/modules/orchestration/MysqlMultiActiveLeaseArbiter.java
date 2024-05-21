@@ -307,7 +307,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 2: Same event, lease is valid",
               updatedDagAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
           // Utilize db timestamp for reminder
-          return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction,
+          return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction, dbEventTimestamp.getTime(),
               dbLeaseAcquisitionTimestamp.getTime() + dbLinger - dbCurrentTimestamp.getTime());
         }
         DagActionStore.DagAction updatedDagAction =
@@ -315,7 +315,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 3: Distinct event, lease is valid",
             updatedDagAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
         // Utilize db lease acquisition timestamp for wait time
-        return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction,
+        return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction, dbEventTimestamp.getTime(),
             dbLeaseAcquisitionTimestamp.getTime() + dbLinger  - dbCurrentTimestamp.getTime());
       } // Lease is invalid
       else if (leaseValidityStatus == 2) {
@@ -514,7 +514,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     if (numRowsUpdated == 1) {
       log.info("Obtained lease for [{}, is: {}, eventTimestamp: {}] successfully!", updatedDagAction,
           isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis);
-      return new LeaseAttemptStatus.LeaseObtainedStatus(updatedDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get(), minimumLingerDurationMillis, this);
+      return new LeaseAttemptStatus.LeaseObtainedStatus(updatedDagAction, selectInfoResult.eventTimeMillis,
+          selectInfoResult.getLeaseAcquisitionTimeMillis().get(), minimumLingerDurationMillis, this);
     }
     log.info("Another participant acquired lease in between for [{}, is: {}, eventTimestamp: {}] - num rows updated: {}",
         updatedDagAction, isReminderEvent ? "reminder" : "original", selectInfoResult.eventTimeMillis, numRowsUpdated);
