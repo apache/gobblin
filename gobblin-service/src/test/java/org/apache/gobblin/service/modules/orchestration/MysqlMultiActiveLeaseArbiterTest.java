@@ -335,9 +335,10 @@ public class MysqlMultiActiveLeaseArbiterTest {
    }
 
    /*
-   Tests calling `tryAcquireLease` when `adoptConsensusFlowExecutionId` is set to True and verify that flowExecutionId
+   Tests calling `tryAcquireLease` when `adoptConsensusFlowExecutionId` is set to False and verify that flowExecutionId
    returned is the same as flowExecutionId provided to it for a LeaseObtainedStatus and LeasedToAnotherStatus object
-   (CASE 1 & 2).
+   (CASE 1 & 2). It also verifies that the `eventTimeMillis` stored in a lease obtained status can be used to complete
+   the lease.
    */
   @Test
   public void testSkipAdoptingConsensusFlowExecutionId() throws IOException {
@@ -348,18 +349,21 @@ public class MysqlMultiActiveLeaseArbiterTest {
     LeaseAttemptStatus.LeaseObtainedStatus firstObtainedStatus =
         (LeaseAttemptStatus.LeaseObtainedStatus) firstLaunchStatus;
     Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() <= firstObtainedStatus.getLeaseAcquisitionTimestamp());
+    Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() != Long.valueOf(firstObtainedStatus.getConsensusDagAction().getFlowExecutionId()));
     Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
         new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
 
     // A second attempt to obtain a lease on the same action should return a LeasedToAnotherStatus which also contains
-    // the original flowExecutionId
+    // the original flowExecutionId and the same event time from the previous LeaseAttemptStatus
     LeaseAttemptStatus secondLaunchStatus =
         mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction2, eventTimeMillis, false, false);
     Assert.assertTrue(secondLaunchStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus);
     LeaseAttemptStatus.LeasedToAnotherStatus secondLeasedToAnotherStatus =
         (LeaseAttemptStatus.LeasedToAnotherStatus) secondLaunchStatus;
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), secondLeasedToAnotherStatus.getEventTimeMillis());
-    Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
+    Assert.assertTrue(secondLeasedToAnotherStatus.getConsensusDagAction().equals(
         new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
+
+    Assert.assertTrue(mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(firstObtainedStatus));
   }
 }
