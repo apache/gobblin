@@ -55,7 +55,7 @@ public abstract class LeaseAttemptStatus {
   The timestamp associated with the lease is stored in `eventTimeMillis` field and the time the caller obtained the
   lease is stored within the`leaseAcquisitionTimestamp` field. Note that the `Dag action` returned by the lease
    arbitration attempt will be unchanged for flows that do not adopt the consensus eventTimeMillis as the flow execution
-   id, so a separate field must be maintained the track the eventTimeMillis for lease completion. The
+   id, so a separate field must be maintained to track the eventTimeMillis for lease completion. The
    `multiActiveLeaseArbiter` reference is used to recordLeaseSuccess for the current LeaseObtainedStatus via the
    completeLease method from a caller without access to the {@link MultiActiveLeaseArbiter}.
   */
