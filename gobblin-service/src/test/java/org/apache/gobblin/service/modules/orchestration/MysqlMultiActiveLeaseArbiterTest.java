@@ -239,7 +239,8 @@ public class MysqlMultiActiveLeaseArbiterTest {
     DagActionStore.DagAction updatedResumeDagAction = resumeDagAction.updateFlowExecutionId(
         selectInfoResult.getEventTimeMillis());
     boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseAttemptStatus.LeaseObtainedStatus(
-        updatedResumeDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get(), LINGER, null));
+        updatedResumeDagAction, selectInfoResult.getEventTimeMillis(),
+        selectInfoResult.getLeaseAcquisitionTimeMillis().get(), LINGER, null));
     Assert.assertTrue(markedSuccess);
     // Ensure no NPE results from calling this after a lease has been completed and acquisition timestamp val is NULL
     mysqlMultiActiveLeaseArbiter.evaluateStatusAfterLeaseAttempt(1, resumeDagAction,
@@ -321,7 +322,8 @@ public class MysqlMultiActiveLeaseArbiterTest {
      DagActionStore.DagAction updatedResumeDagAction = resumeDagAction.updateFlowExecutionId(
          selectInfoResult.getEventTimeMillis());
      boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseAttemptStatus.LeaseObtainedStatus(
-         updatedResumeDagAction, selectInfoResult.getLeaseAcquisitionTimeMillis().get(), LINGER, null));
+         updatedResumeDagAction, selectInfoResult.getEventTimeMillis(),
+         selectInfoResult.getLeaseAcquisitionTimeMillis().get(), LINGER, null));
      Assert.assertTrue(markedSuccess);
 
      // Sleep enough time for the event to have been considered distinct
