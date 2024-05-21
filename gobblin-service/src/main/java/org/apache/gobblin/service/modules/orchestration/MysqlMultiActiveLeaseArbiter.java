@@ -315,7 +315,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 3: Distinct event, lease is valid",
             updatedDagAction, isReminderEvent ? "reminder" : "original", dbCurrentTimestamp.getTime());
         // Utilize db lease acquisition timestamp for wait time
-        return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction, dbEventTimestamp.getTime(),
+        return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction, dbCurrentTimestamp.getTime(),
             dbLeaseAcquisitionTimestamp.getTime() + dbLinger  - dbCurrentTimestamp.getTime());
       } // Lease is invalid
       else if (leaseValidityStatus == 2) {
