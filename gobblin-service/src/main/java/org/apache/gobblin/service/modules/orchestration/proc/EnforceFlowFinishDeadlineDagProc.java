@@ -66,12 +66,11 @@ public class EnforceFlowFinishDeadlineDagProc extends DagProc<Optional<Dag<JobEx
   private void enforceFlowFinishDeadline(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
       throws IOException {
     Dag.DagNode<JobExecutionPlan> dagNode = dag.get().getNodes().get(0);
-    long flowSla = DagManagerUtils.getFlowSLA(dagNode);
+    long flowFinishDeadline = DagManagerUtils.getFlowSLA(dagNode);
     long flowStartTime = DagManagerUtils.getFlowStartTime(dagNode);
 
     // note that this condition should be true because the triggered dag action has waited enough before reaching here
-    if (System.currentTimeMillis() > flowStartTime + flowSla) {
-      log.info("Dag {} exceeded the SLA of {} ms. Killing it now...", getDagId(), flowSla);
+    if (System.currentTimeMillis() > flowStartTime + flowFinishDeadline) {
       List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = dag.get().getNodes();
       log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), getDagId());
 
@@ -80,8 +79,10 @@ public class EnforceFlowFinishDeadlineDagProc extends DagProc<Optional<Dag<JobEx
       }
 
       dag.get().setFlowEvent(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
-      dag.get().setMessage("Flow killed due to exceeding SLA of " + flowSla + " ms");
+      dag.get().setMessage("Flow killed due to exceeding SLA of " + flowFinishDeadline + " ms");
       dagManagementStateStore.checkpointDag(dag.get());
+    } else {
+      log.error("EnforceFlowFinishDeadline dagAction received before due time. flowStartTime {}, flowFinishDeadline {} ", flowStartTime, flowFinishDeadline);
     }
   }
 }

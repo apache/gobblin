@@ -24,8 +24,7 @@ import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 
 /**
  * A {@link DagTask} responsible for killing jobs if they have not started in
- * {@link org.apache.gobblin.service.modules.orchestration.DagManager#JOB_START_SLA_TIME} or does not finish in
- * {@link org.apache.gobblin.configuration.ConfigurationKeys#GOBBLIN_FLOW_SLA_TIME} time.
+ * {@link org.apache.gobblin.service.modules.orchestration.DagManager#JOB_START_SLA_TIME}.
  */
 
 public class EnforceJobStartDeadlineDagTask extends DagTask {

@@ -150,6 +150,7 @@ public class ReevaluateDagProcTest {
     Assert.assertEquals(Mockito.mockingDetails(this.dagActionReminderScheduler).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("unscheduleReminderJob")).count(), 1);
 
+    // when there is no more job to run in re-evaluate dag proc, it deletes enforce_flow_finish_dag_action also
     Assert.assertEquals(Mockito.mockingDetails(this.dagActionStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDagAction")).count(), 1);
   }

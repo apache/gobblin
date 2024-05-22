@@ -98,8 +98,7 @@ public class DagActionReminderScheduler {
       log.info("DagProc reminder triggered for (flowGroup: " + flowGroup + ", flowName: " + flowName
           + ", flowExecutionId: " + flowExecutionId + ", jobName: " + jobName + ", dagActionType: " + dagActionType + ")");
 
-      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
-      //dagAction.setReminder(true);
+      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType, true);
 
       try {
         DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class);

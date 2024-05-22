@@ -71,8 +71,8 @@ public class EnforceDeadlineDagProcsTest {
   }
 
   /*
-    This test simulate submitting a dag with a very little job start deadline and then verifies that the starting job is
-     killed because not being able to start in the deadline time.
+    This test simulate submitting a dag with a very short job start deadline that will definitely be breached,
+    resulting in the job requiring to be killed
    */
   @Test
   public void enforceJobStartDeadlineTest() throws Exception {
@@ -107,8 +107,8 @@ public class EnforceDeadlineDagProcsTest {
   }
 
   /*
-   This test simulate submitting a dag with a very little flow finish deadline and then verifies that all of its job are
-   killed because the dag did not finish in the deadline time.
+   This test simulate submitting a dag with a very short flow finish deadline that will definitely be breached,
+    resulting in the dag requiring to be killed
  */
   @Test
   public void enforceFlowFinishDeadlineTest() throws Exception {

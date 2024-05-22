@@ -201,6 +201,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = DagActionStore.DagAction.forFlow(getDagNodeId().getFlowGroup(),
         getDagNodeId().getFlowName(), String.valueOf(getDagNodeId().getFlowExecutionId()),
         DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+    log.info("Deleting reminder trigger and dag action {}", enforceFlowFinishDeadlineDagAction);
+    // todo - add metrics
+
     try {
       GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(getDagTask().getDagAction());
       GobblinServiceManager.getClass(DagActionStore.class).deleteDagAction(enforceFlowFinishDeadlineDagAction);

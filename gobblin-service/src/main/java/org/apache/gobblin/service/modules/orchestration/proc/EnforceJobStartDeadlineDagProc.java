@@ -75,6 +75,7 @@ public class EnforceJobStartDeadlineDagProc extends DagProc<Optional<Dag<JobExec
         dagNodeToCheckDeadline = dagManagementStateStore.getDagNodeWithJobStatus(getDagNodeId());
     if (!dagNodeToCheckDeadline.getLeft().isPresent()) {
       // this should never happen; a job for which DEADLINE_ENFORCEMENT dag action is created must have a dag node in store
+      // todo - add metrics
       log.error("Dag node {} not found for EnforceJobStartDeadlineDagProc", getDagNodeId());
       return;
     }
@@ -83,6 +84,7 @@ public class EnforceJobStartDeadlineDagProc extends DagProc<Optional<Dag<JobExec
     long timeOutForJobStart = DagManagerUtils.getJobStartSla(dagNode, DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
     Optional<org.apache.gobblin.service.monitoring.JobStatus> jobStatus = dagNodeToCheckDeadline.getRight();
     if (!jobStatus.isPresent()) {
+      log.error("Some job status should be present for dag node {} that this EnforceJobStartDeadlineDagProc belongs.", getDagNodeId());
       return;
     }
 
@@ -90,8 +92,8 @@ public class EnforceJobStartDeadlineDagProc extends DagProc<Optional<Dag<JobExec
     long jobOrchestratedTime = jobStatus.get().getOrchestratedTime();
     // note that second condition should be true because the triggered dag action has waited enough before reaching here
     if (executionStatus == ORCHESTRATED && System.currentTimeMillis() > jobOrchestratedTime + timeOutForJobStart) {
-      log.info("Job {} of flow {} exceeded the job start SLA of {} ms. Killing the job now...",
-          DagManagerUtils.getJobName(dagNode), DagManagerUtils.getFullyQualifiedDagName(dag.get()), timeOutForJobStart);
+      log.info("Job exceeded the job start deadline. Killing it now. Job - {}, jobOrchestratedTime - {}, timeOutForJobStart - {}",
+          DagManagerUtils.getJobName(dagNode), jobOrchestratedTime, timeOutForJobStart);
       dagManagementStateStore.getDagManagerMetrics().incrementCountsStartSlaExceeded(dagNode);
       DagProcUtils.cancelDagNode(dagNode, dagManagementStateStore);
       dag.get().setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);

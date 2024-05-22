@@ -230,7 +230,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
               this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
             }
           } else if (updatedJobStatus.getRight() == NewState.RUNNING) {
-            clearStartDeadlineTriggerAndDagAction(flowGroup, flowName, flowExecutionId, jobName);
+            removeStartDeadlineTriggerAndDagAction(flowGroup, flowName, flowExecutionId, jobName);
           }
 
           // update the state store after adding a dag action to guaranty at-least-once adding of dag action
@@ -256,10 +256,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     }
   }
 
-  private void clearStartDeadlineTriggerAndDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName) {
-
+  private void removeStartDeadlineTriggerAndDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName) {
     DagActionStore.DagAction enforceStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
         String.valueOf(flowExecutionId), jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+    log.info("Deleting reminder trigger and dag action {}", enforceStartDeadlineDagAction);
+    // todo - add metrics
+
     try {
       GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(enforceStartDeadlineDagAction);
       GobblinServiceManager.getClass(DagActionStore.class).deleteDagAction(enforceStartDeadlineDagAction);
@@ -267,7 +269,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       log.error("Failed to unschedule the reminder for {}", enforceStartDeadlineDagAction);
     }
   }
-
 
   /**
    * It fills missing fields in job status and also merge the fields with the existing job status in the state store.
