@@ -15,24 +15,24 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.ddm.activity;
+package org.apache.gobblin.temporal.ddm.work;
 
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
-import org.apache.gobblin.temporal.ddm.work.CommitStats;
-import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 
-
-/** Activity for reading the output of work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl} by
- * reading in a {@link WUProcessingSpec} to determine the location of the output task states */
-@ActivityInterface
-public interface CommitActivity {
-  /**
-   * Commit the output of the work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl}
-   * @param workSpec
-   * @return number of workunits committed
-   */
-  @ActivityMethod
-  CommitStats commit(WUProcessingSpec workSpec);
+/**
+ * Stats for a dataset that was committed.
+ */
+@Data
+@NonNull
+@RequiredArgsConstructor
+@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
+public class DatasetStats {
+  @NonNull private long recordsWritten;
+  @NonNull private long bytesWritten;
+  @NonNull private boolean successfullyCommitted;
+  @NonNull private int numCommittedWorkunits;
 }

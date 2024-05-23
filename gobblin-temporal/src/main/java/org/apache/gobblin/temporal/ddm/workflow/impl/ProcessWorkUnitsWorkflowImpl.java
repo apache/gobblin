@@ -27,6 +27,7 @@ import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
+import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.EagerFsDirBackedWorkUnitClaimCheckWorkload;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
@@ -48,14 +49,14 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   public static final String COMMIT_STEP_WORKFLOW_ID_BASE = "CommitStepWorkflow";
 
   @Override
-  public int process(WUProcessingSpec workSpec) {
+  public CommitStats process(WUProcessingSpec workSpec) {
     Optional<EventTimer> timer = this.createOptJobEventTimer(workSpec);
-    int result = performWork(workSpec);
+    CommitStats result = performWork(workSpec);
     timer.ifPresent(EventTimer::stop);
     return result;
   }
 
-  private int performWork(WUProcessingSpec workSpec) {
+  private CommitStats performWork(WUProcessingSpec workSpec) {
     Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
     NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec);
     int workunitsProcessed = processingWorkflow.performWorkload(
@@ -64,14 +65,14 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     );
     if (workunitsProcessed > 0) {
       CommitStepWorkflow commitWorkflow = createCommitStepWorkflow();
-      int result = commitWorkflow.commit(workSpec);
-      if (result == 0) {
+      CommitStats result = commitWorkflow.commit(workSpec);
+      if (result.getNumCommittedWorkUnits() == 0) {
         log.warn("No work units committed at the job level. They could have been committed at the task level.");
       }
       return result;
     } else {
       log.error("No work units processed, so no commit attempted.");
-      return 0;
+      return CommitStats.createEmpty();
     }
   }
 

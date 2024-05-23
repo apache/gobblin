@@ -80,10 +80,10 @@ public class Help {
     return name + "_" + calcPerExecQualifier(workerConfig);
   }
 
-  /** @return execution-specific name, incorporating any {@link ConfigurationKeys#FLOW_EXECUTION_ID_KEY} from `workerConfig` */
-  public static String qualifyNamePerExecWithFlowExecId(String name, Config jobProps) {
-    Optional<String> optFlowExecId = Optional.ofNullable(ConfigUtils.getString(jobProps, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, null));
-    return name + "_" + calcPerExecQualifierWithOptFlowExecId(optFlowExecId, jobProps);
+  /** @return execution-specific name, incorporating any {@link ConfigurationKeys#FLOW_EXECUTION_ID_KEY} from `config` */
+  public static String qualifyNamePerExecWithFlowExecId(String name, Config config) {
+    Optional<String> optFlowExecId = Optional.ofNullable(ConfigUtils.getString(config, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, null));
+    return name + "_" + calcPerExecQualifierWithOptFlowExecId(optFlowExecId, config);
   }
 
   public static String calcPerExecQualifierWithOptFlowExecId(Optional<String> optFlowExecId, Config workerConfig) {

@@ -93,7 +93,7 @@ public class JobContext implements Closeable {
   private final String jobId;
   private final String jobSequence;
   private final JobState jobState;
-  @Getter(AccessLevel.PACKAGE)
+  @Getter
   private final JobCommitPolicy jobCommitPolicy;
   // A job commit semantic where we want partially successful tasks to commit their data, but still fail the job
   // WARNING: this is for Gobblin jobs that do not record their watermark, hence this would not lead to duplicate work

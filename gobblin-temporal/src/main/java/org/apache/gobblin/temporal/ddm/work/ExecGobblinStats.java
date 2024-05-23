@@ -15,24 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.ddm.activity;
+package org.apache.gobblin.temporal.ddm.work;
 
-import io.temporal.activity.ActivityInterface;
-import io.temporal.activity.ActivityMethod;
+import java.util.Map;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
-import org.apache.gobblin.temporal.ddm.work.CommitStats;
-import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 
-
-/** Activity for reading the output of work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl} by
- * reading in a {@link WUProcessingSpec} to determine the location of the output task states */
-@ActivityInterface
-public interface CommitActivity {
-  /**
-   * Commit the output of the work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl}
-   * @param workSpec
-   * @return number of workunits committed
-   */
-  @ActivityMethod
-  CommitStats commit(WUProcessingSpec workSpec);
+/** Capture details (esp. for the temporal UI) of a {@link org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow} execution */
+@Data
+@RequiredArgsConstructor
+@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
+public class ExecGobblinStats {
+  @NonNull private int numWorkUnits;
+  @NonNull private int numCommitted;
+  @NonNull private String user;
+  @NonNull private Map<String, DatasetStats> stats;
 }
+

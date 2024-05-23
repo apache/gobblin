@@ -15,33 +15,30 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime;
+package org.apache.gobblin.temporal.ddm.work;
+
+import java.util.HashMap;
+import java.util.Map;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
-import org.apache.gobblin.metrics.DatasetMetric;
-
 
 /**
- * A class returned by {@link org.apache.gobblin.runtime.SafeDatasetCommit} to provide metrics for the dataset
- * that can be reported as a single event in the commit phase.
+ * Data structure representing the stats for a committed dataset, and the total number of committed workunits in the Gobblin Temporal job
+ * Return type of {@link org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow#process(WUProcessingSpec)}
+ * and {@link org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow#commit(WUProcessingSpec)}.
  */
 @Data
-@RequiredArgsConstructor
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
-public class DatasetTaskSummary {
-  @NonNull private String datasetUrn;
-  @NonNull private long recordsWritten;
-  @NonNull private long bytesWritten;
-  @NonNull private boolean successfullyCommitted;
+@RequiredArgsConstructor
+public class CommitStats {
+  @NonNull private Map<String, DatasetStats> datasetStats;
+  @NonNull private int numCommittedWorkUnits;
 
-  /**
-   * Convert a {@link DatasetTaskSummary} to a {@link DatasetMetric}.
-   */
-  public static DatasetMetric toDatasetMetric(DatasetTaskSummary datasetTaskSummary) {
-    return new DatasetMetric(datasetTaskSummary.getDatasetUrn(), datasetTaskSummary.getBytesWritten(), datasetTaskSummary.getRecordsWritten(), datasetTaskSummary.isSuccessfullyCommitted());
+  public static CommitStats createEmpty() {
+    return new CommitStats(new HashMap<>(), 0);
   }
 }

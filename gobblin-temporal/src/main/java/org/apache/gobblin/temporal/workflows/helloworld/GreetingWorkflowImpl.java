@@ -60,7 +60,7 @@ public class GreetingWorkflowImpl implements GreetingWorkflow {
         TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
         try (TemporalEventTimer timer = timerFactory.create("getGreetingTime")) {
             LOG.info("Executing getGreeting");
-            timer.addMetadata("name", name);
+            timer.withMetadata("name", name);
             return formatActivity.composeGreeting(name);
         }
     }

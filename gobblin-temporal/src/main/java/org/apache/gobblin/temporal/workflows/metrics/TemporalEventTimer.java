@@ -44,16 +44,20 @@ public class TemporalEventTimer implements EventTimer {
   private final EventSubmitterContext eventSubmitterContext;
   private final Instant startTime;
 
+  // Alias to stop()
+  public void submit() {
+    stop();
+  }
   @Override
   public void stop() {
     stop(getCurrentTime());
   }
 
   @Override
-  public void addMetadata(String key, String metadata) {
+  public TemporalEventTimer withMetadata(String key, String metadata) {
     this.eventBuilder.addMetadata(key, metadata);
+    return this;
   }
-
 
   private void stop(Instant endTime) {
     this.eventBuilder.addMetadata(EventSubmitter.EVENT_TYPE, TimingEvent.METADATA_TIMING_EVENT);

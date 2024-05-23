@@ -22,11 +22,21 @@ import io.temporal.common.RetryOptions;
 import io.temporal.workflow.Workflow;
 
 import java.time.Duration;
+import java.util.ArrayList;
+import java.util.List;
+import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.DatasetTaskSummary;
+import org.apache.gobblin.runtime.util.GsonUtils;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
+import org.apache.gobblin.temporal.ddm.work.CommitStats;
+import org.apache.gobblin.temporal.ddm.work.DatasetStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow;
+import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
 
 
 @Slf4j
@@ -47,7 +57,20 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
   private final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, ACTIVITY_OPTS);
 
   @Override
-  public int commit(WUProcessingSpec workSpec) {
-    return activityStub.commit(workSpec);
+  public CommitStats commit(WUProcessingSpec workSpec) {
+    CommitStats commitGobblinStats = activityStub.commit(workSpec);
+    TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(workSpec.getEventSubmitterContext());
+    timerFactory.create(TimingEvent.LauncherTimings.JOB_SUMMARY)
+        .withMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(convertDatasetStatsToTaskSummaries(commitGobblinStats.getDatasetStats())))
+        .submit();
+    return commitGobblinStats;
+  }
+
+  private List<DatasetTaskSummary> convertDatasetStatsToTaskSummaries(Map<String, DatasetStats> datasetStats) {
+    List<DatasetTaskSummary> datasetTaskSummaries = new ArrayList<>();
+    for (Map.Entry<String, DatasetStats> entry : datasetStats.entrySet()) {
+      datasetTaskSummaries.add(new DatasetTaskSummary(entry.getKey(), entry.getValue().getRecordsWritten(), entry.getValue().getBytesWritten(), entry.getValue().isSuccessfullyCommitted()));
+    }
+    return datasetTaskSummaries;
   }
 }
