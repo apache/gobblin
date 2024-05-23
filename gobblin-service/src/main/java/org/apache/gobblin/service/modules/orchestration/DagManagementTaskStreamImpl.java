@@ -138,7 +138,11 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
             createJobStartDeadlineTrigger(dagAction);
           } else if (!dagAction.isReminder() && dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE) {
             createFlowFinishDeadlineTrigger(dagAction);
-          } else {
+          } else if (!dagAction.isReminder
+              || dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE
+              || dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE) {
+            // todo - fix bug of a reminder event getting a lease even when the first attempt succeeded.
+            // for now, avoid processing reminder events if they are not for deadline dag actions
             LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(dagAction);
             if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
               return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
@@ -195,7 +199,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       throws IOException, SchedulerException {
     // TODO: need to handle reminder events and flag them
     LeaseAttemptStatus leaseAttemptStatus = this.dagActionProcessingLeaseArbiter
-        .tryAcquireLease(dagAction, System.currentTimeMillis(), false, false);
+        .tryAcquireLease(dagAction, System.currentTimeMillis(), dagAction.isReminder, false);
         /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
         we, when we might become the lease owner still fail to complete processing
         */
