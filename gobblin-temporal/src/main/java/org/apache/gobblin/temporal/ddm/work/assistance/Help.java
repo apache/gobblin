@@ -19,14 +19,11 @@ package org.apache.gobblin.temporal.ddm.work.assistance;
 
 import java.io.IOException;
 import java.net.URI;
-import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
-import java.util.Queue;
 import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.atomic.AtomicInteger;
-import java.util.stream.Collectors;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -34,7 +31,6 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.MDC;
 
-import com.google.api.client.util.Lists;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.typesafe.config.Config;
@@ -47,11 +43,9 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.runtime.TaskStateCollectorService;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
-import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemJobStateful;
 import org.apache.gobblin.temporal.ddm.work.styles.JobStateful;
@@ -282,28 +276,5 @@ public class Help {
     troubleshooter.refineIssues();
     troubleshooter.logIssueSummary();
     troubleshooter.reportJobIssuesAsEvents(eventSubmitter);
-  }
-
-  /** @return {@link TaskState}s loaded from the {@link StateStore<TaskState>} indicated by the {@link WUProcessingSpec} and {@link FileSystem} */
-  public static List<TaskState> loadTaskStates(WUProcessingSpec workSpec, FileSystem fs, JobState jobState, int numThreads) throws IOException {
-    // TODO - decide whether to replace this method by adapting TaskStateCollectorService::collectOutputTaskStates (whence much of this code was drawn)
-    StateStore<TaskState> taskStateStore = Help.openTaskStateStore(workSpec, fs);
-    // NOTE: TaskState dir is assumed to be a sibling to the workunits dir (following conventions of `MRJobLauncher`)
-    String jobIdPathName = new Path(workSpec.getWorkUnitsDir()).getParent().getName();
-    log.info("TaskStateStore path (name component): '{}' (fs: '{}')", jobIdPathName, fs.getUri());
-    Optional<Queue<TaskState>> taskStateQueueOpt = TaskStateCollectorService.deserializeTaskStatesFromFolder(taskStateStore, jobIdPathName, numThreads);
-    return taskStateQueueOpt.map(taskStateQueue ->
-        taskStateQueue.stream().peek(taskState ->
-                // CRITICAL: although some `WorkUnit`s, like those created by `CopySource::FileSetWorkUnitGenerator` for each `CopyEntity`
-                // already themselves contain every prop of their `JobState`, not all do.
-                // `TaskState extends WorkUnit` serialization will include its constituent `WorkUnit`, but not the constituent `JobState`.
-                // given some `JobState` props may be essential for commit/publish, deserialization must re-associate each `TaskState` w/ `JobState`
-                taskState.setJobState(jobState)
-            // TODO - decide whether something akin necessary to streamline cumulative in-memory size of all issues: consumeTaskIssues(taskState);
-        ).collect(Collectors.toList())
-    ).orElseGet(() -> {
-      log.error("TaskStateStore successfully opened, but no task states found under (name) '{}'", jobIdPathName);
-      return Lists.newArrayList();
-    });
   }
 }
