@@ -99,7 +99,6 @@ public class MostlyMySqlDagManagementStateStoreTest {
     Assert.assertTrue(this.dagManagementStateStore.containsDag(dagId));
     Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getDag(dagId).get().toString());
     Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNodeWithJobStatus(dagNodeId).getLeft().get());
-    Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getParentDag(dagNode).get().toString());
 
     List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
     Assert.assertEquals(2, dagNodes.size());
@@ -138,7 +137,7 @@ public class MostlyMySqlDagManagementStateStoreTest {
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
     MostlyMySqlDagManagementStateStore dagManagementStateStore =
-        new MostlyMySqlDagManagementStateStore(config, null, null, jobStatusRetriever);
+        new MostlyMySqlDagManagementStateStore(config, null, null, jobStatusRetriever, mock(DagActionStore.class));
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     return dagManagementStateStore;
   }

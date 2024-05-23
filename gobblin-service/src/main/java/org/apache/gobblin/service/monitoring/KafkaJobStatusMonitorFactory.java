@@ -35,7 +35,7 @@ import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -52,22 +52,22 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
   private final JobIssueEventHandler jobIssueEventHandler;
   private final MultiContextIssueRepository issueRepository;
   private final boolean instrumentationEnabled;
-  private final DagActionStore dagActionStore;
+  private final DagManagementStateStore dagManagementStateStore;
   private final boolean dagProcEngineEnabled;
 
   @Inject
   public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
-      GobblinInstanceEnvironment env, DagActionStore dagActionStore, @Named(InjectionNames.DAG_PROC_ENGINE_ENABLED) boolean dagProcEngineEnabled) {
-    this(config, jobIssueEventHandler, issueRepository, env.isInstrumentationEnabled(), dagActionStore, dagProcEngineEnabled);
+      GobblinInstanceEnvironment env, DagManagementStateStore dagManagementStateStore, @Named(InjectionNames.DAG_PROC_ENGINE_ENABLED) boolean dagProcEngineEnabled) {
+    this(config, jobIssueEventHandler, issueRepository, env.isInstrumentationEnabled(), dagManagementStateStore, dagProcEngineEnabled);
   }
 
   public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
-      boolean instrumentationEnabled, DagActionStore dagActionStore, boolean dagProcEngineEnabled) {
+      boolean instrumentationEnabled, DagManagementStateStore dagManagementStateStore, boolean dagProcEngineEnabled) {
     this.config = Objects.requireNonNull(config);
     this.jobIssueEventHandler = Objects.requireNonNull(jobIssueEventHandler);
     this.issueRepository = issueRepository;
     this.instrumentationEnabled = instrumentationEnabled;
-    this.dagActionStore = dagActionStore;
+    this.dagManagementStateStore = dagManagementStateStore;
     this.dagProcEngineEnabled = dagProcEngineEnabled;
   }
 
@@ -103,7 +103,7 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
         observabilityEventProducerClassName, ConfigUtils.configToState(config), this.issueRepository, this.instrumentationEnabled);
 
     return (KafkaJobStatusMonitor) GobblinConstructorUtils
-        .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, observabilityEventProducer, dagActionStore);
+        .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, observabilityEventProducer, dagManagementStateStore);
   }
 
   @Override

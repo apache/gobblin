@@ -18,6 +18,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.net.URI;
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -63,11 +64,9 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Slf4j
 @Singleton
 public class MostlyMySqlDagManagementStateStore implements DagManagementStateStore {
-  private final Map<Dag.DagNode<JobExecutionPlan>, Dag<JobExecutionPlan>> jobToDag = new ConcurrentHashMap<>();
   private final Map<DagNodeId, Dag.DagNode<JobExecutionPlan>> dagNodes = new ConcurrentHashMap<>();
   // dagToJobs holds a map of dagId to running jobs of that dag
   private final Map<DagManager.DagId, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new ConcurrentHashMap<>();
-  private final Map<DagManager.DagId, Long> dagToDeadline = new ConcurrentHashMap<>();
   private DagStateStore dagStateStore;
   private DagStateStore failedDagStateStore;
   private JobStatusRetriever jobStatusRetriever;
@@ -80,19 +79,21 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   FlowCatalog flowCatalog;
   @Getter
   private final DagManagerMetrics dagManagerMetrics = new DagManagerMetrics();
+  private final DagActionStore dagActionStore;
 
   @Inject
   public MostlyMySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog, UserQuotaManager userQuotaManager,
-      JobStatusRetriever jobStatusRetriever) {
+      JobStatusRetriever jobStatusRetriever, DagActionStore dagActionStore) {
     this.quotaManager = userQuotaManager;
     this.config = config;
     this.flowCatalog = flowCatalog;
     this.jobStatusRetriever = jobStatusRetriever;
     this.dagManagerMetrics.activate();
+    this.dagActionStore = dagActionStore;
    }
 
   // It should be called after topology spec map is set
-  private synchronized void start() throws IOException {
+  private synchronized void start() {
     if (!dagStoresInitialized) {
       this.dagStateStore = createDagStateStore(config, topologySpecMap);
       this.failedDagStateStore = createDagStateStore(ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config),
@@ -180,9 +181,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   @Override
   // todo - updating different maps here and in addDagNodeState can result in inconsistency between the maps
   public synchronized void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
-    this.jobToDag.remove(dagNode);
     this.dagNodes.remove(dagNode.getValue().getId());
-    this.dagToDeadline.remove(dagId);
     if (this.dagToJobs.containsKey(dagId)) {
       this.dagToJobs.get(dagId).remove(dagNode);
       if (this.dagToJobs.get(dagId).isEmpty()) {
@@ -199,7 +198,6 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     if (!dag.isPresent()) {
       throw new RuntimeException("Dag " + dagId + " not found");
     }
-    this.jobToDag.put(dagNode, dag.get());
     this.dagNodes.put(dagNode.getValue().getId(), dagNode);
     if (!this.dagToJobs.containsKey(dagId)) {
       this.dagToJobs.put(dagId, Lists.newLinkedList());
@@ -225,11 +223,6 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
       // no point of searching for status if the node itself is absent.
       return ImmutablePair.of(Optional.empty(), Optional.empty());
     }
-  }
-
-  @Override
-  public Optional<Dag<JobExecutionPlan>> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode) {
-    return Optional.of(this.jobToDag.get(dagNode));
   }
 
   @Override
@@ -274,5 +267,33 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   @Override
   public boolean hasRunningJobs(DagManager.DagId dagId) {
     return !getDagNodes(dagId).isEmpty();
+  }
+
+  @Override
+  public boolean existsJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
+      DagActionStore.DagActionType dagActionType) throws IOException, SQLException {
+    return this.dagActionStore.exists(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
+  }
+
+  @Override
+  public boolean existsFlowDagAction(String flowGroup, String flowName, String flowExecutionId,
+      DagActionStore.DagActionType dagActionType) throws IOException, SQLException {
+    return this.dagActionStore.exists(flowGroup, flowName, flowExecutionId, dagActionType);
+  }
+
+  @Override
+  public void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
+      DagActionStore.DagActionType dagActionType) throws IOException {
+    this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
+  }
+
+  @Override
+  public boolean deleteDagAction(DagActionStore.DagAction dagAction) throws IOException {
+    return this.dagActionStore.deleteDagAction(dagAction);
+  }
+
+  @Override
+  public Collection<DagActionStore.DagAction> getDagActions() throws IOException {
+    return this.dagActionStore.getDagActions();
   }
 }

@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.net.URI;
+import java.sql.SQLException;
 import java.util.Collection;
 import java.util.List;
 import java.util.Optional;
@@ -147,12 +148,6 @@ public interface DagManagementStateStore {
   List<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
 
   /**
-   * Returns the {@link Dag} the provided {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} belongs to
-   * or Optional.absent if it is not found.
-   */
-  Optional<Dag<JobExecutionPlan>> getParentDag(Dag.DagNode<JobExecutionPlan> dagNode);
-
-  /**
    * Deletes the dag node state that was added through {@link DagManagementStateStore#addDagNodeState(Dag.DagNode, DagManager.DagId)}
    * No-op if the dag node is not found in the store.
    * @param dagNode dag node to be deleted
@@ -201,4 +196,77 @@ public interface DagManagementStateStore {
    * has any running job, false otherwise.
    */
   public boolean hasRunningJobs(DagManager.DagId dagId);
+
+  /**
+   * Check if an action exists in dagAction store by flow group, flow name, flow execution id, and job name.
+   * @param flowGroup flow group for the dag action
+   * @param flowName flow name for the dag action
+   * @param flowExecutionId flow execution for the dag action
+   * @param jobName job name for the dag action
+   * @param dagActionType the value of the dag action
+   * @throws IOException
+   */
+  boolean existsJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
+      DagActionStore.DagActionType dagActionType) throws IOException, SQLException;
+
+  /**
+   * Check if an action exists in dagAction store by flow group, flow name, and flow execution id, it assumes jobName is
+   * empty ("").
+   * @param flowGroup flow group for the dag action
+   * @param flowName flow name for the dag action
+   * @param flowExecutionId flow execution for the dag action
+   * @param dagActionType the value of the dag action
+   * @throws IOException
+   */
+  boolean existsFlowDagAction(String flowGroup, String flowName, String flowExecutionId,
+      DagActionStore.DagActionType dagActionType) throws IOException, SQLException;
+
+  /** Persist the {@link DagActionStore.DagAction} in {@link DagActionStore} for durability */
+  default void addDagAction(DagActionStore.DagAction dagAction) throws IOException {
+    addJobDagAction(
+        dagAction.getFlowGroup(),
+        dagAction.getFlowName(),
+        dagAction.getFlowExecutionId(),
+        dagAction.getJobName(),
+        dagAction.getDagActionType());
+  }
+
+  /**
+   * Persist the dag action in {@link DagActionStore} for durability
+   * @param flowGroup flow group for the dag action
+   * @param flowName flow name for the dag action
+   * @param flowExecutionId flow execution for the dag action
+   * @param jobName job name for the dag action
+   * @param dagActionType the value of the dag action
+   * @throws IOException
+   */
+  void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
+      DagActionStore.DagActionType dagActionType) throws IOException;
+
+  /**
+   * Persist the dag action in {@link DagActionStore} for durability. This method assumes an empty jobName.
+   * @param flowGroup flow group for the dag action
+   * @param flowName flow name for the dag action
+   * @param flowExecutionId flow execution for the dag action
+   * @param dagActionType the value of the dag action
+   * @throws IOException
+   */
+  default void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId,
+      DagActionStore.DagActionType dagActionType) throws IOException {
+    addDagAction(DagActionStore.DagAction.forFlow(flowGroup, flowName, flowExecutionId, dagActionType));
+  }
+
+  /**
+   * delete the dag action from {@link DagActionStore}
+   * @param dagAction containing all information needed to identify dag and specific action value
+   * @throws IOException
+   * @return true if we successfully delete one record, return false if the record does not exist
+   */
+  boolean deleteDagAction(DagActionStore.DagAction dagAction) throws IOException;
+
+  /***
+   * Get all {@link DagActionStore.DagAction}s from the {@link DagActionStore}.
+   * @throws IOException Exception in retrieving {@link DagActionStore.DagAction}s.
+   */
+  Collection<DagActionStore.DagAction> getDagActions() throws IOException;
 }

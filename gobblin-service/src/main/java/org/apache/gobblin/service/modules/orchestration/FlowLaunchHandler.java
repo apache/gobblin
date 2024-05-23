@@ -69,7 +69,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public class FlowLaunchHandler {
   private final MultiActiveLeaseArbiter multiActiveLeaseArbiter;
-  private DagActionStore dagActionStore;
+  private DagManagementStateStore dagManagementStateStore;
   private final MetricContext metricContext;
   private final int schedulerMaxBackoffMillis;
   private static Random random = new Random();
@@ -81,13 +81,13 @@ public class FlowLaunchHandler {
   @Inject
   public FlowLaunchHandler(Config config,
       @Named(ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter leaseArbiter,
-      SchedulerService schedulerService, com.google.common.base.Optional<DagActionStore> optDagActionStore) {
+      SchedulerService schedulerService, com.google.common.base.Optional<DagManagementStateStore> dagManagementStateStoreOpt) {
     this.multiActiveLeaseArbiter = leaseArbiter;
 
-    if (!optDagActionStore.isPresent()) {
+    if (!dagManagementStateStoreOpt.isPresent()) {
       throw new RuntimeException("DagActionStore MUST be present for flow launch handling!");
     }
-    this.dagActionStore = optDagActionStore.get();
+    this.dagManagementStateStore = dagManagementStateStoreOpt.get();
 
     this.schedulerMaxBackoffMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_MAX_BACKOFF_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_MAX_BACKOFF_MILLIS);
@@ -140,8 +140,8 @@ public class FlowLaunchHandler {
   private boolean persistLaunchDagAction(LeaseAttemptStatus.LeaseObtainedStatus leaseStatus) {
     DagActionStore.DagAction launchDagAction = leaseStatus.getConsensusDagAction();
     try {
-      this.dagActionStore.addDagAction(launchDagAction);
-      DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(launchDagAction);
+      this.dagManagementStateStore.addDagAction(launchDagAction);
+      DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, launchDagAction);
       this.numFlowsSubmitted.mark();
       // after successfully persisting, close the lease
       return this.multiActiveLeaseArbiter.recordLeaseSuccess(leaseStatus);

@@ -119,7 +119,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dagManagementStateStore.markDagFailed(dag);
       }
 
-      removeFlowFinishDeadlineTriggerAndDagAction();
+      removeFlowFinishDeadlineTriggerAndDagAction(dagManagementStateStore);
     }
   }
 
@@ -197,7 +197,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     throw new UnsupportedOperationException("More than one start job is not allowed");
   }
 
-  private void removeFlowFinishDeadlineTriggerAndDagAction() {
+  private void removeFlowFinishDeadlineTriggerAndDagAction(DagManagementStateStore dagManagementStateStore) {
     DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = DagActionStore.DagAction.forFlow(getDagNodeId().getFlowGroup(),
         getDagNodeId().getFlowName(), String.valueOf(getDagNodeId().getFlowExecutionId()),
         DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
@@ -206,7 +206,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
 
     try {
       GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(getDagTask().getDagAction());
-      GobblinServiceManager.getClass(DagActionStore.class).deleteDagAction(enforceFlowFinishDeadlineDagAction);
+      dagManagementStateStore.deleteDagAction(enforceFlowFinishDeadlineDagAction);
     } catch (SchedulerException | IOException e) {
       log.warn("Failed to unschedule the reminder for {}", enforceFlowFinishDeadlineDagAction);
     }

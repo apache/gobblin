@@ -41,8 +41,8 @@ import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeEvent;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
@@ -85,13 +85,13 @@ public class DagActionStoreChangeMonitorTest {
 
     public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads,
         boolean isMultiActiveSchedulerEnabled) {
-      this(topic, config, numThreads, isMultiActiveSchedulerEnabled, mock(DagActionStore.class), mock(DagManager.class), mock(FlowCatalog.class), mock(Orchestrator.class));
+      this(topic, config, numThreads, isMultiActiveSchedulerEnabled, mock(DagManagementStateStore.class), mock(DagManager.class), mock(FlowCatalog.class), mock(Orchestrator.class));
     }
 
     public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads, boolean isMultiActiveSchedulerEnabled,
-        DagActionStore dagActionStore, DagManager dagManager, FlowCatalog flowCatalog, Orchestrator orchestrator) {
+        DagManagementStateStore dagManagementStateStore, DagManager dagManager, FlowCatalog flowCatalog, Orchestrator orchestrator) {
       super(topic, config, dagManager, numThreads, flowCatalog, orchestrator,
-          dagActionStore, isMultiActiveSchedulerEnabled);
+          dagManagementStateStore, isMultiActiveSchedulerEnabled);
     }
 
     protected void processMessageForTest(DecodeableKafkaRecord record) {
@@ -238,8 +238,8 @@ public class DagActionStoreChangeMonitorTest {
     String jobName = "testJobName";
     String flowExecutionId = "12345677";
 
-    MysqlDagActionStore mysqlDagActionStore = new MysqlDagActionStore(config);
-    mysqlDagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
+    DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
+    //mysqlDagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
 
     Config monitorConfig = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
@@ -251,7 +251,7 @@ public class DagActionStoreChangeMonitorTest {
     // Throw an uncaught exception during startup sequence
     when(mockFlowCatalog.getSpecs(any(URI.class))).thenThrow(new RuntimeException("Uncaught exception"));
     mockDagActionStoreChangeMonitor =  new MockDagActionStoreChangeMonitor("dummyTopic", monitorConfig, 5,
-        true, mysqlDagActionStore, mockDagManager, mockFlowCatalog, mockOrchestrator);
+        true, dagManagementStateStore, mockDagManager, mockFlowCatalog, mockOrchestrator);
     try {
       mockDagActionStoreChangeMonitor.setActive();
     } catch (Exception e) {

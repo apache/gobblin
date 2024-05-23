@@ -70,7 +70,6 @@ public class ReevaluateDagProcTest {
   private ITestMetastoreDatabase testMetastoreDatabase;
   private DagManagementStateStore dagManagementStateStore;
   private MockedStatic<GobblinServiceManager> mockedGobblinServiceManager;
-  private DagActionStore dagActionStore;
   private DagActionReminderScheduler dagActionReminderScheduler;
 
   @BeforeClass
@@ -83,9 +82,7 @@ public class ReevaluateDagProcTest {
   public void setUp() throws Exception {
     this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     mockDMSSCommonBehavior(dagManagementStateStore);
-    this.dagActionStore = mock(DagActionStore.class);
     this.dagActionReminderScheduler = mock(DagActionReminderScheduler.class);
-    this.mockedGobblinServiceManager.when(() -> GobblinServiceManager.getClass(DagActionStore.class)).thenReturn(this.dagActionStore);
     this.mockedGobblinServiceManager.when(() -> GobblinServiceManager.getClass(DagActionReminderScheduler.class)).thenReturn(this.dagActionReminderScheduler);
   }
 
@@ -125,11 +122,10 @@ public class ReevaluateDagProcTest {
 
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
     doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
-    doReturn(Optional.of(dag)).when(dagManagementStateStore).getParentDag(any());
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        String.valueOf(flowExecutionId), "job0", DagActionStore.DagActionType.REEVALUATE), null, mock(DagActionStore.class)));
+        String.valueOf(flowExecutionId), "job0", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
     reEvaluateDagProc.process(dagManagementStateStore);
 
     long addSpecCount = specProducers.stream()
@@ -151,7 +147,7 @@ public class ReevaluateDagProcTest {
         .filter(a -> a.getMethod().getName().equals("unscheduleReminderJob")).count(), 1);
 
     // when there is no more job to run in re-evaluate dag proc, it deletes enforce_flow_finish_dag_action also
-    Assert.assertEquals(Mockito.mockingDetails(this.dagActionStore).getInvocations().stream()
+    Assert.assertEquals(Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDagAction")).count(), 1);
   }
 
@@ -170,7 +166,6 @@ public class ReevaluateDagProcTest {
 
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
     doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
-    doReturn(Optional.of(dag)).when(dagManagementStateStore).getParentDag(any());
     doReturn(true).when(dagManagementStateStore).releaseQuota(any());
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
@@ -191,7 +186,7 @@ public class ReevaluateDagProcTest {
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        String.valueOf(flowExecutionId), "job0", DagActionStore.DagActionType.REEVALUATE), null, mock(DagActionStore.class)));
+        String.valueOf(flowExecutionId), "job0", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
     reEvaluateDagProc.process(dagManagementStateStore);
 
     // no new job to launch for this one job flow
@@ -208,7 +203,7 @@ public class ReevaluateDagProcTest {
     Assert.assertEquals(Mockito.mockingDetails(this.dagActionReminderScheduler).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("unscheduleReminderJob")).count(), 1);
 
-    Assert.assertEquals(Mockito.mockingDetails(this.dagActionStore).getInvocations().stream()
+    Assert.assertEquals(Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDagAction")).count(), 1);
   }
 }
