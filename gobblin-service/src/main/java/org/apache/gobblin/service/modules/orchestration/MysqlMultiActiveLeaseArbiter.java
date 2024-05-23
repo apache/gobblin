@@ -89,11 +89,11 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   private final int lingerMillis;
   private final long retentionPeriodMillis;
   private String thisTableRetentionStatement;
-  private String thisTableGetInfoStatement;
-  private String thisTableGetInfoStatementForReminder;
-  private String thisTableSelectAfterInsertStatement;
-  private String thisTableAcquireLeaseIfMatchingAllStatement;
-  private String thisTableAcquireLeaseIfFinishedStatement;
+  private final String thisTableGetInfoStatement;
+  private final String thisTableGetInfoStatementForReminder;
+  private final String thisTableSelectAfterInsertStatement;
+  private final String thisTableAcquireLeaseIfMatchingAllStatement;
+  private final String thisTableAcquireLeaseIfFinishedStatement;
 
   /*
     Notes:

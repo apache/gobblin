@@ -47,6 +47,9 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.google.gson.Gson;
 import com.google.gson.GsonBuilder;
+import com.google.inject.Guice;
+import com.google.inject.Injector;
+import com.google.inject.Stage;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.RestLiResponseException;
@@ -58,6 +61,8 @@ import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.service.modules.core.GobblinServiceConfiguration;
+import org.apache.gobblin.service.modules.core.GobblinServiceGuiceModule;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flow.MockedSpecCompiler;
 import org.apache.gobblin.service.modules.orchestration.AbstractUserQuotaManager;
@@ -218,8 +223,11 @@ public class GobblinServiceManagerTest {
 
   public static GobblinServiceManager createTestGobblinServiceManager(Properties serviceCoreProperties,
       String serviceName, String serviceId, String serviceWorkDir) {
-    GobblinServiceManager gobblinServiceManager = GobblinServiceManager.create(serviceName, serviceId,
-        ConfigUtils.propertiesToConfig(serviceCoreProperties), new Path(serviceWorkDir));
+    Injector testInjector = Guice.createInjector(Stage.DEVELOPMENT, new GobblinServiceGuiceModule(
+        new GobblinServiceConfiguration(serviceName, serviceId, ConfigUtils.propertiesToConfig(serviceCoreProperties),
+            new Path(serviceWorkDir))));
+    GobblinServiceManager gobblinServiceManager = GobblinServiceManager.getClass(testInjector, GobblinServiceManager.class);
+    gobblinServiceManager.setStaticInjector(testInjector);
 
     DagManager spiedDagManager = spy(gobblinServiceManager.getDagManager());
     doNothing().when(spiedDagManager).setActive(anyBoolean());

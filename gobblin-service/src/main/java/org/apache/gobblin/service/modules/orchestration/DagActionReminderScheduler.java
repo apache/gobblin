@@ -33,6 +33,7 @@ import org.quartz.TriggerBuilder;
 import org.quartz.impl.StdSchedulerFactory;
 
 import javax.inject.Inject;
+import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -44,6 +45,7 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
  * {#scheduleReminderJob} on a flow action that it failed to acquire a lease on but has not yet completed. The reminder
  * will fire once the previous lease owner's lease is expected to expire.
  */
+@Singleton
 public class DagActionReminderScheduler {
   public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
   private final Scheduler quartzScheduler;
@@ -86,18 +88,17 @@ public class DagActionReminderScheduler {
     @Override
     public void execute(JobExecutionContext context) {
       // Get properties from the trigger to create a dagAction
-      JobDataMap jobDataMap = context.getTrigger().getJobDataMap();
+      JobDataMap jobDataMap = context.getMergedJobDataMap();
       String flowName = jobDataMap.getString(ConfigurationKeys.FLOW_NAME_KEY);
       String flowGroup = jobDataMap.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String jobName = jobDataMap.getString(ConfigurationKeys.JOB_NAME_KEY);
-      String flowId = jobDataMap.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+      String flowExecutionId = jobDataMap.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
       DagActionStore.DagActionType dagActionType = (DagActionStore.DagActionType) jobDataMap.get(FLOW_ACTION_TYPE_KEY);
 
       log.info("DagProc reminder triggered for (flowGroup: " + flowGroup + ", flowName: " + flowName
-          + ", flowExecutionId: " + flowId + ", jobName: " + jobName +")");
+          + ", flowExecutionId: " + flowExecutionId + ", jobName: " + jobName + ", dagActionType: " + dagActionType + ")");
 
-      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowId, jobName,
-          dagActionType);
+      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType, true);
 
       try {
         DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class);
@@ -141,10 +142,9 @@ public class DagActionReminderScheduler {
    */
   public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis,
       Supplier<Long> getCurrentTimeMillis) {
-    Trigger trigger = TriggerBuilder.newTrigger()
+    return TriggerBuilder.newTrigger()
         .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())
         .startAt(new Date(getCurrentTimeMillis.get() + reminderDurationMillis))
         .build();
-    return trigger;
   }
 }

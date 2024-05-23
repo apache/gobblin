@@ -34,9 +34,11 @@
       "type": "enum",
       "name": "DagActionValue",
       "symbols": [
+        "ENFORCE_FLOW_FINISH_DEADLINE",
+        "ENFORCE_JOB_START_DEADLINE",
         "KILL",
-        "RESUME",
         "LAUNCH",
+        "RESUME",
         "REEVALUATE"
       ],
       "symbolDocs": {

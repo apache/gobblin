@@ -117,7 +117,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   public static final String SERVICE_EVENT_BUS_NAME = "GobblinServiceManagerEventBus";
 
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
-  @Setter private static volatile GobblinServiceGuiceModule GOBBLIN_SERVICE_GUICE_MODULE;
 
   protected final ServiceBasedAppLauncher serviceLauncher;
   private volatile boolean stopInProgress = false;
@@ -168,6 +167,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   @Inject
   @Getter
   private Injector injector;
+  @Getter @Setter private volatile static Injector staticInjector;
 
   protected boolean flowCatalogLocalCommit;
 
@@ -257,27 +257,27 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   /**
    * Uses the provided serviceConfiguration to create a new Guice module and obtain a new class associated with it.
-   * This method should only be called once per application.
    */
   public static GobblinServiceManager create(GobblinServiceConfiguration serviceConfiguration) {
-    GOBBLIN_SERVICE_GUICE_MODULE = new GobblinServiceGuiceModule(serviceConfiguration);
-    return getClass(GobblinServiceManager.class);
+    if (GobblinServiceManager.staticInjector == null) {
+        GobblinServiceManager.staticInjector = Guice.createInjector(Stage.DEVELOPMENT, new GobblinServiceGuiceModule(serviceConfiguration));
+    }
+    return getClass(GobblinServiceManager.staticInjector, GobblinServiceManager.class);
   }
 
   /**
-   * If {@link GobblinServiceManager} is created using guice, user should set {@link GobblinServiceManager#GOBBLIN_SERVICE_GUICE_MODULE}
-   * for this method to work.
+   * This method assumes that {@link GobblinServiceManager} is created using guice, which sets the injector.
+   * If it is created through other ways, caller should use {@link GobblinServiceManager#create(GobblinServiceConfiguration)}
+   * or provide the {@link Injector} using {@link GobblinServiceManager#getClass(Injector, Class)} method instead.
    * @param classToGet
    * @return a new object if the class type is not marked with @Singleton, otherwise the same instance of the class
    * @param <T>
    */
   public static <T> T getClass(Class<T> classToGet) {
-    if (GOBBLIN_SERVICE_GUICE_MODULE == null) {
-      throw new RuntimeException(String.format("getClass called to obtain %s without calling create method to "
-          + "initialize GobblinServiceGuiceModule.", classToGet));
-    }
-    // Use development stage to enable more verbose error messages and runtime checks
-    Injector injector = Guice.createInjector(Stage.DEVELOPMENT, GOBBLIN_SERVICE_GUICE_MODULE);
+    return getClass(getStaticInjector(), classToGet);
+  }
+
+  public static <T> T getClass(Injector injector, Class<T> classToGet) {
     return injector.getInstance(classToGet);
   }
 

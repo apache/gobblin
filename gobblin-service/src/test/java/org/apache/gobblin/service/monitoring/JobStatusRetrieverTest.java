@@ -97,7 +97,7 @@ public abstract class JobStatusRetrieverTest {
       properties.setProperty(TimingEvent.JOB_ORCHESTRATED_TIME, String.valueOf(endTime));
     }
     State jobStatus = new State(properties);
-    Pair<State, Boolean> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
+    Pair<State, KafkaJobStatusMonitor.NewState> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
     jobStatus = updatedJobStatus.getLeft();
     this.jobStatusRetriever.getStateStore().put(
         KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),

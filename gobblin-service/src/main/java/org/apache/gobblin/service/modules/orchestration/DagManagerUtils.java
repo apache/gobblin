@@ -96,7 +96,7 @@ public class DagManagerUtils {
     return getFlowExecId(dagNode.getValue().getJobSpec());
   }
 
-  static long getFlowExecId(JobSpec jobSpec) {
+  public static long getFlowExecId(JobSpec jobSpec) {
     return jobSpec.getConfig().getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
   }
 
@@ -287,15 +287,8 @@ public class DagManagerUtils {
     dagNode.getValue().setCurrentGeneration(dagNode.getValue().getCurrentGeneration() + 1);
   }
 
-  /**
-   * Flow start time is the same as the flow execution id which is the timestamp flow request was received, unless it
-   * is a resumed flow, in which case it is {@link JobExecutionPlan#getFlowStartTime()}
-   * @param dagNode dag node in context
-   * @return flow start time
-   */
-  static long getFlowStartTime(DagNode<JobExecutionPlan> dagNode) {
-    long flowStartTime = dagNode.getValue().getFlowStartTime();
-    return flowStartTime == 0L ? getFlowExecId(dagNode) : flowStartTime;
+  public static long getFlowStartTime(DagNode<JobExecutionPlan> dagNode) {
+    return dagNode.getValue().getFlowStartTime();
   }
 
   /**
@@ -304,7 +297,7 @@ public class DagManagerUtils {
    * @param dagNode dag node for which sla is to be retrieved
    * @return sla if it is provided, DEFAULT_FLOW_SLA_MILLIS otherwise
    */
-  static long getFlowSLA(DagNode<JobExecutionPlan> dagNode) {
+  public static long getFlowSLA(DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
         jobConfig, ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT));
@@ -320,7 +313,7 @@ public class DagManagerUtils {
    * @param dagNode dag node for which flow start sla is to be retrieved
    * @return job start sla in ms
    */
-  static long getJobStartSla(DagNode<JobExecutionPlan> dagNode, Long defaultJobStartSla) {
+  public static long getJobStartSla(DagNode<JobExecutionPlan> dagNode, Long defaultJobStartSla) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
         jobConfig, ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
@@ -330,6 +323,8 @@ public class DagManagerUtils {
         ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME))
         : defaultJobStartSla;
   }
+
+
 
   static int getDagQueueId(Dag<JobExecutionPlan> dag, int numThreads) {
     return getDagQueueId(DagManagerUtils.getFlowExecId(dag), numThreads);

@@ -24,6 +24,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -42,7 +43,9 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
@@ -66,16 +69,24 @@ public class ReevaluateDagProcTest {
 
   private ITestMetastoreDatabase testMetastoreDatabase;
   private DagManagementStateStore dagManagementStateStore;
+  private MockedStatic<GobblinServiceManager> mockedGobblinServiceManager;
+  private DagActionStore dagActionStore;
+  private DagActionReminderScheduler dagActionReminderScheduler;
 
   @BeforeClass
   public void setUpClass() throws Exception {
     this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    this.mockedGobblinServiceManager = Mockito.mockStatic(GobblinServiceManager.class);
   }
 
   @BeforeMethod
   public void setUp() throws Exception {
     this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     mockDMSSCommonBehavior(dagManagementStateStore);
+    this.dagActionStore = mock(DagActionStore.class);
+    this.dagActionReminderScheduler = mock(DagActionReminderScheduler.class);
+    this.mockedGobblinServiceManager.when(() -> GobblinServiceManager.getClass(DagActionStore.class)).thenReturn(this.dagActionStore);
+    this.mockedGobblinServiceManager.when(() -> GobblinServiceManager.getClass(DagActionReminderScheduler.class)).thenReturn(this.dagActionReminderScheduler);
   }
 
   private void mockDMSSCommonBehavior(DagManagementStateStore dagManagementStateStore) throws IOException, SpecNotFoundException {
@@ -88,6 +99,7 @@ public class ReevaluateDagProcTest {
 
   @AfterClass(alwaysRun = true)
   public void tearDownClass() throws Exception {
+    this.mockedGobblinServiceManager.close();
     // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
     this.testMetastoreDatabase.close();
   }
@@ -134,6 +146,13 @@ public class ReevaluateDagProcTest {
     // current job's state is deleted
     Assert.assertEquals(Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDagNodeState")).count(), 1);
+
+    Assert.assertEquals(Mockito.mockingDetails(this.dagActionReminderScheduler).getInvocations().stream()
+        .filter(a -> a.getMethod().getName().equals("unscheduleReminderJob")).count(), 1);
+
+    // when there is no more job to run in re-evaluate dag proc, it deletes enforce_flow_finish_dag_action also
+    Assert.assertEquals(Mockito.mockingDetails(this.dagActionStore).getInvocations().stream()
+        .filter(a -> a.getMethod().getName().equals("deleteDagAction")).count(), 1);
   }
 
   // test when there does not exist a next job in the dag when the current job's reevaluate dag action is processed
@@ -185,5 +204,11 @@ public class ReevaluateDagProcTest {
     // dag is deleted because the only job in the dag is completed
     Assert.assertEquals(Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDag")).count(), 1);
+
+    Assert.assertEquals(Mockito.mockingDetails(this.dagActionReminderScheduler).getInvocations().stream()
+        .filter(a -> a.getMethod().getName().equals("unscheduleReminderJob")).count(), 1);
+
+    Assert.assertEquals(Mockito.mockingDetails(this.dagActionStore).getInvocations().stream()
+        .filter(a -> a.getMethod().getName().equals("deleteDagAction")).count(), 1);
   }
 }

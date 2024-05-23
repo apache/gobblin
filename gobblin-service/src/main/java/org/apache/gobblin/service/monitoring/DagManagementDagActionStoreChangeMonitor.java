@@ -58,8 +58,9 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
         dagAction.getDagActionType(), dagAction);
     LaunchSubmissionMetricProxy launchSubmissionMetricProxy = isStartup ? ON_STARTUP : POST_STARTUP;
     try {
-      // todo - add actions for other other type of dag actions
       switch (dagAction.getDagActionType()) {
+        case ENFORCE_FLOW_FINISH_DEADLINE:
+        case ENFORCE_JOB_START_DEADLINE:
         case KILL :
         case LAUNCH :
         case REEVALUATE :

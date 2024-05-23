@@ -22,11 +22,15 @@ import com.google.inject.Singleton;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.EnforceFlowFinishDeadlineDagProc;
+import org.apache.gobblin.service.modules.orchestration.proc.EnforceJobStartDeadlineDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.KillDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.ReevaluateDagProc;
 import org.apache.gobblin.service.modules.orchestration.proc.ResumeDagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
+import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
@@ -50,6 +54,17 @@ public class DagProcFactory implements DagTaskVisitor<DagProc> {
   public DagProcFactory(FlowCompilationValidationHelper flowCompilationValidationHelper) {
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
   }
+
+  @Override
+  public DagProc meet(EnforceFlowFinishDeadlineDagTask enforceFlowFinishDeadlineDagTask) {
+    return new EnforceFlowFinishDeadlineDagProc(enforceFlowFinishDeadlineDagTask);
+  }
+
+  @Override
+  public DagProc meet(EnforceJobStartDeadlineDagTask enforceJobStartDeadlineDagTask) {
+    return new EnforceJobStartDeadlineDagProc(enforceJobStartDeadlineDagTask);
+  }
+
 
   @Override
   public LaunchDagProc meet(LaunchDagTask launchDagTask) {

@@ -141,7 +141,7 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     properties.setProperty(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, jobGroup);
     State jobStatus = new State(properties);
 
-    Pair<State, Boolean> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
+    Pair<State, KafkaJobStatusMonitor.NewState> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
     jobStatus = updatedJobStatus.getLeft();
     this.jobStatusRetriever.getStateStore().put(
         KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),
@@ -172,7 +172,7 @@ public class MysqlJobStatusRetrieverTest extends JobStatusRetrieverTest {
     State jobStatus = new State(properties);
 
     try {
-      Pair<State, Boolean> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
+      Pair<State, KafkaJobStatusMonitor.NewState> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
       jobStatus = updatedJobStatus.getLeft();
       this.jobStatusRetriever.getStateStore().put(
           KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),

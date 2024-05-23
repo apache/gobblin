@@ -240,6 +240,34 @@ public class JobExecutionPlan {
   }
 
   /**
+   * Flow start time is the same as the flow execution id if it is not set, which is also the timestamp flow request was
+   * received. It is set to a non-zero number when it is a resumed flow.
+   */
+  public long getFlowStartTime() {
+    return this.flowStartTime == 0L ? DagManagerUtils.getFlowExecId(this.getJobSpec()) : flowStartTime;
+  }
+
+  public String getFlowGroup() {
+    return jobSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY);
+  }
+
+  public String getFlowName() {
+    return jobSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY);
+  }
+
+  public long getFlowExecutionId() {
+    return jobSpec.getConfig().getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+  }
+
+  public String getJobGroup() {
+    return jobSpec.getConfig().getString(ConfigurationKeys.JOB_GROUP_KEY);
+  }
+
+  public String getJobName() {
+    return jobSpec.getConfig().getString(ConfigurationKeys.JOB_NAME_KEY);
+  }
+
+  /**
    * Render the JobSpec into a JSON string.
    * @return a valid JSON string representation of the JobSpec.
    */
