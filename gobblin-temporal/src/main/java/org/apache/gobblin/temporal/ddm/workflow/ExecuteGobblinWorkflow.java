@@ -23,6 +23,7 @@ import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
@@ -37,5 +38,5 @@ import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 public interface ExecuteGobblinWorkflow {
   /** @return the number of {@link WorkUnit}s discovered and successfully processed */
   @WorkflowMethod
-  int execute(Properties props, EventSubmitterContext eventSubmitterContext);
+  ExecGobblinStats execute(Properties props, EventSubmitterContext eventSubmitterContext);
 }
