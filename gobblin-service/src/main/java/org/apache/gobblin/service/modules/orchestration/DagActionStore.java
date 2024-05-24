@@ -49,15 +49,24 @@ public interface DagActionStore {
     final String flowExecutionId;
     final String jobName;
     final DagActionType dagActionType;
-    final boolean isReminder;
+    boolean isReminder;
     long eventTimeMillis;
 
-    public DagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) {
-      this(flowGroup, flowName, flowExecutionId, jobName, dagActionType, false);
+    public DagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType, boolean isReminder, long eventTimeMillis) {
+      this(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
+      this.setReminder(isReminder);
+      this.setEventTimeMillis(eventTimeMillis);
+    }
+    public DagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType, long eventTimeMillis) {
+      this(flowGroup, flowName, flowExecutionId, jobName, dagActionType, false, eventTimeMillis);
     }
 
     public static DagAction forFlow(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) {
-      return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
+      return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType, false, System.currentTimeMillis());
+    }
+
+    public static DagAction forFlow(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType, boolean isReminder, long eventTimeMillis) {
+      return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType, isReminder, eventTimeMillis);
     }
 
     public FlowId getFlowId() {

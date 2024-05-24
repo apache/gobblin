@@ -41,7 +41,6 @@ import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -108,7 +107,7 @@ public class DagManagementTaskStreamImplTest {
     dagManagementTaskStream.addDagAction(launchAction);
     dagManagementTaskStream.addDagAction(launchAction);
     when(dagManagementTaskStream.getDagActionProcessingLeaseArbiter()
-        .tryAcquireLease(any(DagActionStore.DagAction.class), anyLong(), anyBoolean(), anyBoolean()))
+        .tryAcquireLease(any(DagActionStore.DagAction.class), anyBoolean()))
         .thenReturn(new LeaseAttemptStatus.NoLongerLeasingStatus(),
             new LeaseAttemptStatus.LeasedToAnotherStatus(launchAction, 3, 15),
             new LeaseAttemptStatus.LeaseObtainedStatus(launchAction, 5, 0, 5, null));

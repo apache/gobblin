@@ -185,7 +185,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   /**
    * Returns a {@link LeaseAttemptStatus} associated with the
    * `dagAction` by calling
-   * {@link MultiActiveLeaseArbiter#tryAcquireLease(DagActionStore.DagAction, long, boolean, boolean)}.
+   * {@link MultiActiveLeaseArbiter#tryAcquireLease(DagActionStore.DagAction, boolean)}.
    * @param dagAction
    * @return
    * @throws IOException
@@ -195,9 +195,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       throws IOException, SchedulerException {
     // Uses reminder flag to determine whether to use current time as event time or previously saved event time
     LeaseAttemptStatus leaseAttemptStatus = this.dagActionProcessingLeaseArbiter
-        .tryAcquireLease(dagAction,
-            dagAction.isReminder && dagAction.getEventTimeMillis() != 0L ? dagAction.getEventTimeMillis() : System.currentTimeMillis(),
-            dagAction.isReminder, false);
+        .tryAcquireLease(dagAction, false);
         /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
         we, when we might become the lease owner still fail to complete processing
         */
