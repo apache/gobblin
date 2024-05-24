@@ -75,6 +75,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   @Override
   public ExecGobblinStats execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
+    timerFactory.create(TimingEvent.LauncherTimings.JOB_PREPARE).submit();
     EventTimer timer = timerFactory.createJobTimer();
     try {
       int numWUsGenerated = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
