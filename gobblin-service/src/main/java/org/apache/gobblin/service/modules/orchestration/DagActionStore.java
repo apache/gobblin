@@ -50,6 +50,7 @@ public interface DagActionStore {
     final String jobName;
     final DagActionType dagActionType;
     final boolean isReminder;
+    long eventTimeMillis;
 
     public DagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) {
       this(flowGroup, flowName, flowExecutionId, jobName, dagActionType, false);

@@ -138,11 +138,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
             createJobStartDeadlineTrigger(dagAction);
           } else if (!dagAction.isReminder() && dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE) {
             createFlowFinishDeadlineTrigger(dagAction);
-          } else if (!dagAction.isReminder
-              || dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE
-              || dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE) {
-            // todo - fix bug of a reminder event getting a lease even when the first attempt succeeded.
-            // for now, avoid processing reminder events if they are not for deadline dag actions
+          } else { // Handle original non-deadline dagActions as well as reminder events of all types
             LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(dagAction);
             if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
               return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
@@ -197,9 +193,11 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
    */
   private LeaseAttemptStatus retrieveLeaseStatus(DagActionStore.DagAction dagAction)
       throws IOException, SchedulerException {
-    // TODO: need to handle reminder events and flag them
+    // Uses reminder flag to determine whether to use current time as event time or previously saved event time
     LeaseAttemptStatus leaseAttemptStatus = this.dagActionProcessingLeaseArbiter
-        .tryAcquireLease(dagAction, System.currentTimeMillis(), dagAction.isReminder, false);
+        .tryAcquireLease(dagAction,
+            dagAction.isReminder && dagAction.getEventTimeMillis() != 0L ? dagAction.getEventTimeMillis() : System.currentTimeMillis(),
+            dagAction.isReminder, false);
         /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where even
         we, when we might become the lease owner still fail to complete processing
         */
@@ -231,11 +229,20 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   }
 
   /* Schedules a reminder for the flow action using {@link DagActionReminderScheduler} to reattempt the lease after the
-  current leaseholder's grant would have expired.
+  current leaseholder's grant would have expired. It saves the previous eventTimeMillis in the dagAction to use upon
+  reattempting the lease.
   */
   protected void scheduleReminderForEvent(LeaseAttemptStatus leaseStatus)
       throws SchedulerException {
-    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getConsensusDagAction(),
-        leaseStatus.getMinimumLingerDurationMillis());
+    DagActionStore.DagAction consensusDagAction = leaseStatus.getConsensusDagAction();
+    if (leaseStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
+      consensusDagAction.setEventTimeMillis(((LeaseAttemptStatus.LeaseObtainedStatus) leaseStatus).getEventTimeMillis());
+    } else if (leaseStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus) {
+      consensusDagAction.setEventTimeMillis(((LeaseAttemptStatus.LeasedToAnotherStatus) leaseStatus).getEventTimeMillis());
+    } else {
+      throw new RuntimeException(
+          String.format("Reminder event should not be scheduled for a NoLongerLeasing status. Status: %s", leaseStatus));
+    }
+    dagActionReminderScheduler.get().scheduleReminder(consensusDagAction, leaseStatus.getMinimumLingerDurationMillis());
   }
 }
