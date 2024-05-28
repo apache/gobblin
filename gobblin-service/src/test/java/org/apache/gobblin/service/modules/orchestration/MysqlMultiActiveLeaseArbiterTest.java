@@ -101,7 +101,6 @@ public class MysqlMultiActiveLeaseArbiterTest {
   // TODO: refactor this to break it into separate test cases as much is possible
   @Test
   public void testAcquireLeaseSingleParticipant() throws Exception {
-    // TODO: need to add eventTimestamp into all the dagActions
     // Tests CASE 1 of acquire lease for a flow action event not present in DB
     LeaseAttemptStatus firstLaunchStatus =
         mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction, true);
