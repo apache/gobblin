@@ -94,7 +94,8 @@ public class ManifestBasedDatasetFinderTest {
       Assert.assertEquals(fileSet.getFiles().size(), 3);  // 2 files to copy + 1 post publish step
       Assert.assertTrue(((PostPublishStep) fileSet.getFiles().get(2)).getStep() instanceof SetPermissionCommitStep);
       SetPermissionCommitStep step = (SetPermissionCommitStep) ((PostPublishStep) fileSet.getFiles().get(2)).getStep();
-      Assert.assertEquals(step.getPathAndPermissions().keySet().size(), 2);
+
+      Assert.assertEquals(step.getPathAndPermissions().keySet().size(), 1); // SetPermissionCommitStep only applies to ancestors
       Mockito.verify(manifestReadFs, Mockito.times(1)).exists(manifestPath);
       Mockito.verify(manifestReadFs, Mockito.times(1)).getFileStatus(manifestPath);
       Mockito.verify(manifestReadFs, Mockito.times(1)).open(manifestPath);
