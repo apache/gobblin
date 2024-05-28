@@ -57,6 +57,7 @@ public interface DagActionStore {
       this.setReminder(isReminder);
       this.setEventTimeMillis(eventTimeMillis);
     }
+
     public DagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType, long eventTimeMillis) {
       this(flowGroup, flowName, flowExecutionId, jobName, dagActionType, false, eventTimeMillis);
     }

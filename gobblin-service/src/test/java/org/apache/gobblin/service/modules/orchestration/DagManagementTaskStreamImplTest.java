@@ -109,8 +109,8 @@ public class DagManagementTaskStreamImplTest {
     when(dagManagementTaskStream.getDagActionProcessingLeaseArbiter()
         .tryAcquireLease(any(DagActionStore.DagAction.class), anyBoolean()))
         .thenReturn(new LeaseAttemptStatus.NoLongerLeasingStatus(),
-            new LeaseAttemptStatus.LeasedToAnotherStatus(launchAction, 3, 15),
-            new LeaseAttemptStatus.LeaseObtainedStatus(launchAction, 5, 0, 5, null));
+            new LeaseAttemptStatus.LeasedToAnotherStatus(launchAction, 15),
+            new LeaseAttemptStatus.LeaseObtainedStatus(launchAction, 0, 5, null));
     DagTask dagTask = dagManagementTaskStream.next();
     Assert.assertTrue(dagTask instanceof LaunchDagTask);
     DagProc dagProc = dagTask.host(this.dagProcFactory);

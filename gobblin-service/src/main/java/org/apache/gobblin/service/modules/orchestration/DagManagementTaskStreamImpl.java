@@ -232,15 +232,6 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   */
   protected void scheduleReminderForEvent(LeaseAttemptStatus leaseStatus)
       throws SchedulerException {
-    DagActionStore.DagAction consensusDagAction = leaseStatus.getConsensusDagAction();
-    if (leaseStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
-      consensusDagAction.setEventTimeMillis(((LeaseAttemptStatus.LeaseObtainedStatus) leaseStatus).getEventTimeMillis());
-    } else if (leaseStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus) {
-      consensusDagAction.setEventTimeMillis(((LeaseAttemptStatus.LeasedToAnotherStatus) leaseStatus).getEventTimeMillis());
-    } else {
-      throw new RuntimeException(
-          String.format("Reminder event should not be scheduled for a NoLongerLeasing status. Status: %s", leaseStatus));
-    }
-    dagActionReminderScheduler.get().scheduleReminder(consensusDagAction, leaseStatus.getMinimumLingerDurationMillis());
+    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getConsensusDagAction(), leaseStatus.getMinimumLingerDurationMillis());
   }
 }

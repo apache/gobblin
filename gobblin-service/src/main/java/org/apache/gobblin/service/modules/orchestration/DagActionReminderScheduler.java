@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.util.Date;
-import java.util.Optional;
 import java.util.function.Supplier;
 
 import org.quartz.Job;
@@ -85,6 +84,7 @@ public class DagActionReminderScheduler {
   @Slf4j
   public static class ReminderJob implements Job {
     public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
+    public static final String FLOW_ACTION_EVENT_TIME_KEY = "flow.eventTime";
 
     @Override
     public void execute(JobExecutionContext context) {
@@ -95,11 +95,10 @@ public class DagActionReminderScheduler {
       String jobName = jobDataMap.getString(ConfigurationKeys.JOB_NAME_KEY);
       String flowExecutionId = jobDataMap.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
       DagActionStore.DagActionType dagActionType = (DagActionStore.DagActionType) jobDataMap.get(FLOW_ACTION_TYPE_KEY);
+      long eventTimeMillis = jobDataMap.getLong(FLOW_ACTION_EVENT_TIME_KEY);
 
-      log.info("DagProc reminder triggered for (flowGroup: " + flowGroup + ", flowName: " + flowName
-          + ", flowExecutionId: " + flowExecutionId + ", jobName: " + jobName + ", dagActionType: " + dagActionType + ")");
-
-      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType, true);
+      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType, true, eventTimeMillis);
+      log.info("DagProc reminder triggered for dagAction: {}", dagAction);
 
       try {
         DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class);
@@ -129,6 +128,7 @@ public class DagActionReminderScheduler {
     dataMap.put(ConfigurationKeys.JOB_NAME_KEY, dagAction.getJobName());
     dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
     dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.getDagActionType());
+    dataMap.put(ReminderJob.FLOW_ACTION_EVENT_TIME_KEY, dagAction.getEventTimeMillis());
 
     return JobBuilder.newJob(ReminderJob.class)
         .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())

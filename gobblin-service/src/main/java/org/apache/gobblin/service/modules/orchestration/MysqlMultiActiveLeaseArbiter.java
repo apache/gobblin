@@ -308,7 +308,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 2: Same event, lease is valid",
               updatedDagAction, dagAction.isReminder ? "reminder" : "original", dbCurrentTimestamp.getTime());
           // Utilize db timestamp for reminder
-          dagAction.setEventTimeMillis(dbEventTimestamp.getTime());
+          updatedDagAction.setEventTimeMillis(dbEventTimestamp.getTime());
           return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction,
               dbLeaseAcquisitionTimestamp.getTime() + dbLinger - dbCurrentTimestamp.getTime());
         }
@@ -317,7 +317,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - CASE 3: Distinct event, lease is valid",
             updatedDagAction, dagAction.isReminder ? "reminder" : "original", dbCurrentTimestamp.getTime());
         // Utilize db lease acquisition timestamp for wait time
-        dagAction.setEventTimeMillis(dbCurrentTimestamp.getTime());
+        updatedDagAction.setEventTimeMillis(dbCurrentTimestamp.getTime());
         return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedDagAction,
             dbLeaseAcquisitionTimestamp.getTime() + dbLinger  - dbCurrentTimestamp.getTime());
       } // Lease is invalid
