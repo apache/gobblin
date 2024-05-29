@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagement;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 
 
@@ -40,11 +41,11 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
   public DagManagementDagActionStoreChangeMonitor(Config config, int numThreads,
-      FlowCatalog flowCatalog, Orchestrator orchestrator, DagActionStore dagActionStore,
+      FlowCatalog flowCatalog, Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore,
       boolean isMultiActiveSchedulerEnabled, DagManagement dagManagement) {
     // DagManager is only needed in the `handleDagAction` method of its parent class and not needed in this class,
     // so we are passing a null value for DagManager to its parent class.
-    super("", config, null, numThreads, flowCatalog, orchestrator, dagActionStore, isMultiActiveSchedulerEnabled);
+    super("", config, null, numThreads, flowCatalog, orchestrator, dagManagementStateStore, isMultiActiveSchedulerEnabled);
     this.dagManagement = dagManagement;
   }
 

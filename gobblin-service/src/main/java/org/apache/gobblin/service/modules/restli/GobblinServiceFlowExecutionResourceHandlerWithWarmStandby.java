@@ -40,16 +40,18 @@ import org.apache.gobblin.service.FlowExecutionResourceLocalHandler;
 import org.apache.gobblin.service.FlowStatusId;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+
 
 @Slf4j
 public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends GobblinServiceFlowExecutionResourceHandler{
-  private DagActionStore dagActionStore;
+  private DagManagementStateStore dagManagementStateStore;
   @Inject
   public GobblinServiceFlowExecutionResourceHandlerWithWarmStandby(FlowExecutionResourceLocalHandler handler,
       @Named(GobblinServiceManager.SERVICE_EVENT_BUS_NAME) EventBus eventBus,
-      Optional<HelixManager> manager, @Named(InjectionNames.FORCE_LEADER) boolean forceLeader, DagActionStore dagActionStore) {
+      Optional<HelixManager> manager, @Named(InjectionNames.FORCE_LEADER) boolean forceLeader, DagManagementStateStore dagManagementStateStore) {
     super(handler, eventBus, manager, forceLeader);
-    this.dagActionStore = dagActionStore;
+    this.dagManagementStateStore = dagManagementStateStore;
   }
 
   @Override
@@ -69,12 +71,12 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
   protected void addDagAction(String flowGroup, String flowName, Long flowExecutionId, DagActionStore.DagActionType actionType) {
     try {
       // If an existing resume request is still pending then do not accept this request
-      if (this.dagActionStore.exists(flowGroup, flowName, flowExecutionId.toString(), actionType)) {
+      if (this.dagManagementStateStore.existsFlowDagAction(flowGroup, flowName, flowExecutionId.toString(), actionType)) {
         this.throwErrorResponse("There is already a pending " + actionType + " action for this flow. Please wait to resubmit and wait "
             + "for action to be completed.", HttpStatus.S_409_CONFLICT);
         return;
       }
-      this.dagActionStore.addFlowDagAction(flowGroup, flowName, flowExecutionId.toString(), actionType);
+      this.dagManagementStateStore.addFlowDagAction(flowGroup, flowName, flowExecutionId.toString(), actionType);
     } catch (IOException | SQLException e) {
       log.warn(
           String.format("Failed to add %s action for flow %s %s %s to dag action store due to:", actionType, flowGroup,

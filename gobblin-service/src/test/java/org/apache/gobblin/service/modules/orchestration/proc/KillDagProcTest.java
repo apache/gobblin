@@ -94,7 +94,7 @@ public class KillDagProcTest {
 
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow1",
         String.valueOf(flowExecutionId), MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH),
-        null, mock(DagActionStore.class)), flowCompilationValidationHelper);
+        null, this.dagManagementStateStore), flowCompilationValidationHelper);
     launchDagProc.process(this.dagManagementStateStore);
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
@@ -107,7 +107,7 @@ public class KillDagProcTest {
 
     KillDagProc killDagProc = new KillDagProc(new KillDagTask(new DagActionStore.DagAction("fg", "flow1",
        String.valueOf(flowExecutionId), MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.KILL),
-        null, mock(DagActionStore.class)));
+        null, this.dagManagementStateStore));
     killDagProc.process(this.dagManagementStateStore);
 
     long cancelJobCount = specProducers.stream()
@@ -137,7 +137,7 @@ public class KillDagProcTest {
 
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow2",
         String.valueOf(flowExecutionId), MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH),
-        null, mock(DagActionStore.class)), flowCompilationValidationHelper);
+        null, this.dagManagementStateStore), flowCompilationValidationHelper);
     launchDagProc.process(this.dagManagementStateStore);
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
@@ -150,7 +150,7 @@ public class KillDagProcTest {
 
     KillDagProc killDagProc = new KillDagProc(new KillDagTask(new DagActionStore.DagAction("fg", "flow2",
         String.valueOf(flowExecutionId), "job2", DagActionStore.DagActionType.KILL),
-        null, mock(DagActionStore.class)));
+        null, this.dagManagementStateStore));
     killDagProc.process(this.dagManagementStateStore);
 
     long cancelJobCount = specProducers.stream()

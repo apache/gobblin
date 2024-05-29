@@ -48,6 +48,7 @@ import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 
@@ -98,14 +99,14 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   @Getter
   @VisibleForTesting
   protected FlowCatalog flowCatalog;
-  protected DagActionStore dagActionStore;
+  protected DagManagementStateStore dagManagementStateStore;
   @Getter
   private volatile boolean isActive;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
   public DagActionStoreChangeMonitor(String topic, Config config, DagManager dagManager, int numThreads,
-      FlowCatalog flowCatalog, Orchestrator orchestrator, DagActionStore dagActionStore,
+      FlowCatalog flowCatalog, Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore,
       boolean isMultiActiveSchedulerEnabled) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
@@ -114,7 +115,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     this.dagManager = dagManager;
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
-    this.dagActionStore = dagActionStore;
+    this.dagManagementStateStore = dagManagementStateStore;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
 
     /*
@@ -135,9 +136,9 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
    * Load all actions from the DagActionStore to process any missed actions during service startup
    */
   protected void initializeMonitor() {
-    Collection<DagActionStore.DagAction> dagActions = null;
+    Collection<DagActionStore.DagAction> dagActions;
     try {
-      dagActions = dagActionStore.getDagActions();
+      dagActions = dagManagementStateStore.getDagActions();
     } catch (IOException e) {
       throw new RuntimeException(String.format("Unable to retrieve dagActions from the dagActionStore while "
           + "initializing the %s", DagActionStoreChangeMonitor.class.getCanonicalName()), e);
@@ -326,7 +327,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     } finally {
       // Delete the dag action regardless of whether it was processed successfully to avoid accumulating failure cases
       try {
-        this.dagActionStore.deleteDagAction(dagAction);
+        this.dagManagementStateStore.deleteDagAction(dagAction);
       } catch (IOException e) {
         log.warn("Failed to delete dag action from dagActionStore. dagAction: {}", dagAction);
       }

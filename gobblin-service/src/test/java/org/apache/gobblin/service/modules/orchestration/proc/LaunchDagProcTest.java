@@ -89,7 +89,7 @@ public class LaunchDagProcTest {
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     LaunchDagProc launchDagProc = new LaunchDagProc(
         new LaunchDagTask(new DagActionStore.DagAction("fg", "fn", "12345",
-            "jn", DagActionStore.DagActionType.LAUNCH), null, mock(DagActionStore.class)),
+            "jn", DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore),
         flowCompilationValidationHelper);
 
     launchDagProc.process(this.dagManagementStateStore);

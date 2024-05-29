@@ -41,13 +41,13 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
   private final LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
-  private final DagActionStore dagActionStore;
+  private final DagManagementStateStore dagManagementStateStore;
 
   public DagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
-      DagActionStore dagActionStore) {
+      DagManagementStateStore dagManagementStateStore) {
     this.dagAction = dagAction;
     this.leaseObtainedStatus = leaseObtainedStatus;
-    this.dagActionStore = dagActionStore;
+    this.dagManagementStateStore = dagManagementStateStore;
   }
 
   public abstract <T> T host(DagTaskVisitor<T> visitor);
@@ -59,7 +59,7 @@ public abstract class DagTask {
    */
   public final boolean conclude() {
     try {
-      this.dagActionStore.deleteDagAction(this.dagAction);
+      this.dagManagementStateStore.deleteDagAction(this.dagAction);
       return this.leaseObtainedStatus.completeLease();
     } catch (IOException e) {
       // TODO: Decide appropriate exception to throw and add to the commit method's signature
