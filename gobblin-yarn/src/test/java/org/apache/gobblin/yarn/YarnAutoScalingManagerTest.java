@@ -18,11 +18,14 @@
 package org.apache.gobblin.yarn;
 
 import java.util.Arrays;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.helix.HelixDataAccessor;
 import org.apache.helix.HelixProperty;
@@ -32,6 +35,7 @@ import org.apache.helix.task.JobContext;
 import org.apache.helix.task.JobDag;
 import org.apache.helix.task.TargetState;
 import org.apache.helix.task.TaskDriver;
+import org.apache.helix.task.TaskPartitionState;
 import org.apache.helix.task.TaskState;
 import org.apache.helix.task.WorkflowConfig;
 import org.apache.helix.task.WorkflowContext;
@@ -40,10 +44,13 @@ import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.ImmutableSet;
+import com.google.common.eventbus.EventBus;
 
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.yarn.event.ContainerReleaseRequest;
 
 import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
@@ -79,7 +86,9 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false);
+            defaultContainerCores, 20, false,
+            10,
+            false, false, new HashSet<>());
 
     runnable.run();
     ArgumentCaptor<YarnContainerRequestBundle> argument = ArgumentCaptor.forClass(YarnContainerRequestBundle.class);
@@ -110,7 +119,9 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false);
+            defaultContainerCores, 20, false,
+            10,
+            false, false, new HashSet<>());
 
     runnable.run();
 
@@ -148,7 +159,9 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false);
+            defaultContainerCores, 20, false,
+            10,
+            false, false, new HashSet<>());
 
     runnable.run();
 
@@ -188,7 +201,9 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false);
+            defaultContainerCores, 20, false,
+            10,
+            false, false, new HashSet<>());
 
     runnable.run();
 
@@ -216,7 +231,9 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 2,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false);
+            defaultContainerCores, 20, false,
+            10,
+            false, false, new HashSet<>());
 
     runnable.run();
 
@@ -240,7 +257,9 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable1 =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.2, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false);
+            defaultContainerCores, 20, false,
+            10,
+            false, false, new HashSet<>());
 
     runnable1.run();
 
@@ -253,7 +272,9 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable2 =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             0.1, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false);
+            defaultContainerCores, 20, false,
+            10,
+            false, false, new HashSet<>());
 
     runnable2.run();
 
@@ -266,7 +287,9 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable3 =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             6.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false);
+            defaultContainerCores, 20, false,
+            10,
+            false, false, new HashSet<>());
 
     runnable3.run();
 
@@ -275,6 +298,7 @@ public class YarnAutoScalingManagerTest {
     // so targetNumContainers = Ceil((2/1) * 6.0)) = 12.
     assertContainerRequest(mockYarnService, 12, ImmutableSet.of("GobblinYarnTaskRunner-1"));
   }
+
 
   /**
    * Test suppressed exception
@@ -393,7 +417,9 @@ public class YarnAutoScalingManagerTest {
     YarnAutoScalingManager.YarnAutoScalingRunnable runnable =
         new YarnAutoScalingManager.YarnAutoScalingRunnable(mockTaskDriver, mockYarnService, 1,
             1.0, noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-            defaultContainerCores, 20, false);
+            defaultContainerCores, 20, false,
+            10,
+            false, false, new HashSet<>());
 
     runnable.run();
 
@@ -413,6 +439,46 @@ public class YarnAutoScalingManagerTest {
     Assert.assertEquals((int) helixTagContainerCountMap.get(helixTag), 2);
     Assert.assertEquals((int) helixTagContainerCountMap.get(defaultHelixTag), 3);
   }
+
+  /**
+   * Test the scenarios when an instance in cluster has any partition that is stuck in INIT state for too long
+   */
+  @Test
+  public void testInstanceStuckInINITState()  {
+    YarnService mockYarnService = mock(YarnService.class);
+    TaskDriver mockTaskDriver = mock(TaskDriver.class);
+    Container mockContainer = mock(Container.class);
+    EventBus mockEventBus = mock(EventBus.class);
+
+    WorkflowConfig mockWorkflowConfig = getWorkflowConfig(mockTaskDriver, ImmutableSet.of("job1"), TaskState.IN_PROGRESS, TargetState.START, "workflow1");
+    Mockito.when(mockTaskDriver.getWorkflows()).thenReturn(ImmutableMap.of("workflow1", mockWorkflowConfig));
+
+    // Having both partition assigned to single instance initially, in this case, GobblinYarnTaskRunner-2
+    JobContext mockJobContext = getJobContext(mockTaskDriver, ImmutableMap.of(1,"GobblinYarnTaskRunner-1", 2, "GobblinYarnTaskRunner-2"), "job1");
+    Mockito.when(mockJobContext.getPartitionState(1)).thenReturn(TaskPartitionState.RUNNING);
+    Mockito.when(mockJobContext.getPartitionState(2)).thenReturn(TaskPartitionState.INIT);
+    Mockito.when(mockYarnService.getContainerInfoGivenHelixParticipant("GobblinYarnTaskRunner-2")).thenReturn(Optional.of(mockContainer));
+    Mockito.when(mockYarnService.getEventBus()).thenReturn(mockEventBus);
+    Mockito.when(mockYarnService.getEventSubmitter()).thenReturn(Optional.absent());
+    Set<Container> containers = new HashSet<>();
+    containers.add(mockContainer);
+    mockEventBus.post(new ContainerReleaseRequest(containers, true));
+    ContainerId mockContainerId = mock(ContainerId.class);
+    Mockito.when(mockContainer.getId()).thenReturn(mockContainerId);
+    Mockito.when(mockContainerId.toString()).thenReturn("container-1");
+    HelixDataAccessor helixDataAccessor = getHelixDataAccessor(Arrays.asList("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
+
+    TestYarnAutoScalingRunnable runnable = new TestYarnAutoScalingRunnable(mockTaskDriver, mockYarnService,
+        1, helixDataAccessor);
+
+
+
+    runnable.setAlwaysInINITState(true);
+    runnable.run();
+
+    assertContainerRequest(mockYarnService, 2, ImmutableSet.of("GobblinYarnTaskRunner-1", "GobblinYarnTaskRunner-2"));
+  }
+
 
   private HelixDataAccessor getHelixDataAccessor(List<String> taskRunners) {
     HelixDataAccessor helixDataAccessor = mock(HelixDataAccessor.class);
@@ -474,12 +540,17 @@ public class YarnAutoScalingManagerTest {
   private static class TestYarnAutoScalingRunnable extends YarnAutoScalingManager.YarnAutoScalingRunnable {
     boolean raiseException = false;
     boolean alwaysUnused = false;
+    boolean alwaysInINITState = false;
 
     public TestYarnAutoScalingRunnable(TaskDriver taskDriver, YarnService yarnService, int partitionsPerContainer,
         HelixDataAccessor helixDataAccessor) {
       super(taskDriver, yarnService, partitionsPerContainer, 1.0,
           noopQueue, helixDataAccessor, defaultHelixTag, defaultContainerMemory,
-          defaultContainerCores, 20, false);
+          defaultContainerCores, 20, false,
+          10,
+          true, true, new HashSet<TaskPartitionState>() {{
+            add(TaskPartitionState.INIT);
+          }});
     }
 
     @Override
@@ -499,9 +570,18 @@ public class YarnAutoScalingManagerTest {
       this.alwaysUnused = alwaysUnused;
     }
 
+    void setAlwaysInINITState(boolean alwaysInINITState) {
+      this.alwaysInINITState = alwaysInINITState;
+    }
+
     @Override
     boolean isInstanceUnused(String participant) {
       return alwaysUnused || super.isInstanceUnused(participant);
+    }
+
+    @Override
+    boolean isInstanceStuck(String participant) {
+      return alwaysInINITState || super.isInstanceStuck(participant);
     }
   }
 }
