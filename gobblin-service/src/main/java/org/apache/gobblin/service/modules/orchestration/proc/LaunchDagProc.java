@@ -90,7 +90,8 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   /**
    * Submit next set of Dag nodes in the provided Dag.
    */
-   private void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) {
+   private void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag)
+       throws IOException {
      Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
 
      if (nextNodes.size() > 1) {
@@ -102,6 +103,8 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
        DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
        log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), getDagId());
      }
+
+     DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
    }
 
   private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
