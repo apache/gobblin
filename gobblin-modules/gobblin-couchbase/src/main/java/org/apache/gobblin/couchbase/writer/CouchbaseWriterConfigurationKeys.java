@@ -53,6 +53,9 @@ public class CouchbaseWriterConfigurationKeys {
 
   public static final String OPERATION_TIMEOUT_MILLIS = prefix("operationTimeoutMillis");
   public static final long OPERATION_TIMEOUT_DEFAULT = 10000; // 10 second default timeout
+  public static final String CONNECT_TIMEOUT = prefix("connectTimeout");
+  // using the default value same as DefaultCouchbaseEnvironment.CONNECT_TIMEOUT which is private in java-client-2.7.6
+  public static final long CONNECT_TIMEOUT_DEFAULT = TimeUnit.SECONDS.toMillis(5);
 
   public static final String RETRIES_ENABLED = prefix("retriesEnabled");
   public static final boolean RETRIES_ENABLED_DEFAULT = false;
