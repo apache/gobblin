@@ -218,7 +218,7 @@ public class DagManagerFlowTest {
         assertTrue(input -> dagManager.dagManagerThreads[queue].dagToSLA.containsKey(dagId), ERROR_MESSAGE);
 
     // check the SLA value
-    Assert.assertEquals(dagManager.dagManagerThreads[queue].dagToSLA.get(dagId).longValue(), DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
+    Assert.assertEquals(dagManager.dagManagerThreads[queue].dagToSLA.get(dagId).longValue(), ConfigurationKeys.DEFAULT_FLOW_SLA_MILLIS);
 
     // verify cancelJob() of the specProducer is not called once
     // which means job cancellation was triggered
@@ -315,20 +315,20 @@ public class DagManagerFlowTest {
   @Test
   void slaConfigCheck() throws Exception {
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("5", 123456783L, "FINISH_RUNNING", 1);
-    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
+    Assert.assertEquals(DagManagerUtils.getFlowFinishSLA(dag.getStartNodes().get(0)), ConfigurationKeys.DEFAULT_FLOW_SLA_MILLIS);
 
     Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
     jobConfig = jobConfig
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("7"))
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
-    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.SECONDS.toMillis(7L));
+    Assert.assertEquals(DagManagerUtils.getFlowFinishSLA(dag.getStartNodes().get(0)), TimeUnit.SECONDS.toMillis(7L));
 
     jobConfig = jobConfig
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("8"))
         .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.name()));
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
-    Assert.assertEquals(DagManagerUtils.getFlowSLA(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(8L));
+    Assert.assertEquals(DagManagerUtils.getFlowFinishSLA(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(8L));
   }
 
   @Test

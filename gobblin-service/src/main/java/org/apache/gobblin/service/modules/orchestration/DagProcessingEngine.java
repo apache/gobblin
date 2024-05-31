@@ -63,11 +63,14 @@ public class DagProcessingEngine extends AbstractIdleService {
   private ScheduledExecutorService scheduledExecutorPool;
   private static final Integer TERMINATION_TIMEOUT = 30;
   public static final String DEFAULT_JOB_START_DEADLINE_TIME_MS = "defaultJobStartDeadlineTimeMillis";
+  public static final String DEFAULT_FLOW_FINISH_DEADLINE_TIME_MS = "defaultFlowFinishDeadlineTimeMillis";
   @Getter static long defaultJobStartSlaTimeMillis;
+  @Getter static long defaultFlowFinishSlaTimeMillis;
 
   @Inject
   public DagProcessingEngine(Config config, Optional<DagTaskStream> dagTaskStream, Optional<DagProcFactory> dagProcFactory,
-      Optional<DagManagementStateStore> dagManagementStateStore, @Named(DEFAULT_JOB_START_DEADLINE_TIME_MS) long deadlineTimeMs) {
+      Optional<DagManagementStateStore> dagManagementStateStore, @Named(DEFAULT_JOB_START_DEADLINE_TIME_MS) long jobStartDeadlineTimeMs,
+      @Named(DEFAULT_FLOW_FINISH_DEADLINE_TIME_MS) long flowFinishDeadlineTimeMs) {
     this.config = config;
     this.dagProcFactory = dagProcFactory;
     this.dagTaskStream = dagTaskStream;
@@ -80,11 +83,16 @@ public class DagProcessingEngine extends AbstractIdleService {
           this.dagManagementStateStore.isPresent() ? "present" : "MISSING"));
     }
     log.info("DagProcessingEngine initialized.");
-    setDefaultJobStartDeadlineTimeMs(deadlineTimeMs);
+    setDefaultJobStartDeadlineTimeMs(jobStartDeadlineTimeMs);
+    setDefaultFlowFinishDeadlineTimeMs(flowFinishDeadlineTimeMs);
   }
 
-  private static void setDefaultJobStartDeadlineTimeMs(long deadlineTimeMs) {
-    defaultJobStartSlaTimeMillis = deadlineTimeMs;
+  private static void setDefaultJobStartDeadlineTimeMs(long jobStartDeadlineTimeMs) {
+    defaultJobStartSlaTimeMillis = jobStartDeadlineTimeMs;
+  }
+
+  private static void setDefaultFlowFinishDeadlineTimeMs(long flowFinishDeadlineTimeMs) {
+    defaultFlowFinishSlaTimeMillis = flowFinishDeadlineTimeMs;
   }
 
   @Override
@@ -129,7 +137,7 @@ public class DagProcessingEngine extends AbstractIdleService {
           log.warn("Received a null dag task, ignoring.");
           continue;
         }
-        DagProc dagProc = dagTask.host(dagProcFactory);
+        DagProc<?> dagProc = dagTask.host(dagProcFactory);
         try {
           // todo - add retries
           dagProc.process(dagManagementStateStore);

@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
@@ -39,8 +40,9 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
@@ -48,7 +50,6 @@ import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -162,21 +163,26 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     dagActionReminderScheduler.get().scheduleReminder(dagAction, reminderDuration);
   }
 
-  private void createFlowFinishDeadlineTrigger(DagActionStore.DagAction dagAction) throws SchedulerException, IOException {
+  private void createFlowFinishDeadlineTrigger(DagActionStore.DagAction dagAction)
+      throws SchedulerException, URISyntaxException, SpecNotFoundException {
     long timeOutForJobFinish;
-    Dag.DagNode<JobExecutionPlan> dagNode = this.dagManagementStateStore.getDag(dagAction.getDagId()).get().getNodes().get(0);
+    FlowSpec flowSpec = this.dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(dagAction.getDagId().getFlowId()));
 
     try {
-      timeOutForJobFinish = DagManagerUtils.getFlowSLA(dagNode);
+      timeOutForJobFinish = DagManagerUtils.getFlowFinishSLA(flowSpec, DagProcessingEngine.getDefaultFlowFinishSlaTimeMillis());
     } catch (ConfigException e) {
       log.warn("Flow SLA for flowGroup: {}, flowName: {} is given in invalid format, using default SLA of {}",
-          dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
-          dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
-          DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
-      timeOutForJobFinish = DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS;
+          flowSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
+          flowSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
+          ConfigurationKeys.DEFAULT_FLOW_SLA_MILLIS);
+      timeOutForJobFinish = ConfigurationKeys.DEFAULT_FLOW_SLA_MILLIS;
     }
 
-    long flowStartTime = DagManagerUtils.getFlowStartTime(dagNode);
+    // todo - this timestamp is just an approximation, the real flow submission has happened in past, and that is when a
+    // ENFORCE_FLOW_FINISH_DEADLINE dag action was created; we are just processing that dag action here
+    // we can find accurate flow start time using DagManagerUtils.getFlowStartTime(dagNode), but dagNode
+    // may not be yet available in the store for new flows. it must exist for resumed flows though.
+    long flowStartTime = System.currentTimeMillis();
     long reminderDuration = flowStartTime + timeOutForJobFinish - System.currentTimeMillis();
 
     dagActionReminderScheduler.get().scheduleReminder(dagAction, reminderDuration);

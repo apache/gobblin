@@ -40,6 +40,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
@@ -60,7 +61,6 @@ import static org.apache.gobblin.service.ExecutionStatus.*;
 
 
 public class DagManagerUtils {
-  static long DEFAULT_FLOW_SLA_MILLIS = TimeUnit.HOURS.toMillis(24);
   static String QUOTA_KEY_SEPERATOR = ",";
 
   public static FlowId getFlowId(Dag<JobExecutionPlan> dag) {
@@ -297,14 +297,24 @@ public class DagManagerUtils {
    * @param dagNode dag node for which sla is to be retrieved
    * @return sla if it is provided, DEFAULT_FLOW_SLA_MILLIS otherwise
    */
-  public static long getFlowSLA(DagNode<JobExecutionPlan> dagNode) {
+  public static long getFlowFinishSLA(DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
         jobConfig, ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT));
 
     return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME)
         ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME))
-        : DEFAULT_FLOW_SLA_MILLIS;
+        : ConfigurationKeys.DEFAULT_FLOW_SLA_MILLIS;
+  }
+
+  public static long getFlowFinishSLA(FlowSpec flowSpec, Long defaultJobStartSla) {
+    Config flowConfig = flowSpec.getConfig();
+    TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
+        flowConfig, ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT));
+
+    return flowConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME)
+        ? slaTimeUnit.toMillis(flowConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME))
+        : defaultJobStartSla;
   }
 
   /**

@@ -913,13 +913,13 @@ public class DagManager extends AbstractIdleService {
         flowSla = dagToSLA.get(dagId);
       } else {
         try {
-          flowSla = DagManagerUtils.getFlowSLA(node);
+          flowSla = DagManagerUtils.getFlowFinishSLA(node);
         } catch (ConfigException e) {
           log.warn("Flow SLA for flowGroup: {}, flowName: {} is given in invalid format, using default SLA of {}",
               node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
               node.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
-              DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
-          flowSla = DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS;
+              ConfigurationKeys.DEFAULT_FLOW_SLA_MILLIS);
+          flowSla = ConfigurationKeys.DEFAULT_FLOW_SLA_MILLIS;
         }
         dagToSLA.put(dagId, flowSla);
       }

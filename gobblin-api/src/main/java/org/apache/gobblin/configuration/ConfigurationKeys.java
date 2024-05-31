@@ -1068,7 +1068,8 @@ public class ConfigurationKeys {
   public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
   public static final String GOBBLIN_FLOW_SLA_TIME = "gobblin.flow.sla.time";
   public static final String GOBBLIN_FLOW_SLA_TIME_UNIT = "gobblin.flow.sla.timeunit";
-  public static final String DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT = "MINUTES";
+  public static final long DEFAULT_FLOW_SLA_MILLIS = TimeUnit.HOURS.toMillis(24);
+  public static final String DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT = TimeUnit.MINUTES.name();
   public static final String GOBBLIN_JOB_START_SLA_TIME = "gobblin.job.start.sla.time";
   public static final String GOBBLIN_JOB_START_SLA_TIME_UNIT = "gobblin.job.start.sla.timeunit";
   public static final long FALLBACK_GOBBLIN_JOB_START_SLA_TIME = 10L;

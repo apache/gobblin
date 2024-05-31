@@ -171,16 +171,24 @@ public class DagProcUtils {
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
   }
 
-  public static void sendEnforceFlowFinishDeadlineDagAction(DagManagementStateStore dagManagementStateStore, DagActionStore.DagAction launchDagAction)
+  public static void sendEnforceFlowFinishDeadlineDagAction(DagManagementStateStore dagManagementStateStore, DagActionStore.DagAction dagAction)
       throws IOException {
-    dagManagementStateStore.addFlowDagAction(launchDagAction.getFlowGroup(), launchDagAction.getFlowName(),
-        launchDagAction.getFlowExecutionId(), DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+    dagManagementStateStore.addFlowDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(),
+        dagAction.getFlowExecutionId(), DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
   }
 
   public static long getDefaultJobStartDeadline(Config config) {
-    TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
+    TimeUnit jobStartDeadlineTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
         config, DagManager.JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
-    return jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, DagManager.JOB_START_SLA_TIME,
+    return jobStartDeadlineTimeUnit.toMillis(ConfigUtils.getLong(config, DagManager.JOB_START_SLA_TIME,
         ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
+  }
+
+  public static long getDefaultFlowFinishDeadline(Config config) {
+    TimeUnit flowFinishDeadlineTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
+        config, ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT));
+    return config.hasPath(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME)
+        ? flowFinishDeadlineTimeUnit.toMillis(config.getLong(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME))
+        : ConfigurationKeys.DEFAULT_FLOW_SLA_MILLIS;
   }
 }

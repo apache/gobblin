@@ -102,7 +102,7 @@ public class DagProcessingEngineTest {
     this.dagTaskStream = spy(new MockedDagTaskStream());
     DagProcessingEngine dagProcessingEngine =
         new DagProcessingEngine(config, Optional.ofNullable(dagTaskStream), Optional.ofNullable(this.dagProcFactory),
-            Optional.ofNullable(dagManagementStateStore), 100000L);
+            Optional.ofNullable(dagManagementStateStore), 100000L, 100000L);
     dagProcessingEngine.startAsync();
   }
 

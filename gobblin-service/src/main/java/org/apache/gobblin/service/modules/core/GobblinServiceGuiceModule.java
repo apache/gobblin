@@ -327,6 +327,9 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant().annotatedWith(Names.named(DagProcessingEngine.DEFAULT_JOB_START_DEADLINE_TIME_MS)).to(
         DagProcUtils.getDefaultJobStartDeadline(serviceConfig.getInnerConfig()));
 
+    binder.bindConstant().annotatedWith(Names.named(DagProcessingEngine.DEFAULT_FLOW_FINISH_DEADLINE_TIME_MS)).to(
+        DagProcUtils.getDefaultFlowFinishDeadline(serviceConfig.getInnerConfig()));
+
     LOGGER.info("Bindings configured");
   }
 

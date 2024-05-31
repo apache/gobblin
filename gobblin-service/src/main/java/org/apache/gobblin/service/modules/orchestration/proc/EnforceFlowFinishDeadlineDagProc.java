@@ -66,7 +66,7 @@ public class EnforceFlowFinishDeadlineDagProc extends DagProc<Optional<Dag<JobEx
   private void enforceFlowFinishDeadline(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
       throws IOException {
     Dag.DagNode<JobExecutionPlan> dagNode = dag.get().getNodes().get(0);
-    long flowFinishDeadline = DagManagerUtils.getFlowSLA(dagNode);
+    long flowFinishDeadline = DagManagerUtils.getFlowFinishSLA(dagNode);
     long flowStartTime = DagManagerUtils.getFlowStartTime(dagNode);
 
     // note that this condition should be true because the triggered dag action has waited enough before reaching here
