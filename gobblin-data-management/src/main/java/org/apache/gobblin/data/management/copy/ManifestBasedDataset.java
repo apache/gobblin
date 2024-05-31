@@ -135,7 +135,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             // Always grab the parent since the above permission setting should be setting the permission for a folder itself
             Path fromPath = fileToCopy.getParent();
             // Avoid duplicate calculation for the same ancestor
-            if (!ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString())) {
+            if (fromPath != null && !ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString())) {
               ancestorOwnerAndPermissions.putAll(
                   CopyableFile.resolveReplicatedAncestorOwnerAndPermissionsRecursively(srcFs, fromPath,
                       new Path(commonFilesParent), configuration));
