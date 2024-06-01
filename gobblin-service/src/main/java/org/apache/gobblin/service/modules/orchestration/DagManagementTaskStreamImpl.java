@@ -147,7 +147,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
           }
         } catch (Exception e) {
           //TODO: need to handle exceptions gracefully
-          log.error("Exception getting DagAction from the queue / creating DagTask {}", dagAction == null ? "" : dagAction, e);
+          log.error("Exception getting DagAction from the queue or creating DagTask. dagAction - {}", dagAction == null ? "<null>" : dagAction, e);
         }
       }
   }

@@ -81,7 +81,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       // todo - add metrics
     } else {
       submitNextNodes(dagManagementStateStore, dag.get());
-      //Checkpoint the dag state, it should have an updated value of dag nodes
+      // Checkpoint the dag state, it should have an updated value of dag nodes
       dagManagementStateStore.checkpointDag(dag.get());
       DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
       orchestrationDelayCounter.set(System.currentTimeMillis() - DagManagerUtils.getFlowExecId(dag.get()));
@@ -91,8 +91,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   /**
    * Submit next set of Dag nodes in the provided Dag.
    */
-   private void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag)
-       throws IOException {
+   private void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) {
      Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
 
      if (nextNodes.size() > 1) {
