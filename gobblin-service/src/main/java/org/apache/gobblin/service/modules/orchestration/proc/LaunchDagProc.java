@@ -83,6 +83,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       submitNextNodes(dagManagementStateStore, dag.get());
       //Checkpoint the dag state, it should have an updated value of dag nodes
       dagManagementStateStore.checkpointDag(dag.get());
+      DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
       orchestrationDelayCounter.set(System.currentTimeMillis() - DagManagerUtils.getFlowExecId(dag.get()));
     }
   }
@@ -103,8 +104,6 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
        DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
        log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), getDagId());
      }
-
-     DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
    }
 
   private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
