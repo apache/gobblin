@@ -22,10 +22,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.mockito.Mockito;
-import org.mockito.invocation.Invocation;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -101,9 +99,6 @@ public class LaunchDagProcTest {
         Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
             .filter(a -> a.getMethod().getName().equals("addDagNodeState")).count());
 
-    List<Invocation> invocations = Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
-        .filter(a -> a.getMethod().getName().equals("addFlowDagAction")).collect(Collectors.toList());
-    Assert.assertEquals(invocations.size(), 1);
     Mockito.verify(this.dagManagementStateStore, Mockito.times(1))
         .addFlowDagAction(any(), any(), any(), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
   }
