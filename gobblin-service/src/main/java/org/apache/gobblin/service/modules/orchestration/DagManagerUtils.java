@@ -184,7 +184,7 @@ public class DagManagerUtils {
     JobSpec jobSpec = dagNode.getValue().getJobSpec();
     Map<String, String> configWithCurrentAttempts = ImmutableMap.of(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, String.valueOf(dagNode.getValue().getCurrentAttempts()),
         ConfigurationKeys.JOB_CURRENT_GENERATION, String.valueOf(dagNode.getValue().getCurrentGeneration()));
-    Properties configAsProperties = new Properties(jobSpec.getConfigAsProperties());
+    Properties configAsProperties = (Properties) jobSpec.getConfigAsProperties().clone();
     configAsProperties.putAll(configWithCurrentAttempts);
     //Return new spec with new config to avoid change the reference to dagNode
     return new JobSpec(jobSpec.getUri(), jobSpec.getVersion(), jobSpec.getDescription(), ConfigFactory.parseMap(configWithCurrentAttempts).withFallback(jobSpec.getConfig()),
