@@ -779,8 +779,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       final State gobblinJobState = HadoopUtils.getStateFromConf(context.getConfiguration());
       TaskAttemptID taskAttemptID = context.getTaskAttemptID();
 
-      troubleshooter =
-          AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(gobblinJobState.getProperties()));
+      troubleshooter = AutomaticTroubleshooterFactory.createForJob(gobblinJobState.getProperties());
       troubleshooter.start();
 
       try (Closer closer = Closer.create()) {
