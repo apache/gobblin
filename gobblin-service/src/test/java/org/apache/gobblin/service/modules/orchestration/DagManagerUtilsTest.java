@@ -32,5 +32,10 @@ public class DagManagerUtilsTest {
     Dag<JobExecutionPlan> testDag = DagTestUtils.buildDag("testDag", 1000L);
     JobSpec jobSpec = DagManagerUtils.getJobSpec(testDag.getNodes().get(0));
     Assert.assertEquals(jobSpec.getConfigAsProperties().size(), jobSpec.getConfig().entrySet().size());
+    for (String key : jobSpec.getConfigAsProperties().stringPropertyNames()) {
+      Assert.assertTrue(jobSpec.getConfig().hasPath(key));
+      // Assume each key is a string because all job configs are currently strings
+      Assert.assertEquals(jobSpec.getConfigAsProperties().get(key), jobSpec.getConfig().getString(key));
+    }
   }
 }
