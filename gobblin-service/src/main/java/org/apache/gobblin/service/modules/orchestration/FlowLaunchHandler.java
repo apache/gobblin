@@ -50,7 +50,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
-import org.apache.gobblin.service.modules.orchestration.proc.DagProcUtils;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -141,7 +140,6 @@ public class FlowLaunchHandler {
     DagActionStore.DagAction launchDagAction = leaseStatus.getConsensusDagAction();
     try {
       this.dagManagementStateStore.addDagAction(launchDagAction);
-      DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, launchDagAction);
       this.numFlowsSubmitted.mark();
       // after successfully persisting, close the lease
       return this.multiActiveLeaseArbiter.recordLeaseSuccess(leaseStatus);

@@ -125,8 +125,9 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   @Override
   public DagTask next() {
       while (true) {
+        DagActionStore.DagAction dagAction = null;
         try {
-          DagActionStore.DagAction dagAction = this.dagActionQueue.take();
+          dagAction = this.dagActionQueue.take();
           /* Create triggers for original (non-reminder) dag actions of type ENFORCE_JOB_START_DEADLINE and ENFORCE_FLOW_FINISH_DEADLINE.
              Reminder triggers are used to inform hosts once the job start deadline and flow finish deadline are passed;
              then only is lease arbitration done to enforce the deadline violation and fail the job or flow if needed */
@@ -146,7 +147,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
           }
         } catch (Exception e) {
           //TODO: need to handle exceptions gracefully
-          log.error("Exception getting DagAction from the queue / creating DagTask", e);
+          log.error("Exception getting DagAction from the queue or creating DagTask. dagAction - {}", dagAction == null ? "<null>" : dagAction, e);
         }
       }
   }

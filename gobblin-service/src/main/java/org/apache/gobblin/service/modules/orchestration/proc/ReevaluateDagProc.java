@@ -171,7 +171,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         log.warn("It should not reach here. Job status {} is unexpected.", executionStatus);
     }
 
-    //Checkpoint the dag state, it should have an updated value of dag fields
+    // Checkpoint the dag state, it should have an updated value of dag fields
     dagManagementStateStore.checkpointDag(dag);
     dagManagementStateStore.deleteDagNodeState(getDagId(), dagNode);
   }
