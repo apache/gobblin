@@ -93,6 +93,8 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     dagManagementStateStore.deleteFailedDag(failedDag.get());
 
     resumeDag(dagManagementStateStore, failedDag.get());
+
+    DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
   }
 
   private void resumeDag(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) {

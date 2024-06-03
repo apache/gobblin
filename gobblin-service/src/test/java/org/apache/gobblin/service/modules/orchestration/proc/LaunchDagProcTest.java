@@ -55,6 +55,7 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -97,6 +98,9 @@ public class LaunchDagProcTest {
     Assert.assertEquals(expectedNumOfSavingDagNodeStates,
         Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
             .filter(a -> a.getMethod().getName().equals("addDagNodeState")).count());
+
+    Mockito.verify(this.dagManagementStateStore, Mockito.times(1))
+        .addFlowDagAction(any(), any(), any(), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
   }
 
   // This creates a dag like this

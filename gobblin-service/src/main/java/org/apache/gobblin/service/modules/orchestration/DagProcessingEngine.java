@@ -129,7 +129,7 @@ public class DagProcessingEngine extends AbstractIdleService {
           log.warn("Received a null dag task, ignoring.");
           continue;
         }
-        DagProc dagProc = dagTask.host(dagProcFactory);
+        DagProc<?> dagProc = dagTask.host(dagProcFactory);
         try {
           // todo - add retries
           dagProc.process(dagManagementStateStore);
