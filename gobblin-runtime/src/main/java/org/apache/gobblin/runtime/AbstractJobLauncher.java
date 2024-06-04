@@ -31,9 +31,8 @@ import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
-
 import java.util.concurrent.atomic.AtomicInteger;
-import lombok.Getter;
+
 import org.apache.commons.lang.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -57,6 +56,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import javax.annotation.Nullable;
+import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
@@ -205,7 +205,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
     clusterNameTags.addAll(Tag.fromMap(ClusterNameTags.getClusterNameTags()));
     GobblinMetrics.addCustomTagsToProperties(jobProps, clusterNameTags);
 
-    troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobProps));
+    troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobProps);
     troubleshooter.start();
 
     // Make a copy for both the system and job configuration properties and resolve the job-template if any.

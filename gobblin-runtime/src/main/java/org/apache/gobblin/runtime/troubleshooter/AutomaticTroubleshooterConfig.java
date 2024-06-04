@@ -18,8 +18,7 @@
 package org.apache.gobblin.runtime.troubleshooter;
 
 import java.util.Objects;
-
-import com.typesafe.config.Config;
+import java.util.Properties;
 
 import javax.inject.Inject;
 import lombok.AllArgsConstructor;
@@ -27,7 +26,7 @@ import lombok.Builder;
 import lombok.Getter;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -44,15 +43,15 @@ public class AutomaticTroubleshooterConfig {
   private int inMemoryRepositoryMaxSize = ConfigurationKeys.DEFAULT_TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE;
 
   @Inject
-  public AutomaticTroubleshooterConfig(Config config) {
-    Objects.requireNonNull(config, "Config cannot be null");
+  public AutomaticTroubleshooterConfig(Properties properties) {
+    Objects.requireNonNull(properties, "Properties cannot be null");
 
-    disabled = ConfigUtils.getBoolean(config, ConfigurationKeys.TROUBLESHOOTER_DISABLED, false);
-    disableEventReporting =
-        ConfigUtils.getBoolean(config, ConfigurationKeys.TROUBLESHOOTER_DISABLE_EVENT_REPORTING, false);
+    disabled = PropertiesUtils.getPropAsBoolean(properties, ConfigurationKeys.TROUBLESHOOTER_DISABLED, "false");
+    disableEventReporting = PropertiesUtils.getPropAsBoolean(properties,
+        ConfigurationKeys.TROUBLESHOOTER_DISABLE_EVENT_REPORTING, "false");
 
-    inMemoryRepositoryMaxSize = ConfigUtils
-        .getInt(config, ConfigurationKeys.TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE,
+    inMemoryRepositoryMaxSize = PropertiesUtils.getPropAsInt(properties,
+        ConfigurationKeys.TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE,
                 ConfigurationKeys.DEFAULT_TROUBLESHOOTER_IN_MEMORY_ISSUE_REPOSITORY_MAX_SIZE);
   }
 }

@@ -21,15 +21,14 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
 import com.google.api.client.util.Lists;
 import com.google.common.io.Closer;
 
 import io.temporal.failure.ApplicationFailure;
-
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
@@ -45,10 +44,9 @@ import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
-import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
 
@@ -70,7 +68,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     // jobState.setBroker(jobBroker);
     // jobState.setWorkUnitAndDatasetStateFunctional(new CombinedWorkUnitAndDatasetStateGenerator(this.datasetStateStore, this.jobName));
 
-    AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobProps));
+    AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobProps);
     troubleshooter.start();
     try (Closer closer = Closer.create()) {
       // before embarking on (potentially expensive) WU creation, first pre-check that the FS is available

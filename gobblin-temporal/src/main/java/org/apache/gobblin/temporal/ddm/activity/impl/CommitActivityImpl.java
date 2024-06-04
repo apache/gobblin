@@ -29,18 +29,18 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
-import javax.annotation.Nullable;
-import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 import com.google.api.client.util.Lists;
 import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-import io.temporal.failure.ApplicationFailure;
 
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import io.temporal.failure.ApplicationFailure;
+import javax.annotation.Nullable;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
@@ -54,16 +54,15 @@ import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.SafeDatasetCommit;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.runtime.TaskStateCollectorService;
-import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.DatasetStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -87,7 +86,7 @@ public class CommitActivityImpl implements CommitActivity {
       JobState jobState = Help.loadJobState(workSpec, fs);
       optJobName = Optional.ofNullable(jobState.getJobName());
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);
-      troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobState.getProperties()));
+      troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobState.getProperties());
       troubleshooter.start();
       List<TaskState> taskStates = loadTaskStates(workSpec, fs, jobState, numDeserializationThreads);
       if (taskStates.isEmpty()) {
