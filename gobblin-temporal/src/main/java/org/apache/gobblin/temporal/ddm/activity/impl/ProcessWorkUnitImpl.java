@@ -56,7 +56,6 @@ import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
 
 
@@ -76,7 +75,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       List<WorkUnit> workUnits = loadFlattenedWorkUnits(wu, fs);
       log.info("{} - loaded; found {} workUnits", correlator, workUnits.size());
       JobState jobState = Help.loadJobState(wu, fs);
-      troubleshooter = AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(jobState.getProperties()));
+      troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobState.getProperties());
       troubleshooter.start();
       return execute(workUnits, wu, jobState, fs, troubleshooter.getIssueRepository());
     } catch (IOException | InterruptedException e) {

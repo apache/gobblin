@@ -28,7 +28,6 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
-import org.apache.gobblin.util.ConfigUtils;
 
 import static org.mockito.Mockito.*;
 import static org.testng.Assert.assertEquals;
@@ -41,9 +40,7 @@ public class AutomaticTroubleshooterTest {
   @Test
   public void canCollectAndRefineIssues()
       throws Exception {
-    Properties properties = new Properties();
-    AutomaticTroubleshooter troubleshooter =
-        AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(properties));
+    AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(new Properties());
     try {
       troubleshooter.start();
       log.warn("Test warning");
@@ -72,8 +69,7 @@ public class AutomaticTroubleshooterTest {
       throws Exception {
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.TROUBLESHOOTER_DISABLED, "true");
-    AutomaticTroubleshooter troubleshooter =
-        AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(properties));
+    AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(properties);
     try {
       troubleshooter.start();
       log.warn("Test warning");
@@ -96,8 +92,7 @@ public class AutomaticTroubleshooterTest {
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.TROUBLESHOOTER_DISABLED, "false");
     properties.put(ConfigurationKeys.TROUBLESHOOTER_DISABLE_EVENT_REPORTING, "true");
-    AutomaticTroubleshooter troubleshooter =
-        AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(properties));
+    AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(properties);
     try {
       troubleshooter.start();
 
