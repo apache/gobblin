@@ -45,12 +45,6 @@
       "compliance": "NONE"
     },
     {
-      "name": "flowEdgeId",
-      "type": "string",
-      "doc": "Flow edge id, excluding the sourceNode and destinationNode",
-      "compliance": "NONE"
-    },
-    {
       "name": "flowStatus",
       "type": {
         "type": "enum",
