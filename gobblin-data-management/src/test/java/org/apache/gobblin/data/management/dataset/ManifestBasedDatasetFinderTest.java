@@ -186,20 +186,17 @@ public class ManifestBasedDatasetFinderTest {
     ManifestBasedDatasetFinder finder = new ManifestBasedDatasetFinder(localFs, props);
     List<ManifestBasedDataset> datasets = finder.findDatasets();
     Assert.assertEquals(datasets.size(), 1);
-    try (
-        FileSystem sourceFs = Mockito.mock(FileSystem.class);
-        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
-        FileSystem destFs = Mockito.mock(FileSystem.class)
-    ) {
-      Path manifestPath = new Path(manifestLocation);
-      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
-      Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
-          CopyConfiguration.builder(destFs, props).build());
-      Assert.assertTrue(fileSets.hasNext());
-      FileSet<CopyEntity> fileSet = fileSets.next();
-      Assert.assertEquals(fileSet.getFiles().size(), 2);  // 1 files to copy + 1 post publish step
-      Assert.assertTrue(((PostPublishStep) fileSet.getFiles().get(1)).getStep() instanceof SetPermissionCommitStep);
-    }
+    FileSystem sourceFs = Mockito.mock(FileSystem.class);
+    FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+    FileSystem destFs = Mockito.mock(FileSystem.class)
+    Path manifestPath = new Path(manifestLocation);
+    setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
+    Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
+        CopyConfiguration.builder(destFs, props).build());
+    Assert.assertTrue(fileSets.hasNext());
+    FileSet<CopyEntity> fileSet = fileSets.next();
+    Assert.assertEquals(fileSet.getFiles().size(), 2);  // 1 files to copy + 1 post publish step
+    Assert.assertTrue(((PostPublishStep) fileSet.getFiles().get(1)).getStep() instanceof SetPermissionCommitStep);
   }
 
   private void setSourceAndDestFsMocks(FileSystem sourceFs, FileSystem destFs, Path manifestPath, FileSystem manifestReadFs) throws IOException, URISyntaxException {

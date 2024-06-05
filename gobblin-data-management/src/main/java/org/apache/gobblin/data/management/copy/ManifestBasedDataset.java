@@ -133,6 +133,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             copyEntities.add(copyableFile);
 
             // Always grab the parent since the above permission setting should be setting the permission for a folder itself
+            // {@link CopyDataPublisher#preserveFileAttrInPublisher} will be setting the permission for the empty child dir
             Path fromPath = fileToCopy.getParent();
             // Avoid duplicate calculation for the same ancestor
             if (fromPath != null && !ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString())) {
