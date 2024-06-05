@@ -822,6 +822,7 @@ public class KafkaAvroJobStatusMonitorTest {
 
   private GobblinTrackingEvent createFlowSucceededEvent() {
     GobblinTrackingEvent event = createGTE(TimingEvent.FlowTimings.FLOW_SUCCEEDED, Maps.newHashMap());
+    // Remove jobname and jobgroup as flow level events should not have them, get populated with "NA"
     event.getMetadata().remove(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
     event.getMetadata().remove(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
     return event;

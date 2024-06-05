@@ -215,7 +215,6 @@ public class GaaSJobObservabilityProducerTest {
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
-    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
     gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
     gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
 
@@ -232,7 +231,6 @@ public class GaaSJobObservabilityProducerTest {
     Assert.assertEquals(event.getFlowName(), flowName);
     Assert.assertEquals(event.getFlowExecutionId(), Long.valueOf(flowExecutionId));
     Assert.assertEquals(event.getFlowStatus(), FlowStatus.SUCCEEDED);
-    Assert.assertEquals(event.getFlowEdgeId(), "flowEdge");
     Assert.assertEquals(event.getEffectiveUserUrn(), null);
 
     AvroSerializer<GaaSFlowObservabilityEvent> serializer = new AvroBinarySerializer<>(
