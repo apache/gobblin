@@ -188,7 +188,7 @@ public class ManifestBasedDatasetFinderTest {
     Assert.assertEquals(datasets.size(), 1);
     FileSystem sourceFs = Mockito.mock(FileSystem.class);
     FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
-    FileSystem destFs = Mockito.mock(FileSystem.class)
+    FileSystem destFs = Mockito.mock(FileSystem.class);
     Path manifestPath = new Path(manifestLocation);
     setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
     Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
