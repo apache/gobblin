@@ -82,8 +82,7 @@ public class LaunchDagProcTest {
   }
 
   @Test
-  public void launchDag()
-      throws IOException, InterruptedException, URISyntaxException {
+  public void launchDag() throws IOException, InterruptedException, URISyntaxException {
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", System.currentTimeMillis(), DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
         5, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg")));
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
@@ -94,29 +93,50 @@ public class LaunchDagProcTest {
         flowCompilationValidationHelper);
 
     launchDagProc.process(this.dagManagementStateStore);
-    int expectedNumOfSavingDagNodeStates = 1; // = number of start nodes
-    Assert.assertEquals(expectedNumOfSavingDagNodeStates,
+    int numOfLaunchedJobs = 1; // = number of start nodes
+    Assert.assertEquals(numOfLaunchedJobs,
         Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
             .filter(a -> a.getMethod().getName().equals("addDagNodeState")).count());
 
-    Mockito.verify(this.dagManagementStateStore, Mockito.times(1))
+    Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
         .addFlowDagAction(any(), any(), any(), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
+  }
+
+  @Test
+  public void launchDagWithMultipleParallelJobs() throws IOException, InterruptedException, URISyntaxException {
+    String flowGroup = "fg";
+    String flowName = "fn";
+    String flowExecutionId = "12345";
+    Dag<JobExecutionPlan> dag = buildDagWithMultipleNodesAtDifferentLevels("1", flowExecutionId,
+        DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),"user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY,  ConfigValueFactory.fromAnyRef(flowName)));
+    FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
+    doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
+    LaunchDagProc launchDagProc = new LaunchDagProc(
+        new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
+            "jn", DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore),
+        flowCompilationValidationHelper);
+
+    launchDagProc.process(this.dagManagementStateStore);
+    int numOfLaunchedJobs = 3; // = number of start nodes
+    // parallel jobs are launched through reevaluate dag action
+    Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
+        .addJobDagAction(eq(flowGroup), eq(flowName), eq(flowExecutionId), any(), eq(DagActionStore.DagActionType.REEVALUATE));
   }
 
   // This creates a dag like this
   //  D1  D2 D3
   //    \ | /
   //     DN4
-  //    / | \
-  //  D5 D6  D7
+  //    /   \
+  //  D5     D6
 
-  // Not used now, but can be used in GOBBLIN-2017
-  public static Dag<JobExecutionPlan> buildDagWithMultipleNodesAtDifferentLevels(String id, Long flowExecutionId, String flowFailureOption,
-      String proxyUser, Config additionalConfig)
-      throws URISyntaxException {
+  public static Dag<JobExecutionPlan> buildDagWithMultipleNodesAtDifferentLevels(String id, String flowExecutionId,
+      String flowFailureOption, String proxyUser, Config additionalConfig) throws URISyntaxException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
-    for (int i = 0; i < 7; i++) {
+    for (int i = 0; i < 6; i++) {
       String suffix = Integer.toString(i);
       Config jobConfig = ConfigBuilder.create().
           addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "group" + id).
@@ -129,7 +149,7 @@ public class LaunchDagProcTest {
       jobConfig = additionalConfig.withFallback(jobConfig);
       if (i == 3) {
         jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0,job1,job2"));
-      } else if ((i == 4) || (i == 5) || (i == 6)) {
+      } else if ((i == 4) || (i == 5)) {
         jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job3"));
       }
       JobSpec js = JobSpec.builder("test_job" + suffix).withVersion(suffix).withConfig(jobConfig).
