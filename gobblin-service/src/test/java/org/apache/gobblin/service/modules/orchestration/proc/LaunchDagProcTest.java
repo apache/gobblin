@@ -22,9 +22,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -39,13 +40,16 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
+import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
+import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
@@ -82,21 +86,26 @@ public class LaunchDagProcTest {
   }
 
   @Test
-  public void launchDag() throws IOException, InterruptedException, URISyntaxException {
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", System.currentTimeMillis(), DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
-        5, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg")));
+  public void launchDag() throws IOException, InterruptedException, URISyntaxException, ExecutionException {
+    String flowGroup = "fg";
+    String flowName = "fn";
+    String flowExecutionId = "12345";
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", Long.parseLong(flowExecutionId),
+        DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), 5, "user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName)));
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
+    SpecProducer<Spec> specProducer = DagManagerUtils.getSpecProducer(dag.getNodes().get(0));
     LaunchDagProc launchDagProc = new LaunchDagProc(
-        new LaunchDagTask(new DagActionStore.DagAction("fg", "fn", "12345",
-            "jn", DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore),
+        new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
+            DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore),
         flowCompilationValidationHelper);
 
     launchDagProc.process(this.dagManagementStateStore);
+
     int numOfLaunchedJobs = 1; // = number of start nodes
-    Assert.assertEquals(numOfLaunchedJobs,
-        Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
-            .filter(a -> a.getMethod().getName().equals("addDagNodeState")).count());
+    Mockito.verify(specProducer, Mockito.times(numOfLaunchedJobs)).addSpec(any());
 
     Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
         .addFlowDagAction(any(), any(), any(), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
@@ -160,5 +169,15 @@ public class LaunchDagProcTest {
       jobExecutionPlans.add(jobExecutionPlan);
     }
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
+  }
+
+  public static List<SpecProducer<Spec>> getDagSpecProducers(Dag<JobExecutionPlan> dag) {
+    return dag.getNodes().stream().map(n -> {
+      try {
+        return DagManagerUtils.getSpecProducer(n);
+      } catch (ExecutionException | InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }).collect(Collectors.toList());
   }
 }

@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.util.Optional;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.quartz.SchedulerException;
 
@@ -56,23 +55,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
   @Override
   protected Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(DagManagementStateStore dagManagementStateStore)
       throws IOException {
-    Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> dagNodeWithJobStatus =
-        dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId);
-
-    if (!dagNodeWithJobStatus.getLeft().isPresent()) {
-      // this is possible when MALA malfunctions and a duplicated reevaluate dag proc is launched for a dag node that is
-      // already "reevaluated" and cleaned up.
-      return ImmutablePair.of(Optional.empty(), Optional.empty());
-    }
-
-    if (dagNodeWithJobStatus.getRight().isPresent()) {
-      ExecutionStatus executionStatus = ExecutionStatus.valueOf(dagNodeWithJobStatus.getRight().get().getEventName());
-      if (FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
-        setStatus(dagManagementStateStore, dagNodeWithJobStatus.getLeft().get(), executionStatus);
-      }
-    }
-
-    return dagNodeWithJobStatus;
+    return dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId);
   }
 
   @Override
@@ -86,29 +69,30 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       return;
     }
 
-    if (dagNodeWithJobStatus.getRight().isPresent()
-        && !FlowStatusGenerator.FINISHED_STATUSES.contains(dagNodeWithJobStatus.getRight().get().getEventName())) {
+    Dag.DagNode<JobExecutionPlan> dagNode = dagNodeWithJobStatus.getLeft().get();
+
+    if (!dagNodeWithJobStatus.getRight().isPresent()) {
+      // Usually reevaluate dag action is created by JobStatusMonitor when a finished job status is available,
+      // but when reevaluate/resume/launch dag proc found multiple parallel jobs to run next, it creates reevaluate
+      // dag actions for each of those parallel job and in this scenario there is no job status available.
+      // If the job status is not present, this job was never launched, submit it now.
+      submitJobForThisDagNode(dagManagementStateStore, dagNode);
+      return;
+    }
+
+    if (!FlowStatusGenerator.FINISHED_STATUSES.contains(dagNodeWithJobStatus.getRight().get().getEventName())) {
       // this may happen if adding job status in the store failed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
       throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action are created for"
               + " new jobs with no job status when there are multiple of them to run next; or when a job finishes with status - %s",
           dagNodeId, dagNodeWithJobStatus.getRight().get().getEventName(), FlowStatusGenerator.FINISHED_STATUSES));
     }
 
-    Dag.DagNode<JobExecutionPlan> dagNode = dagNodeWithJobStatus.getLeft().get();
-
-    if (!dagNodeWithJobStatus.getRight().isPresent()) {
-      // if the job status is not present, this job was never launched, submit it now
-      submitJobForThisDagNode(dagManagementStateStore, dagNode);
-      return;
-    }
-
-    JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
-    ExecutionStatus executionStatus = dagNode.getValue().getExecutionStatus();
     Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
+    JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
+    ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
+    setStatus(dagManagementStateStore, dagNodeWithJobStatus.getLeft().get(), executionStatus);
 
-    if (FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
-      onJobFinish(dagManagementStateStore, dagNode, executionStatus, dag);
-    }
+    onJobFinish(dagManagementStateStore, dagNode, executionStatus, dag);
 
     if (jobStatus.isShouldRetry()) {
       log.info("Retrying job: {}, current attempts: {}, max attempts: {}",

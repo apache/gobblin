@@ -66,7 +66,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * the flow action using {@link DagActionReminderScheduler} to reattempt the lease after the current leaseholder's grant
  * would have expired. The {@link DagActionReminderScheduler} is used in the non multi-active execution configuration as
  * well to utilize reminders for a single {@link DagManagementTaskStreamImpl} case as well.
- * Note that if multi-active execution is NOT enabsled, then all flow action events are selected by
+ * Note that if multi-active execution is NOT enabled, then all flow action events are selected by
  * {@link DagManagementTaskStreamImpl#next()} by virtue of having no other contenders for the lease at the time
  * {@link MultiActiveLeaseArbiter#tryAcquireLease} is called.
  */

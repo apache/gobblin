@@ -68,6 +68,7 @@ public class DagProcUtils {
 
     if (nextNodes.size() > 1) {
       handleMultipleJobs(dagManagementStateStore, nextNodes);
+      return;
     }
 
     //Submit jobs from the dag ready for execution.
