@@ -57,6 +57,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -110,13 +111,7 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
     );
-    List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
-      try {
-        return DagManagerUtils.getSpecProducer(n);
-      } catch (ExecutionException | InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-    }).collect(Collectors.toList());
+    List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup).jobName("job0").flowExecutionId(flowExecutionId).
         message("Test message").eventName(ExecutionStatus.COMPLETE.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
 
@@ -168,13 +163,7 @@ public class ReevaluateDagProcTest {
     doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     doReturn(true).when(dagManagementStateStore).releaseQuota(any());
 
-    List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
-      try {
-        return DagManagerUtils.getSpecProducer(n);
-      } catch (ExecutionException | InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-    }).collect(Collectors.toList());
+    List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
 
     long addSpecCount = specProducers.stream()
         .mapToLong(p -> Mockito.mockingDetails(p)
@@ -205,5 +194,106 @@ public class ReevaluateDagProcTest {
 
     Assert.assertEquals(Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDagAction")).count(), 1);
+  }
+
+  @Test
+  public void testCurrentJobToRun() throws Exception {
+    String flowName = "fn3";
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        2, "user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+    );
+    List<Dag.DagNode<JobExecutionPlan>> startDagNodes = dag.getStartNodes();
+    List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
+
+    doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
+    doReturn(new ImmutablePair<>(Optional.of(startDagNodes.get(0)), Optional.empty()))
+        .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+
+    ReevaluateDagProc
+        reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
+        String.valueOf(flowExecutionId), "job0", DagActionStore.DagActionType.REEVALUATE), null,
+        dagManagementStateStore));
+    reEvaluateDagProc.process(dagManagementStateStore);
+
+    long addSpecCount = specProducers.stream()
+        .mapToLong(p -> Mockito.mockingDetails(p)
+            .getInvocations()
+            .stream()
+            .filter(a -> a.getMethod().getName().equals("addSpec"))
+            .count())
+        .sum();
+
+    int numOfLaunchedJobs = 1; // only the current job
+    // only the current job should have run
+    Mockito.verify(specProducers.get(0), Mockito.times(1)).addSpec(any());
+    Assert.assertEquals(numOfLaunchedJobs, addSpecCount);
+
+    // no job's state is deleted because that happens when the job finishes triggered the reevaluate dag proc
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagNodeState(any(), any());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(any());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), any(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagActionReminderScheduler, Mockito.never()).unscheduleReminderJob(any());
+  }
+
+  @Test
+  public void testMultipleNextJobToRun() throws Exception {
+    String flowName = "fn4";
+    Dag<JobExecutionPlan> dag = LaunchDagProcTest.buildDagWithMultipleNodesAtDifferentLevels("1", String.valueOf(flowExecutionId),
+        DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), "user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+    );
+    JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
+        .jobName("job3").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.COMPLETE.name())
+        .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
+
+    doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
+    doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus)))
+        .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+
+    // mocked job status for the first four jobs
+    dag.getNodes().get(0).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
+    dag.getNodes().get(1).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
+    dag.getNodes().get(2).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
+    dag.getNodes().get(3).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
+
+    doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
+
+    ReevaluateDagProc
+        reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
+        String.valueOf(flowExecutionId), "job3", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
+    List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
+    // process 4th job
+    reEvaluateDagProc.process(dagManagementStateStore);
+
+    int numOfLaunchedJobs = 2; // = number of jobs that should launch when 4th job passes, i.e. 5th and 6th job
+    // parallel jobs are launched through reevaluate dag action
+    Mockito.verify(dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
+        .addJobDagAction(eq(flowGroup), eq(flowName), eq(String.valueOf(flowExecutionId)), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+
+    long addSpecCount = specProducers.stream()
+        .mapToLong(p -> Mockito.mockingDetails(p)
+            .getInvocations()
+            .stream()
+            .filter(a -> a.getMethod().getName().equals("addSpec"))
+            .count())
+        .sum();
+    // when there are parallel jobs to launch, they are not directly sent to spec producers, instead reevaluate dag action is created
+    Assert.assertEquals(addSpecCount, 0L);
+  }
+
+  public static List<SpecProducer<Spec>> getDagSpecProducers(Dag<JobExecutionPlan> dag) {
+    return dag.getNodes().stream().map(n -> {
+      try {
+        return DagManagerUtils.getSpecProducer(n);
+      } catch (ExecutionException | InterruptedException e) {
+        throw new RuntimeException(e);
+      }
+    }).collect(Collectors.toList());
   }
 }

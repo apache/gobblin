@@ -19,9 +19,7 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.util.Optional;
-import java.util.Set;
 
-import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 import org.quartz.SchedulerException;
 
@@ -57,25 +55,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
   @Override
   protected Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(DagManagementStateStore dagManagementStateStore)
       throws IOException {
-    Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> dagNodeWithJobStatus =
-        dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId);
-
-    if (!dagNodeWithJobStatus.getLeft().isPresent() || !dagNodeWithJobStatus.getRight().isPresent()) {
-      // this is possible when MALA malfunctions and a duplicated reevaluate dag proc is launched for a dag node that is
-      // already "reevaluated" and cleaned up.
-      return ImmutablePair.of(Optional.empty(), Optional.empty());
-    }
-
-    ExecutionStatus executionStatus = ExecutionStatus.valueOf(dagNodeWithJobStatus.getRight().get().getEventName());
-    if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
-      log.warn("Job status for dagNode {} is {}. Re-evaluate dag action should have been created only for finished status - {}",
-          dagNodeId, executionStatus, FlowStatusGenerator.FINISHED_STATUSES);
-      // this may happen if adding job status in the store failed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
-      throw new RuntimeException(String.format("Job status %s is not final for job %s", executionStatus, getDagId()));
-    }
-
-    setStatus(dagManagementStateStore, dagNodeWithJobStatus.getLeft().get(), executionStatus);
-    return dagNodeWithJobStatus;
+    return dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId);
   }
 
   @Override
@@ -90,9 +70,28 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     }
 
     Dag.DagNode<JobExecutionPlan> dagNode = dagNodeWithJobStatus.getLeft().get();
-    JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
-    ExecutionStatus executionStatus = dagNode.getValue().getExecutionStatus();
+
+    if (!dagNodeWithJobStatus.getRight().isPresent()) {
+      // Usually reevaluate dag action is created by JobStatusMonitor when a finished job status is available,
+      // but when reevaluate/resume/launch dag proc found multiple parallel jobs to run next, it creates reevaluate
+      // dag actions for each of those parallel job and in this scenario there is no job status available.
+      // If the job status is not present, this job was never launched, submit it now.
+      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
+      return;
+    }
+
     Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
+    JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
+    ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
+    setStatus(dagManagementStateStore, dagNodeWithJobStatus.getLeft().get(), executionStatus);
+
+    if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
+      // this may happen if adding job status in the store failed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
+      throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action are created for"
+              + " new jobs with no job status when there are multiple of them to run next; or when a job finishes with status - %s",
+          dagNodeId, executionStatus, FlowStatusGenerator.FINISHED_STATUSES));
+    }
+
     onJobFinish(dagManagementStateStore, dagNode, executionStatus, dag);
 
     if (jobStatus.isShouldRetry()) {
@@ -134,6 +133,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     for (Dag.DagNode<JobExecutionPlan> node : dag.getNodes()) {
       if (node.getValue().getId().equals(dagNodeId)) {
         node.getValue().setExecutionStatus(executionStatus);
+        dagManagementStateStore.addDagNodeState(node, getDagId());
         dagManagementStateStore.checkpointDag(dag);
         return;
       }
@@ -165,7 +165,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         break;
       case COMPLETE:
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorSuccess(dagNode);
-        submitNextNodes(dagManagementStateStore, dag);
+        DagProcUtils.submitNextNodes(dagManagementStateStore, dag, getDagId());
         break;
       default:
         log.warn("It should not reach here. Job status {} is unexpected.", executionStatus);
@@ -174,27 +174,6 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     // Checkpoint the dag state, it should have an updated value of dag fields
     dagManagementStateStore.checkpointDag(dag);
     dagManagementStateStore.deleteDagNodeState(getDagId(), dagNode);
-  }
-
-  /**
-   * Submit next set of Dag nodes in the Dag identified by the provided dagId
-   */
-  private void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) {
-    Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
-
-    if (nextNodes.size() > 1) {
-      handleMultipleJobs(nextNodes);
-    }
-
-    if (!nextNodes.isEmpty()) {
-      Dag.DagNode<JobExecutionPlan> nextNode = nextNodes.stream().findFirst().get();
-      DagProcUtils.submitJobToExecutor(dagManagementStateStore, nextNode, getDagId());
-      log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(nextNode), getDagId());
-    }
-  }
-
-  private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
-    throw new UnsupportedOperationException("More than one start job is not allowed");
   }
 
   private void removeFlowFinishDeadlineTriggerAndDagAction(DagManagementStateStore dagManagementStateStore) {
