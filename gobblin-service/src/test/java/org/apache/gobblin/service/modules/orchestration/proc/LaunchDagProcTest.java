@@ -89,8 +89,8 @@ public class LaunchDagProcTest {
   public void launchDag() throws IOException, InterruptedException, URISyntaxException, ExecutionException {
     String flowGroup = "fg";
     String flowName = "fn";
-    String flowExecutionId = "12345";
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", Long.parseLong(flowExecutionId),
+    long flowExecutionId = 12345L;
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId,
         DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), 5, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName)));
@@ -124,7 +124,7 @@ public class LaunchDagProcTest {
   public void launchDagWithMultipleParallelJobs() throws IOException, InterruptedException, URISyntaxException {
     String flowGroup = "fg";
     String flowName = "fn";
-    String flowExecutionId = "12345";
+    long flowExecutionId = 12345L;
     Dag<JobExecutionPlan> dag = buildDagWithMultipleNodesAtDifferentLevels("1", flowExecutionId,
         DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),"user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
@@ -150,7 +150,7 @@ public class LaunchDagProcTest {
   //    /   \
   //  D5     D6
 
-  public static Dag<JobExecutionPlan> buildDagWithMultipleNodesAtDifferentLevels(String id, String flowExecutionId,
+  public static Dag<JobExecutionPlan> buildDagWithMultipleNodesAtDifferentLevels(String id, long flowExecutionId,
       String flowFailureOption, String proxyUser, Config additionalConfig) throws URISyntaxException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 

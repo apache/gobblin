@@ -57,6 +57,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -120,7 +121,7 @@ public class ReevaluateDagProcTest {
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        String.valueOf(flowExecutionId), "job0", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
+        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
     reEvaluateDagProc.process(dagManagementStateStore);
 
     long addSpecCount = specProducers.stream()
@@ -175,7 +176,7 @@ public class ReevaluateDagProcTest {
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        String.valueOf(flowExecutionId), "job0", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
+        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
     reEvaluateDagProc.process(dagManagementStateStore);
 
     // no new job to launch for this one job flow
@@ -214,7 +215,7 @@ public class ReevaluateDagProcTest {
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        String.valueOf(flowExecutionId), "job0", DagActionStore.DagActionType.REEVALUATE), null,
+        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
         dagManagementStateStore));
     reEvaluateDagProc.process(dagManagementStateStore);
 
@@ -228,7 +229,7 @@ public class ReevaluateDagProcTest {
     // no job's state is deleted because that happens when the job finishes triggered the reevaluate dag proc
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagNodeState(any(), any());
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(any());
-    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), any(), any(),
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
         eq(DagActionStore.DagActionType.REEVALUATE));
     Mockito.verify(dagActionReminderScheduler, Mockito.never()).unscheduleReminderJob(any());
   }
@@ -236,7 +237,7 @@ public class ReevaluateDagProcTest {
   @Test
   public void testMultipleNextJobToRun() throws Exception {
     String flowName = "fn4";
-    Dag<JobExecutionPlan> dag = LaunchDagProcTest.buildDagWithMultipleNodesAtDifferentLevels("1", String.valueOf(flowExecutionId),
+    Dag<JobExecutionPlan> dag = LaunchDagProcTest.buildDagWithMultipleNodesAtDifferentLevels("1", flowExecutionId,
         DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
@@ -260,7 +261,7 @@ public class ReevaluateDagProcTest {
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        String.valueOf(flowExecutionId), "job3", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
+        flowExecutionId, "job3", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     // process 4th job
     reEvaluateDagProc.process(dagManagementStateStore);
@@ -268,7 +269,7 @@ public class ReevaluateDagProcTest {
     int numOfLaunchedJobs = 2; // = number of jobs that should launch when 4th job passes, i.e. 5th and 6th job
     // parallel jobs are launched through reevaluate dag action
     Mockito.verify(dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
-        .addJobDagAction(eq(flowGroup), eq(flowName), eq(String.valueOf(flowExecutionId)), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+        .addJobDagAction(eq(flowGroup), eq(flowName), eq(flowExecutionId), any(), eq(DagActionStore.DagActionType.REEVALUATE));
 
     // when there are parallel jobs to launch, they are not directly sent to spec producers, instead reevaluate dag action is created
     specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));

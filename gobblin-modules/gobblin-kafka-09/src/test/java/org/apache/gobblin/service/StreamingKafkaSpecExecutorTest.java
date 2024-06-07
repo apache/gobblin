@@ -65,7 +65,7 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
   private static final String _TEST_DIR_PATH = "/tmp/StreamingKafkaSpecExecutorTest";
   private static final String _JOBS_DIR_PATH = _TEST_DIR_PATH + "/jobs";
   String flowSpecUriString = "/flowgroup/flowname/spec";
-  Spec flowSpec = initJobSpecWithFlowExecutionId(flowSpecUriString, "12345");
+  Spec flowSpec = initJobSpecWithFlowExecutionId(flowSpecUriString, 12345L);
   String specUriString = "/foo/bar/spec";
   Spec spec = initJobSpec(specUriString);
 
@@ -253,9 +253,9 @@ public class StreamingKafkaSpecExecutorTest extends KafkaTestBase {
         .build();
   }
 
-  private static JobSpec initJobSpecWithFlowExecutionId(String specUri, String flowExecutionId) {
+  private static JobSpec initJobSpecWithFlowExecutionId(String specUri, long flowExecutionId) {
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId);
+    properties.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, String.valueOf(flowExecutionId));
     return JobSpec.builder(specUri)
         .withConfig(ConfigUtils.propertiesToConfig(properties))
         .withVersion("1")

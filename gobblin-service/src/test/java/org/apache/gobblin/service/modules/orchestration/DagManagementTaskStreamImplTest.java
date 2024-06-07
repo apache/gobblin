@@ -104,7 +104,7 @@ public class DagManagementTaskStreamImplTest {
     statuses that should cause the next() method to continue polling for tasks before finally providing the
      LeaseObtainedStatus to the taskStream to break its loop and return a newly created dagTask
     */
-    DagActionStore.DagAction launchAction = new DagActionStore.DagAction("fg", "fn", "12345", "jn", DagActionStore.DagActionType.LAUNCH);
+    DagActionStore.DagAction launchAction = new DagActionStore.DagAction("fg", "fn", 12345L, "jn", DagActionStore.DagActionType.LAUNCH);
     dagManagementTaskStream.addDagAction(launchAction);
     dagManagementTaskStream.addDagAction(launchAction);
     dagManagementTaskStream.addDagAction(launchAction);
