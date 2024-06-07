@@ -23,9 +23,9 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
-import java.util.stream.Collectors;
 
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -97,6 +97,7 @@ public class LaunchDagProcTest {
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     SpecProducer<Spec> specProducer = DagManagerUtils.getSpecProducer(dag.getNodes().get(0));
+    List<SpecProducer<Spec>> specProducers = ReevaluateDagProcTest.getDagSpecProducers(dag);
     LaunchDagProc launchDagProc = new LaunchDagProc(
         new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
             DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore),
@@ -105,7 +106,15 @@ public class LaunchDagProcTest {
     launchDagProc.process(this.dagManagementStateStore);
 
     int numOfLaunchedJobs = 1; // = number of start nodes
+    long addSpecCount = specProducers.stream()
+        .mapToLong(p -> Mockito.mockingDetails(p)
+            .getInvocations()
+            .stream()
+            .filter(a -> a.getMethod().getName().equals("addSpec"))
+            .count())
+        .sum();
     Mockito.verify(specProducer, Mockito.times(numOfLaunchedJobs)).addSpec(any());
+    Assert.assertEquals(numOfLaunchedJobs, addSpecCount);
 
     Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
         .addFlowDagAction(any(), any(), any(), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
@@ -169,15 +178,5 @@ public class LaunchDagProcTest {
       jobExecutionPlans.add(jobExecutionPlan);
     }
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
-  }
-
-  public static List<SpecProducer<Spec>> getDagSpecProducers(Dag<JobExecutionPlan> dag) {
-    return dag.getNodes().stream().map(n -> {
-      try {
-        return DagManagerUtils.getSpecProducer(n);
-      } catch (ExecutionException | InterruptedException e) {
-        throw new RuntimeException(e);
-      }
-    }).collect(Collectors.toList());
   }
 }

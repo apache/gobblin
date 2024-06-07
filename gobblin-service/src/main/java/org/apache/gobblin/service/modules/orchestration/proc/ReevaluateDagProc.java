@@ -76,21 +76,21 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // but when reevaluate/resume/launch dag proc found multiple parallel jobs to run next, it creates reevaluate
       // dag actions for each of those parallel job and in this scenario there is no job status available.
       // If the job status is not present, this job was never launched, submit it now.
-      submitJobForThisDagNode(dagManagementStateStore, dagNode);
+      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
       return;
-    }
-
-    if (!FlowStatusGenerator.FINISHED_STATUSES.contains(dagNodeWithJobStatus.getRight().get().getEventName())) {
-      // this may happen if adding job status in the store failed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
-      throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action are created for"
-              + " new jobs with no job status when there are multiple of them to run next; or when a job finishes with status - %s",
-          dagNodeId, dagNodeWithJobStatus.getRight().get().getEventName(), FlowStatusGenerator.FINISHED_STATUSES));
     }
 
     Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
     JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
     ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
     setStatus(dagManagementStateStore, dagNodeWithJobStatus.getLeft().get(), executionStatus);
+
+    if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
+      // this may happen if adding job status in the store failed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
+      throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action are created for"
+              + " new jobs with no job status when there are multiple of them to run next; or when a job finishes with status - %s",
+          dagNodeId, dagNodeWithJobStatus.getRight().get().getEventName(), FlowStatusGenerator.FINISHED_STATUSES));
+    }
 
     onJobFinish(dagManagementStateStore, dagNode, executionStatus, dag);
 
@@ -120,11 +120,6 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
 
       removeFlowFinishDeadlineTriggerAndDagAction(dagManagementStateStore);
     }
-  }
-
-  private void submitJobForThisDagNode(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode) {
-    DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
-    log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), getDagId());
   }
 
   /**
