@@ -179,7 +179,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       Properties props = new Properties();
       props.setProperty(CreateAndSetDirectoryPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
       CommitStep step = new CreateAndSetDirectoryPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
-      copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), step, 1));
+      copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
     }
 
     return copyEntities;
