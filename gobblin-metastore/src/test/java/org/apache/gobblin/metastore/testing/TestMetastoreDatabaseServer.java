@@ -97,7 +97,7 @@ class TestMetastoreDatabaseServer implements Closeable {
         .withUser(this.dbUserName, this.dbUserPassword)
         .withServerVariable("explicit_defaults_for_timestamp", "off")
         // default `max_connections` is apparently 151 - see: https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_connections
-        .withServerVariable("max_connections", "501")
+        .withServerVariable("max_connections", "2000")
         .build();
     if (this.embeddedMysqlEnabled) {
       testingMySqlServer = EmbeddedMysql.anEmbeddedMysql(config).start();
