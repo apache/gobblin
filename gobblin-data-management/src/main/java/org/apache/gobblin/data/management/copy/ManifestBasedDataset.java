@@ -36,12 +36,11 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.commit.CommitStep;
-import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
-import org.apache.gobblin.util.commit.SetPermissionCommitStep;
+import org.apache.gobblin.util.commit.CreateAndSetDirectoryPermissionCommitStep;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -162,9 +161,9 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         }
       }
       Properties props = new Properties();
-      props.setProperty(SetPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
-      CommitStep setPermissionCommitStep = new SetPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
-      copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
+      props.setProperty(CreateAndSetDirectoryPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
+      CommitStep setPermissionCommitStep = new CreateAndSetDirectoryPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
+      copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
 
       if (!toDelete.isEmpty()) {
         //todo: add support sync for empty dir
