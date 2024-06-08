@@ -234,6 +234,8 @@ public class ReevaluateDagProcTest {
     // no job's state is deleted because that happens when the job finishes triggered the reevaluate dag proc
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagNodeState(any(), any());
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(any());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), any(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
     Mockito.verify(dagActionReminderScheduler, Mockito.never()).unscheduleReminderJob(any());
   }
 
@@ -246,11 +248,13 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
     );
-    JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup).jobName("job3").flowExecutionId(flowExecutionId).
-        message("Test message").eventName(ExecutionStatus.COMPLETE.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
+    JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
+        .jobName("job3").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.COMPLETE.name())
+        .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
 
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
-    doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+    doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus)))
+        .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
 
     // mocked job status for the first four jobs
     dag.getNodes().get(0).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
@@ -282,7 +286,6 @@ public class ReevaluateDagProcTest {
     // when there are parallel jobs to launch, they are not directly sent to spec producers, instead reevaluate dag action is created
     Assert.assertEquals(addSpecCount, 0L);
   }
-
 
   public static List<SpecProducer<Spec>> getDagSpecProducers(Dag<JobExecutionPlan> dag) {
     return dag.getNodes().stream().map(n -> {

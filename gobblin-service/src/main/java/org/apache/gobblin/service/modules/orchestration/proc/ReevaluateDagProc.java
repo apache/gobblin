@@ -89,7 +89,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // this may happen if adding job status in the store failed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
       throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action are created for"
               + " new jobs with no job status when there are multiple of them to run next; or when a job finishes with status - %s",
-          dagNodeId, dagNodeWithJobStatus.getRight().get().getEventName(), FlowStatusGenerator.FINISHED_STATUSES));
+          dagNodeId, executionStatus, FlowStatusGenerator.FINISHED_STATUSES));
     }
 
     onJobFinish(dagManagementStateStore, dagNode, executionStatus, dag);

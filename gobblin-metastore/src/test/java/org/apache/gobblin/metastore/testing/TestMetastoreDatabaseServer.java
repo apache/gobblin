@@ -23,6 +23,8 @@ import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -47,7 +49,7 @@ import org.apache.gobblin.metastore.util.MySqlJdbcUrl;
 import org.apache.gobblin.util.PortUtils;
 
 
-class TestMetastoreDatabaseServer implements Closeable {
+public class TestMetastoreDatabaseServer implements Closeable {
 
   private static final String INFORMATION_SCHEMA = "information_schema";
   private static final String ROOT_USER = "root";
@@ -77,6 +79,7 @@ class TestMetastoreDatabaseServer implements Closeable {
   private final String dbUserPassword;
   private final String dbHost;
   private final int dbPort;
+  private static Map<String, Injector> injectors = new HashMap<>();
 
   TestMetastoreDatabaseServer(Config dbConfig) throws Exception {
     Config realConfig = dbConfig.withFallback(getDefaultConfig()).getConfig(CONFIG_PREFIX);
@@ -87,17 +90,17 @@ class TestMetastoreDatabaseServer implements Closeable {
     this.dbPort = this.embeddedMysqlEnabled ? new PortUtils.ServerSocketPortLocator().random() : realConfig.getInt(DBPORT_KEY);
 
     this.log.info("Starting with config: embeddedMysqlEnabled={} dbUserName={} dbHost={} dbPort={}",
-                  this.embeddedMysqlEnabled,
-                  this.dbUserName,
-                  this.dbHost,
-                  this.dbPort);
+        this.embeddedMysqlEnabled,
+        this.dbUserName,
+        this.dbHost,
+        this.dbPort);
 
     config = MysqldConfig.aMysqldConfig(Version.v8_latest)
         .withPort(this.dbPort)
         .withUser(this.dbUserName, this.dbUserPassword)
         .withServerVariable("explicit_defaults_for_timestamp", "off")
         // default `max_connections` is apparently 151 - see: https://dev.mysql.com/doc/refman/8.0/en/server-system-variables.html#sysvar_max_connections
-        .withServerVariable("max_connections", "2000")
+        .withServerVariable("max_connections", 20000)
         .build();
     if (this.embeddedMysqlEnabled) {
       testingMySqlServer = EmbeddedMysql.anEmbeddedMysql(config).start();
@@ -109,12 +112,12 @@ class TestMetastoreDatabaseServer implements Closeable {
 
   static Config getDefaultConfig() {
     return ConfigFactory.parseMap(ImmutableMap.<String, Object>builder()
-           .put(EMBEDDED_MYSQL_ENABLED_FULL_KEY, true)
-           .put(DBUSER_NAME_FULL_KEY, "testUser")
-           .put(DBUSER_PASSWORD_FULL_KEY, "testPassword")
-           .put(DBHOST_FULL_KEY, "localhost")
-           .put(DBPORT_FULL_KEY, 3306)
-           .build());
+        .put(EMBEDDED_MYSQL_ENABLED_FULL_KEY, true)
+        .put(DBUSER_NAME_FULL_KEY, "testUser")
+        .put(DBUSER_PASSWORD_FULL_KEY, "testPassword")
+        .put(DBHOST_FULL_KEY, "localhost")
+        .put(DBPORT_FULL_KEY, 3306)
+        .build());
   }
 
   public void drop(String database) throws SQLException, URISyntaxException {
@@ -143,6 +146,7 @@ class TestMetastoreDatabaseServer implements Closeable {
         .setUser(this.dbUserName)
         .setPassword(this.dbUserPassword)
         .setParameter("useLegacyDatetimeCode", "false")
+        .setParameter("max_connections", "20000")
         .setParameter("rewriteBatchedStatements", "true");
   }
 
@@ -162,9 +166,13 @@ class TestMetastoreDatabaseServer implements Closeable {
   }
 
   private Optional<Connection> getConnector(MySqlJdbcUrl jdbcUrl) throws SQLException {
-    Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, jdbcUrl.toString());
-    Injector injector = Guice.createInjector(new MetaStoreModule(properties));
+    String jdbcUrlString = jdbcUrl.toString();
+    if (!injectors.containsKey(jdbcUrlString)) {
+      Properties properties = new Properties();
+      properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, jdbcUrlString);
+      injectors.put(jdbcUrlString, Guice.createInjector(new MetaStoreModule(properties)));
+    }
+    Injector injector = injectors.get(jdbcUrlString);
     DataSource dataSource = injector.getInstance(DataSource.class);
     return Optional.of(dataSource.getConnection());
   }
@@ -177,7 +185,7 @@ class TestMetastoreDatabaseServer implements Closeable {
       executeStatements(connection,
           String.format(DROP_DATABASE_TEMPLATE, database),
           String.format(CREATE_DATABASE_TEMPLATE, database,
-                 config.getCharset().getCharset(), config.getCharset().getCollate()),
+              config.getCharset().getCharset(), config.getCharset().getCollate()),
           String.format(ADD_USER_TEMPLATE, database, config.getUsername()));
     } finally {
       if (connectionOptional.isPresent()) {

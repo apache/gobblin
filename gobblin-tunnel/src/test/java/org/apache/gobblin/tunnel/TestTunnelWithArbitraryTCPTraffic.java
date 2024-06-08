@@ -17,11 +17,6 @@
 
 package org.apache.gobblin.tunnel;
 
-import static org.testng.Assert.assertEquals;
-import static org.testng.Assert.assertFalse;
-import static org.testng.Assert.assertNotEquals;
-import static org.testng.Assert.assertTrue;
-
 import java.io.BufferedOutputStream;
 import java.io.BufferedReader;
 import java.io.IOException;
@@ -36,6 +31,7 @@ import java.security.NoSuchAlgorithmException;
 import java.sql.Connection;
 import java.sql.DriverManager;
 import java.sql.ResultSet;
+import java.sql.Statement;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -48,6 +44,11 @@ import org.slf4j.LoggerFactory;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import static org.testng.Assert.assertEquals;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNotEquals;
+import static org.testng.Assert.assertTrue;
 
 /**
  * Tests for Tunnel with arbitrary TCP traffic.
@@ -594,15 +595,15 @@ public class TestTunnelWithArbitraryTCPTraffic {
     MockServer proxyServer = startConnectProxyServer();
     Tunnel tunnel = Tunnel.build("useastdb.ensembl.org", 5306,
         "localhost", proxyServer.getServerSocketPort());
+    int port = tunnel.getPort();
 
-    try {
-      int port = tunnel.getPort();
+    try (Connection connection =
+        DriverManager.getConnection("jdbc:mysql://localhost:" + port + "/homo_sapiens_core_82_38?user=anonymous");
+        Statement statement = connection.createStatement()) {
 
-      Connection connection =
-          DriverManager.getConnection("jdbc:mysql://localhost:" + port + "/homo_sapiens_core_82_38?user=anonymous");
       String query2 = "SELECT DISTINCT gene_id, biotype, source, description from gene LIMIT 1000";
 
-      ResultSet resultSet = connection.createStatement().executeQuery(query2);
+      ResultSet resultSet = statement.executeQuery(query2);
 
       int row = 0;
 
