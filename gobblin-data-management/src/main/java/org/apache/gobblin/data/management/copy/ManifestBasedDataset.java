@@ -50,7 +50,7 @@ import org.apache.hadoop.fs.Path;
 /**
  * A dataset that based on Manifest. We expect the Manifest contains the list of all the files for this dataset.
  * At first phase, we only support copy across different clusters to the same location. (We can add more feature to support rename in the future)
- * We will delete the file on target if it's listed in the manifest and not exist on source when {@link ManifestBasedDataset.DELETE_FILE_NOT_EXIST_ON_SOURCE} set to be true
+ * We will delete the file on target if it's listed in the manifest and not exist on source when {@link ManifestBasedDataset#DELETE_FILE_NOT_EXIST_ON_SOURCE} set to be true
  */
 @Slf4j
 public class ManifestBasedDataset implements IterableCopyableDataset {
