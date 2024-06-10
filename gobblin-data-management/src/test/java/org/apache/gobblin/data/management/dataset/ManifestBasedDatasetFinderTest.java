@@ -29,7 +29,6 @@ import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.ManifestBasedDataset;
 import org.apache.gobblin.data.management.copy.ManifestBasedDatasetFinder;
-import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.util.commit.CreateAndSetDirectoryPermissionCommitStep;
