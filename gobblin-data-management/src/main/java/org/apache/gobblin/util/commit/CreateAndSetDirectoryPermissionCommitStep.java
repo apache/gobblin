@@ -34,11 +34,13 @@ import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 
 /**
- * An implementation of {@link CommitStep} for setting any file permissions.
+ * An implementation of {@link CommitStep} for creating directories and their associated permissions before commit
+ * Necessary when creating large file paths e.g. Manifest distcp where multiple threads are creating directories at the same time,
+ * which can lead to some race conditions described in {@link org.apache.gobblin.util.HadoopUtils#unsafeRenameIfNotExists(FileSystem, Path, Path)}
  * Current implementation only sets permissions, but it is capable of setting owner and group as well.
  */
 @Slf4j
-public class SetPermissionCommitStep implements CommitStep {
+public class CreateAndSetDirectoryPermissionCommitStep implements CommitStep {
   @Getter
   Map<String, OwnerAndPermission> pathAndPermissions;
   private final URI fsUri;
@@ -47,7 +49,7 @@ public class SetPermissionCommitStep implements CommitStep {
   public static final String DEFAULT_STOP_ON_ERROR = "false";
   private boolean isCompleted = false;
 
-  public SetPermissionCommitStep(FileSystem targetFs, Map<String, OwnerAndPermission> pathAndPermissions,
+  public CreateAndSetDirectoryPermissionCommitStep(FileSystem targetFs, Map<String, OwnerAndPermission> pathAndPermissions,
       Properties props) {
     this.pathAndPermissions = pathAndPermissions;
     this.fsUri = targetFs.getUri();
@@ -66,9 +68,13 @@ public class SetPermissionCommitStep implements CommitStep {
     for (Map.Entry<String, OwnerAndPermission> entry : pathAndPermissions.entrySet()) {
       Path path = new Path(entry.getKey());
       try {
-        log.info("Setting permission {} on path {}", entry.getValue().getFsPermission(), path);
-        fs.setPermission(path, entry.getValue().getFsPermission());
-        // TODO : we can also set owner and group here.
+        if (!fs.exists(path)) {
+          log.info("Creating path {} with permission {}", path, entry.getValue().getFsPermission());
+          fs.mkdirs(path, entry.getValue().getFsPermission());
+        } else {
+          log.info("Setting permission {} on existing path {}", entry.getValue().getFsPermission(), path);
+          fs.setPermission(path, entry.getValue().getFsPermission());
+        }
       } catch (AccessControlException e) {
         log.warn("Error while setting permission on " + path, e);
         if (this.stopOnError) {
