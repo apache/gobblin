@@ -36,14 +36,14 @@ import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 
 
 /**
- * Test for {@link SetPermissionCommitStep}.
+ * Test for {@link CreateAndSetDirectoryPermissionCommitStep}.
  */
 @Test(groups = { "gobblin.commit" })
-public class SetPermissionCommitStepTest {
+public class CreateAndSetDirectoryPermissionCommitStepTest {
   private static final String ROOT_DIR = "set-permission-commit-step-test";
 
   private FileSystem fs;
-  private SetPermissionCommitStep step;
+  private CreateAndSetDirectoryPermissionCommitStep step;
   Path dir1;
   FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
 
@@ -53,13 +53,12 @@ public class SetPermissionCommitStepTest {
     this.fs.delete(new Path(ROOT_DIR), true);
 
     dir1 = new Path(ROOT_DIR, "dir1");
-    this.fs.mkdirs(dir1);
 
     OwnerAndPermission ownerAndPermission = new OwnerAndPermission("owner", "group", permission);
     Map<String, OwnerAndPermission> pathAndPermissions = new HashMap<>();
     pathAndPermissions.put(dir1.toString(), ownerAndPermission);
 
-    this.step = new SetPermissionCommitStep(this.fs, pathAndPermissions, new Properties());
+    this.step = new CreateAndSetDirectoryPermissionCommitStep(this.fs, pathAndPermissions, new Properties());
   }
 
   @AfterClass
@@ -69,8 +68,8 @@ public class SetPermissionCommitStepTest {
 
   @Test
   public void testExecute() throws IOException {
-    Assert.assertNotEquals(this.fs.getFileStatus(dir1).getPermission(), permission);
     this.step.execute();
+    Assert.assertEquals(this.fs.exists(dir1), true);
     Assert.assertEquals(this.fs.getFileStatus(dir1).getPermission(), permission);
   }
 }
