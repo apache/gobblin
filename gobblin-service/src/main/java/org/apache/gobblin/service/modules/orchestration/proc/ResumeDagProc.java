@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import com.google.common.collect.Maps;
 
@@ -97,21 +96,7 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
   }
 
-  private void resumeDag(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) {
-    Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
-
-    if (nextNodes.size() > 1) {
-      handleMultipleJobs(nextNodes);
-    }
-
-    //Submit jobs from the dag ready for execution.
-    for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
-      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
-      log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), getDagId());
-    }
-  }
-
-  private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
-    throw new UnsupportedOperationException("More than one start job is not allowed");
+  private void resumeDag(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) throws IOException {
+    DagProcUtils.submitNextNodes(dagManagementStateStore, dag, getDagId());
   }
 }

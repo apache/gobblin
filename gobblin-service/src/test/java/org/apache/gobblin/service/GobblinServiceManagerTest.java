@@ -195,7 +195,7 @@ public class GobblinServiceManagerTest {
 
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY, MockedSpecCompiler.class.getCanonicalName());
     serviceCoreProperties.put(AbstractUserQuotaManager.PER_USER_QUOTA, "testUser:1");
-    transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
+    transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "20000");
 
     serviceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_ENABLED_KEY, true);
 
@@ -242,7 +242,7 @@ public class GobblinServiceManagerTest {
     }
   }
 
-  @AfterClass
+  @AfterClass (alwaysRun = true)
   public void cleanUp() throws Exception {
     // Shutdown Service
     try {
@@ -405,7 +405,7 @@ public class GobblinServiceManagerTest {
     }
   }
 
-  @Test (dependsOnMethods = "testUncompilableJob")
+  @Test (dependsOnMethods = "testRunQuotaExceeds")
   public void testExplainJob() throws Exception {
     int sizeBeforeTest = this.gobblinServiceManager.getFlowCatalog().getSpecs().size();
     FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);

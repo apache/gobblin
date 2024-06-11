@@ -28,7 +28,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.hadoop.hive.metastore.api.MetaException;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hive.jdbc.HiveConnection;
 import org.apache.thrift.TException;
@@ -118,12 +117,9 @@ public class HiveProxyQueryExecutor implements QueryExecutor, Closeable {
     String realm = this.state.getProp(ConfigurationKeys.KERBEROS_REALM);
     UserGroupInformation loginUser = UserGroupInformation
         .loginUserFromKeytabAndReturnUGI(HostUtils.getPrincipalUsingHostname(superUser, realm), keytabLocation);
-    loginUser.doAs(new PrivilegedExceptionAction<Void>() {
-      @Override
-      public Void run()
-          throws MetaException, SQLException, ClassNotFoundException {
-        for (String proxy : proxies) {
-          HiveConnection hiveConnection = getHiveConnection(Optional.fromNullable(proxy));
+    loginUser.doAs((PrivilegedExceptionAction<Void>) () -> {
+      for (String proxy : proxies) {
+        try (HiveConnection hiveConnection = getHiveConnection(Optional.fromNullable(proxy))) {
           Statement statement = hiveConnection.createStatement();
           statementMap.put(proxy, statement);
           connectionMap.put(proxy, hiveConnection);
@@ -131,8 +127,8 @@ public class HiveProxyQueryExecutor implements QueryExecutor, Closeable {
             statement.execute(setting);
           }
         }
-        return null;
       }
+      return null;
     });
   }
 

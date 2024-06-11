@@ -333,7 +333,6 @@ public class GobblinServiceJobSchedulerTest {
     FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
     ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
 
-
     serviceLauncher.addService(flowCatalog);
     serviceLauncher.start();
 

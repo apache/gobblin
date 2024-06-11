@@ -151,10 +151,12 @@ public class EmbeddedGobblinDistcpTest {
     metaStoreClient.tableExists(TARGET_DB, TEST_TABLE);
     FileSystem fs = FileSystem.getLocal(new Configuration());
     fs.exists(new Path(TARGET_PATH));
+
+    statement.close();
   }
 
   // Tearing down the Hive components from derby driver if there's anything generated through the test.
-  @AfterClass
+  @AfterClass (alwaysRun = true)
   public void hiveTearDown() throws Exception {
     FileSystem fs = FileSystem.getLocal(new Configuration());
     Path targetPath = new Path(TARGET_PATH);

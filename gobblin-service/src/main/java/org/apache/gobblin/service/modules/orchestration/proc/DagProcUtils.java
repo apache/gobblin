@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -55,6 +56,29 @@ import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
  */
 @Slf4j
 public class DagProcUtils {
+
+  /**
+   * If there is a single job to run next, it runs it. If there are multiple jobs to run, it creates a
+   * {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.DagActionType#REEVALUATE} dag action for
+   * each of them and those jobs will be launched in respective {@link ReevaluateDagProc}.
+   */
+  public static void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
+      DagManager.DagId dagId) throws IOException {
+    Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
+
+    if (nextNodes.size() == 1) {
+      Dag.DagNode<JobExecutionPlan> dagNode = nextNodes.iterator().next();
+      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, dagId);
+      log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), dagId);
+    } else {
+      for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
+        JobExecutionPlan jobExecutionPlan = dagNode.getValue();
+        dagManagementStateStore.addJobDagAction(jobExecutionPlan.getFlowGroup(), jobExecutionPlan.getFlowName(),
+            String.valueOf(jobExecutionPlan.getFlowExecutionId()), jobExecutionPlan.getJobName(), DagActionStore.DagActionType.REEVALUATE);
+      }
+    }
+  }
+
   /**
    * - submits a {@link JobSpec} to a {@link SpecExecutor}
    * - emits a {@link TimingEvent.LauncherTimings#JOB_ORCHESTRATED} {@link org.apache.gobblin.metrics.GobblinTrackingEvent}
@@ -122,6 +146,8 @@ public class DagProcUtils {
       }
       throw new RuntimeException(e);
     }
+
+    log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), dagId);
   }
 
   public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, DagManagementStateStore dagManagementStateStore) throws IOException {

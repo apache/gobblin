@@ -22,8 +22,6 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 
-import com.zaxxer.hikari.HikariDataSource;
-
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
@@ -32,6 +30,8 @@ import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import com.zaxxer.hikari.HikariDataSource;
 
 
 /**
@@ -71,8 +71,11 @@ public class SqlBasedRetentionPoc {
     execute("CREATE FUNCTION TIMESTAMP_DIFF(timestamp1 TIMESTAMP, timestamp2 TIMESTAMP, unitString VARCHAR(50)) RETURNS BIGINT PARAMETER STYLE JAVA NO SQL LANGUAGE JAVA EXTERNAL NAME 'org.apache.gobblin.data.management.retention.sql.SqlUdfs.timestamp_diff'");
   }
 
-  @AfterClass
+  @AfterClass (alwaysRun = true)
   public void cleanUp() throws Exception {
+    if (connection != null) {
+      connection.close();
+    }
     dataSource.close();
   }
 
@@ -89,17 +92,17 @@ public class SqlBasedRetentionPoc {
     insertSnapshot(new Path("/data/databases/Forum/Comments/1453889323804-PT-440936752"));
 
     // Derby does not support LIMIT keyword. The suggested workaround is to setMaxRows in the PreparedStatement
-    PreparedStatement statement = connection.prepareStatement("SELECT name FROM Snapshots ORDER BY ts desc");
-    statement.setMaxRows(2);
+    try (PreparedStatement statement = connection.prepareStatement("SELECT name FROM Snapshots ORDER BY ts desc")) {
+      statement.setMaxRows(2);
 
-    ResultSet rs = statement.executeQuery();
-
-    // Snapshots to be retained
-    rs.next();
-    Assert.assertEquals(rs.getString(1), "1453889323804-PT-440936752");
-    rs.next();
-    Assert.assertEquals(rs.getString(1), "1453860526464-PT-440847244");
-
+      try (ResultSet rs = statement.executeQuery()) {
+        // Snapshots to be retained
+        rs.next();
+        Assert.assertEquals(rs.getString(1), "1453889323804-PT-440936752");
+        rs.next();
+        Assert.assertEquals(rs.getString(1), "1453860526464-PT-440847244");
+      }
+    }
   }
 
   /**
@@ -119,18 +122,19 @@ public class SqlBasedRetentionPoc {
     Timestamp currentTimestamp =
         new Timestamp(DateTimeFormat.forPattern(DAILY_PARTITION_PATTERN).parseDateTime("2016/01/25").getMillis());
 
-    PreparedStatement statement =
-        connection.prepareStatement("SELECT path FROM Daily_Partitions WHERE TIMESTAMP_DIFF(?, ts, 'Days') > ?");
-    statement.setTimestamp(1, currentTimestamp);
-    statement.setLong(2, TWO_YEARS_IN_DAYS);
-    ResultSet rs = statement.executeQuery();
+    try(PreparedStatement statement =
+        connection.prepareStatement("SELECT path FROM Daily_Partitions WHERE TIMESTAMP_DIFF(?, ts, 'Days') > ?")) {
+      statement.setTimestamp(1, currentTimestamp);
+      statement.setLong(2, TWO_YEARS_IN_DAYS);
+      try (ResultSet rs = statement.executeQuery()) {
 
-    // Daily partitions to be cleaned
-    rs.next();
-    Assert.assertEquals(rs.getString(1), "/data/tracking/MetricEvent/daily/2014/01/22");
-    rs.next();
-    Assert.assertEquals(rs.getString(1), "/data/tracking/MetricEvent/daily/2013/01/25");
-
+        // Daily partitions to be cleaned
+        rs.next();
+        Assert.assertEquals(rs.getString(1), "/data/tracking/MetricEvent/daily/2014/01/22");
+        rs.next();
+        Assert.assertEquals(rs.getString(1), "/data/tracking/MetricEvent/daily/2013/01/25");
+      }
+    }
   }
 
   private void insertSnapshot(Path snapshotPath) throws Exception {
@@ -140,15 +144,15 @@ public class SqlBasedRetentionPoc {
     long ts = Long.parseLong(StringUtils.substringBefore(snapshotName, "-PT-"));
     long recordCount = Long.parseLong(StringUtils.substringAfter(snapshotName, "-PT-"));
 
-    PreparedStatement insert = connection.prepareStatement("INSERT INTO Snapshots VALUES (?, ?, ?, ?, ?)");
-    insert.setString(1, datasetPath);
-    insert.setString(2, snapshotName);
-    insert.setString(3, snapshotPath.toString());
-    insert.setTimestamp(4, new Timestamp(ts));
-    insert.setLong(5, recordCount);
+    try (PreparedStatement insert = connection.prepareStatement("INSERT INTO Snapshots VALUES (?, ?, ?, ?, ?)")) {
+      insert.setString(1, datasetPath);
+      insert.setString(2, snapshotName);
+      insert.setString(3, snapshotPath.toString());
+      insert.setTimestamp(4, new Timestamp(ts));
+      insert.setLong(5, recordCount);
 
-    insert.executeUpdate();
-
+      insert.executeUpdate();
+    }
   }
 
   private void insertDailyPartition(Path dailyPartitionPath) throws Exception {
@@ -159,17 +163,18 @@ public class SqlBasedRetentionPoc {
         DateTimeFormat.forPattern(DAILY_PARTITION_PATTERN).parseDateTime(
             StringUtils.substringAfter(dailyPartitionPath.toString(), "daily" + Path.SEPARATOR));
 
-    PreparedStatement insert = connection.prepareStatement("INSERT INTO Daily_Partitions VALUES (?, ?, ?)");
-    insert.setString(1, datasetPath);
-    insert.setString(2, dailyPartitionPath.toString());
-    insert.setTimestamp(3, new Timestamp(partition.getMillis()));
+    try (PreparedStatement insert = connection.prepareStatement("INSERT INTO Daily_Partitions VALUES (?, ?, ?)")) {
+      insert.setString(1, datasetPath);
+      insert.setString(2, dailyPartitionPath.toString());
+      insert.setTimestamp(3, new Timestamp(partition.getMillis()));
 
-    insert.executeUpdate();
-
+      insert.executeUpdate();
+    }
   }
 
   private void execute(String query) throws SQLException {
-    PreparedStatement insertStatement = connection.prepareStatement(query);
-    insertStatement.executeUpdate();
+    try (PreparedStatement insertStatement = connection.prepareStatement(query)) {
+      insertStatement.executeUpdate();
+    }
   }
 }
