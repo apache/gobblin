@@ -333,7 +333,6 @@ public class GobblinServiceJobSchedulerTest {
     FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
     ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
 
-
     serviceLauncher.addService(flowCatalog);
     serviceLauncher.start();
 
@@ -384,7 +383,8 @@ public class GobblinServiceJobSchedulerTest {
     Assert.assertEquals(schedulerWithWarmStandbyEnabled.scheduledFlowSpecs.size(), 1);
     schedulerWithWarmStandbyEnabled.onAddSpec(flowSpec1);
     // Second flow should be added to scheduled flows since no quota check in this case
-    Assert.assertEquals(schedulerWithWarmStandbyEnabled.scheduledFlowSpecs.size(), 2);
+    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(5000L).backoffFactor(1)
+        .assertTrue(input -> schedulerWithWarmStandbyEnabled.scheduledFlowSpecs.size() == 2, "Waiting for add spec to complete");
     // set scheduler to be inactive and unschedule flows
     schedulerWithWarmStandbyEnabled.setActive(false);
     Assert.assertEquals(schedulerWithWarmStandbyEnabled.scheduledFlowSpecs.size(), 0);
