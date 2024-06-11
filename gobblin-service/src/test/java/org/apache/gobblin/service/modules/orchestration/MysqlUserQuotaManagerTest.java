@@ -41,6 +41,7 @@ public class MysqlUserQuotaManagerTest {
   private ITestMetastoreDatabase testDb;
   private MysqlUserQuotaManager quotaManager;
   public static int INCREMENTS = 1000;
+  Connection connection;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -54,18 +55,21 @@ public class MysqlUserQuotaManagerTest {
         .build();
 
     this.quotaManager = new MysqlUserQuotaManager(config);
+    this.connection = this.quotaManager.quotaStore.dataSource.getConnection();
   }
 
   @AfterClass(alwaysRun = true)
-  public void tearDown() throws IOException {
+  public void tearDown() throws IOException, SQLException {
     // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+    if (this.connection != null) {
+      this.connection.close();
+    }
     this.testDb.close();
   }
 
   @Test
   public void testRunningDagStore() throws Exception {
     String dagId = DagManagerUtils.generateDagId(DagManagerTest.buildDag("dagId", 1234L, "", 1).getNodes().get(0)).toString();
-    Connection connection = this.quotaManager.quotaStore.dataSource.getConnection();
     Assert.assertFalse(this.quotaManager.containsDagId(dagId));
     this.quotaManager.addDagId(connection, dagId);
     connection.commit();
@@ -75,12 +79,10 @@ public class MysqlUserQuotaManagerTest {
     Assert.assertFalse(this.quotaManager.containsDagId(dagId));
     Assert.assertFalse(this.quotaManager.removeDagId(connection, dagId));
     connection.commit();
-    connection.close();
   }
 
     @Test
   public void testIncreaseCount() throws Exception {
-    Connection connection = this.quotaManager.quotaStore.dataSource.getConnection();
     int prevCount = this.quotaManager.incrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
     connection.commit();
     Assert.assertEquals(prevCount, 0);
@@ -97,12 +99,10 @@ public class MysqlUserQuotaManagerTest {
     prevCount = this.quotaManager.incrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.FLOWGROUP_COUNT);
     connection.commit();
     Assert.assertEquals(prevCount, 1);
-    connection.close();
   }
 
   @Test(dependsOnMethods = "testIncreaseCount")
   public void testDecreaseCount() throws Exception {
-    Connection connection = this.quotaManager.quotaStore.dataSource.getConnection();
     this.quotaManager.decrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
     connection.commit();
     Assert.assertEquals(this.quotaManager.getCount(PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT), 1);
@@ -135,7 +135,7 @@ public class MysqlUserQuotaManagerTest {
     public void run() {
       int i = 0;
       while (i++ < INCREMENTS) {
-        try (Connection connection = MysqlUserQuotaManagerTest.this.quotaManager.quotaStore.dataSource.getConnection();) {
+        try (Connection connection = MysqlUserQuotaManagerTest.this.quotaManager.quotaStore.dataSource.getConnection()) {
           if (increaseOrDecrease) {
             MysqlUserQuotaManagerTest.this.quotaManager.incrementJobCount(connection, PROXY_USER, AbstractUserQuotaManager.CountType.USER_COUNT);
           } else {

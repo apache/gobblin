@@ -242,7 +242,7 @@ public class GobblinServiceManagerTest {
     }
   }
 
-  @AfterClass
+  @AfterClass (alwaysRun = true)
   public void cleanUp() throws Exception {
     // Shutdown Service
     try {
@@ -405,7 +405,7 @@ public class GobblinServiceManagerTest {
     }
   }
 
-  @Test (dependsOnMethods = "testUncompilableJob")
+  @Test (dependsOnMethods = "testRunQuotaExceeds")
   public void testExplainJob() throws Exception {
     int sizeBeforeTest = this.gobblinServiceManager.getFlowCatalog().getSpecs().size();
     FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);
