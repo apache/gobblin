@@ -17,14 +17,6 @@
 
 package org.apache.gobblin.service.monitoring;
 
-import com.google.common.base.Charsets;
-import com.google.common.base.Joiner;
-import com.google.common.base.Optional;
-import com.google.common.io.Files;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
-
 import java.io.File;
 import java.io.IOException;
 import java.net.URI;
@@ -37,6 +29,23 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.concurrent.locks.ReentrantReadWriteLock;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.hadoop.fs.Path;
+import org.eclipse.jgit.transport.RefSpec;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Charsets;
+import com.google.common.base.Joiner;
+import com.google.common.base.Optional;
+import com.google.common.io.Files;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.TopologySpec;
@@ -49,14 +58,7 @@ import org.apache.gobblin.service.modules.flowgraph.FlowEdge;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraph;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.template_catalog.UpdatableFSFlowTemplateCatalog;
-import org.apache.hadoop.fs.Path;
-import org.eclipse.jgit.transport.RefSpec;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
+import org.apache.gobblin.testing.AssertWithBackoff;
 
 
 public class FsFlowGraphMonitorTest {
@@ -239,9 +241,8 @@ public class FsFlowGraphMonitorTest {
 
     //If deleting all the templates, the cache of flow templates will be cleared and the flowgraph will be unable to add edges on reload.
     cleanUpDir(this.flowTemplateCatalogFolder.getAbsolutePath());
-    Thread.sleep(3000);
-    Assert.assertEquals(this.flowGraph.get().getEdges("node1").size(), 0);
-
+    AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(10000L).backoffFactor(1)
+        .assertTrue(input -> this.flowGraph.get().getEdges("node1").isEmpty(), "Waiting for flowgraph to become empty");
     URI flowTemplateCatalogUri = this.getClass().getClassLoader().getResource("template_catalog").toURI();
     // Adding the flowtemplates back will make the edges eligible to be added again on reload.
     FileUtils.copyDirectory(new File(flowTemplateCatalogUri.getPath()), this.flowTemplateCatalogFolder);
