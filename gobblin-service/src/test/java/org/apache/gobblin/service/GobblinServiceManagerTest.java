@@ -278,7 +278,10 @@ public class GobblinServiceManagerTest {
     }
 
     mysql.stop();
-    testMetastoreDatabase.close();
+
+    if (testMetastoreDatabase != null) {
+      testMetastoreDatabase.close();
+    }
   }
 
   /**
