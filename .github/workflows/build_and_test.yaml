@@ -135,7 +135,7 @@ jobs:
             sudo dpkg -l | grep -i mysql
             sudo apt-get clean
             sudo apt-get install -y mysql-client
-            mysql --host 127.0.0.1 --port 3306 -uroot -ppassword -e "SHOW VARIABLES LIKE 'max_connections';"
+            mysql --host 127.0.0.1 --port 3306 -uroot -ppassword -e "SHOW VARIABLES LIKE 'max_connections'"
       - name: Cache Gradle Dependencies
         uses: actions/cache@v2
         with:
