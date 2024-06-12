@@ -50,7 +50,7 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
       .build();
 
   private static final ActivityOptions ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(Duration.ofSeconds(999))
+      .setStartToCloseTimeout(Duration.ofHours(3)) // TODO: make configurable... also add activity heartbeats
       .setRetryOptions(ACTIVITY_RETRY_OPTS)
       .build();
 
