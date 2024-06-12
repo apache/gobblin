@@ -23,8 +23,10 @@ import java.util.function.Supplier;
 
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerUtils;
+import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.spi.OperableTrigger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -71,5 +73,14 @@ public class DagActionReminderSchedulerTest {
     Assert.assertEquals(dataMap.get(ConfigurationKeys.JOB_NAME_KEY), jobName);
     Assert.assertEquals(dataMap.get(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_TYPE_KEY),
         DagActionStore.DagActionType.LAUNCH);
+    Assert.assertFalse(jobDetail.isDurable()); // Ensure an orphan job will be automatically deleted from the scheduler
+  }
+
+  // Verifies no exception is thrown from attempting to schedule multiple reminders for the same action
+  @Test
+  public void testScheduleReminder() throws SchedulerException {
+    DagActionReminderScheduler dagActionReminderScheduler = new DagActionReminderScheduler(new StdSchedulerFactory());
+    dagActionReminderScheduler.scheduleReminder(launchDagAction, 5);
+    dagActionReminderScheduler.scheduleReminder(launchDagAction, 10);
   }
 }

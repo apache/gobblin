@@ -68,7 +68,12 @@ public class DagActionReminderScheduler {
       throws SchedulerException {
     JobDetail jobDetail = createReminderJobDetail(dagAction);
     Trigger trigger = createReminderJobTrigger(dagAction, reminderDurationMillis, System::currentTimeMillis);
-    quartzScheduler.scheduleJob(jobDetail, trigger);
+    /* Add the job to the scheduler if it doesn't already exist. Note the job already exists for the true reminders of
+    dag actions of type ENFORCE_JOB_START_DEADLINE and ENFORCE_FLOW_FINISH_DEADLINE because the original (non-reminder)
+    actions are added to the scheduler to notify the hosts when the deadlines have passed.
+    */
+    quartzScheduler.addJob(jobDetail, true);
+    quartzScheduler.scheduleJob(trigger);
   }
 
   public void unscheduleReminderJob(DagActionStore.DagAction dagAction) throws SchedulerException {
