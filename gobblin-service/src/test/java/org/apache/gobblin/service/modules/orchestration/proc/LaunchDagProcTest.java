@@ -59,6 +59,7 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
@@ -117,7 +118,7 @@ public class LaunchDagProcTest {
     Assert.assertEquals(numOfLaunchedJobs, addSpecCount);
 
     Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
-        .addFlowDagAction(any(), any(), any(), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
+        .addFlowDagAction(any(), any(), anyLong(), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
   }
 
   @Test
