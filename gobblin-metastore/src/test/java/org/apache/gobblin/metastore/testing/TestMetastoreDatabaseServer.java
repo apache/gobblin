@@ -23,8 +23,6 @@ import java.net.URISyntaxException;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.SQLException;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 import org.slf4j.Logger;
@@ -49,7 +47,7 @@ import org.apache.gobblin.metastore.util.MySqlJdbcUrl;
 import org.apache.gobblin.util.PortUtils;
 
 
-public class TestMetastoreDatabaseServer implements Closeable {
+class TestMetastoreDatabaseServer implements Closeable {
 
   private static final String INFORMATION_SCHEMA = "information_schema";
   private static final String ROOT_USER = "root";
@@ -79,7 +77,6 @@ public class TestMetastoreDatabaseServer implements Closeable {
   private final String dbUserPassword;
   private final String dbHost;
   private final int dbPort;
-  private static Map<String, Injector> injectors = new HashMap<>();
 
   TestMetastoreDatabaseServer(Config dbConfig) throws Exception {
     Config realConfig = dbConfig.withFallback(getDefaultConfig()).getConfig(CONFIG_PREFIX);
@@ -165,13 +162,9 @@ public class TestMetastoreDatabaseServer implements Closeable {
   }
 
   private Optional<Connection> getConnector(MySqlJdbcUrl jdbcUrl) throws SQLException {
-    String jdbcUrlString = jdbcUrl.toString();
-    if (!injectors.containsKey(jdbcUrlString)) {
-      Properties properties = new Properties();
-      properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, jdbcUrlString);
-      injectors.put(jdbcUrlString, Guice.createInjector(new MetaStoreModule(properties)));
-    }
-    Injector injector = injectors.get(jdbcUrlString);
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.JOB_HISTORY_STORE_URL_KEY, jdbcUrl.toString());
+    Injector injector = Guice.createInjector(new MetaStoreModule(properties));
     DataSource dataSource = injector.getInstance(DataSource.class);
     return Optional.of(dataSource.getConnection());
   }
