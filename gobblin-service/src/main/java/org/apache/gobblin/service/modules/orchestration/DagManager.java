@@ -173,9 +173,9 @@ public class DagManager extends AbstractIdleService {
   public static class DagId {
     String flowGroup;
     String flowName;
-    String flowExecutionId;
+    long flowExecutionId;
 
-    public DagId(String flowGroup, String flowName, String flowExecutionId) {
+    public DagId(String flowGroup, String flowName, long flowExecutionId) {
       this.flowGroup = flowGroup;
       this.flowName = flowName;
       this.flowExecutionId = flowExecutionId;

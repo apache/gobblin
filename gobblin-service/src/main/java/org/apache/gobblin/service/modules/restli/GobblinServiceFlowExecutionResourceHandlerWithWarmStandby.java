@@ -71,12 +71,12 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
   protected void addDagAction(String flowGroup, String flowName, Long flowExecutionId, DagActionStore.DagActionType actionType) {
     try {
       // If an existing resume request is still pending then do not accept this request
-      if (this.dagManagementStateStore.existsFlowDagAction(flowGroup, flowName, flowExecutionId.toString(), actionType)) {
+      if (this.dagManagementStateStore.existsFlowDagAction(flowGroup, flowName, flowExecutionId, actionType)) {
         this.throwErrorResponse("There is already a pending " + actionType + " action for this flow. Please wait to resubmit and wait "
             + "for action to be completed.", HttpStatus.S_409_CONFLICT);
         return;
       }
-      this.dagManagementStateStore.addFlowDagAction(flowGroup, flowName, flowExecutionId.toString(), actionType);
+      this.dagManagementStateStore.addFlowDagAction(flowGroup, flowName, flowExecutionId, actionType);
     } catch (IOException | SQLException e) {
       log.warn(
           String.format("Failed to add %s action for flow %s %s %s to dag action store due to:", actionType, flowGroup,

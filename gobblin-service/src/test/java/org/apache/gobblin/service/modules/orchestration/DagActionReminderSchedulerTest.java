@@ -29,16 +29,18 @@ import org.quartz.spi.OperableTrigger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Joiner;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 public class DagActionReminderSchedulerTest {
   String flowGroup = "fg";
   String flowName = "fn";
-  String flowExecutionId = "123";
+  long flowExecutionId = 123L;
   String jobName = "jn";
-  String expectedKey =  String.join(".", flowGroup, flowName, flowExecutionId, jobName,
-      String.valueOf(DagActionStore.DagActionType.LAUNCH));
+  String expectedKey =  Joiner.on(".").join(flowGroup, flowName, flowExecutionId, jobName,
+      DagActionStore.DagActionType.LAUNCH.name());
   DagActionStore.DagAction launchDagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName,
       DagActionStore.DagActionType.LAUNCH);
 

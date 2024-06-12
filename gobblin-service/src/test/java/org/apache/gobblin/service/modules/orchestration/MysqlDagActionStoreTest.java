@@ -42,9 +42,9 @@ public class MysqlDagActionStoreTest {
   private static final String flowName = "testFlowName";
   private static final String jobName = "testJobName";
   private static final String jobName_2 = "testJobName2";
-  private static final String flowExecutionId = "12345677";
-  private static final String flowExecutionId_2 = "12345678";
-  private static final String flowExecutionId_3 = "12345679";
+  private static final long flowExecutionId = 12345677L;
+  private static final long flowExecutionId_2 = 12345678L;
+  private static final long flowExecutionId_3 = 12345679L;
   private ITestMetastoreDatabase testDb;
   private MysqlDagActionStore mysqlDagActionStore;
 

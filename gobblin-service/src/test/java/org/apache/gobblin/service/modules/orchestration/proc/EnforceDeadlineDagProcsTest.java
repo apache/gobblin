@@ -94,7 +94,7 @@ public class EnforceDeadlineDagProcsTest {
     dagManagementStateStore.checkpointDag(dag);  // simulate having a dag that has not yet started running
 
     EnforceJobStartDeadlineDagProc enforceJobStartDeadlineDagProc = new EnforceJobStartDeadlineDagProc(
-        new EnforceJobStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(flowExecutionId),
+        new EnforceJobStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
             "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null, dagManagementStateStore));
     enforceJobStartDeadlineDagProc.process(dagManagementStateStore);
 
@@ -130,7 +130,7 @@ public class EnforceDeadlineDagProcsTest {
     dagManagementStateStore.checkpointDag(dag);  // simulate having a dag that is in running state
 
     EnforceFlowFinishDeadlineDagProc enforceFlowFinishDeadlineDagProc = new EnforceFlowFinishDeadlineDagProc(
-        new EnforceFlowFinishDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(flowExecutionId),
+        new EnforceFlowFinishDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
             "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null, dagManagementStateStore));
     enforceFlowFinishDeadlineDagProc.process(dagManagementStateStore);
 

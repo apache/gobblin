@@ -95,7 +95,7 @@ public class KafkaAvroJobStatusMonitorTest {
   private String flowName = "myFlowName";
   private String jobGroup = "myJobGroup";
   private String jobName = "myJobName";
-  private String flowExecutionId = "1234";
+  private long flowExecutionId = 1234L;
   private String jobExecutionId = "1111";
   private String message = "https://myServer:8143/1234/1111";
   private String stateStoreDir = "/tmp/jobStatusMonitor/statestore";
@@ -707,7 +707,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Map<String, String> metadata = Maps.newHashMap();
     metadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, this.flowGroup);
     metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, this.flowName);
-    metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, this.flowExecutionId);
+    metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, String.valueOf(this.flowExecutionId));
     metadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, this.jobName);
     metadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, this.jobGroup);
     metadata.put(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, this.jobExecutionId);

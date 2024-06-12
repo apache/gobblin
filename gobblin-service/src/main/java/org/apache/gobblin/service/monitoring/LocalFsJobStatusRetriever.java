@@ -61,7 +61,7 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     // Local FS has no monitor to update job state yet, for now check if standalone is completed with job, and mark as done
     // Otherwise the job is pending
     try {
-      String fileName = LocalFsSpecProducer.getJobFileName(new URI(File.separatorChar + flowGroup + File.separatorChar + flowName), String.valueOf(flowExecutionId)) + suffix;
+      String fileName = LocalFsSpecProducer.getJobFileName(new URI(File.separatorChar + flowGroup + File.separatorChar + flowName), flowExecutionId) + suffix;
       return new File(this.specProducerPath + File.separatorChar + fileName).exists();
     } catch (URISyntaxException e) {
       log.error("URISyntaxException occurred when retrieving job status for flow: {},{}", flowGroup, flowName, e);

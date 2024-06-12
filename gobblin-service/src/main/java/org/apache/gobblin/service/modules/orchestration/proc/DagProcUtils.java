@@ -74,7 +74,7 @@ public class DagProcUtils {
       for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
         JobExecutionPlan jobExecutionPlan = dagNode.getValue();
         dagManagementStateStore.addJobDagAction(jobExecutionPlan.getFlowGroup(), jobExecutionPlan.getFlowName(),
-            String.valueOf(jobExecutionPlan.getFlowExecutionId()), jobExecutionPlan.getJobName(), DagActionStore.DagActionType.REEVALUATE);
+            jobExecutionPlan.getFlowExecutionId(), jobExecutionPlan.getJobName(), DagActionStore.DagActionType.REEVALUATE);
       }
     }
   }
@@ -194,7 +194,7 @@ public class DagProcUtils {
   private static void sendEnforceJobStartDeadlineDagAction(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode)
       throws IOException {
     dagManagementStateStore.addJobDagAction(dagNode.getValue().getFlowGroup(), dagNode.getValue().getFlowName(),
-        String.valueOf(dagNode.getValue().getFlowExecutionId()), dagNode.getValue().getJobName(),
+        dagNode.getValue().getFlowExecutionId(), dagNode.getValue().getJobName(),
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
   }
 

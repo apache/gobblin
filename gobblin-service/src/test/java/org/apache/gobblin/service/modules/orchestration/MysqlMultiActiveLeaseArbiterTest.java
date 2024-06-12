@@ -51,7 +51,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String flowGroup2 = "testFlowGroup2";
   private static final String flowName = "testFlowName";
   private static final String jobName = "testJobName";
-  private static final String flowExecutionId = "12345677";
+  private static final long flowExecutionId = 12345677L;
   // Dag actions with the same flow info but different flow action types are considered unique
   private static DagActionStore.DagAction launchDagAction =
       new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
@@ -110,7 +110,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() <=
         firstObtainedStatus.getLeaseAcquisitionTimestamp());
     Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
-        new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(firstObtainedStatus.getEventTimeMillis()),
+        new DagActionStore.DagAction(flowGroup, flowName, firstObtainedStatus.getEventTimeMillis(),
             jobName, DagActionStore.DagActionType.LAUNCH)));
 
     // Verify that different DagAction types for the same flow can have leases at the same time
