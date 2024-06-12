@@ -72,8 +72,11 @@ public class DagActionReminderScheduler {
     dag actions of type ENFORCE_JOB_START_DEADLINE and ENFORCE_FLOW_FINISH_DEADLINE because the original (non-reminder)
     actions are added to the scheduler to notify the hosts when the deadlines have passed.
     */
-    quartzScheduler.addJob(jobDetail, true);
-    quartzScheduler.scheduleJob(trigger);
+    if (this.quartzScheduler.checkExists(jobDetail.getKey())) {
+      this.quartzScheduler.scheduleJob(trigger);
+    } else {
+      this.quartzScheduler.scheduleJob(jobDetail, trigger);
+    }
   }
 
   public void unscheduleReminderJob(DagActionStore.DagAction dagAction) throws SchedulerException {
