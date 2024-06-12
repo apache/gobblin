@@ -21,6 +21,7 @@ import java.io.IOException;
 
 import lombok.AccessLevel;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 
 
@@ -60,6 +61,8 @@ public abstract class LeaseAttemptStatus {
    completeLease method from a caller without access to the {@link MultiActiveLeaseArbiter}.
   */
   @Data
+  // avoid - warning: Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object
+  @EqualsAndHashCode(callSuper=false)
   public static class LeaseObtainedStatus extends LeaseAttemptStatus {
     private final DagActionStore.DagAction consensusDagAction;
     private final long eventTimeMillis;
@@ -86,6 +89,8 @@ public abstract class LeaseAttemptStatus {
   the lease has completed or expired
    */
   @Data
+  // avoid - warning: Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object
+  @EqualsAndHashCode(callSuper=false)
   public static class LeasedToAnotherStatus extends LeaseAttemptStatus {
     private final DagActionStore.DagAction consensusDagAction;
     private final long eventTimeMillis;
