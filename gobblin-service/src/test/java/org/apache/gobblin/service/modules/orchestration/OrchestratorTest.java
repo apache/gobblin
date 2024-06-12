@@ -26,11 +26,14 @@ import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.hadoop.fs.Path;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.codahale.metrics.MetricRegistry;
@@ -53,6 +56,8 @@ import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.GobblinServiceManagerTest;
 import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
@@ -60,8 +65,7 @@ import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
-import static org.mockito.ArgumentMatchers.anyMap;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 
 
@@ -72,6 +76,7 @@ public class OrchestratorTest {
   private static final String SPEC_STORE_PARENT_DIR = "/tmp/orchestrator/";
   private static final String SPEC_DESCRIPTION = "Test Orchestrator";
   private static final String SPEC_VERSION = FlowSpec.Builder.DEFAULT_VERSION;
+  private static final String TEST_FLOW_GROUP_NAME = "myTestFlowGroup";
   private static final String TOPOLOGY_SPEC_STORE_DIR = "/tmp/orchestrator/topologyTestSpecStore";
   private static final String FLOW_SPEC_STORE_DIR = "/tmp/orchestrator/flowTestSpecStore";
   private static final String FLOW_SPEC_GROUP_DIR = "/tmp/orchestrator/flowTestSpecStore/flowTestGroupDir";
@@ -82,14 +87,23 @@ public class OrchestratorTest {
 
   private FlowCatalog flowCatalog;
   private FlowSpec flowSpec;
-  private Orchestrator orchestrator;
+
+  private ITestMetastoreDatabase testMetastoreDatabase;
+  private FlowStatusGenerator mockFlowStatusGenerator;
+  private DagManager mockDagManager;
+  private Orchestrator dagMgrNotFlowLaunchHandlerBasedOrchestrator;
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_TABLE = "quotas";
-  private static ITestMetastoreDatabase testDb;
+
   @BeforeClass
-  public void setup() throws Exception {
-    testDb = TestMetastoreDatabaseFactory.get();
+  public void setUpClass() throws Exception {
+    // PERF: when within `@{Before,After}Class` the 7 current tests take only 33s; when `@{Before,After}Method` `.get()`s a per-test DB, the same take 1m49s!
+    this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+  }
+
+  @BeforeMethod
+  public void setUp() throws Exception {
     cleanUpDir(TOPOLOGY_SPEC_STORE_DIR);
     cleanUpDir(FLOW_SPEC_STORE_DIR);
 
@@ -112,14 +126,14 @@ public class OrchestratorTest {
         Optional.of(logger), Optional.<MetricContext>absent(), true, true);
 
     this.serviceLauncher.addService(flowCatalog);
-    FlowStatusGenerator mockStatusGenerator = mock(FlowStatusGenerator.class);
-    FlowLaunchHandler mockFlowTriggerHandler = mock(FlowLaunchHandler.class);
-    DagManager mockDagManager = mock(DagManager.class);
-    doNothing().when(mockDagManager).setTopologySpecMap(anyMap());
+    this.mockFlowStatusGenerator = mock(FlowStatusGenerator.class);
+    this.mockDagManager = mock(DagManager.class);
+    Mockito.doNothing().when(mockDagManager).setTopologySpecMap(anyMap());
+
     Config config = ConfigBuilder.create()
         .addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY,
             MostlyMySqlDagManagementStateStoreTest.TestMysqlDagStateStore.class.getName())
-        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testDb.getJdbcUrl())
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), this.testMetastoreDatabase.getJdbcUrl())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE).build();
@@ -129,17 +143,37 @@ public class OrchestratorTest {
 
     SharedFlowMetricsSingleton sharedFlowMetricsSingleton = new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(orchestratorProperties));
 
-    this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
-        this.topologyCatalog, mockDagManager, Optional.of(logger), mockStatusGenerator,
-        Optional.of(mockFlowTriggerHandler), sharedFlowMetricsSingleton, Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore),
-        new FlowCompilationValidationHelper(config, sharedFlowMetricsSingleton, mock(UserQuotaManager.class), mockStatusGenerator));
-    this.topologyCatalog.addListener(orchestrator);
-    this.flowCatalog.addListener(orchestrator);
+    FlowCompilationValidationHelper flowCompilationValidationHelper = new FlowCompilationValidationHelper(config, sharedFlowMetricsSingleton, mock(UserQuotaManager.class), mockFlowStatusGenerator);
+    this.dagMgrNotFlowLaunchHandlerBasedOrchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
+        this.topologyCatalog, mockDagManager, Optional.of(logger), mockFlowStatusGenerator,
+        Optional.absent(), sharedFlowMetricsSingleton, Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore),
+        flowCompilationValidationHelper);
+    this.topologyCatalog.addListener(dagMgrNotFlowLaunchHandlerBasedOrchestrator);
+    this.flowCatalog.addListener(dagMgrNotFlowLaunchHandlerBasedOrchestrator);
     // Start application
     this.serviceLauncher.start();
     // Create Spec to play with
     this.topologySpec = initTopologySpec();
     this.flowSpec = initFlowSpec();
+  }
+
+  @AfterMethod
+  public void tearDown() throws Exception {
+    // Shutdown Catalog
+    this.serviceLauncher.stop();
+
+    File specStoreDir = new File(SPEC_STORE_PARENT_DIR);
+    if (specStoreDir.exists()) {
+      FileUtils.deleteDirectory(specStoreDir);
+    }
+  }
+
+  @AfterClass(alwaysRun = true)
+  public void tearDownClass() throws Exception {
+    if (this.testMetastoreDatabase != null) {
+      // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
+      this.testMetastoreDatabase.close();
+    }
   }
 
   private void cleanUpDir(String dir) throws Exception {
@@ -221,24 +255,10 @@ public class OrchestratorTest {
     return uri;
   }
 
-  @AfterClass
-  public void cleanUp() throws Exception {
-    // Shutdown Catalog
-    this.serviceLauncher.stop();
-
-    File specStoreDir = new File(SPEC_STORE_PARENT_DIR);
-    if (specStoreDir.exists()) {
-      FileUtils.deleteDirectory(specStoreDir);
-    }
-
-    if (testDb != null) {
-      testDb.close();
-    }
-  }
-
+  // TODO: this test doesn't exercise `Orchestrator` and so belongs elsewhere - move it, then rework into `@BeforeMethod` init (since others depend on this)
   @Test
   public void createTopologySpec() {
-    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
+    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.getSpecCompiler();
 
     // List Current Specs
     Collection<Spec> specs = topologyCatalog.getSpecs();
@@ -271,11 +291,12 @@ public class OrchestratorTest {
     Assert.assertTrue(specCompiler.getTopologySpecMap().size() == 1, "SpecCompiler should contain 1 Spec after addition");
   }
 
-  @Test (dependsOnMethods = "createTopologySpec")
+  @Test
   public void createFlowSpec() throws Throwable {
-    // Since only 1 Topology with 1 SpecProducer has been added in previous test
-    // .. it should be available and responsible for our new FlowSpec
-    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
+    // TODO: fix this lingering inter-test dep from when `@BeforeClass` init, which we've since replaced by `Mockito.verify`-friendly `@BeforeMethod`
+    createTopologySpec(); // make 1 Topology with 1 SpecProducer available and responsible for our new FlowSpec
+
+    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.getSpecCompiler();
     SpecExecutor sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutor();
 
     // List Current Specs
@@ -314,10 +335,12 @@ public class OrchestratorTest {
         + "Spec after addition");
   }
 
-  @Test (dependsOnMethods = "createFlowSpec")
-  public void deleteFlowSpec() throws Exception {
-    // Since only 1 Flow has been added in previous test it should be available
-    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
+  @Test
+  public void deleteFlowSpec() throws Throwable {
+    // TODO: fix this lingering inter-test dep from when `@BeforeClass` init, which we've since replaced by `Mockito.verify`-friendly `@BeforeMethod`
+    createFlowSpec(); // make 1 Flow available (for deletion herein)
+
+    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.getSpecCompiler();
     SpecExecutor sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutor();
 
     // List Current Specs
@@ -355,26 +378,101 @@ public class OrchestratorTest {
         + "Spec after deletion");
   }
 
-  @Test (dependsOnMethods = "deleteFlowSpec")
-  public void doNotRegisterMetricsAdhocFlows() throws Exception {
-    MetricContext metricContext = this.orchestrator.getSharedFlowMetricsSingleton().getMetricContext();
+  @Test
+  public void doNotRegisterMetricsAdhocFlows() throws Throwable {
+    // TODO: fix this lingering inter-test dep from when `@BeforeClass` init, which we've since replaced by `Mockito.verify`-friendly `@BeforeMethod`
+    createTopologySpec(); // for flow compilation to pass
+
+    FlowId flowId = GobblinServiceManagerTest.createFlowIdWithUniqueName(TEST_FLOW_GROUP_NAME);
+    MetricContext metricContext = this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.getSharedFlowMetricsSingleton().getMetricContext();
+    String metricName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowId.getFlowGroup(), flowId.getFlowName(), ServiceMetricNames.COMPILED);
+
     this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
-    Properties flowProps = new Properties();
-    flowProps.setProperty(ConfigurationKeys.FLOW_NAME_KEY, "flow0");
-    flowProps.setProperty(ConfigurationKeys.FLOW_GROUP_KEY, "group0");
-    flowProps.put("specStore.fs.dir", FLOW_SPEC_STORE_DIR);
-    flowProps.put("specExecInstance.capabilities", "source:destination");
-    flowProps.put("gobblin.flow.sourceIdentifier", "source");
-    flowProps.put("gobblin.flow.destinationIdentifier", "destination");
-    flowProps.put("flow.allowConcurrentExecution", false);
-    FlowSpec adhocSpec = new FlowSpec(URI.create("flow0/group0"), "1", "", ConfigUtils.propertiesToConfig(flowProps) , flowProps, Optional.absent(), Optional.absent());
-    this.orchestrator.orchestrate(adhocSpec, flowProps, 0, false);
-    String metricName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, "group0", "flow0", ServiceMetricNames.COMPILED);
+
+    FlowSpec adhocSpec = createBasicFlowSpecForFlowId(flowId);
+    this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.orchestrate(adhocSpec, new Properties(), 0, false);
     Assert.assertNull(metricContext.getParent().get().getGauges().get(metricName));
 
-    flowProps.setProperty("job.schedule", "0/2 * * * * ?");
-    FlowSpec scheduledSpec = new FlowSpec(URI.create("flow0/group0"), "1", "", ConfigUtils.propertiesToConfig(flowProps) , flowProps, Optional.absent(), Optional.absent());
-    this.orchestrator.orchestrate(scheduledSpec, flowProps, 0, false);
+    Properties scheduledProps = new Properties();
+    scheduledProps.setProperty("job.schedule", "0/2 * * * * ?");
+    FlowSpec scheduledSpec = createBasicFlowSpecForFlowId(flowId, scheduledProps);
+    this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.orchestrate(scheduledSpec, new Properties(), 0, false);
     Assert.assertNotNull(metricContext.getParent().get().getGauges().get(metricName));
+  }
+
+  @Test
+  public void removeFlowSpecWhenDagAdded() throws Throwable {
+    // TODO: fix this lingering inter-test dep from when `@BeforeClass` init, which we've since replaced by `Mockito.verify`-friendly `@BeforeMethod`
+    createTopologySpec(); // for flow compilation to pass
+
+    FlowId flowId = GobblinServiceManagerTest.createFlowIdWithUniqueName(TEST_FLOW_GROUP_NAME);
+    FlowSpec flowSpec = createBasicFlowSpecForFlowId(flowId);
+    this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
+
+    this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.orchestrate(flowSpec, new Properties(), 0, false);
+
+    Mockito.verify(this.mockDagManager, Mockito.times(1)).addDag(any(), eq(true), eq(true));
+    Mockito.verify(this.mockDagManager, Mockito.times(1)).removeFlowSpecIfAdhoc(any());
+  }
+
+  @Test
+  public void removeFlowSpecEvenWhenDagNotAddedDueToCompilationFailure() throws Throwable {
+    // to cause flow compilation to fail, DO NOT EXECUTE: createTopologySpec();
+
+    FlowId flowId = GobblinServiceManagerTest.createFlowIdWithUniqueName(TEST_FLOW_GROUP_NAME);
+    FlowSpec flowSpec = createBasicFlowSpecForFlowId(flowId);
+    this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
+
+    this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.orchestrate(flowSpec, new Properties(), 0, false);
+
+    // (verifies that compilation failure precedes enforcement of concurrent flow executions)
+    Mockito.verify(this.mockFlowStatusGenerator, Mockito.never()).isFlowRunning(any(), any(), anyLong());
+
+    Mockito.verify(this.mockDagManager, Mockito.never()).addDag(any(), anyBoolean(), anyBoolean());
+    Mockito.verify(this.mockDagManager, Mockito.times(1)).removeFlowSpecIfAdhoc(any());
+  }
+
+  @Test
+  public void removeFlowSpecEvenWhenDagNotAddedDueToConcurrentExecution() throws Throwable {
+    // TODO: fix this lingering inter-test dep from when `@BeforeClass` init, which we've since replaced by `Mockito.verify`-friendly `@BeforeMethod`
+    createTopologySpec(); // for flow compilation to pass
+
+    FlowId flowId = GobblinServiceManagerTest.createFlowIdWithUniqueName(TEST_FLOW_GROUP_NAME);
+    Properties noConcurrentExecsProps = new Properties();
+    noConcurrentExecsProps.setProperty("flow.allowConcurrentExecution", "false");
+    FlowSpec flowSpec = createBasicFlowSpecForFlowId(flowId, noConcurrentExecsProps);
+    this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
+
+    Mockito.when(this.mockFlowStatusGenerator.isFlowRunning(eq(flowId.getFlowName()), eq(flowId.getFlowGroup()), anyLong())).thenReturn(true);
+
+    this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.orchestrate(flowSpec, new Properties(), 0, false);
+
+    // (verifies enforcement of concurrent flow executions)
+    Mockito.verify(this.mockFlowStatusGenerator, Mockito.times(1)).isFlowRunning(eq(flowId.getFlowName()), eq(flowId.getFlowGroup()), anyLong());
+
+    Mockito.verify(this.mockDagManager, Mockito.never()).addDag(any(), anyBoolean(), anyBoolean());
+    Mockito.verify(this.mockDagManager, Mockito.times(1)).removeFlowSpecIfAdhoc(any());
+  }
+
+  public static FlowSpec createBasicFlowSpecForFlowId(FlowId flowId) throws URISyntaxException {
+    return createBasicFlowSpecForFlowId(flowId, new Properties());
+  }
+
+  public static FlowSpec createBasicFlowSpecForFlowId(FlowId flowId, Properties moreProps) throws URISyntaxException {
+    URI flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
+    Properties flowProps = new Properties();
+    // needed by - Orchestrator::orchestrate
+    flowProps.setProperty(ConfigurationKeys.FLOW_GROUP_KEY, flowId.getFlowGroup());
+    flowProps.setProperty(ConfigurationKeys.FLOW_NAME_KEY, flowId.getFlowName());
+    // needed by - IdentityFlowToJobSpecCompiler::compileFlow
+    flowProps.put("gobblin.flow.sourceIdentifier", "source");
+    flowProps.put("gobblin.flow.destinationIdentifier", "destination");
+    // needed by - IdentityFlowToJobSpecCompiler::getJobExecutionPlans
+    flowProps.put("specExecInstance.capabilities", "source:destination");
+
+    moreProps.entrySet().forEach(entry ->
+        flowProps.put(entry.getKey(), entry.getValue()));
+
+    return new FlowSpec(flowUri, "1", "", ConfigUtils.propertiesToConfig(flowProps), flowProps, Optional.absent(), Optional.absent());
   }
 }

@@ -825,7 +825,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
               }
             }
           }
-          // Note that we only remove the spec from the flow catalog after it is orchestrated
           GobblinServiceJobScheduler.this.scheduledFlowSpecs.remove(specUri.toString());
           GobblinServiceJobScheduler.this.lastUpdatedTimeForFlowSpec.remove(specUri.toString());
         }

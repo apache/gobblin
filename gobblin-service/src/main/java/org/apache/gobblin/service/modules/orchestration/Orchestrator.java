@@ -229,33 +229,39 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
             launchDagAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
       } else {
-        TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
-        Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
-        Optional<Dag<JobExecutionPlan>> compiledDagOptional =
-            this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup,
-                flowName, flowMetadata);
+        try {
+          TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
+          Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
+          Optional<Dag<JobExecutionPlan>> compiledDagOptional =
+              this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup,
+                  flowName, flowMetadata);
 
-        if (!compiledDagOptional.isPresent()) {
-          Instrumented.markMeter(this.flowOrchestrationFailedMeter);
-          return;
-        }
-        Dag<JobExecutionPlan> compiledDag = compiledDagOptional.get();
-        if (compiledDag.isEmpty()) {
-          FlowCompilationValidationHelper.populateFlowCompilationFailedEventMessage(eventSubmitter, flowSpec, flowMetadata);
-          Instrumented.markMeter(this.flowOrchestrationFailedMeter);
+          if (!compiledDagOptional.isPresent()) {
+            Instrumented.markMeter(this.flowOrchestrationFailedMeter);
+            return;
+          }
+          Dag<JobExecutionPlan> compiledDag = compiledDagOptional.get();
+          if (compiledDag.isEmpty()) {
+            FlowCompilationValidationHelper.populateFlowCompilationFailedEventMessage(eventSubmitter, flowSpec,
+                flowMetadata);
+            Instrumented.markMeter(this.flowOrchestrationFailedMeter);
+            sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
+                SharedFlowMetricsSingleton.CompiledState.FAILED);
+            _log.warn("Cannot determine an executor to run on for Spec: " + spec);
+            return;
+          }
           sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
-              SharedFlowMetricsSingleton.CompiledState.FAILED);
-          _log.warn("Cannot determine an executor to run on for Spec: " + spec);
-          return;
+              SharedFlowMetricsSingleton.CompiledState.SUCCESSFUL);
+
+          FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, compiledDag);
+          flowCompilationTimer.stop(flowMetadata);
+
+          // Depending on if DagManager is present, handle execution
+          submitFlowToDagManager(flowSpec, compiledDag);
+        } finally {
+          // remove from the flow catalog, regardless of whether the flow was successfully validated and permitted to exec (concurrently)
+          this.dagManager.removeFlowSpecIfAdhoc(flowSpec);
         }
-        sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(spec,
-            SharedFlowMetricsSingleton.CompiledState.SUCCESSFUL);
-
-        FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata, compiledDag);
-        flowCompilationTimer.stop(flowMetadata);
-
-        // Depending on if DagManager is present, handle execution
-        submitFlowToDagManager(flowSpec, compiledDag);
       }
     } else {
       Instrumented.markMeter(this.flowOrchestrationFailedMeter);
@@ -283,7 +289,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       Note that the responsibility of the multi-active scheduler mode ends after this method is completed AND the
       consumption of a launch type event is committed to the consumer.
        */
-      this.dagManager.addDagAndRemoveAdhocFlowSpec(flowSpec, jobExecutionPlanDag, true, true);
+      this.dagManager.addDag(jobExecutionPlanDag, true, true);
     } catch (Exception ex) {
       String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
       _log.warn("Orchestrator call - " + failureMessage, ex);
