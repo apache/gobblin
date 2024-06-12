@@ -218,18 +218,12 @@ public class ReevaluateDagProcTest {
         dagManagementStateStore));
     reEvaluateDagProc.process(dagManagementStateStore);
 
-    long addSpecCount = specProducers.stream()
-        .mapToLong(p -> Mockito.mockingDetails(p)
-            .getInvocations()
-            .stream()
-            .filter(a -> a.getMethod().getName().equals("addSpec"))
-            .count())
-        .sum();
-
     int numOfLaunchedJobs = 1; // only the current job
     // only the current job should have run
     Mockito.verify(specProducers.get(0), Mockito.times(1)).addSpec(any());
-    Assert.assertEquals(numOfLaunchedJobs, addSpecCount);
+
+    specProducers.stream().skip(numOfLaunchedJobs) // separately verified `specProducers.get(0)`
+        .forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
 
     // no job's state is deleted because that happens when the job finishes triggered the reevaluate dag proc
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagNodeState(any(), any());
@@ -276,15 +270,8 @@ public class ReevaluateDagProcTest {
     Mockito.verify(dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
         .addJobDagAction(eq(flowGroup), eq(flowName), eq(String.valueOf(flowExecutionId)), any(), eq(DagActionStore.DagActionType.REEVALUATE));
 
-    long addSpecCount = specProducers.stream()
-        .mapToLong(p -> Mockito.mockingDetails(p)
-            .getInvocations()
-            .stream()
-            .filter(a -> a.getMethod().getName().equals("addSpec"))
-            .count())
-        .sum();
     // when there are parallel jobs to launch, they are not directly sent to spec producers, instead reevaluate dag action is created
-    Assert.assertEquals(addSpecCount, 0L);
+    specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
   }
 
   public static List<SpecProducer<Spec>> getDagSpecProducers(Dag<JobExecutionPlan> dag) {
