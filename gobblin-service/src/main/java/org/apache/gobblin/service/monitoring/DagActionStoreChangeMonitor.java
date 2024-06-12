@@ -199,7 +199,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     String operation = value.getChangeEventIdentifier().getOperationType().name();
     String flowGroup = value.getFlowGroup();
     String flowName = value.getFlowName();
-    String flowExecutionId = value.getFlowExecutionId();
+    long flowExecutionId = Long.parseLong(value.getFlowExecutionId());
     String jobName = value.getJobName();
 
     produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
@@ -259,12 +259,10 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",
         dagAction.getDagActionType(), dagAction);
     if (dagAction.getDagActionType().equals(DagActionStore.DagActionType.RESUME)) {
-      dagManager.handleResumeFlowRequest(dagAction.getFlowGroup(), dagAction.getFlowName(),
-          Long.parseLong(dagAction.getFlowExecutionId()));
+      dagManager.handleResumeFlowRequest(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());
       this.resumesInvoked.mark();
     } else if (dagAction.getDagActionType().equals(DagActionStore.DagActionType.KILL)) {
-      dagManager.handleKillFlowRequest(dagAction.getFlowGroup(), dagAction.getFlowName(),
-          Long.parseLong(dagAction.getFlowExecutionId()));
+      dagManager.handleKillFlowRequest(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId());
       this.killsInvoked.mark();
     } else if (dagAction.getDagActionType().equals(DagActionStore.DagActionType.LAUNCH)) {
       // If multi-active scheduler is NOT turned on we should not receive these type of events

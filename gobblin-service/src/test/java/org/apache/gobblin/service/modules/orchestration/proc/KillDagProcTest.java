@@ -93,7 +93,7 @@ public class KillDagProcTest {
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
 
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow1",
-        String.valueOf(flowExecutionId), MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH),
+        flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH),
         null, this.dagManagementStateStore), flowCompilationValidationHelper);
     launchDagProc.process(this.dagManagementStateStore);
 
@@ -106,7 +106,7 @@ public class KillDagProcTest {
     }).collect(Collectors.toList());
 
     KillDagProc killDagProc = new KillDagProc(new KillDagTask(new DagActionStore.DagAction("fg", "flow1",
-       String.valueOf(flowExecutionId), MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.KILL),
+       flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.KILL),
         null, this.dagManagementStateStore));
     killDagProc.process(this.dagManagementStateStore);
 
@@ -136,7 +136,7 @@ public class KillDagProcTest {
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
 
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow2",
-        String.valueOf(flowExecutionId), MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH),
+        flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH),
         null, this.dagManagementStateStore), flowCompilationValidationHelper);
     launchDagProc.process(this.dagManagementStateStore);
 
@@ -149,7 +149,7 @@ public class KillDagProcTest {
     }).collect(Collectors.toList());
 
     KillDagProc killDagProc = new KillDagProc(new KillDagTask(new DagActionStore.DagAction("fg", "flow2",
-        String.valueOf(flowExecutionId), "job2", DagActionStore.DagActionType.KILL),
+        flowExecutionId, "job2", DagActionStore.DagActionType.KILL),
         null, this.dagManagementStateStore));
     killDagProc.process(this.dagManagementStateStore);
 

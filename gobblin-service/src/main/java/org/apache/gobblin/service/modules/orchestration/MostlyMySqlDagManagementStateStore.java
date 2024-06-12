@@ -270,19 +270,19 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   }
 
   @Override
-  public boolean existsJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
+  public boolean existsJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
       DagActionStore.DagActionType dagActionType) throws IOException, SQLException {
     return this.dagActionStore.exists(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
   }
 
   @Override
-  public boolean existsFlowDagAction(String flowGroup, String flowName, String flowExecutionId,
+  public boolean existsFlowDagAction(String flowGroup, String flowName, long flowExecutionId,
       DagActionStore.DagActionType dagActionType) throws IOException, SQLException {
     return this.dagActionStore.exists(flowGroup, flowName, flowExecutionId, dagActionType);
   }
 
   @Override
-  public void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
+  public void addJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
       DagActionStore.DagActionType dagActionType) throws IOException {
     this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
   }
