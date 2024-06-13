@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.io.IOException;
 import java.util.Date;
 import java.util.function.Supplier;
@@ -48,7 +49,8 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 @Singleton
 public class DagActionReminderScheduler {
   public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
-  private final Scheduler quartzScheduler;
+  @VisibleForTesting
+  public final Scheduler quartzScheduler;
 
   @Inject
   public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory)
@@ -68,7 +70,22 @@ public class DagActionReminderScheduler {
       throws SchedulerException {
     JobDetail jobDetail = createReminderJobDetail(dagAction);
     Trigger trigger = createReminderJobTrigger(dagAction, reminderDurationMillis, System::currentTimeMillis);
-    quartzScheduler.scheduleJob(jobDetail, trigger);
+    /* Add the job to the scheduler if it doesn't already exist. Note the job already exists for the true reminders of
+    dag actions of type ENFORCE_JOB_START_DEADLINE and ENFORCE_FLOW_FINISH_DEADLINE because the original (non-reminder)
+    actions are added to the scheduler to notify the hosts when the deadlines have passed.
+    */
+    if (quartzScheduler.checkExists(jobDetail.getKey())) {
+      if (quartzScheduler.checkExists(trigger.getKey())) {
+        // Trigger already exists, so we need to reschedule it with the new trigger
+        quartzScheduler.rescheduleJob(trigger.getKey(), trigger);
+      } else {
+        // Trigger does not exist, schedule it (do not encounter this code path because trigger keys will always be identical for a job)
+        quartzScheduler.scheduleJob(trigger);
+      }
+    } else {
+      // Job does not exist, schedule both job and trigger
+      quartzScheduler.scheduleJob(jobDetail, trigger);
+    }
   }
 
   public void unscheduleReminderJob(DagActionStore.DagAction dagAction) throws SchedulerException {
@@ -142,9 +159,11 @@ public class DagActionReminderScheduler {
    */
   public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis,
       Supplier<Long> getCurrentTimeMillis) {
+    String name = createDagActionReminderKey(dagAction);
     return TriggerBuilder.newTrigger()
-        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())
+        .withIdentity(name, dagAction.getFlowGroup())
         .startAt(new Date(getCurrentTimeMillis.get() + reminderDurationMillis))
+        .forJob(name, dagAction.getFlowGroup())
         .build();
   }
 }
