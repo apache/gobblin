@@ -106,11 +106,11 @@ public class FlowLaunchHandler {
    * event triggered by the scheduler by attempting a lease for the launch event and processing the result depending on
    * the status of the attempt.
    */
-  public void handleFlowLaunchTriggerEvent(Properties jobProps, DagActionStore.DagAction dagAction,
+  public void handleFlowLaunchTriggerEvent(Properties jobProps, DagActionStore.LeaseObject leaseObject,
       boolean adoptConsensusFlowExecutionId) throws IOException {
-    long previousEventTimeMillis = dagAction.getEventTimeMillis();
+    long previousEventTimeMillis = leaseObject.getEventTimeMillis();
     LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(
-        dagAction, adoptConsensusFlowExecutionId);
+        leaseObject, adoptConsensusFlowExecutionId);
     if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus
         && persistLaunchDagAction((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt)) {
       log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseAttempt.getConsensusDagAction(),
@@ -128,7 +128,8 @@ public class FlowLaunchHandler {
     } else if (leaseAttempt instanceof LeaseAttemptStatus.LeasedToAnotherStatus) { // already have one: just return it
       return Optional.of((LeaseAttemptStatus.LeasedToAnotherStatus) leaseAttempt);
     } else if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus) { // remind w/o delay to immediately re-attempt handling
-      return Optional.of(new LeaseAttemptStatus.LeasedToAnotherStatus(leaseAttempt.getConsensusDagAction(), 0L));
+      return Optional.of(new LeaseAttemptStatus.LeasedToAnotherStatus(
+          ((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt).getConsensusLeaseObject(), 0L));
     } else {
       throw new RuntimeException("unexpected `LeaseAttemptStatus` derived type: '" + leaseAttempt.getClass().getName() + "' in '" + leaseAttempt + "'");
     }
@@ -170,12 +171,12 @@ public class FlowLaunchHandler {
         this.jobDoesNotExistInSchedulerCount.inc();
         return;
       }
-      Trigger reminderTrigger = createAndScheduleReminder(origJobKey, status, consensusDagAction.getEventTimeMillis());
+      Trigger reminderTrigger = createAndScheduleReminder(origJobKey, status, status.getEventTimeMillis());
       log.info("Flow Launch Handler - [{}, eventTimestamp: {}] - SCHEDULED REMINDER for event {} in {} millis",
-          consensusDagAction, triggerEventTimeMillis, consensusDagAction.getEventTimeMillis(), reminderTrigger.getNextFireTime());
+          consensusDagAction, triggerEventTimeMillis, status.getEventTimeMillis(), reminderTrigger.getNextFireTime());
     } catch (SchedulerException e) {
       log.warn("Failed to add job reminder due to SchedulerException for job {} trigger event {}. Exception: {}",
-          origJobKey, consensusDagAction.getEventTimeMillis(), e);
+          origJobKey, status.getEventTimeMillis(), e);
       this.failedToSetEventReminderCount.inc();
     }
   }

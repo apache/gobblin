@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
+import java.rmi.dgc.Lease;
 import java.sql.SQLException;
 import java.util.Collection;
 
@@ -49,25 +50,9 @@ public interface DagActionStore {
     final String flowExecutionId;
     final String jobName;
     final DagActionType dagActionType;
-    boolean isReminder;
-    long eventTimeMillis;
-
-    public DagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType, boolean isReminder, long eventTimeMillis) {
-      this(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
-      this.setReminder(isReminder);
-      this.setEventTimeMillis(eventTimeMillis);
-    }
-
-    public DagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType, long eventTimeMillis) {
-      this(flowGroup, flowName, flowExecutionId, jobName, dagActionType, false, eventTimeMillis);
-    }
 
     public static DagAction forFlow(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) {
-      return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType, false, System.currentTimeMillis());
-    }
-
-    public static DagAction forFlow(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType, boolean isReminder, long eventTimeMillis) {
-      return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType, isReminder, eventTimeMillis);
+      return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
     }
 
     public FlowId getFlowId() {
@@ -97,6 +82,24 @@ public interface DagActionStore {
       return new DagManager.DagId(this.flowGroup, this.flowName, this.flowExecutionId);
     }
   }
+
+  @Data
+  @RequiredArgsConstructor
+  class LeaseObject  {
+    final DagAction dagAction;
+    final boolean isReminder;
+    final long eventTimeMillis;
+
+    /**
+     * Creates a lease object for a dagAction and eventTimeMillis representing an original event (isReminder is False)
+     */
+    public LeaseObject(DagAction dagAction, long eventTimeMillis) {
+      this.dagAction = dagAction;
+      this.isReminder = false;
+      this.eventTimeMillis = eventTimeMillis;
+    }
+  }
+
 
 
   /**

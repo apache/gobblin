@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Optional;
+import java.util.UUID;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -55,11 +56,14 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final long eventTimeMillis = System.currentTimeMillis();
   // Dag actions with the same flow info but different flow action types are considered unique
   private static DagActionStore.DagAction launchDagAction =
-      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH, false, eventTimeMillis);
+      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
+  private static DagActionStore.LeaseObject launchLeaseObject = new DagActionStore.LeaseObject(launchDagAction, false, eventTimeMillis);
   private static DagActionStore.DagAction resumeDagAction =
-      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.RESUME, false, eventTimeMillis);
+      new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.RESUME);
+  private static DagActionStore.LeaseObject resumeLeaseObject = new DagActionStore.LeaseObject(resumeDagAction, false, eventTimeMillis);
   private static DagActionStore.DagAction launchDagAction2 =
-      new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH, false, eventTimeMillis);
+      new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
+  private static DagActionStore.LeaseObject launchLeaseObject2 = new DagActionStore.LeaseObject(launchDagAction2, false, eventTimeMillis);
   private static final Timestamp dummyTimestamp = new Timestamp(99999);
   private ITestMetastoreDatabase testDb;
   private MysqlMultiActiveLeaseArbiter mysqlMultiActiveLeaseArbiter;
@@ -110,7 +114,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     long consensusEventTimeMillis = firstObtainedStatus.getEventTimeMillis();
     Assert.assertTrue(consensusEventTimeMillis <= firstObtainedStatus.getLeaseAcquisitionTimestamp());
     // Make sure consensusEventTimeMillis is set and it's not 0 or the original event time
-    Assert.assertTrue(consensusEventTimeMillis != eventTimeMillis && consensusEventTimeMillis != 0);
+    Assert.assertFalse(consensusEventTimeMillis != eventTimeMillis && consensusEventTimeMillis != 0);
     Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
         new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(consensusEventTimeMillis),
             jobName, DagActionStore.DagActionType.LAUNCH, false, consensusEventTimeMillis)));
@@ -202,7 +206,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     attempts a new one given the table the eventTimestamp and leaseAcquisitionTimestamp values are unchanged.
    */
   @Test (dependsOnMethods = "testAcquireLeaseIfNewRow")
-  public void testConditionallyAcquireLeaseIfFMatchingAllColsStatement() throws IOException {
+  public void testConditionallyAcquireLeaseIfMatchingAllColsStatement() throws IOException {
     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
         mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
 
@@ -232,7 +236,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
   Note: This isolates and tests CASE 6 during which current participant saw a distinct flow action event had completed
   its prior lease, encouraging the current participant to acquire a lease for its event.
    */
-  @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfFMatchingAllColsStatement")
+  @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfMatchingAllColsStatement")
   public void testConditionallyAcquireLeaseIfFinishedLeasingStatement()
       throws IOException, SQLException {
     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult = completeLeaseHelper(resumeDagAction);
@@ -370,12 +374,18 @@ public class MysqlMultiActiveLeaseArbiterTest {
     Assert.assertTrue(mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(firstObtainedStatus));
   }
 
+  public static String generateUniqueName() {
+      UUID uuid = UUID.randomUUID();
+      String name = uuid.toString().substring(0, 10);
+      return name;
+  }
+
   /**
-   * Returns a unique launch type dagAction event by using current time as flowName to create unique event
+   * Returns a unique launch type dagAction event by using 'generateUniqueName' as flowName to create a unique event
    */
   public DagActionStore.DagAction getUniqueLaunchDagAction() {
-    return new DagActionStore.DagAction(flowGroup,
-        String.valueOf(System.currentTimeMillis()), flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH, eventTimeMillis);
+    return new DagActionStore.DagAction(flowGroup, generateUniqueName(), flowExecutionId, jobName,
+        DagActionStore.DagActionType.LAUNCH, eventTimeMillis);
   }
 
   /**

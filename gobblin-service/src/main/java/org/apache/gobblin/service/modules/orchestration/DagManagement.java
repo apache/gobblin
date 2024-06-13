@@ -27,5 +27,13 @@ import java.io.IOException;
  */
 public interface DagManagement {
 
+  /**
+   * Used to add a dagAction event to DagManagement
+   */
   void addDagAction(DagActionStore.DagAction dagAction) throws IOException;
+
+  /**
+   * Used to add reminder dagActions to the queue that already contain an eventTimestamp from the previous lease attempt
+   */
+  void addDagAction(DagActionStore.LeaseObject reminderDagActionLeaseObject) throws IOException;
 }

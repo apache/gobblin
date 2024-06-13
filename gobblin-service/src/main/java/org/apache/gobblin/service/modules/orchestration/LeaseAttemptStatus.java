@@ -33,6 +33,14 @@ import lombok.Getter;
  */
 public abstract class LeaseAttemptStatus {
   /**
+   * @return the {@link DagActionStore.LeaseObject}, containing the dagAction, eventTimeMillis of the event, and boolean
+   * indicating if it's a reminder event; {@see MultiActiveLeaseArbiter#tryAcquireLease}
+   */
+  public DagActionStore.LeaseObject getConsensusLeaseObject() {
+    return null;
+  }
+
+  /**
    * @return the {@link DagActionStore.DagAction}, which may now have an updated flowExecutionId that MUST henceforth be
    * used; {@see MultiActiveLeaseArbiter#tryAcquireLease}
    */
@@ -52,21 +60,26 @@ public abstract class LeaseAttemptStatus {
 
   /*
   The participant calling this method acquired the lease for the event in question.
-  The `Dag action` returned by the lease arbitration attempt includes an updated value in the `eventTimeMillis` field,
-  which represents the consensus timestamp associated with the lease. For flows that do not adopt the consensus
-  `eventTimeMillis` as the flow execution ID, the `flowExecutionId` will remain unchanged. The consensus
-  `eventTimeMillis` must be tracked for lease completion.
+  The `consensusLeaseObject` returned by the lease arbitration attempt includes an updated value in the
+  `eventTimeMillis` field, which represents the consensus timestamp associated with the lease. For flows that do not
+  adopt the consensus `eventTimeMillis` as the flow execution ID, the `dagAction.flowExecutionId` will remain unchanged.
+  The consensus `eventTimeMillis` must be tracked for lease completion.
   The time the caller obtained the lease is stored within the`leaseAcquisitionTimestamp` field.
   The `multiActiveLeaseArbiter` reference is used to recordLeaseSuccess for the current LeaseObtainedStatus via the
   completeLease method from a caller without access to the {@link MultiActiveLeaseArbiter}.
   */
   @Data
   public static class LeaseObtainedStatus extends LeaseAttemptStatus {
-    private final DagActionStore.DagAction consensusDagAction;
+    private final DagActionStore.LeaseObject consensusLeaseObject;
     private final long leaseAcquisitionTimestamp;
     private final long minimumLingerDurationMillis;
     @Getter(AccessLevel.NONE)
     private final MultiActiveLeaseArbiter multiActiveLeaseArbiter;
+
+    @Override
+    public DagActionStore.DagAction getConsensusDagAction() {
+      return consensusLeaseObject.getDagAction();
+    }
 
     /**
      * Completes the lease referenced by this status object if it has not expired.
@@ -78,24 +91,29 @@ public abstract class LeaseAttemptStatus {
     }
 
     public long getEventTimeMillis() {
-      return consensusDagAction.getEventTimeMillis();
+      return consensusLeaseObject.getEventTimeMillis();
     }
   }
 
   /*
   This dag action event already has a valid lease owned by another participant.
-  See doc for {@link LeaseObtainedStatus} for details about consensusDagAction. Note, that the dag
+  See doc for {@link LeaseObtainedStatus} for details about consensusLeaseObject field. Note, that the dag
   action event it corresponds to may be a different and distinct occurrence of the same event.
   `minimumLingerDurationMillis` is the minimum amount of time to wait before this participant should return to check if
   the lease has completed or expired
    */
   @Data
   public static class LeasedToAnotherStatus extends LeaseAttemptStatus {
-    private final DagActionStore.DagAction consensusDagAction;
+    private final DagActionStore.LeaseObject consensusLeaseObject;
     private final long minimumLingerDurationMillis;
 
+    @Override
+    public DagActionStore.DagAction getConsensusDagAction() {
+      return consensusLeaseObject.getDagAction();
+    }
+
     public long getEventTimeMillis() {
-      return consensusDagAction.getEventTimeMillis();
+      return consensusLeaseObject.getEventTimeMillis();
     }
   }
 }
