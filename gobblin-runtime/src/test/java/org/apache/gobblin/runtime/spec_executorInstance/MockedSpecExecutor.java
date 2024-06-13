@@ -51,6 +51,7 @@ public class MockedSpecExecutor extends InMemorySpecExecutor {
   public static SpecExecutor createDummySpecExecutor(URI uri) {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, uri.toString());
+    properties.put("uri", "mySpecExecutor");
     return new MockedSpecExecutor(ConfigFactory.parseProperties(properties));
   }
 

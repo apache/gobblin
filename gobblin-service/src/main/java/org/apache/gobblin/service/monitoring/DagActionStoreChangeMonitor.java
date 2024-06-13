@@ -59,7 +59,7 @@ import org.apache.gobblin.service.modules.orchestration.Orchestrator;
  * connector between the API and execution layers of GaaS.
  */
 @Slf4j
-public class DagActionStoreChangeMonitor extends HighLevelConsumer {
+public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagActionStoreChangeEvent> {
   public static final String DAG_ACTION_CHANGE_MONITOR_PREFIX = "dagActionChangeStore";
 
   // Metrics
@@ -70,13 +70,13 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter successfulLaunchSubmissionsOnStartup;
   private ContextAwareMeter failedLaunchSubmissionsOnStartup;
   protected ContextAwareMeter unexpectedErrors;
-  private ContextAwareMeter messageProcessedMeter;
-  private ContextAwareMeter duplicateMessagesMeter;
-  private ContextAwareMeter heartbeatMessagesMeter;
-  private ContextAwareMeter nullDagActionTypeMessagesMeter;
+  protected ContextAwareMeter messageProcessedMeter;
+  protected ContextAwareMeter duplicateMessagesMeter;
+  protected ContextAwareMeter heartbeatMessagesMeter;
+  protected ContextAwareMeter nullDagActionTypeMessagesMeter;
   private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
 
-  private volatile Long produceToConsumeDelayValue = -1L;
+  protected volatile Long produceToConsumeDelayValue = -1L;
 
   protected LaunchSubmissionMetricProxy ON_STARTUP = new NullLaunchSubmissionMetricProxy();
   protected LaunchSubmissionMetricProxy POST_STARTUP = new NullLaunchSubmissionMetricProxy();
@@ -188,11 +188,11 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
   This class is multithreaded and this method will be called by multiple threads, however any given message will be
   partitioned and processed by only one thread (and corresponding queue).
    */
-  protected void processMessage(DecodeableKafkaRecord message) {
+  protected void processMessage(DecodeableKafkaRecord<String, DagActionStoreChangeEvent> message) {
     // This will also include the heathCheck message so that we can rely on this to monitor the health of this Monitor
     messageProcessedMeter.mark();
-    String key = (String) message.getKey();
-    DagActionStoreChangeEvent value = (DagActionStoreChangeEvent) message.getValue();
+    String key = message.getKey();
+    DagActionStoreChangeEvent value = message.getValue();
 
     String tid = value.getChangeEventIdentifier().getTxId();
     Long produceTimestamp = value.getChangeEventIdentifier().getProduceTimestampMillis();
@@ -224,31 +224,41 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer {
     DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName,
         dagActionType);
 
+    handleDagAction(operation, dagAction, flowGroup, flowName, flowExecutionId, dagActionType);
+
+    dagActionsSeenCache.put(changeIdentifier, changeIdentifier);
+  }
+
+  protected void handleDagAction(String operation, DagActionStore.DagAction dagAction, String flowGroup, String flowName,
+      long flowExecutionId, DagActionStore.DagActionType dagActionType) {
     // We only expect INSERT and DELETE operations done to this table. INSERTs correspond to any type of
     // {@link DagActionStore.FlowActionType} flow requests that have to be processed. DELETEs require no action.
     try {
-      if (operation.equals("INSERT")) {
-        handleDagAction(dagAction, false);
-      } else if (operation.equals("UPDATE")) {
-        // TODO: change this warning message and process updates if for launch or reevaluate type
-        log.warn("Received an UPDATE action to the DagActionStore when values in this store are never supposed to be "
-            + "updated. Flow group: {} name {} executionId {} were updated to action {}", flowGroup, flowName,
-            flowExecutionId, dagActionType);
-        this.unexpectedErrors.mark();
-      } else if (operation.equals("DELETE")) {
-        log.debug("Deleted dagAction from DagActionStore: {}", dagAction);
-      } else {
-        log.warn("Received unsupported change type of operation {}. Expected values to be in [INSERT, UPDATE, DELETE]",
-            operation);
-        this.unexpectedErrors.mark();
-        return;
+      switch (operation) {
+        case "INSERT":
+          handleDagAction(dagAction, false);
+          break;
+        case "UPDATE":
+          // TODO: change this warning message and process updates if for launch or reevaluate type
+          log.warn("Received an UPDATE action to the DagActionStore when values in this store are never supposed to be "
+                  + "updated. Flow group: {} name {} executionId {} were updated to action {}", flowGroup, flowName,
+              flowExecutionId, dagActionType);
+          this.unexpectedErrors.mark();
+          break;
+        case "DELETE":
+          log.debug("Deleted dagAction from DagActionStore: {}", dagAction);
+          break;
+        default:
+          log.warn(
+              "Received unsupported change type of operation {}. Expected values to be in [INSERT, UPDATE, DELETE]",
+              operation);
+          this.unexpectedErrors.mark();
+          break;
       }
     } catch (Exception e) {
-      log.warn("Ran into unexpected error processing DagActionStore changes: {}", e);
+      log.warn("Ran into unexpected error processing DagActionStore changes: ", e);
       this.unexpectedErrors.mark();
     }
-
-    dagActionsSeenCache.put(changeIdentifier, changeIdentifier);
   }
 
   /**

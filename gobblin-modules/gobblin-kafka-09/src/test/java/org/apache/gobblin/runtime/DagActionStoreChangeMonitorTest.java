@@ -264,7 +264,7 @@ public class DagActionStoreChangeMonitorTest {
    * Form a key for events using the flow identifiers
    * @return a key formed by adding an '_' delimiter between the flow identifiers
    */
-  private String getKeyForFlow(String flowGroup, String flowName, long flowExecutionId) {
+  public static String getKeyForFlow(String flowGroup, String flowName, long flowExecutionId) {
     return flowGroup + "_" + flowName + "_" + flowExecutionId;
   }
 

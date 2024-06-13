@@ -37,7 +37,6 @@ import com.typesafe.config.ConfigValueFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
@@ -56,7 +55,6 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
@@ -70,9 +68,7 @@ public class KillDagProcTest {
   public void setUp() throws Exception {
     this.testDb = TestMetastoreDatabaseFactory.get();
     this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testDb));
-    doReturn(FlowSpec.builder().build()).when(this.dagManagementStateStore).getFlowSpec(any());
-    doNothing().when(this.dagManagementStateStore).tryAcquireQuota(any());
-    doNothing().when(this.dagManagementStateStore).addDagNodeState(any(), any());
+    LaunchDagProcTest.mockDMSSCommonBehavior(this.dagManagementStateStore);
   }
 
   @AfterClass(alwaysRun = true)

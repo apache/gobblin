@@ -21,16 +21,13 @@ import java.io.IOException;
 import java.util.Optional;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.quartz.SchedulerException;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
-import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
@@ -120,7 +117,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dagManagementStateStore.markDagFailed(dag);
       }
 
-      removeFlowFinishDeadlineTriggerAndDagAction(dagManagementStateStore);
+      removeFlowFinishDeadlineDagAction(dagManagementStateStore);
     }
   }
 
@@ -178,7 +175,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     dagManagementStateStore.deleteDagNodeState(getDagId(), dagNode);
   }
 
-  private void removeFlowFinishDeadlineTriggerAndDagAction(DagManagementStateStore dagManagementStateStore) {
+  private void removeFlowFinishDeadlineDagAction(DagManagementStateStore dagManagementStateStore) {
     DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = DagActionStore.DagAction.forFlow(getDagNodeId().getFlowGroup(),
         getDagNodeId().getFlowName(), getDagNodeId().getFlowExecutionId(),
         DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
@@ -186,9 +183,8 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     // todo - add metrics
 
     try {
-      GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(getDagTask().getDagAction());
       dagManagementStateStore.deleteDagAction(enforceFlowFinishDeadlineDagAction);
-    } catch (SchedulerException | IOException e) {
+    } catch (IOException e) {
       log.warn("Failed to unschedule the reminder for {}", enforceFlowFinishDeadlineDagAction);
     }
   }

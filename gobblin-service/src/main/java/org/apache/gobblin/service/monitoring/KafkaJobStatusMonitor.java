@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.quartz.SchedulerException;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -64,8 +63,6 @@ import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.core.GobblinServiceManager;
-import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -228,12 +225,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             this.eventProducer.emitObservabilityEvent(jobStatus);
           }
 
-          if (this.dagProcEngineEnabled) {
+          if (this.dagProcEngineEnabled && isJobLevelStatus(jobName)) {
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
               // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
               this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
             } else if (updatedJobStatus.getRight() == NewState.RUNNING) {
-              removeStartDeadlineTriggerAndDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
+              removeStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
             }
           }
 
@@ -260,7 +257,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     }
   }
 
-  private void removeStartDeadlineTriggerAndDagAction(DagManagementStateStore dagManagementStateStore, String flowGroup,
+  private static boolean isJobLevelStatus(String jobName) {
+    return !jobName.equals(JobStatusRetriever.NA_KEY);
+  }
+
+  private void removeStartDeadlineDagAction(DagManagementStateStore dagManagementStateStore, String flowGroup,
       String flowName, long flowExecutionId, String jobName) {
     DagActionStore.DagAction enforceStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
@@ -268,9 +269,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     // todo - add metrics
 
     try {
-      GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(enforceStartDeadlineDagAction);
       dagManagementStateStore.deleteDagAction(enforceStartDeadlineDagAction);
-    } catch (SchedulerException | IOException e) {
+    } catch (IOException e) {
       log.error("Failed to unschedule the reminder for {}", enforceStartDeadlineDagAction);
     }
   }

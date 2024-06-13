@@ -74,7 +74,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   private final UserQuotaManager quotaManager;
   Map<URI, TopologySpec> topologySpecMap;
   private final Config config;
-  private static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
+  public static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   public static final String DAG_STATESTORE_CLASS_KEY = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreClass";
   FlowCatalog flowCatalog;
   @Getter
