@@ -23,6 +23,7 @@ import java.util.function.Supplier;
 
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.JobKey;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerUtils;
@@ -76,11 +77,21 @@ public class DagActionReminderSchedulerTest {
     Assert.assertFalse(jobDetail.isDurable()); // Ensure an orphan job will be automatically deleted from the scheduler
   }
 
-  // Verifies no exception is thrown from attempting to schedule multiple reminders for the same action
+  /* Verifies no exception is thrown from attempting to schedule multiple reminders for the same action and that the
+  job is cleaned up after its orphaned (all triggers have fired)
+   */
   @Test
-  public void testScheduleReminder() throws SchedulerException {
+  public void testScheduleReminder() throws SchedulerException, InterruptedException {
     DagActionReminderScheduler dagActionReminderScheduler = new DagActionReminderScheduler(new StdSchedulerFactory());
+    dagActionReminderScheduler.quartzScheduler.start(); // Need to explicitly start this scheduler since the factory passed here is not managed
+    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(launchDagAction);
     dagActionReminderScheduler.scheduleReminder(launchDagAction, 5);
     dagActionReminderScheduler.scheduleReminder(launchDagAction, 10);
+
+    Thread.sleep(100);
+    List<Trigger> triggers =
+        (List<Trigger>) dagActionReminderScheduler.quartzScheduler.getTriggersOfJob(jobDetail.getKey());
+    Assert.assertEquals(triggers.size(), 0);
+    Assert.assertFalse(dagActionReminderScheduler.quartzScheduler.checkExists(jobDetail.getKey()));
   }
 }
