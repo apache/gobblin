@@ -138,7 +138,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
         DagActionStore.DagAction dagAction = null;
         try {
           DagActionStore.LeaseObject dagActionLeaseObject = this.dagActionQueue.take();
-          DagActionStore.DagAction dagAction = dagActionLeaseObject.getDagAction();
+          dagAction = dagActionLeaseObject.getDagAction();
           /* Create triggers for original (non-reminder) dag actions of type ENFORCE_JOB_START_DEADLINE and ENFORCE_FLOW_FINISH_DEADLINE.
              Reminder triggers are used to inform hosts once the job start deadline and flow finish deadline are passed;
              then only is lease arbitration done to enforce the deadline violation and fail the job or flow if needed */

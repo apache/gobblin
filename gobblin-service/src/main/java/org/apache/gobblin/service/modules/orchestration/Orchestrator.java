@@ -219,7 +219,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         DagActionStore.DagAction launchDagAction = DagActionStore.DagAction.forFlow(
             flowGroup,
             flowName,
-            String.valueOf(FlowUtils.getOrCreateFlowExecutionId(flowSpec)),
+            FlowUtils.getOrCreateFlowExecutionId(flowSpec),
             DagActionStore.DagActionType.LAUNCH);
         DagActionStore.LeaseObject leaseObject = new DagActionStore.LeaseObject(launchDagAction, isReminderEvent,
             triggerTimestampMillis);
