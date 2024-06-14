@@ -52,7 +52,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String flowGroup2 = "testFlowGroup2";
   private static final String flowName = "testFlowName";
   private static final String jobName = "testJobName";
-  private static final String flowExecutionId = "12345677";
+  private static final long flowExecutionId = 12345677L;
   private static final long eventTimeMillis = System.currentTimeMillis();
   // Dag actions with the same flow info but different flow action types are considered unique
   private static DagActionStore.DagAction launchDagAction =
@@ -116,8 +116,8 @@ public class MysqlMultiActiveLeaseArbiterTest {
     // Make sure consensusEventTimeMillis is set and it's not 0 or the original event time
     Assert.assertFalse(consensusEventTimeMillis != eventTimeMillis && consensusEventTimeMillis != 0);
     Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
-        new DagActionStore.DagAction(flowGroup, flowName, String.valueOf(consensusEventTimeMillis),
-            jobName, DagActionStore.DagActionType.LAUNCH)));
+        new DagActionStore.DagAction(flowGroup, flowName, consensusEventTimeMillis, jobName,
+            DagActionStore.DagActionType.LAUNCH)));
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), consensusEventTimeMillis);
     Assert.assertEquals(firstObtainedStatus.getConsensusLeaseObject().isReminder, true);
 
