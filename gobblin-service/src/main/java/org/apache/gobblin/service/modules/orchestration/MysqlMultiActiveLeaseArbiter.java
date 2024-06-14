@@ -39,7 +39,6 @@ import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.DBStatementExecutor;
 

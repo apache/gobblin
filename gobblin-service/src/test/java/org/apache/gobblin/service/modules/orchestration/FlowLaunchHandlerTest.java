@@ -35,9 +35,10 @@ public class FlowLaunchHandlerTest {
   String cronExpressionSuffix = truncateFirstTwoFieldsOfCronExpression(cronExpression);
   int schedulerBackOffMillis = 10;
   DagActionStore.DagAction dagAction = new DagActionStore.DagAction("flowName", "flowGroup",
-      String.valueOf(flowExecutionId), "jobName", DagActionStore.DagActionType.LAUNCH, eventToRevisit);
+      String.valueOf(flowExecutionId), "jobName", DagActionStore.DagActionType.LAUNCH);
+  DagActionStore.LeaseObject leaseObject = new DagActionStore.LeaseObject(dagAction, false, eventToRevisit);
   LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus =
-      new LeaseAttemptStatus.LeasedToAnotherStatus(dagAction, minimumLingerDurationMillis);
+      new LeaseAttemptStatus.LeasedToAnotherStatus(leaseObject, minimumLingerDurationMillis);
 
   /**
    * Remove first two fields from cron expression representing seconds and minutes to return truncated cron expression
