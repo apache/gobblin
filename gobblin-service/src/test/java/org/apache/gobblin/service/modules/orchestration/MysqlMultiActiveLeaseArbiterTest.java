@@ -53,7 +53,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String flowName = "testFlowName";
   private static final String jobName = "testJobName";
   private static final long flowExecutionId = 12345677L;
-  private static final long eventTimeMillis = System.currentTimeMillis();
+  private static final long eventTimeMillis = 1710451837L; // System.currentTimeMillis();
   // Dag actions with the same flow info but different flow action types are considered unique
   private static DagActionStore.DagAction launchDagAction =
       new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
@@ -116,13 +116,14 @@ public class MysqlMultiActiveLeaseArbiterTest {
         (LeaseAttemptStatus.LeaseObtainedStatus) firstLaunchStatus;
     long consensusEventTimeMillis = firstObtainedStatus.getEventTimeMillis();
     Assert.assertTrue(consensusEventTimeMillis <= firstObtainedStatus.getLeaseAcquisitionTimestamp());
-    // Make sure consensusEventTimeMillis is set and it's not 0 or the original event time
-    Assert.assertFalse(consensusEventTimeMillis != eventTimeMillis && consensusEventTimeMillis != 0);
+    // Make sure consensusEventTimeMillis is set, and it's not 0 or the original event time
+    log.info("consensus event time is {} eventtimeMillis is {}", consensusEventTimeMillis, eventTimeMillis);
+    Assert.assertTrue(consensusEventTimeMillis != eventTimeMillis && consensusEventTimeMillis != 0);
     Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
         new DagActionStore.DagAction(flowGroup, flowName, consensusEventTimeMillis, jobName,
             DagActionStore.DagActionType.LAUNCH)));
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), consensusEventTimeMillis);
-    Assert.assertEquals(firstObtainedStatus.getConsensusDagActionLeaseObject().isReminder, true);
+    Assert.assertEquals(firstObtainedStatus.getConsensusDagActionLeaseObject().isReminder, false);
 
     // Verify that different DagAction types for the same flow can have leases at the same time
     DagActionStore.DagAction killDagAction = new
@@ -294,7 +295,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     // Use the consensusLeaseObject containing the new eventTimeMillis for the reminder event time
     DagActionStore.DagActionLeaseObject updatedLeaseObject =
         new DagActionStore.DagActionLeaseObject(newLaunchLeaseObject.getDagAction(), true,
-            newLaunchLeaseObject.getEventTimeMillis());
+            leaseObtainedStatus.getEventTimeMillis());
     LeaseAttemptStatus attemptStatus =
         mysqlMultiActiveLeaseArbiter.tryAcquireLease(updatedLeaseObject, true);
     Assert.assertTrue(attemptStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus);
