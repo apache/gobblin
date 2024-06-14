@@ -82,7 +82,7 @@ public interface DagActionStore {
 
   @Data
   @RequiredArgsConstructor
-  class LeaseObject  {
+  class DagActionLeaseObject {
     final DagAction dagAction;
     final boolean isReminder;
     final long eventTimeMillis;
@@ -90,7 +90,7 @@ public interface DagActionStore {
     /**
      * Creates a lease object for a dagAction and eventTimeMillis representing an original event (isReminder is False)
      */
-    public LeaseObject(DagAction dagAction, long eventTimeMillis) {
+    public DagActionLeaseObject(DagAction dagAction, long eventTimeMillis) {
       this.dagAction = dagAction;
       this.isReminder = false;
       this.eventTimeMillis = eventTimeMillis;

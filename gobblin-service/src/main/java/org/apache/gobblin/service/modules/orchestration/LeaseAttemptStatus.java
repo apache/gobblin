@@ -34,10 +34,10 @@ import lombok.Getter;
  */
 public abstract class LeaseAttemptStatus {
   /**
-   * @return the {@link DagActionStore.LeaseObject}, containing the dagAction, eventTimeMillis of the event, and boolean
+   * @return the {@link DagActionStore.DagActionLeaseObject}, containing the dagAction, eventTimeMillis of the event, and boolean
    * indicating if it's a reminder event; {@see MultiActiveLeaseArbiter#tryAcquireLease}
    */
-  public DagActionStore.LeaseObject getConsensusLeaseObject() {
+  public DagActionStore.DagActionLeaseObject getConsensusDagActionLeaseObject() {
     return null;
   }
 
@@ -73,7 +73,7 @@ public abstract class LeaseAttemptStatus {
   // avoid - warning: Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object
   @EqualsAndHashCode(callSuper=false)
   public static class LeaseObtainedStatus extends LeaseAttemptStatus {
-    private final DagActionStore.LeaseObject consensusLeaseObject;
+    private final DagActionStore.DagActionLeaseObject consensusDagActionLeaseObject;
     private final long leaseAcquisitionTimestamp;
     private final long minimumLingerDurationMillis;
     @Getter(AccessLevel.NONE)
@@ -81,7 +81,7 @@ public abstract class LeaseAttemptStatus {
 
     @Override
     public DagActionStore.DagAction getConsensusDagAction() {
-      return consensusLeaseObject.getDagAction();
+      return consensusDagActionLeaseObject.getDagAction();
     }
 
     /**
@@ -94,7 +94,7 @@ public abstract class LeaseAttemptStatus {
     }
 
     public long getEventTimeMillis() {
-      return consensusLeaseObject.getEventTimeMillis();
+      return consensusDagActionLeaseObject.getEventTimeMillis();
     }
   }
 
@@ -109,16 +109,16 @@ public abstract class LeaseAttemptStatus {
   // avoid - warning: Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object
   @EqualsAndHashCode(callSuper=false)
   public static class LeasedToAnotherStatus extends LeaseAttemptStatus {
-    private final DagActionStore.LeaseObject consensusLeaseObject;
+    private final DagActionStore.DagActionLeaseObject consensusDagActionLeaseObject;
     private final long minimumLingerDurationMillis;
 
     @Override
     public DagActionStore.DagAction getConsensusDagAction() {
-      return consensusLeaseObject.getDagAction();
+      return consensusDagActionLeaseObject.getDagAction();
     }
 
     public long getEventTimeMillis() {
-      return consensusLeaseObject.getEventTimeMillis();
+      return consensusDagActionLeaseObject.getEventTimeMillis();
     }
   }
 }

@@ -36,7 +36,8 @@ public class FlowLaunchHandlerTest {
   int schedulerBackOffMillis = 10;
   DagActionStore.DagAction dagAction = new DagActionStore.DagAction("flowName", "flowGroup",
       flowExecutionId, "jobName", DagActionStore.DagActionType.LAUNCH);
-  DagActionStore.LeaseObject leaseObject = new DagActionStore.LeaseObject(dagAction, false, eventToRevisit);
+  DagActionStore.DagActionLeaseObject
+      leaseObject = new DagActionStore.DagActionLeaseObject(dagAction, false, eventToRevisit);
   LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus =
       new LeaseAttemptStatus.LeasedToAnotherStatus(leaseObject, minimumLingerDurationMillis);
 

@@ -72,13 +72,14 @@ public class InstrumentedLeaseArbiter implements MultiActiveLeaseArbiter {
   }
 
   @Override
-  public LeaseAttemptStatus tryAcquireLease(DagActionStore.LeaseObject leaseObject, boolean skipFlowExecutionIdReplacement) throws IOException {
+  public LeaseAttemptStatus tryAcquireLease(DagActionStore.DagActionLeaseObject dagActionLeaseObject, boolean skipFlowExecutionIdReplacement) throws IOException {
     LeaseAttemptStatus leaseAttemptStatus =
-        decoratedMultiActiveLeaseArbiter.tryAcquireLease(leaseObject, skipFlowExecutionIdReplacement);
+        decoratedMultiActiveLeaseArbiter.tryAcquireLease(dagActionLeaseObject, skipFlowExecutionIdReplacement);
     log.info("Multi-active scheduler lease attempt for leaseObject: {} received type of leaseAttemptStatus: [{}, "
-            + "eventTimestamp: {}] ", leaseObject, leaseAttemptStatus.getClass().getName(), leaseObject.getEventTimeMillis());
+            + "eventTimestamp: {}] ", dagActionLeaseObject, leaseAttemptStatus.getClass().getName(),
+        dagActionLeaseObject.getEventTimeMillis());
     if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
-      if (leaseObject.isReminder()) {
+      if (dagActionLeaseObject.isReminder()) {
         this.leasesObtainedDueToReminderCount.mark();
       }
       this.leaseObtainedCount.inc();
