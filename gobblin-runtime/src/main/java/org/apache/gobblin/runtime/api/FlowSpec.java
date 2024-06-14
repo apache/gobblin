@@ -17,6 +17,17 @@
 
 package org.apache.gobblin.runtime.api;
 
+import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Properties;
+import java.util.Set;
+
+import org.apache.commons.lang.StringUtils;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -27,20 +38,13 @@ import com.linkedin.data.template.StringMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
+
 import edu.umd.cs.findbugs.annotations.SuppressFBWarnings;
-import java.net.URI;
-import java.net.URISyntaxException;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Properties;
-import java.util.Set;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.commons.lang.StringUtils;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.FlowConfig;
@@ -146,14 +150,13 @@ public class FlowSpec implements Configurable, Spec {
    * @param key
    * @param value
    */
-  public synchronized void addProperty(String key, String value) {
+  public synchronized void addProperty(String key, Long value) {
     this.config = config.withValue(key, ConfigValueFactory.fromAnyRef(value));
     /* Make sure configAsProperties has been initialized. If it's just initialized, setting the property will be a
     redundant operation. However, if it already existed we need to update/add the key-value pair.
      */
     this.getConfigAsProperties();
-    this.configAsProperties.setProperty(key, value);
-
+    this.configAsProperties.setProperty(key, value.toString());
   }
 
   public void addCompilationError(String src, String dst, String errorMessage, int numberOfHops) {

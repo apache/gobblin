@@ -440,6 +440,10 @@ public class CopyableFile extends CopyEntity implements File {
       Path toPath, CopyConfiguration copyConfiguration, Cache<String, OwnerAndPermission> permissionMap)
       throws IOException, ExecutionException {
 
+    if (fromPath == null) {
+      return Lists.newArrayList();
+    }
+
     if (!PathUtils.isAncestor(toPath, fromPath)) {
       throw new IOException(String.format("toPath %s must be an ancestor of fromPath %s.", toPath, fromPath));
     }

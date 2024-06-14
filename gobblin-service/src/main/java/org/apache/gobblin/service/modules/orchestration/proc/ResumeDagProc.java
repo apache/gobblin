@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Set;
 
 import com.google.common.collect.Maps;
 
@@ -92,24 +91,8 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     // if it fails here, it will check point the failed dag in the (running) dag store again, which is idempotent
     dagManagementStateStore.deleteFailedDag(failedDag.get());
 
-    resumeDag(dagManagementStateStore, failedDag.get());
-  }
+    DagProcUtils.submitNextNodes(dagManagementStateStore, failedDag.get(), getDagId());
 
-  private void resumeDag(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) {
-    Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
-
-    if (nextNodes.size() > 1) {
-      handleMultipleJobs(nextNodes);
-    }
-
-    //Submit jobs from the dag ready for execution.
-    for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
-      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
-      log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), getDagId());
-    }
-  }
-
-  private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
-    throw new UnsupportedOperationException("More than one start job is not allowed");
+    DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
   }
 }

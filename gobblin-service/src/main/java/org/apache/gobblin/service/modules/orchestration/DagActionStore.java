@@ -46,11 +46,11 @@ public interface DagActionStore {
   class DagAction {
     final String flowGroup;
     final String flowName;
-    final String flowExecutionId;
+    final long flowExecutionId;
     final String jobName;
     final DagActionType dagActionType;
 
-    public static DagAction forFlow(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) {
+    public static DagAction forFlow(String flowGroup, String flowName, long flowExecutionId, DagActionType dagActionType) {
       return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
     }
 
@@ -62,16 +62,14 @@ public interface DagActionStore {
      *   Replace flow execution id with agreed upon event time to easily track the flow
      */
     public DagAction updateFlowExecutionId(long eventTimeMillis) {
-      return new DagAction(this.getFlowGroup(), this.getFlowName(),
-          String.valueOf(eventTimeMillis), this.getJobName(), this.getDagActionType());
+      return new DagAction(this.getFlowGroup(), this.getFlowName(), eventTimeMillis, this.getJobName(), this.getDagActionType());
     }
 
     /**
      * Creates and returns a {@link DagNodeId} for this DagAction.
      */
     public DagNodeId getDagNodeId() {
-      return new DagNodeId(this.flowGroup, this.flowName,
-          Long.parseLong(this.flowExecutionId), this.flowGroup, this.jobName);
+      return new DagNodeId(this.flowGroup, this.flowName, this.flowExecutionId, this.flowGroup, this.jobName);
     }
 
     /**
@@ -110,7 +108,7 @@ public interface DagActionStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  boolean exists(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException, SQLException;
+  boolean exists(String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionType dagActionType) throws IOException, SQLException;
 
   /**
    * Check if an action exists in dagAction store by flow group, flow name, and flow execution id, it assumes jobName is
@@ -121,7 +119,7 @@ public interface DagActionStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException, SQLException;
+  boolean exists(String flowGroup, String flowName, long flowExecutionId, DagActionType dagActionType) throws IOException, SQLException;
 
   /** Persist the {@link DagAction} in {@link DagActionStore} for durability */
   default void addDagAction(DagAction dagAction) throws IOException {
@@ -142,7 +140,7 @@ public interface DagActionStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException;
+  void addJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionType dagActionType) throws IOException;
 
   /**
    * Persist the dag action in {@link DagActionStore} for durability. This method assumes an empty jobName.
@@ -152,7 +150,7 @@ public interface DagActionStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  default void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException {
+  default void addFlowDagAction(String flowGroup, String flowName, long flowExecutionId, DagActionType dagActionType) throws IOException {
     addDagAction(DagAction.forFlow(flowGroup, flowName, flowExecutionId, dagActionType));
   }
 

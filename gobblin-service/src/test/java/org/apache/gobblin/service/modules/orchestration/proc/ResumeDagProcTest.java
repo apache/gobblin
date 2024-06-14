@@ -53,7 +53,6 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
 
@@ -97,8 +96,8 @@ public class ResumeDagProcTest {
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getFailedDag(any());
 
     ResumeDagProc resumeDagProc = new ResumeDagProc(new ResumeDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        String.valueOf(flowExecutionId), MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.RESUME),
-        null, mock(DagActionStore.class)));
+        flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.RESUME),
+        null, this.dagManagementStateStore));
     resumeDagProc.process(this.dagManagementStateStore);
 
     SpecProducer<Spec> specProducer = DagManagerUtils.getSpecProducer(dag.getNodes().get(1));

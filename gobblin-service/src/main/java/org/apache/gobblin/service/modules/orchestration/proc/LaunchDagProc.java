@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.extern.slf4j.Slf4j;
@@ -57,6 +56,10 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
   }
 
+  /**
+   * It retrieves the {@link FlowSpec} for the dag this dag proc corresponds to, from the {@link DagManagementStateStore}
+   * and compiles it to create a {@link Dag} and saves it in the {@link DagManagementStateStore}.
+   */
   @Override
   protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
       throws IOException {
@@ -80,31 +83,11 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       log.warn("Dag with id " + getDagId() + " could not be compiled.");
       // todo - add metrics
     } else {
-      submitNextNodes(dagManagementStateStore, dag.get());
-      //Checkpoint the dag state, it should have an updated value of dag nodes
+      DagProcUtils.submitNextNodes(dagManagementStateStore, dag.get(), getDagId());
+      // Checkpoint the dag state, it should have an updated value of dag nodes
       dagManagementStateStore.checkpointDag(dag.get());
+      DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
       orchestrationDelayCounter.set(System.currentTimeMillis() - DagManagerUtils.getFlowExecId(dag.get()));
     }
-  }
-
-  /**
-   * Submit next set of Dag nodes in the provided Dag.
-   */
-   private void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) {
-     Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
-
-     if (nextNodes.size() > 1) {
-       handleMultipleJobs(nextNodes);
-     }
-
-     //Submit jobs from the dag ready for execution.
-     for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
-       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
-       log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), getDagId());
-     }
-   }
-
-  private void handleMultipleJobs(Set<Dag.DagNode<JobExecutionPlan>> nextNodes) {
-     throw new UnsupportedOperationException("More than one start job is not allowed");
   }
 }

@@ -29,9 +29,9 @@ import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.ManifestBasedDataset;
 import org.apache.gobblin.data.management.copy.ManifestBasedDatasetFinder;
-import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
-import org.apache.gobblin.util.commit.SetPermissionCommitStep;
+import org.apache.gobblin.util.commit.CreateAndSetDirectoryPermissionCommitStep;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -92,9 +92,11 @@ public class ManifestBasedDatasetFinderTest {
       Assert.assertTrue(fileSets.hasNext());
       FileSet<CopyEntity> fileSet = fileSets.next();
       Assert.assertEquals(fileSet.getFiles().size(), 3);  // 2 files to copy + 1 post publish step
-      Assert.assertTrue(((PostPublishStep) fileSet.getFiles().get(2)).getStep() instanceof SetPermissionCommitStep);
-      SetPermissionCommitStep step = (SetPermissionCommitStep) ((PostPublishStep) fileSet.getFiles().get(2)).getStep();
-      Assert.assertEquals(step.getPathAndPermissions().keySet().size(), 2);
+      Assert.assertTrue(((PrePublishStep) fileSet.getFiles().get(2)).getStep() instanceof CreateAndSetDirectoryPermissionCommitStep);
+      CreateAndSetDirectoryPermissionCommitStep
+          step = (CreateAndSetDirectoryPermissionCommitStep) ((PrePublishStep) fileSet.getFiles().get(2)).getStep();
+
+      Assert.assertEquals(step.getPathAndPermissions().keySet().size(), 1); // SetPermissionCommitStep only applies to ancestors
       Mockito.verify(manifestReadFs, Mockito.times(1)).exists(manifestPath);
       Mockito.verify(manifestReadFs, Mockito.times(1)).getFileStatus(manifestPath);
       Mockito.verify(manifestReadFs, Mockito.times(1)).open(manifestPath);
@@ -135,7 +137,7 @@ public class ManifestBasedDatasetFinderTest {
       Assert.assertTrue(fileSets.hasNext());
       FileSet<CopyEntity> fileSet = fileSets.next();
       Assert.assertEquals(fileSet.getFiles().size(), 3);  // 2 files to copy + 1 post publish step
-      Assert.assertTrue(((PostPublishStep)fileSet.getFiles().get(2)).getStep() instanceof SetPermissionCommitStep);
+      Assert.assertTrue(((PrePublishStep)fileSet.getFiles().get(2)).getStep() instanceof CreateAndSetDirectoryPermissionCommitStep);
 
     }
   }
@@ -171,6 +173,31 @@ public class ManifestBasedDatasetFinderTest {
       FileSet<CopyEntity> fileSet = fileSets.next();
       Assert.assertEquals(fileSet.getFiles().size(), 1); // Post publish step
     }
+  }
+
+  @Test
+  public void testFindDatasetEmptyRoot() throws Exception {
+    //Get manifest Path
+    String manifestLocation = getClass().getClassLoader().getResource("manifestBasedDistcpTest/manifestRootDirEmpty.json").getPath();
+
+    // Test manifestDatasetFinder
+    Properties props = new Properties();
+    props.setProperty("gobblin.copy.manifestBased.manifest.location", manifestLocation);
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    ManifestBasedDatasetFinder finder = new ManifestBasedDatasetFinder(localFs, props);
+    List<ManifestBasedDataset> datasets = finder.findDatasets();
+    Assert.assertEquals(datasets.size(), 1);
+    FileSystem sourceFs = Mockito.mock(FileSystem.class);
+    FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+    FileSystem destFs = Mockito.mock(FileSystem.class);
+    Path manifestPath = new Path(manifestLocation);
+    setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
+    Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
+        CopyConfiguration.builder(destFs, props).build());
+    Assert.assertTrue(fileSets.hasNext());
+    FileSet<CopyEntity> fileSet = fileSets.next();
+    Assert.assertEquals(fileSet.getFiles().size(), 2);  // 1 files to copy + 1 post publish step
+    Assert.assertTrue(((PrePublishStep) fileSet.getFiles().get(1)).getStep() instanceof CreateAndSetDirectoryPermissionCommitStep);
   }
 
   private void setSourceAndDestFsMocks(FileSystem sourceFs, FileSystem destFs, Path manifestPath, FileSystem manifestReadFs) throws IOException, URISyntaxException {

@@ -58,16 +58,15 @@ public class DagProcessingEngineTest {
   private DagManagementTaskStreamImpl dagManagementTaskStream;
   private DagTaskStream dagTaskStream;
   private DagProcFactory dagProcFactory;
-  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  private static MostlyMySqlDagManagementStateStore dagManagementStateStore;
   private ITestMetastoreDatabase testMetastoreDatabase;
-  static DagActionStore dagActionStore;
   static LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
 
   @BeforeClass
   public void setUp() throws Exception {
     // Setting up mock DB
     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
-    dagActionStore = mock(DagActionStore.class);
+    DagActionStore dagActionStore = mock(DagActionStore.class);
     doReturn(true).when(dagActionStore).deleteDagAction(any());
     leaseObtainedStatus = mock(LeaseAttemptStatus.LeaseObtainedStatus.class);
     doReturn(true).when(leaseObtainedStatus).completeLease();
@@ -87,16 +86,18 @@ public class DagProcessingEngineTest {
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
-    this.dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null, null, null);
-    this.dagManagementStateStore.setTopologySpecMap(topologySpecMap);
-    this.dagManagementTaskStream =
+    dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config, null,
+        null, null, dagActionStore);
+    dagManagementStateStore.setTopologySpecMap(topologySpecMap);
+    doReturn(true).when(dagActionStore).deleteDagAction(any());
+    dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
             mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)), false,
-            this.dagManagementStateStore);
+            dagManagementStateStore);
     this.dagProcFactory = new DagProcFactory(null);
 
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
-        new DagProcessingEngine.DagProcEngineThread(this.dagManagementTaskStream, this.dagProcFactory,
+        new DagProcessingEngine.DagProcEngineThread(dagManagementTaskStream, this.dagProcFactory,
             dagManagementStateStore, 0);
     this.dagTaskStream = spy(new MockedDagTaskStream());
     DagProcessingEngine dagProcessingEngine =
@@ -128,9 +129,9 @@ public class DagProcessingEngineTest {
         throw new RuntimeException("Simulating an exception to stop the thread!");
       }
       if (i % FAILING_DAGS_FREQUENCY == 0 ) {
-        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, "jn-" + i, DagActionStore.DagActionType.LAUNCH), true);
+        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, (1234L + i), "jn-" + i, DagActionStore.DagActionType.LAUNCH), true);
       } else {
-        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, "1234" + i, "jn-" + i, DagActionStore.DagActionType.LAUNCH), false);
+        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, (1234L + i), "jn-" + i, DagActionStore.DagActionType.LAUNCH), false);
       }
     }
   }
@@ -139,7 +140,7 @@ public class DagProcessingEngineTest {
     private final boolean isBad;
 
     public MockedDagTask(DagActionStore.DagAction dagAction, boolean isBad) {
-      super(dagAction, leaseObtainedStatus, dagActionStore);
+      super(dagAction, leaseObtainedStatus, dagManagementStateStore);
       this.isBad = isBad;
     }
 
@@ -159,7 +160,7 @@ public class DagProcessingEngineTest {
 
     @Override
     public DagManager.DagId getDagId() {
-      return new DagManager.DagId("fg", "fn", "12345");
+      return new DagManager.DagId("fg", "fn", 12345L);
     }
 
     @Override
@@ -191,6 +192,6 @@ public class DagProcessingEngineTest {
             + "Actual number of invocations " + Mockito.mockingDetails(this.dagTaskStream).getInvocations().size(),
         log, 1, 1000L);
 
-    Assert.assertEquals(this.dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
+    Assert.assertEquals(dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
   }
 }

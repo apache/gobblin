@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.runtime.troubleshooter;
 
-import com.typesafe.config.Config;
+import java.util.Properties;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,10 +37,10 @@ public class AutomaticTroubleshooterFactory {
    * If this module is missing, troubleshooter will default to a no-op implementation.
    *
    * In addition, even when the "gobblin-troubleshooter" module is present, troubleshooter can still be disabled
-   * with {@link ConfigurationKeys.TROUBLESHOOTER_DISABLED} setting.
+   * with {@link ConfigurationKeys#TROUBLESHOOTER_DISABLED} setting.
    * */
-  public static AutomaticTroubleshooter createForJob(Config config) {
-    AutomaticTroubleshooterConfig troubleshooterConfig = new AutomaticTroubleshooterConfig(config);
+  public static AutomaticTroubleshooter createForJob(Properties properties) {
+    AutomaticTroubleshooterConfig troubleshooterConfig = new AutomaticTroubleshooterConfig(properties);
 
     Class troubleshooterClass = tryGetTroubleshooterClass();
 

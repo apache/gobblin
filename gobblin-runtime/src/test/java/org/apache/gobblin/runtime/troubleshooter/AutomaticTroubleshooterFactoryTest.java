@@ -22,7 +22,6 @@ import java.util.Properties;
 import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.util.ConfigUtils;
 
 import static org.junit.Assert.assertTrue;
 
@@ -33,9 +32,7 @@ public class AutomaticTroubleshooterFactoryTest {
   public void willGetNoopTroubleshooterByDefault() {
     // This test project does not reference gobblin-troubleshooter module, so we should get a noop-instance
     // of troubleshooter. See the main AutomaticTroubleshooterFactory class for details.
-    Properties properties = new Properties();
-    AutomaticTroubleshooter troubleshooter =
-        AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(properties));
+    AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(new Properties());
 
     assertTrue(troubleshooter instanceof NoopAutomaticTroubleshooter);
   }
@@ -44,8 +41,7 @@ public class AutomaticTroubleshooterFactoryTest {
   public void willGetNoopTroubleshooterWhenDisabled() {
     Properties properties = new Properties();
     properties.put(ConfigurationKeys.TROUBLESHOOTER_DISABLED, "true");
-    AutomaticTroubleshooter troubleshooter =
-        AutomaticTroubleshooterFactory.createForJob(ConfigUtils.propertiesToConfig(properties));
+    AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(properties);
 
     assertTrue(troubleshooter instanceof NoopAutomaticTroubleshooter);
   }

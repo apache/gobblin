@@ -46,6 +46,7 @@ public class CouchbaseEnvironmentFactory {
     String sslTruststorePassword = ConfigUtils.getString(config, CouchbaseWriterConfigurationKeys.SSL_TRUSTSTORE_PASSWORD, "");
     Boolean certAuthEnabled = ConfigUtils.getBoolean(config, CouchbaseWriterConfigurationKeys.CERT_AUTH_ENABLED, false);
     Boolean dnsSrvEnabled = ConfigUtils.getBoolean(config, CouchbaseWriterConfigurationKeys.DNS_SRV_ENABLED, false);
+    Long connectTimeout = ConfigUtils.getLong(config, CouchbaseWriterConfigurationKeys.CONNECT_TIMEOUT, CouchbaseWriterConfigurationKeys.CONNECT_TIMEOUT_DEFAULT);
     Integer socketConnectTimeout = ConfigUtils.getInt(config, CouchbaseWriterConfigurationKeys.SOCKET_CONNECT_TIMEOUT,
         DefaultCouchbaseEnvironment.SOCKET_CONNECT_TIMEOUT);
 
@@ -56,6 +57,7 @@ public class CouchbaseEnvironmentFactory {
         .sslTruststoreFile(sslTruststoreFile)
         .sslTruststorePassword(sslTruststorePassword)
         .certAuthEnabled(certAuthEnabled)
+        .connectTimeout(connectTimeout)
         .dnsSrvEnabled(dnsSrvEnabled)
         .socketConnectTimeout(socketConnectTimeout);
 

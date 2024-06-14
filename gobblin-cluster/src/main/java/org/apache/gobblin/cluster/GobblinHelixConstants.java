@@ -24,4 +24,6 @@ public class GobblinHelixConstants {
 
   public static final String SHUTDOWN_MESSAGE_TYPE = "SHUTDOWN";
 
+  public static final String HELIX_INSTANCE_NAME_KEY = "HelixInstanceName";
+
 }

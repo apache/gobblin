@@ -76,9 +76,6 @@ import org.apache.gobblin.util.ConfigUtils;
 public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream {
   private final Config config;
   @Getter private final EventSubmitter eventSubmitter;
-
-  @Inject(optional=true)
-  protected Optional<DagActionStore> dagActionStore;
   protected MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter;
   protected Optional<DagActionReminderScheduler> dagActionReminderScheduler;
   private final boolean isMultiActiveExecutionEnabled;
@@ -102,7 +99,6 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       throw new RuntimeException(String.format("DagProcessingEngine requires %s to be instantiated.",
           DagActionReminderScheduler.class.getSimpleName()));
     }
-    this.dagActionStore = dagActionStore;
     this.dagActionProcessingLeaseArbiter = dagActionProcessingLeaseArbiter;
     this.dagActionReminderScheduler = dagActionReminderScheduler;
     this.isMultiActiveExecutionEnabled = isMultiActiveExecutionEnabled;
@@ -139,6 +135,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   @Override
   public DagTask next() {
       while (true) {
+        DagActionStore.DagAction dagAction = null;
         try {
           DagActionStore.LeaseObject dagActionLeaseObject = this.dagActionQueue.take();
           DagActionStore.DagAction dagAction = dagActionLeaseObject.getDagAction();
@@ -157,7 +154,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
           }
         } catch (Exception e) {
           //TODO: need to handle exceptions gracefully
-          log.error("Exception getting DagAction from the queue / creating DagTask", e);
+          log.error("Exception getting DagAction from the queue or creating DagTask. dagAction - {}", dagAction == null ? "<null>" : dagAction, e);
         }
       }
   }
@@ -221,17 +218,17 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
     switch (dagActionType) {
       case ENFORCE_FLOW_FINISH_DEADLINE:
-        return new EnforceFlowFinishDeadlineDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+        return new EnforceFlowFinishDeadlineDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
       case ENFORCE_JOB_START_DEADLINE:
-        return new EnforceJobStartDeadlineDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+        return new EnforceJobStartDeadlineDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
       case KILL:
-        return new KillDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+        return new KillDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
       case LAUNCH:
-        return new LaunchDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+        return new LaunchDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
       case REEVALUATE:
-        return new ReevaluateDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+        return new ReevaluateDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
       case RESUME:
-        return new ResumeDagTask(dagAction, leaseObtainedStatus, dagActionStore.get());
+        return new ResumeDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
       default:
         throw new UnsupportedOperationException(dagActionType + " not yet implemented");
     }

@@ -67,6 +67,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
@@ -119,11 +120,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final JobIssueEventHandler jobIssueEventHandler;
   private final Retryer<Void> persistJobStatusRetryer;
   private final GaaSJobObservabilityEventProducer eventProducer;
-  private final DagActionStore dagActionStore;
+  private final DagManagementStateStore dagManagementStateStore;
   private final boolean dagProcEngineEnabled;
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
-      GaaSJobObservabilityEventProducer observabilityEventProducer, DagActionStore dagActionStore)
+      GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
@@ -133,7 +134,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
 
     this.jobIssueEventHandler = jobIssueEventHandler;
-    this.dagActionStore = dagActionStore;
+    this.dagManagementStateStore = dagManagementStateStore;
     this.dagProcEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
 
     Config retryerOverridesConfig = config.hasPath(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
@@ -217,7 +218,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
           String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
           String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
-          String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
+          long flowExecutionId = jobStatus.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
           String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
           String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
           String storeName = jobStatusStoreName(flowGroup, flowName);
@@ -225,12 +226,15 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
           if (updatedJobStatus.getRight() == NewState.FINISHED) {
             this.eventProducer.emitObservabilityEvent(jobStatus);
-            if (this.dagProcEngineEnabled) {
+          }
+
+          if (this.dagProcEngineEnabled) {
+            if (updatedJobStatus.getRight() == NewState.FINISHED) {
               // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
-              this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
+              this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
+            } else if (updatedJobStatus.getRight() == NewState.RUNNING) {
+              removeStartDeadlineTriggerAndDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
             }
-          } else if (updatedJobStatus.getRight() == NewState.RUNNING) {
-            removeStartDeadlineTriggerAndDagAction(flowGroup, flowName, flowExecutionId, jobName);
           }
 
           // update the state store after adding a dag action to guaranty at-least-once adding of dag action
@@ -256,15 +260,16 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     }
   }
 
-  private void removeStartDeadlineTriggerAndDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName) {
+  private void removeStartDeadlineTriggerAndDagAction(DagManagementStateStore dagManagementStateStore, String flowGroup,
+      String flowName, long flowExecutionId, String jobName) {
     DagActionStore.DagAction enforceStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
-        String.valueOf(flowExecutionId), jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+        flowExecutionId, jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
     log.info("Deleting reminder trigger and dag action {}", enforceStartDeadlineDagAction);
     // todo - add metrics
 
     try {
       GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(enforceStartDeadlineDagAction);
-      GobblinServiceManager.getClass(DagActionStore.class).deleteDagAction(enforceStartDeadlineDagAction);
+      dagManagementStateStore.deleteDagAction(enforceStartDeadlineDagAction);
     } catch (SchedulerException | IOException e) {
       log.error("Failed to unschedule the reminder for {}", enforceStartDeadlineDagAction);
     }
@@ -289,7 +294,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
       String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
       String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
-      String flowExecutionId = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
+      long flowExecutionId = jobStatus.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
       String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
       String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
       String storeName = jobStatusStoreName(flowGroup, flowName);
@@ -400,12 +405,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     return new org.apache.gobblin.configuration.State(mergedState);
   }
 
-  public static String jobStatusTableName(String flowExecutionId, String jobGroup, String jobName) {
-    return Joiner.on(ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowExecutionId, jobGroup, jobName, ServiceConfigKeys.STATE_STORE_TABLE_SUFFIX);
-  }
-
   public static String jobStatusTableName(long flowExecutionId, String jobGroup, String jobName) {
-    return jobStatusTableName(String.valueOf(flowExecutionId), jobGroup, jobName);
+    return Joiner.on(ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowExecutionId, jobGroup, jobName, ServiceConfigKeys.STATE_STORE_TABLE_SUFFIX);
   }
 
   public static String jobStatusStoreName(String flowGroup, String flowName) {

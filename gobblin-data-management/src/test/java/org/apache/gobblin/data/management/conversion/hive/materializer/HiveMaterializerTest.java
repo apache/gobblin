@@ -27,6 +27,19 @@ import java.util.List;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.hive.metastore.IMetaStoreClient;
+import org.apache.hadoop.hive.ql.metadata.Table;
+import org.testng.Assert;
+import org.testng.annotations.AfterClass;
+import org.testng.annotations.BeforeClass;
+import org.testng.annotations.Test;
+
+import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
+import com.google.common.io.Files;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.conversion.hive.LocalHiveMetastoreTestUtils;
@@ -40,18 +53,6 @@ import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.HiveJdbcConnector;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.hive.metastore.IMetaStoreClient;
-import org.apache.hadoop.hive.ql.metadata.Table;
-import org.testng.Assert;
-import org.testng.annotations.AfterClass;
-import org.testng.annotations.BeforeClass;
-import org.testng.annotations.Test;
-
-import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
-import com.google.common.io.Files;
 
 
 @Test (groups = {"disabledOnCI"})
@@ -234,10 +235,10 @@ public class HiveMaterializerTest {
   }
 
   private List<List<String>> executeStatementAndGetResults(HiveJdbcConnector connector, String query, int columns) throws SQLException {
-    Connection conn = connector.getConnection();
     List<List<String>> result = new ArrayList<>();
 
-    try (Statement stmt = conn.createStatement()) {
+    try (Connection conn = connector.getConnection();
+        Statement stmt = conn.createStatement()) {
       stmt.execute(query);
       ResultSet rs = stmt.getResultSet();
       while (rs.next()) {

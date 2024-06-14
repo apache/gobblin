@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration.task;
 
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
 import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 
@@ -27,8 +28,8 @@ import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
  */
 public class ResumeDagTask extends DagTask {
   public ResumeDagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
-      DagActionStore dagActionStore) {
-    super(dagAction, leaseObtainedStatus, dagActionStore);
+      DagManagementStateStore dagManagementStateStore) {
+    super(dagAction, leaseObtainedStatus, dagManagementStateStore);
   }
 
   public <T> T host(DagTaskVisitor<T> visitor) {

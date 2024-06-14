@@ -28,8 +28,8 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagement;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.util.ConfigUtils;
@@ -45,18 +45,18 @@ public class DagManagementDagActionStoreChangeMonitorFactory implements Provider
   private final Config config;
   private final FlowCatalog flowCatalog;
   private final Orchestrator orchestrator;
-  private final DagActionStore dagActionStore;
+  private final DagManagementStateStore dagManagementStateStore;
   private final boolean isMultiActiveSchedulerEnabled;
   private final DagManagement dagManagement;
 
   @Inject
   public DagManagementDagActionStoreChangeMonitorFactory(Config config, DagManager dagManager, FlowCatalog flowCatalog,
-      Orchestrator orchestrator, DagActionStore dagActionStore, DagManagement dagManagement,
+      Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore, DagManagement dagManagement,
       @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled) {
     this.config = Objects.requireNonNull(config);
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
-    this.dagActionStore = dagActionStore;
+    this.dagManagementStateStore = dagManagementStateStore;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     this.dagManagement = dagManagement;
   }
@@ -68,7 +68,7 @@ public class DagManagementDagActionStoreChangeMonitorFactory implements Provider
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
     return new DagManagementDagActionStoreChangeMonitor(dagActionStoreChangeConfig,
-        numThreads, flowCatalog, orchestrator, dagActionStore, isMultiActiveSchedulerEnabled, this.dagManagement);
+        numThreads, flowCatalog, orchestrator, dagManagementStateStore, isMultiActiveSchedulerEnabled, this.dagManagement);
   }
 
   @Override

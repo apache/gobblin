@@ -21,6 +21,9 @@ import java.util.Collection;
 
 import org.apache.hadoop.yarn.api.records.Container;
 
+import lombok.AllArgsConstructor;
+import lombok.Getter;
+
 
 /**
  * A type of event for container release requests to be used with a {@link com.google.common.eventbus.EventBus}.
@@ -28,19 +31,21 @@ import org.apache.hadoop.yarn.api.records.Container;
  * the Resource Manager, while {@link ContainerShutdownRequest} shuts down a container through the
  * Node Manager
  */
+@Getter
+@AllArgsConstructor
 public class ContainerReleaseRequest {
-  private final Collection<Container> containers;
-
-  public ContainerReleaseRequest(Collection<Container> containers) {
-    this.containers = containers;
-  }
-
   /**
-   * Get the IDs of the containers to release.
+   * -- GETTER --
+   *  Get the IDs of the containers to release.
    *
    * @return the IDs of the containers to release
    */
-  public Collection<Container> getContainers() {
-    return this.containers;
+  private final Collection<Container> containers;
+  // shouldSpinUpReplacementContainers is used to indicate whether to replace the released containers with new ones or not
+  private final boolean shouldSpinUpReplacementContainers;
+
+  public ContainerReleaseRequest(Collection<Container> containers) {
+    this.containers = containers;
+    this.shouldSpinUpReplacementContainers = false;
   }
 }

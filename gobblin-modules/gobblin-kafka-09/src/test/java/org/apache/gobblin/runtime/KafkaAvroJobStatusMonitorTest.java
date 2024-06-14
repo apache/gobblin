@@ -51,7 +51,6 @@ import com.typesafe.config.ConfigValueFactory;
 
 import kafka.consumer.ConsumerIterator;
 import kafka.message.MessageAndMetadata;
-
 import lombok.Getter;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -75,8 +74,7 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
-import org.apache.gobblin.service.modules.orchestration.DagActionStore;
-import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.monitoring.GaaSJobObservabilityEventProducer;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaAvroJobStatusMonitor;
@@ -97,13 +95,13 @@ public class KafkaAvroJobStatusMonitorTest {
   private String flowName = "myFlowName";
   private String jobGroup = "myJobGroup";
   private String jobName = "myJobName";
-  private String flowExecutionId = "1234";
+  private long flowExecutionId = 1234L;
   private String jobExecutionId = "1111";
   private String message = "https://myServer:8143/1234/1111";
   private String stateStoreDir = "/tmp/jobStatusMonitor/statestore";
   private MetricContext context;
   private KafkaAvroEventKeyValueReporter.Builder<?> builder;
-  private MysqlDagActionStore mysqlDagActionStore;
+  private DagManagementStateStore dagManagementStateStore;
   private final MockedStatic<GobblinServiceManager> mockedGobblinServiceManager = Mockito.mockStatic(GobblinServiceManager.class);
 
   @BeforeClass
@@ -123,9 +121,8 @@ public class KafkaAvroJobStatusMonitorTest {
     builder = KafkaAvroEventKeyValueReporter.Factory.forContext(context);
     builder = builder.withKafkaPusher(pusher).withKeys(Lists.newArrayList(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD,
         TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
-    this.mysqlDagActionStore = mock(MysqlDagActionStore.class);
+    this.dagManagementStateStore = mock(DagManagementStateStore.class);
     this.mockedGobblinServiceManager.when(() -> GobblinServiceManager.getClass(DagActionReminderScheduler.class)).thenReturn(mock(DagActionReminderScheduler.class));
-    this.mockedGobblinServiceManager.when(() -> GobblinServiceManager.getClass(DagActionStore.class)).thenReturn(mock(DagActionStore.class));
   }
 
   @Test
@@ -710,7 +707,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Map<String, String> metadata = Maps.newHashMap();
     metadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, this.flowGroup);
     metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, this.flowName);
-    metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, this.flowExecutionId);
+    metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, String.valueOf(this.flowExecutionId));
     metadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, this.jobName);
     metadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, this.jobGroup);
     metadata.put(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, this.jobExecutionId);
@@ -787,7 +784,7 @@ public class KafkaAvroJobStatusMonitorTest {
     public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
         AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, GaaSJobObservabilityEventProducer producer)
         throws IOException, ReflectiveOperationException {
-      super(topic, config, numThreads, mock(JobIssueEventHandler.class), producer, mysqlDagActionStore);
+      super(topic, config, numThreads, mock(JobIssueEventHandler.class), producer, dagManagementStateStore);
       shouldThrowFakeExceptionInParseJobStatus = shouldThrowFakeExceptionInParseJobStatusToggle;
     }
 

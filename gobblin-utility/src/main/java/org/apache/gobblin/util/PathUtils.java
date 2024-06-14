@@ -50,8 +50,8 @@ public class PathUtils {
 
   /**
    * Checks whether possibleAncestor is an ancestor of fullPath.
-   * @param possibleAncestor Possible ancestor of fullPath.
-   * @param fullPath path to check.
+   * @param possibleAncestor Possible ancestor of fullPath, where scheme and authority are IGNORED
+   * @param fullPath path to check, where scheme and authority are IGNORED
    * @return true if possibleAncestor is an ancestor of fullPath.
    */
   public static boolean isAncestor(Path possibleAncestor, Path fullPath) {

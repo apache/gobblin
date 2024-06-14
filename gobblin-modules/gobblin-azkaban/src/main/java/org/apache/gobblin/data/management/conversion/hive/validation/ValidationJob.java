@@ -16,14 +16,10 @@
  */
 package org.apache.gobblin.data.management.conversion.hive.validation;
 
-import org.apache.gobblin.config.client.ConfigClient;
-import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils;
-import org.apache.gobblin.util.PathUtils;
 import java.io.IOException;
 import java.io.InputStreamReader;
 import java.net.URI;
+import java.sql.Connection;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
@@ -58,8 +54,6 @@ import org.apache.log4j.Logger;
 import org.joda.time.DateTime;
 import org.slf4j.LoggerFactory;
 
-import azkaban.jobExecutor.AbstractJob;
-
 import com.google.common.base.Charsets;
 import com.google.common.base.Enums;
 import com.google.common.base.Optional;
@@ -74,6 +68,11 @@ import com.google.common.util.concurrent.UncheckedExecutionException;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import azkaban.jobExecutor.AbstractJob;
+
+import org.apache.gobblin.config.client.ConfigClient;
+import org.apache.gobblin.config.client.api.VersionStabilityPolicy;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDatasetFinder;
 import org.apache.gobblin.data.management.conversion.hive.events.EventConstants;
@@ -82,12 +81,12 @@ import org.apache.gobblin.data.management.conversion.hive.provider.UpdateNotFoun
 import org.apache.gobblin.data.management.conversion.hive.provider.UpdateProviderFactory;
 import org.apache.gobblin.data.management.conversion.hive.query.HiveValidationQueryGenerator;
 import org.apache.gobblin.data.management.conversion.hive.source.HiveSource;
+import org.apache.gobblin.data.management.conversion.hive.task.HiveConverterUtils;
 import org.apache.gobblin.data.management.copy.hive.HiveDataset;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.copy.hive.HiveUtils;
 import org.apache.gobblin.hive.HiveMetastoreClientPool;
 import org.apache.gobblin.hive.HiveSerDeWrapper;
-import org.apache.gobblin.util.HiveJdbcConnector;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -95,6 +94,8 @@ import org.apache.gobblin.util.AutoReturnableObject;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.HadoopUtils;
+import org.apache.gobblin.util.HiveJdbcConnector;
+import org.apache.gobblin.util.PathUtils;
 
 
 /**
@@ -490,25 +491,23 @@ public class ValidationJob extends AbstractJob {
    */
   @SuppressWarnings("unused")
   private List<Long> getValidationOutputFromHiveJdbc(List<String> queries) throws IOException {
-    if (null == queries || queries.size() == 0) {
+    if (null == queries || queries.isEmpty()) {
       log.warn("No queries specified to be executed");
       return Collections.emptyList();
     }
-    Statement statement = null;
     List<Long> rowCounts = Lists.newArrayList();
-    Closer closer = Closer.create();
 
-    try {
-      HiveJdbcConnector hiveJdbcConnector = HiveJdbcConnector.newConnectorWithProps(props);
-      statement = hiveJdbcConnector.getConnection().createStatement();
-
+    try (HiveJdbcConnector hiveJdbcConnector = HiveJdbcConnector.newConnectorWithProps(props);
+        Connection connection = hiveJdbcConnector.getConnection();
+        Statement statement = connection.createStatement()){
       for (String query : queries) {
         log.info("Executing query: " + query);
         boolean result = statement.execute(query);
         if (result) {
-          ResultSet resultSet = statement.getResultSet();
-          if (resultSet.next()) {
-            rowCounts.add(resultSet.getLong(1));
+          try (ResultSet resultSet = statement.getResultSet()) {
+            if (resultSet.next()) {
+              rowCounts.add(resultSet.getLong(1));
+            }
           }
         } else {
           log.warn("Query output for: " + query + " : " + result);
@@ -517,19 +516,6 @@ public class ValidationJob extends AbstractJob {
 
     } catch (SQLException e) {
       throw new RuntimeException(e);
-    } finally {
-      try {
-        closer.close();
-      } catch (Exception e) {
-        log.warn("Could not close HiveJdbcConnector", e);
-      }
-      if (null != statement) {
-        try {
-          statement.close();
-        } catch (SQLException e) {
-          log.warn("Could not close Hive statement", e);
-        }
-      }
     }
 
     return rowCounts;
