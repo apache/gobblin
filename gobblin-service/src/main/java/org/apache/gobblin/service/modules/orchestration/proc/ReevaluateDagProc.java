@@ -80,6 +80,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
     JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
     ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
+    // pass dag, so that dag is updated too, updated information will be required in onJobFinish in finding next jobs to submit
     setStatus(dagManagementStateStore, dag, getDagNodeId(), executionStatus);
 
     if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {

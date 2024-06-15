@@ -47,7 +47,6 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
@@ -264,11 +263,16 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     }
   }
 
+  /* todo - this method works because when the jobs finish they are deleted from the DMSS -> if no more job is found, means
+   no more running jobs.
+   But DMSS still has dags and which still contains dag nodes. We need to revisit this method's logic when we change
+   DMSS to a fully mysql backed implementation. then we may want to consider this approach
+   return getDagNodes(dagId).stream()
+       .anyMatch(node -> !FlowStatusGenerator.FINISHED_STATUSES.contains(node.getValue().getExecutionStatus().name()));
+  */
   @Override
   public boolean hasRunningJobs(DagManager.DagId dagId) {
-//    return !getDagNodes(dagId).isEmpty();
-    return getDagNodes(dagId).stream()
-        .anyMatch(node -> !FlowStatusGenerator.FINISHED_STATUSES.contains(node.getValue().getExecutionStatus().name()));
+    return !getDagNodes(dagId).isEmpty();
   }
 
   @Override

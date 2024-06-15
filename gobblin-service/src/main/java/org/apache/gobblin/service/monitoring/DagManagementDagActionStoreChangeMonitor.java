@@ -66,7 +66,6 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
           handleDagAction(dagAction, false);
           break;
         case "UPDATE":
-          // TODO: change this warning message and process updates if for launch or reevaluate type
           log.warn("Received an UPDATE action to the DagActionStore when values in this store are never supposed to be "
                   + "updated. Flow group: {} name {} executionId {} were updated to action {}", flowGroup, flowName,
               flowExecutionId, dagActionType);
