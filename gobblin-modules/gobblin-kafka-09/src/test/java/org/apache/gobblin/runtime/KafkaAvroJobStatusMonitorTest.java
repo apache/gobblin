@@ -72,6 +72,7 @@ import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueReposi
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
@@ -360,7 +361,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
         anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
-    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
     jobStatusMonitor.shutDown();
   }
 
@@ -503,7 +504,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(false));
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
         anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
-    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     jobStatusMonitor.shutDown();
   }
@@ -556,33 +557,33 @@ public class KafkaAvroJobStatusMonitorTest {
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
         anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
-    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     // Job for flow pending resume status after it was cancelled or failed
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.PENDING_RESUME.name());
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
         anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
-    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     //Job orchestrated for retrying
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
         anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
-    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
         anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
-    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
+    Mockito.verify(dagManagementStateStore, Mockito.times(2)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
     Mockito.verify(dagManagementStateStore, Mockito.times(2)).addJobDagAction(any(), any(),
         anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
-    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
+    Mockito.verify(dagManagementStateStore, Mockito.times(2)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     jobStatusMonitor.shutDown();
   }
@@ -818,6 +819,7 @@ public class KafkaAvroJobStatusMonitorTest {
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"))
+        .withValue(ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, ConfigValueFactory.fromAnyRef("true"))
         .withFallback(additionalConfig);
     return new MockKafkaAvroJobStatusMonitor("test", config, 1, shouldThrowFakeExceptionInParseJobStatusToggle,
         eventProducer, dagManagementStateStore);

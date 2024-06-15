@@ -28,7 +28,6 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
-import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
@@ -118,7 +117,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dagManagementStateStore.markDagFailed(dag);
       }
 
-      removeFlowFinishDeadlineDagAction(dagManagementStateStore);
+      DagProcUtils.removeFlowFinishDeadlineDagAction(dagManagementStateStore, getDagId());
     }
   }
 
@@ -172,19 +171,5 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     // Checkpoint the dag state, it should have an updated value of dag fields
     dagManagementStateStore.checkpointDag(dag);
     dagManagementStateStore.deleteDagNodeState(getDagId(), dagNode);
-  }
-
-  private void removeFlowFinishDeadlineDagAction(DagManagementStateStore dagManagementStateStore) {
-    DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = DagActionStore.DagAction.forFlow(getDagNodeId().getFlowGroup(),
-        getDagNodeId().getFlowName(), getDagNodeId().getFlowExecutionId(),
-        DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
-    log.info("Deleting reminder trigger and dag action {}", enforceFlowFinishDeadlineDagAction);
-    // todo - add metrics
-
-    try {
-      dagManagementStateStore.deleteDagAction(enforceFlowFinishDeadlineDagAction);
-    } catch (IOException e) {
-      log.warn("Failed to unschedule the reminder for {}", enforceFlowFinishDeadlineDagAction);
-    }
   }
 }
