@@ -60,6 +60,7 @@ import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLAT
  */
 @Data
 @EqualsAndHashCode(exclude = {"executionStatus", "currentAttempts", "jobFuture", "flowStartTime"})
+// todo - consider excluding SpecExecutor from EqualsAndHashCode or only including DagNodeId
 public class JobExecutionPlan {
   public static final String JOB_MAX_ATTEMPTS = "job.maxAttempts";
   public static final String JOB_PROPS_KEY = "job.props";

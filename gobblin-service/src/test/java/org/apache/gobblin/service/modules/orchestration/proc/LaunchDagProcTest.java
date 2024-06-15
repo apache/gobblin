@@ -22,7 +22,6 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
@@ -45,7 +44,6 @@ import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
@@ -95,7 +93,9 @@ public class LaunchDagProcTest {
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId,
         DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), 5, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName)));
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+            MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     List<SpecProducer<Spec>> specProducers = ReevaluateDagProcTest.getDagSpecProducers(dag);
@@ -124,7 +124,9 @@ public class LaunchDagProcTest {
     Dag<JobExecutionPlan> dag = buildDagWithMultipleNodesAtDifferentLevels("1", flowExecutionId,
         DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),"user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY,  ConfigValueFactory.fromAnyRef(flowName)));
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY,  ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     LaunchDagProc launchDagProc = new LaunchDagProc(
@@ -183,16 +185,10 @@ public class LaunchDagProcTest {
   }
 
   public static TopologySpec buildNaiveTopologySpec(String specUriInString) {
-    String specStoreDir = "/tmp/specStoreDir";
-    Properties properties = new Properties();
-    properties.put("specStore.fs.dir", specStoreDir);
-    properties.put("specExecInstance.capabilities", "source:destination");
-    properties.put("specExecInstance.uri", specUriInString);
-    properties.put("uri",specUriInString);
-
-    Config specExecConfig = ConfigUtils.propertiesToConfig(properties);
-    SpecExecutor specExecutorInstanceProducer = new InMemorySpecExecutor(specExecConfig);
-    TopologySpec.Builder topologySpecBuilder = TopologySpec.builder(new Path(specStoreDir).toUri())
+    Config specExecConfig = MockedSpecExecutor.makeDummyConfigsForSpecExecutor(specUriInString);
+    SpecExecutor specExecutorInstanceProducer = new MockedSpecExecutor(specExecConfig);
+    TopologySpec.Builder topologySpecBuilder = TopologySpec
+        .builder(new Path(specExecConfig.getString("specStore.fs.dir")).toUri())
         .withConfig(specExecConfig)
         .withDescription("test")
         .withVersion("1")

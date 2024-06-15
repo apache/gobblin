@@ -80,7 +80,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
     JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
     ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
-    setStatus(dagManagementStateStore, dagNode, executionStatus);
+    setStatus(dagManagementStateStore, dag, getDagNodeId(), executionStatus);
 
     if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
       log.warn("Job status for dagNode {} is {}. Re-evaluate dag action should have been created only for finished status - {}",
@@ -126,9 +126,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
    * todo - DMSS should support this functionality like an atomic get-and-set operation.
    */
   private void setStatus(DagManagementStateStore dagManagementStateStore,
-      Dag.DagNode<JobExecutionPlan> dagNode, ExecutionStatus executionStatus) throws IOException {
-    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
-    DagNodeId dagNodeId = dagNode.getValue().getId();
+      Dag<JobExecutionPlan> dag, DagNodeId dagNodeId, ExecutionStatus executionStatus) throws IOException {
     for (Dag.DagNode<JobExecutionPlan> node : dag.getNodes()) {
       if (node.getValue().getId().equals(dagNodeId)) {
         node.getValue().setExecutionStatus(executionStatus);

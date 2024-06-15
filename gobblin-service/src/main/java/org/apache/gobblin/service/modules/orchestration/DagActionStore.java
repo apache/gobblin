@@ -31,14 +31,12 @@ import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 public interface DagActionStore {
   public static final String NO_JOB_NAME_DEFAULT = "";
   enum DagActionType {
-    CANCEL, // Invoked through DagManager if flow has been stuck in Orchestrated state for a while
     ENFORCE_JOB_START_DEADLINE, // Enforce job start deadline
     ENFORCE_FLOW_FINISH_DEADLINE, // Enforce flow finish deadline
     KILL, // Kill invoked through API call
     LAUNCH, // Launch new flow execution invoked adhoc or through scheduled trigger
     REEVALUATE, // Re-evaluate what needs to be done upon receipt of a final job status
     RESUME, // Resume flow invoked through API call
-    RETRY, // Invoked through DagManager for flows configured to allow retries
   }
 
   @Data

@@ -225,7 +225,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             this.eventProducer.emitObservabilityEvent(jobStatus);
           }
 
-          if (this.dagProcEngineEnabled && isJobLevelStatus(jobName)) {
+          if (isJobLevelStatus(jobName)) {
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
               // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
               this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);

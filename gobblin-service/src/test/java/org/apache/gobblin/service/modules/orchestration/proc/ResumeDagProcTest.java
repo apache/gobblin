@@ -74,8 +74,11 @@ public class ResumeDagProcTest {
     String flowGroup = "fg";
     String flowName = "fn";
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
-        5, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName)));
+        5, "user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     // simulate a failed dag in store
     dag.getNodes().get(0).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
     dag.getNodes().get(1).getValue().setExecutionStatus(ExecutionStatus.FAILED);
@@ -92,14 +95,14 @@ public class ResumeDagProcTest {
 
     int expectedNumOfResumedJobs = 1; // = number of resumed nodes
 
-    // only the current job should have run
-    // we cannot check the spec producers if addSpec is called on them, because in resumeDagProc, a dag is stored in DMSS
-    // and retrieved, hence it goes through serialization/deserialization; in this process  the SpecProducer objects in
-    // a dag node are recreated and addSpec is called on new objects.
-    // warning - in unit tests, a test dag is created through different ways (e.g. DagManagerTest.buildDag() or DagTestUtils.buildDag()
-    // different methods create different spec executors (e.g. MockedSpecExecutor.createDummySpecExecutor() or
-    // buildNaiveTopologySpec().getSpecExecutor() respectively.
-    // the result will be that after serializing/deserializing the test dag, the spec executor (and producer) type may change
+    /* only the current job should have run
+     we cannot check the spec producers if addSpec is called on them, because in resumeDagProc, a dag is stored in DMSS
+     and retrieved, hence it goes through serialization/deserialization; in this process  the SpecProducer objects in
+     a dag node are recreated and addSpec is called on new objects.
+     warning - in unit tests, a test dag is created through different ways (e.g. DagManagerTest.buildDag() or DagTestUtils.buildDag()
+     different methods create different spec executors (e.g. MockedSpecExecutor.createDummySpecExecutor() or
+     buildNaiveTopologySpec().getSpecExecutor() respectively.
+     the result will be that after serializing/deserializing the test dag, the spec executor (and producer) type may change */
 
     Mockito.verify(this.dagManagementStateStore, Mockito.times(expectedNumOfResumedJobs)).addDagNodeState(any(), any());
   }

@@ -60,6 +60,7 @@ public class MostlyMySqlDagManagementStateStoreTest {
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
   private static final String TEST_TABLE = "table";
+  public static String TEST_SPEC_EXECUTOR_URI = "mySpecExecutor";
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -129,9 +130,9 @@ public class MostlyMySqlDagManagementStateStoreTest {
 
     // Constructing TopologySpecMap.
     Map<URI, TopologySpec> topologySpecMap = new HashMap<>();
-    String specExecInstance = "mySpecExecutor";
-    TopologySpec topologySpec = LaunchDagProcTest.buildNaiveTopologySpec(specExecInstance);
-    URI specExecURI = new URI(specExecInstance);
+
+    TopologySpec topologySpec = LaunchDagProcTest.buildNaiveTopologySpec(TEST_SPEC_EXECUTOR_URI);
+    URI specExecURI = new URI(TEST_SPEC_EXECUTOR_URI);
     topologySpecMap.put(specExecURI, topologySpec);
     MostlyMySqlDagManagementStateStore dagManagementStateStore =
         new MostlyMySqlDagManagementStateStore(config, null, null, jobStatusRetriever, mock(DagActionStore.class));

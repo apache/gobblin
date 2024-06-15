@@ -47,6 +47,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
@@ -194,8 +195,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   @Override
   public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
       throws IOException {
-    Optional<Dag<JobExecutionPlan>> dag = getDag(dagId);
-    if (!dag.isPresent()) {
+    if (!containsDag(dagId)) {
       throw new RuntimeException("Dag " + dagId + " not found");
     }
     this.dagNodes.put(dagNode.getValue().getId(), dagNode);
@@ -266,7 +266,9 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
 
   @Override
   public boolean hasRunningJobs(DagManager.DagId dagId) {
-    return !getDagNodes(dagId).isEmpty();
+//    return !getDagNodes(dagId).isEmpty();
+    return getDagNodes(dagId).stream()
+        .anyMatch(node -> !FlowStatusGenerator.FINISHED_STATUSES.contains(node.getValue().getExecutionStatus().name()));
   }
 
   @Override

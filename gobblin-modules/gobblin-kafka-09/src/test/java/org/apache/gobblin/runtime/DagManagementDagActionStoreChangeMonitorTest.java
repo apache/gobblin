@@ -103,7 +103,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
   }
 
   /**
-   * Tests process message with a DELETE type message which should be ignored regardless of the flow information.
+   * Tests process message with a DELETE type message.
    */
   @Test
   public void testProcessMessageWithDelete() throws SchedulerException {
