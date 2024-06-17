@@ -21,17 +21,13 @@ import java.io.IOException;
 import java.util.Optional;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.quartz.SchedulerException;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
-import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
-import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
@@ -83,7 +79,8 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
     JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
     ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
-    setStatus(dagManagementStateStore, dagNode, executionStatus);
+    // pass dag, so that dag is updated too, updated information will be required in onJobFinish in finding next jobs to submit
+    setStatus(dagManagementStateStore, dag, getDagNodeId(), executionStatus);
 
     if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
       log.warn("Job status for dagNode {} is {}. Re-evaluate dag action should have been created only for finished status - {}",
@@ -120,7 +117,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dagManagementStateStore.markDagFailed(dag);
       }
 
-      removeFlowFinishDeadlineTriggerAndDagAction(dagManagementStateStore);
+      DagProcUtils.removeFlowFinishDeadlineDagAction(dagManagementStateStore, getDagId());
     }
   }
 
@@ -129,9 +126,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
    * todo - DMSS should support this functionality like an atomic get-and-set operation.
    */
   private void setStatus(DagManagementStateStore dagManagementStateStore,
-      Dag.DagNode<JobExecutionPlan> dagNode, ExecutionStatus executionStatus) throws IOException {
-    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
-    DagNodeId dagNodeId = dagNode.getValue().getId();
+      Dag<JobExecutionPlan> dag, DagNodeId dagNodeId, ExecutionStatus executionStatus) throws IOException {
     for (Dag.DagNode<JobExecutionPlan> node : dag.getNodes()) {
       if (node.getValue().getId().equals(dagNodeId)) {
         node.getValue().setExecutionStatus(executionStatus);
@@ -176,20 +171,5 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     // Checkpoint the dag state, it should have an updated value of dag fields
     dagManagementStateStore.checkpointDag(dag);
     dagManagementStateStore.deleteDagNodeState(getDagId(), dagNode);
-  }
-
-  private void removeFlowFinishDeadlineTriggerAndDagAction(DagManagementStateStore dagManagementStateStore) {
-    DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = DagActionStore.DagAction.forFlow(getDagNodeId().getFlowGroup(),
-        getDagNodeId().getFlowName(), getDagNodeId().getFlowExecutionId(),
-        DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
-    log.info("Deleting reminder trigger and dag action {}", enforceFlowFinishDeadlineDagAction);
-    // todo - add metrics
-
-    try {
-      GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(getDagTask().getDagAction());
-      dagManagementStateStore.deleteDagAction(enforceFlowFinishDeadlineDagAction);
-    } catch (SchedulerException | IOException e) {
-      log.warn("Failed to unschedule the reminder for {}", enforceFlowFinishDeadlineDagAction);
-    }
   }
 }

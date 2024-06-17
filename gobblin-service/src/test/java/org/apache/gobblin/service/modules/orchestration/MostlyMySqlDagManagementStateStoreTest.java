@@ -29,19 +29,16 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
-import com.zaxxer.hikari.HikariDataSource;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.metastore.MysqlStateStore;
-import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
+import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProcTest;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
@@ -62,7 +59,8 @@ public class MostlyMySqlDagManagementStateStoreTest {
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
-  private static final String TEST_TABLE = "quotas";
+  private static final String TEST_TABLE = "table";
+  public static String TEST_SPEC_EXECUTOR_URI = "mySpecExecutor";
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -118,11 +116,11 @@ public class MostlyMySqlDagManagementStateStoreTest {
 
   public static MostlyMySqlDagManagementStateStore getDummyDMSS(ITestMetastoreDatabase testMetastoreDatabase) throws Exception {
     ConfigBuilder configBuilder = ConfigBuilder.create();
-    configBuilder.addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, TestMysqlDagStateStore.class.getName())
-        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testMetastoreDatabase.getJdbcUrl())
-        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
-        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
-        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE);
+    configBuilder.addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreTest.TestMysqlDagStateStore.class.getName())
+        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, testMetastoreDatabase.getJdbcUrl())
+        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TEST_TABLE + 1)
+        .addPrimitive(MostlyMySqlDagManagementStateStore.FAILED_DAG_STATESTORE_PREFIX
+            + "." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TEST_TABLE + 2);
     Config config = configBuilder.build();
     JobStatusRetriever jobStatusRetriever = mock(JobStatusRetriever.class);
     JobStatus dummyJobStatus = JobStatus.builder().flowName("fn").flowGroup("fg").jobGroup("fg").jobName("job0")
@@ -132,41 +130,13 @@ public class MostlyMySqlDagManagementStateStoreTest {
 
     // Constructing TopologySpecMap.
     Map<URI, TopologySpec> topologySpecMap = new HashMap<>();
-    String specExecInstance = "mySpecExecutor";
-    TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
-    URI specExecURI = new URI(specExecInstance);
+
+    TopologySpec topologySpec = LaunchDagProcTest.buildNaiveTopologySpec(TEST_SPEC_EXECUTOR_URI);
+    URI specExecURI = new URI(TEST_SPEC_EXECUTOR_URI);
     topologySpecMap.put(specExecURI, topologySpec);
     MostlyMySqlDagManagementStateStore dagManagementStateStore =
         new MostlyMySqlDagManagementStateStore(config, null, null, jobStatusRetriever, mock(DagActionStore.class));
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     return dagManagementStateStore;
-  }
-
-  /**
-   * Only overwrite {@link #createStateStore(Config)} method to directly return a mysqlStateStore
-   * backed by mocked db.
-   */
-  public static class TestMysqlDagStateStore extends MysqlDagStateStore {
-    public TestMysqlDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
-      super(config, topologySpecMap);
-    }
-
-    @Override
-    protected StateStore<State> createStateStore(Config config) {
-      try {
-        String jdbcUrl = config.getString(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY));
-        HikariDataSource dataSource = new HikariDataSource();
-
-        dataSource.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
-        dataSource.setAutoCommit(false);
-        dataSource.setJdbcUrl(jdbcUrl);
-        dataSource.setUsername(TEST_USER);
-        dataSource.setPassword(TEST_PASSWORD);
-
-        return new MysqlStateStore<>(dataSource, TEST_DAG_STATE_STORE, false, State.class);
-      } catch (Exception e) {
-        throw new RuntimeException(e);
-      }
-    }
   }
 }

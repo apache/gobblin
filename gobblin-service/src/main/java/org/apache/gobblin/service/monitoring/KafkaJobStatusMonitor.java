@@ -29,7 +29,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.quartz.SchedulerException;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -64,10 +63,9 @@ import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.core.GobblinServiceManager;
-import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.proc.DagProcUtils;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
@@ -223,17 +221,22 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
           String storeName = jobStatusStoreName(flowGroup, flowName);
           String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
+          String status = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
 
           if (updatedJobStatus.getRight() == NewState.FINISHED) {
             this.eventProducer.emitObservabilityEvent(jobStatus);
           }
 
-          if (this.dagProcEngineEnabled) {
+          if (this.dagProcEngineEnabled && DagProcUtils.isJobLevelStatus(jobName)) {
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
               // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
               this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
             } else if (updatedJobStatus.getRight() == NewState.RUNNING) {
-              removeStartDeadlineTriggerAndDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
+              DagProcUtils.removeEnforceJobStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
+            }
+            // in case, the job is cancelled before it started, we need to clean it's enforceJobStartDeadlineDagAction
+            if (status != null && ExecutionStatus.valueOf(status).equals(ExecutionStatus.CANCELLED)) {
+              DagProcUtils.removeEnforceJobStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
             }
           }
 
@@ -257,21 +260,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       log.warn(msg, informativeException);
       // Throw RuntimeException to avoid advancing kafka offsets without updating state store
       throw new RuntimeException(msg, informativeException);
-    }
-  }
-
-  private void removeStartDeadlineTriggerAndDagAction(DagManagementStateStore dagManagementStateStore, String flowGroup,
-      String flowName, long flowExecutionId, String jobName) {
-    DagActionStore.DagAction enforceStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
-        flowExecutionId, jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
-    log.info("Deleting reminder trigger and dag action {}", enforceStartDeadlineDagAction);
-    // todo - add metrics
-
-    try {
-      GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(enforceStartDeadlineDagAction);
-      dagManagementStateStore.deleteDagAction(enforceStartDeadlineDagAction);
-    } catch (SchedulerException | IOException e) {
-      log.error("Failed to unschedule the reminder for {}", enforceStartDeadlineDagAction);
     }
   }
 

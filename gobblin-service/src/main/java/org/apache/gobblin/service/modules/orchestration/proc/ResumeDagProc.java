@@ -88,6 +88,7 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     // these two statements effectively move the dag from failed dag store to (running) dag store.
     // to prevent loss in the unlikely event of failure between the two, we add first.
     dagManagementStateStore.checkpointDag(failedDag.get());
+
     // if it fails here, it will check point the failed dag in the (running) dag store again, which is idempotent
     dagManagementStateStore.deleteFailedDag(failedDag.get());
 
