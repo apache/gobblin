@@ -47,11 +47,6 @@ public interface DagActionStore {
     final long flowExecutionId;
     final String jobName;
     final DagActionType dagActionType;
-    final boolean isReminder;
-
-    public DagAction(String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionType dagActionType) {
-      this(flowGroup, flowName, flowExecutionId, jobName, dagActionType, false);
-    }
 
     public static DagAction forFlow(String flowGroup, String flowName, long flowExecutionId, DagActionType dagActionType) {
       return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
@@ -82,6 +77,24 @@ public interface DagActionStore {
       return new DagManager.DagId(this.flowGroup, this.flowName, this.flowExecutionId);
     }
   }
+
+  @Data
+  @RequiredArgsConstructor
+  class DagActionLeaseObject {
+    final DagAction dagAction;
+    final boolean isReminder;
+    final long eventTimeMillis;
+
+    /**
+     * Creates a lease object for a dagAction and eventTimeMillis representing an original event (isReminder is False)
+     */
+    public DagActionLeaseObject(DagAction dagAction, long eventTimeMillis) {
+      this.dagAction = dagAction;
+      this.isReminder = false;
+      this.eventTimeMillis = eventTimeMillis;
+    }
+  }
+
 
 
   /**

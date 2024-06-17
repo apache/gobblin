@@ -105,17 +105,19 @@ public class FlowLaunchHandler {
    * event triggered by the scheduler by attempting a lease for the launch event and processing the result depending on
    * the status of the attempt.
    */
-  public void handleFlowLaunchTriggerEvent(Properties jobProps, DagActionStore.DagAction dagAction,
-      long eventTimeMillis, boolean isReminderEvent, boolean adoptConsensusFlowExecutionId) throws IOException {
+  public void handleFlowLaunchTriggerEvent(Properties jobProps,
+      DagActionStore.DagActionLeaseObject dagActionLeaseObject, boolean adoptConsensusFlowExecutionId)
+      throws IOException {
+    long previousEventTimeMillis = dagActionLeaseObject.getEventTimeMillis();
     LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(
-        dagAction, eventTimeMillis, isReminderEvent, adoptConsensusFlowExecutionId);
+        dagActionLeaseObject, adoptConsensusFlowExecutionId);
     if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus
         && persistLaunchDagAction((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt)) {
       log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseAttempt.getConsensusDagAction(),
-          ((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt).getEventTimeMillis());
+          previousEventTimeMillis);
     } else { // when NOT successfully `persistDagAction`, set a reminder to re-attempt handling (unless leasing finished)
       calcLeasedToAnotherStatusForReminder(leaseAttempt).ifPresent(leasedToAnother ->
-          scheduleReminderForEvent(jobProps, leasedToAnother, eventTimeMillis));
+          scheduleReminderForEvent(jobProps, leasedToAnother, previousEventTimeMillis));
     }
   }
 
@@ -126,7 +128,8 @@ public class FlowLaunchHandler {
     } else if (leaseAttempt instanceof LeaseAttemptStatus.LeasedToAnotherStatus) { // already have one: just return it
       return Optional.of((LeaseAttemptStatus.LeasedToAnotherStatus) leaseAttempt);
     } else if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus) { // remind w/o delay to immediately re-attempt handling
-      return Optional.of(new LeaseAttemptStatus.LeasedToAnotherStatus(leaseAttempt.getConsensusDagAction(), ((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt).getEventTimeMillis(), 0L));
+      return Optional.of(new LeaseAttemptStatus.LeasedToAnotherStatus(
+          ((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt).getConsensusDagActionLeaseObject(), 0L));
     } else {
       throw new RuntimeException("unexpected `LeaseAttemptStatus` derived type: '" + leaseAttempt.getClass().getName() + "' in '" + leaseAttempt + "'");
     }
@@ -152,12 +155,13 @@ public class FlowLaunchHandler {
    * This method is used by {@link FlowLaunchHandler#handleFlowLaunchTriggerEvent} to schedule a self-reminder to check on
    * the other participant's progress to finish acting on a dag action after the time the lease should expire.
    * @param jobProps
-   * @param status used to extract event to be reminded for and the minimum time after which reminder should occur
-   * @param triggerEventTimeMillis the event timestamp we were originally handling
+   * @param status used to extract event to be reminded for (stored in `consensusDagAction`) and the minimum time after
+   *               which reminder should occur
+   * @param triggerEventTimeMillis the event timestamp we were originally handling (only used for logging purposes)
    */
   private void scheduleReminderForEvent(Properties jobProps, LeaseAttemptStatus.LeasedToAnotherStatus status,
       long triggerEventTimeMillis) {
-    DagActionStore.DagAction dagAction = status.getConsensusDagAction();
+    DagActionStore.DagAction consensusDagAction = status.getConsensusDagAction();
     JobKey origJobKey = new JobKey(jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY, "<<no job name>>"),
         jobProps.getProperty(ConfigurationKeys.JOB_GROUP_KEY, "<<no job group>>"));
     try {
@@ -166,9 +170,9 @@ public class FlowLaunchHandler {
         this.jobDoesNotExistInSchedulerCount.inc();
         return;
       }
-      Trigger reminderTrigger = createAndScheduleReminder(origJobKey, status, triggerEventTimeMillis);
+      Trigger reminderTrigger = createAndScheduleReminder(origJobKey, status, status.getEventTimeMillis());
       log.info("Flow Launch Handler - [{}, eventTimestamp: {}] - SCHEDULED REMINDER for event {} in {} millis",
-          dagAction, triggerEventTimeMillis, status.getEventTimeMillis(), reminderTrigger.getNextFireTime());
+          consensusDagAction, triggerEventTimeMillis, status.getEventTimeMillis(), reminderTrigger.getNextFireTime());
     } catch (SchedulerException e) {
       log.warn("Failed to add job reminder due to SchedulerException for job {} trigger event {}. Exception: {}",
           origJobKey, status.getEventTimeMillis(), e);

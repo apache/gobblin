@@ -62,7 +62,8 @@ public class DagActionReminderSchedulerTest {
 
   @Test
   public void testCreateReminderJobDetail() {
-    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(launchDagAction);
+    long expectedEventTimeMillis = 55L;
+    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(new DagActionStore.DagActionLeaseObject(launchDagAction, false, expectedEventTimeMillis));
     Assert.assertEquals(jobDetail.getKey().toString(), flowGroup + "." + expectedKey);
     JobDataMap dataMap = jobDetail.getJobDataMap();
     Assert.assertEquals(dataMap.get(ConfigurationKeys.FLOW_GROUP_KEY), flowGroup);
@@ -71,5 +72,6 @@ public class DagActionReminderSchedulerTest {
     Assert.assertEquals(dataMap.get(ConfigurationKeys.JOB_NAME_KEY), jobName);
     Assert.assertEquals(dataMap.get(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_TYPE_KEY),
         DagActionStore.DagActionType.LAUNCH);
+    Assert.assertEquals(dataMap.get(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_EVENT_TIME_KEY), expectedEventTimeMillis);
   }
 }
