@@ -220,7 +220,7 @@ public class DagProcUtils {
       String flowName, long flowExecutionId, String jobName) {
     DagActionStore.DagAction enforceJobStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
-    log.info("Deleting {}", enforceJobStartDeadlineDagAction);
+    log.info("Deleting dag action {}", enforceJobStartDeadlineDagAction);
     // todo - add metrics
 
     try {
