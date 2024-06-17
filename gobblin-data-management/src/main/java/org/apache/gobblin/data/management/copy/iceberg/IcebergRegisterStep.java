@@ -17,11 +17,16 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.Retryer;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
 import java.io.IOException;
 import java.util.Properties;
 
 import com.google.common.annotations.VisibleForTesting;
 
+import java.util.concurrent.ExecutionException;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.catalog.TableIdentifier;
 
@@ -49,6 +54,8 @@ public class IcebergRegisterStep implements CommitStep {
   private final TableMetadata readTimeSrcTableMetadata;
   private final TableMetadata justPriorDestTableMetadata;
   private final Properties properties;
+  private final Integer MAX_NUMBER_OF_ATTEMPTS = 3;
+  private final Retryer<Void> registerRetryer;
 
   public IcebergRegisterStep(TableIdentifier srcTableId, TableIdentifier destTableId,
       TableMetadata readTimeSrcTableMetadata, TableMetadata justPriorDestTableMetadata,
@@ -58,6 +65,9 @@ public class IcebergRegisterStep implements CommitStep {
     this.readTimeSrcTableMetadata = readTimeSrcTableMetadata;
     this.justPriorDestTableMetadata = justPriorDestTableMetadata;
     this.properties = properties;
+    this.registerRetryer = RetryerBuilder.<Void>newBuilder()
+        .retryIfException()
+        .withStopStrategy(StopStrategies.stopAfterAttempt(MAX_NUMBER_OF_ATTEMPTS)).build();
   }
 
   @Override
@@ -85,11 +95,17 @@ public class IcebergRegisterStep implements CommitStep {
       if (!isJustPriorDestMetadataStillCurrent) {
         throw new IOException("error: likely concurrent writing to destination: " + determinationMsg);
       }
-      destIcebergTable.registerIcebergTable(readTimeSrcTableMetadata, currentDestMetadata);
+      registerRetryer.call(() -> {
+        destIcebergTable.registerIcebergTable(readTimeSrcTableMetadata, currentDestMetadata);
+        return null;
+      });
     } catch (IcebergTable.TableNotFoundException tnfe) {
       String msg = "Destination table (with TableMetadata) does not exist: " + tnfe.getMessage();
       log.error(msg);
       throw new IOException(msg, tnfe);
+    } catch (ExecutionException | RetryException e) {
+      log.error("Exception Encountered while Registering Iceberg Table", e);
+      throw new RuntimeException(e);
     }
   }
 
