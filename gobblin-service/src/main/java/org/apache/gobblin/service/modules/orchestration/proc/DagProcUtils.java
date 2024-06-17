@@ -226,7 +226,7 @@ public class DagProcUtils {
     try {
       dagManagementStateStore.deleteDagAction(enforceJobStartDeadlineDagAction);
     } catch (IOException e) {
-      log.warn("Failed to delete {}", enforceJobStartDeadlineDagAction);
+      log.warn("Failed to delete dag action {}", enforceJobStartDeadlineDagAction);
     }
   }
 
@@ -234,13 +234,13 @@ public class DagProcUtils {
     DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = DagActionStore.DagAction.forFlow(dagId.getFlowGroup(),
         dagId.getFlowName(), dagId.getFlowExecutionId(),
         DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
-    log.info("Deleting reminder trigger and dag action {}", enforceFlowFinishDeadlineDagAction);
+    log.info("Deleting dag action {}", enforceFlowFinishDeadlineDagAction);
     // todo - add metrics
 
     try {
       dagManagementStateStore.deleteDagAction(enforceFlowFinishDeadlineDagAction);
     } catch (IOException e) {
-      log.warn("Failed to unschedule the reminder for {}", enforceFlowFinishDeadlineDagAction);
+      log.warn("Failed to delete dag action {}", enforceFlowFinishDeadlineDagAction);
     }
   }
 }
