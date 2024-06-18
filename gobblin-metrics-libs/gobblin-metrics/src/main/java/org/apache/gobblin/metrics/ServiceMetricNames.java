@@ -80,4 +80,27 @@ public class ServiceMetricNames {
   public static final String DAG_COUNT_FS_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "FsDagStateStore" + ".totalDagCount";
 
   public static final String DAG_PROCESSING_EXCEPTION_METER = "DagProcessingException";
+  /* DagProcessingEngine & Multi-active Execution Related Metrics
+  * Note: metrics ending with the delimiter '.' will be suffixed by the specific {@link DagActionType} type for finer
+  * grained monitoring of each dagAction type in addition to the aggregation of all types.
+   */
+  public static final String DAG_PROCESSING_ENGINE_PREFIX = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "DagProcEngine.";
+  public static final String DAG_ACTIONS_STORED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsStored.";
+  public static final String DAG_ACTIONS_OBSERVED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsObserved.";
+  public static final String DAG_ACTIONS_LEASES_OBTAINED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsLeasesObtained.";
+  public static final String DAG_ACTIONS_NO_LONGER_LEASING = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsNoLongerLeasing.";
+  public static final String DAG_ACTION_LEASE_REMINDERS_SCHEDULED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionLeaseRemindersScheduled.";
+  public static final String DAG_ACTION_REMINDERS_PROCESSED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionRemindersProcessed.";
+  // TODO: implement dropping reminder event after exceed some time
+  public static final String DAG_ACTIONS_EXCEEDED_MAX_RETRY = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsExceededMaxRetry.";
+  public static final String DAG_ACTIONS_INIT_FAILED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsInitFailed.";
+  public static final String DAG_ACTIONS_INIT_SUCCEEDED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsInitSucceeded.";
+  public static final String DAG_ACTION_EXECUTIONS_FAILED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionExecutionsFailed.";
+  public static final String DAG_ACTION_EXECUTIONS_SUCCEEDED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionExecutionsSucceeded.";
+  public static final String DAG_ACTION_CONCLUSIONS_FAILED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionConclusionsFailed.";
+  public static final String DAG_ACTION_CONCLUSIONS_SUCCEEDED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionConclusionsSucceeded.";
+  public static final String DAG_ACTIONS_REMOVED_FROM_STORE = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsRemovedFromStore.";
+  public static final String DAG_ACTIONS_FAILING_REMOVAL = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsFailingRemoval.";
+  // TODO: implement this one
+  public static final String DAG_ACTION_AVERAGE_PROCESSING_DELAY_MILLIS = DAG_PROCESSING_ENGINE_PREFIX + "dagActionAvgProcessingDelayMillis.";
 }
