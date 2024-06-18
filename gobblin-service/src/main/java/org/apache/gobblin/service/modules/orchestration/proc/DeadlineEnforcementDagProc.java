@@ -54,15 +54,15 @@ abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<Jo
 
   private boolean validate(Optional<Dag<JobExecutionPlan>> dag, DagManagementStateStore dagManagementStateStore) throws IOException {
     log.info("Request to enforce deadlines for dag {}", getDagId());
+    DagActionStore.DagAction dagAction = getDagTask().getDagAction();
 
     if (!dag.isPresent()) {
       // todo - add a metric here
-      log.error("Did not find Dag with id {}, it might be already cancelled/finished and thus cleaned up from the store.",
-          getDagId());
+      log.error("Dag not present when validating {}. It may already have cancelled/finished. Dag {}",
+          getDagId(), dagAction);
       return false;
     }
 
-    DagActionStore.DagAction dagAction = getDagTask().getDagAction();
     if (!dagManagementStateStore.existsJobDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(),
         dagAction.getFlowExecutionId(), dagAction.getJobName(), dagAction.getDagActionType())) {
       log.warn("Dag action {} is cleaned up from DMSS. No further action is required.", dagAction);
