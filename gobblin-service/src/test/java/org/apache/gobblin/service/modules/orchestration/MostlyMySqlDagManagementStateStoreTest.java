@@ -135,7 +135,8 @@ public class MostlyMySqlDagManagementStateStoreTest {
     URI specExecURI = new URI(TEST_SPEC_EXECUTOR_URI);
     topologySpecMap.put(specExecURI, topologySpec);
     MostlyMySqlDagManagementStateStore dagManagementStateStore =
-        new MostlyMySqlDagManagementStateStore(config, null, null, jobStatusRetriever, mock(DagActionStore.class));
+        new MostlyMySqlDagManagementStateStore(config, null, null, jobStatusRetriever,
+            MysqlDagActionStoreTest.getTestDagActionStore(testMetastoreDatabase));
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     return dagManagementStateStore;
   }

@@ -42,34 +42,13 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
  * {@link org.apache.gobblin.service.modules.orchestration.DagManager#JOB_START_SLA_TIME} time.
  */
 @Slf4j
-public class EnforceJobStartDeadlineDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
+public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
 
   public EnforceJobStartDeadlineDagProc(EnforceJobStartDeadlineDagTask enforceJobStartDeadlineDagTask) {
     super(enforceJobStartDeadlineDagTask);
   }
 
-  @Override
-  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
-      throws IOException {
-   return dagManagementStateStore.getDag(getDagId());
-  }
-
-  @Override
-  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
-      throws IOException {
-    log.info("Request to enforce deadlines for dag {}", getDagId());
-
-    if (!dag.isPresent()) {
-      // todo - add a metric here
-      log.error("Did not find Dag with id {}, it might be already cancelled/finished and thus cleaned up from the store.",
-          getDagId());
-      return;
-    }
-
-    enforceJobStartDeadline(dagManagementStateStore, dag);
-  }
-
-  private void enforceJobStartDeadline(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
+  protected void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag)
       throws IOException {
     Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<org.apache.gobblin.service.monitoring.JobStatus>>
         dagNodeToCheckDeadline = dagManagementStateStore.getDagNodeWithJobStatus(getDagNodeId());
@@ -96,9 +75,9 @@ public class EnforceJobStartDeadlineDagProc extends DagProc<Optional<Dag<JobExec
           DagManagerUtils.getJobName(dagNode), jobOrchestratedTime, timeOutForJobStart);
       dagManagementStateStore.getDagManagerMetrics().incrementCountsStartSlaExceeded(dagNode);
       DagProcUtils.cancelDagNode(dagNode, dagManagementStateStore);
-      dag.get().setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
-      dag.get().setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
-      dagManagementStateStore.checkpointDag(dag.get());
+      dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
+      dag.setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
+      dagManagementStateStore.checkpointDag(dag);
     }
   }
 }
