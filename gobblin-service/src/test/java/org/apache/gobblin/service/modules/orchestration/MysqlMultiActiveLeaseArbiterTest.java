@@ -204,11 +204,11 @@ public class MysqlMultiActiveLeaseArbiterTest {
     // Inserting the first time should update 1 row
     Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction,
         ExponentialBackoff.builder().maxRetries(MysqlMultiActiveLeaseArbiter.MAX_RETRIES)
-            .initialDelay(MysqlMultiActiveLeaseArbiter.INITIAL_DELAY_FOR_RETRY_MILLIS).build()), 1);
+            .initialDelay(MysqlMultiActiveLeaseArbiter.MIN_INITIAL_DELAY_MILLIS).build()), 1);
     // Inserting the second time should not update any rows
     Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction,
         ExponentialBackoff.builder().maxRetries(MysqlMultiActiveLeaseArbiter.MAX_RETRIES)
-            .initialDelay(MysqlMultiActiveLeaseArbiter.INITIAL_DELAY_FOR_RETRY_MILLIS).build()), 0);
+            .initialDelay(MysqlMultiActiveLeaseArbiter.MIN_INITIAL_DELAY_MILLIS).build()), 0);
   }
 
     /*

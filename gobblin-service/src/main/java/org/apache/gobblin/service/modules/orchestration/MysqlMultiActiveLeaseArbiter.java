@@ -174,7 +174,8 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   protected static final String CONDITIONALLY_COMPLETE_LEASE_STATEMENT = "UPDATE %s SET "
       + "event_timestamp=event_timestamp, lease_acquisition_timestamp = NULL " + WHERE_CLAUSE_TO_MATCH_ROW;
   protected static final int MAX_RETRIES = 3;
-  protected static final long INITIAL_DELAY_FOR_RETRY_MILLIS = 30L;
+  protected static final long MIN_INITIAL_DELAY_MILLIS = 20L;
+  protected static final long DELAY_FOR_RETRY_RANGE_MILLIS = 200L;
   private static final ThreadLocal<Calendar> UTC_CAL =
       ThreadLocal.withInitial(() -> Calendar.getInstance(TimeZone.getTimeZone("UTC")));
 
@@ -260,7 +261,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
             dagActionLeaseObject.isReminder() ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis());
         int numRowsUpdated = attemptLeaseIfNewRow(dagActionLeaseObject.getDagAction(),
             ExponentialBackoff.builder().maxRetries(MAX_RETRIES)
-                .initialDelay(INITIAL_DELAY_FOR_RETRY_MILLIS + (long) Math.random() * INITIAL_DELAY_FOR_RETRY_MILLIS)
+                .initialDelay(MIN_INITIAL_DELAY_MILLIS + (long) Math.random() * DELAY_FOR_RETRY_RANGE_MILLIS)
                 .build());
        return evaluateStatusAfterLeaseAttempt(numRowsUpdated, dagActionLeaseObject.getDagAction(),
            Optional.empty(), dagActionLeaseObject.isReminder(), adoptConsensusFlowExecutionId);
