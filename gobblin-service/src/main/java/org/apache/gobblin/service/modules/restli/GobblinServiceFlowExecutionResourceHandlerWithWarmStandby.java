@@ -56,13 +56,13 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
 
   @Override
   public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
-    FlowStatusId id = key.getKey();
+    FlowStatusId id = this.get(key).getId(); // pre-check to throw `HttpStatus.S_404_NOT_FOUND`, in case FlowExecution doesn't exist
     addDagAction(id.getFlowGroup(), id.getFlowName(), id.getFlowExecutionId(), DagActionStore.DagActionType.RESUME);
   }
 
   @Override
   public UpdateResponse delete(ComplexResourceKey<org.apache.gobblin.service.FlowStatusId, EmptyRecord> key) {
-    FlowStatusId id = key.getKey();
+    FlowStatusId id = this.get(key).getId();  // pre-check to throw `HttpStatus.S_404_NOT_FOUND`, in case FlowExecution doesn't exist
     addDagAction(id.getFlowGroup(), id.getFlowName(), id.getFlowExecutionId(), DagActionStore.DagActionType.KILL);
     return new UpdateResponse(HttpStatus.S_200_OK);
   }
