@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 
+
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -41,6 +42,8 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.runtime.spec_serde.JavaSpecSerDe;
+import org.apache.gobblin.runtime.api.FlowSpec;
+
 
 
 public class MysqlBaseSpecStoreTest {
@@ -53,6 +56,7 @@ public class MysqlBaseSpecStoreTest {
   private final URI uri1 = new URI(new TopologySpec.Builder().getDefaultTopologyCatalogURI().toString() + "1");
   private final URI uri2 = new URI(new TopologySpec.Builder().getDefaultTopologyCatalogURI().toString() + "2");
   private TopologySpec topoSpec1, topoSpec2;
+  private FlowSpec flowSpec,flowSpecUpdated;
 
   public MysqlBaseSpecStoreTest()
       throws URISyntaxException { // (based on `uri1` and other initializations just above)
@@ -89,6 +93,22 @@ public class MysqlBaseSpecStoreTest {
         .withVersion("Test version 2")
         .withSpecExecutor(MockedSpecExecutor.createDummySpecExecutor(new URI("execB")))
         .build();
+
+    flowSpec = new FlowSpec.Builder(this.uri1) .withConfig(ConfigBuilder.create()
+            .addPrimitive("properties.user.to.proxy", "value1")
+            .addPrimitive("properties.gobblin.flow.sourceIdentifier", "value2")
+            .addPrimitive("properties.gobblin.flow.destinationIdentifier", "value3").build())
+        .withDescription("Test1")
+        .withVersion("Test version")
+        .build();
+
+    flowSpecUpdated = new FlowSpec.Builder(this.uri1) .withConfig(ConfigBuilder.create()
+            .addPrimitive("properties.user.to.proxy", "value1Updated")
+            .addPrimitive("properties.gobblin.flow.sourceIdentifier", "value2Updated")
+            .addPrimitive("properties.gobblin.flow.destinationIdentifier", "value3Updated").build())
+        .withDescription("Test1")
+        .withVersion("Test version")
+        .build();
   }
 
   @AfterClass(alwaysRun = true)
@@ -114,6 +134,22 @@ public class MysqlBaseSpecStoreTest {
     Assert.assertTrue(this.specStore.exists(this.uri1));
     Assert.assertTrue(this.specStore.exists(this.uri2));
     Assert.assertFalse(this.specStore.exists(URI.create("dummy")));
+  }
+
+  @Test
+  public void testUpdateSpec() throws Exception {
+    this.specStore.addSpec(this.flowSpec);
+    Assert.assertEquals(this.specStore.getSize(), 1);
+    Assert.assertTrue(this.specStore.exists(this.uri1));
+    //Updating
+
+    this.specStore.addSpec(this.flowSpecUpdated);
+    Assert.assertEquals(this.specStore.getSize(), 1);
+    Assert.assertTrue(this.specStore.exists(this.uri1));
+    FlowSpec updated = (FlowSpec)this.specStore.getSpecImpl(this.uri1);
+    Assert.assertEquals(updated.getConfigAsProperties().getProperty("properties.user.to.proxy"),"value1Updated");
+    Assert.assertEquals(updated.getConfigAsProperties().getProperty("properties.gobblin.flow.sourceIdentifier"),"value2Updated");
+    Assert.assertEquals(updated.getConfigAsProperties().getProperty("properties.gobblin.flow.destinationIdentifier"),"value3Updated");
   }
 
   @Test (dependsOnMethods = "testAddSpec")

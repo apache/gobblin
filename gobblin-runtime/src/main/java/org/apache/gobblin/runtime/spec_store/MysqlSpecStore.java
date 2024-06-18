@@ -63,7 +63,9 @@ public class MysqlSpecStore extends MysqlBaseSpecStore {
   // record may contain data there... though in practice, all should, given the passage of time (amidst the usual retention expiry).
   protected static final String SPECIFIC_INSERT_STATEMENT = "INSERT INTO %s (spec_uri, flow_group, flow_name, template_uri, "
       + "user_to_proxy, source_identifier, destination_identifier, schedule, tag, isRunImmediately, owning_group, spec, spec_json) "
-      + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON DUPLICATE KEY UPDATE spec = VALUES(spec), spec_json = VALUES(spec_json)";
+      + "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)  AS flowSpec"
+      + " ON DUPLICATE KEY UPDATE template_uri = flowSpec.template_uri, user_to_proxy = flowSpec.user_to_proxy, source_identifier = flowSpec.source_identifier, destination_identifier = flowSpec.destination_identifier, schedule = flowSpec.schedule, tag = flowSpec.tag, isRunImmediately = flowSpec.isRunImmediately, owning_group = flowSpec.owning_group, "
+      + "spec = flowSpec.spec, spec_json = flowSpec.spec_json";
   private static final String SPECIFIC_GET_STATEMENT_BASE = "SELECT spec_uri, spec, spec_json FROM %s WHERE ";
   private static final String SPECIFIC_GET_ALL_STATEMENT = "SELECT spec_uri, spec, spec_json, modified_time FROM %s";
   private static final String SPECIFIC_GET_SPECS_BATCH_STATEMENT = "SELECT spec_uri, spec, spec_json, modified_time FROM %s ORDER BY spec_uri ASC LIMIT ? OFFSET ?";
