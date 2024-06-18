@@ -48,7 +48,6 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
@@ -79,8 +78,44 @@ public class EnforceDeadlineDagProcsTest {
     String flowName = "fn";
     long flowExecutionId = System.currentTimeMillis();
     MostlyMySqlDagManagementStateStore dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
-    doNothing().when(dagManagementStateStore).tryAcquireQuota(any());
-    doNothing().when(dagManagementStateStore).addDagNodeState(any(), any());
+    LaunchDagProcTest.mockDMSSCommonBehavior(dagManagementStateStore);
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
+        DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        5, "user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
+            .withValue(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME, ConfigValueFactory.fromAnyRef(1L))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup).jobName("job0").flowExecutionId(flowExecutionId).
+        message("Test message").eventName(ExecutionStatus.ORCHESTRATED.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
+    doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
+    doReturn(Pair.of(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+    dagManagementStateStore.checkpointDag(dag);  // simulate having a dag that has not yet started running
+    dagManagementStateStore.addDagAction(dagAction);
+
+    EnforceJobStartDeadlineDagProc enforceJobStartDeadlineDagProc = new EnforceJobStartDeadlineDagProc(
+        new EnforceJobStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
+            "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null, dagManagementStateStore));
+    enforceJobStartDeadlineDagProc.process(dagManagementStateStore);
+
+    int expectedNumOfDeleteDagNodeStates = 1; // the one dag node corresponding to the EnforceStartDeadlineDagProc
+    Assert.assertEquals(expectedNumOfDeleteDagNodeStates,
+        Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()
+            .filter(a -> a.getMethod().getName().equals("deleteDagNodeState")).count());
+  }
+
+  @Test
+  public void enforceJobStartDeadlineTestWithMissingDagAction() throws Exception {
+    String flowGroup = "fg";
+    String flowName = "fn";
+    long flowExecutionId = System.currentTimeMillis();
+    MostlyMySqlDagManagementStateStore dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
+    LaunchDagProcTest.mockDMSSCommonBehavior(dagManagementStateStore);
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
+        DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
         5, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
@@ -100,7 +135,7 @@ public class EnforceDeadlineDagProcsTest {
             "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null, dagManagementStateStore));
     enforceJobStartDeadlineDagProc.process(dagManagementStateStore);
 
-    int expectedNumOfDeleteDagNodeStates = 1; // the one dag node corresponding to the EnforceStartDeadlineDagProc
+    int expectedNumOfDeleteDagNodeStates = 0; // no dag node because we simulated (by not adding) missing dag action
     Assert.assertEquals(expectedNumOfDeleteDagNodeStates,
         Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()
             .filter(a -> a.getMethod().getName().equals("deleteDagNodeState")).count());
@@ -116,8 +151,9 @@ public class EnforceDeadlineDagProcsTest {
     String flowName = "fn";
     long flowExecutionId = System.currentTimeMillis();
     MostlyMySqlDagManagementStateStore dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
-    doNothing().when(dagManagementStateStore).tryAcquireQuota(any());
-    doNothing().when(dagManagementStateStore).addDagNodeState(any(), any());
+    LaunchDagProcTest.mockDMSSCommonBehavior(dagManagementStateStore);
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
+        DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
     int numOfDagNodes = 5;
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
         numOfDagNodes, "user5", ConfigFactory.empty()
@@ -132,10 +168,11 @@ public class EnforceDeadlineDagProcsTest {
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
     doReturn(Pair.of(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     dagManagementStateStore.checkpointDag(dag);  // simulate having a dag that is in running state
+    dagManagementStateStore.addDagAction(dagAction);
 
     EnforceFlowFinishDeadlineDagProc enforceFlowFinishDeadlineDagProc = new EnforceFlowFinishDeadlineDagProc(
         new EnforceFlowFinishDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
-            "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null, dagManagementStateStore));
+            "job0", DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE), null, dagManagementStateStore));
     enforceFlowFinishDeadlineDagProc.process(dagManagementStateStore);
 
     Assert.assertEquals(numOfDagNodes,

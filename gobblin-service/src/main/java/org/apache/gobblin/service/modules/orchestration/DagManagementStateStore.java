@@ -207,7 +207,7 @@ public interface DagManagementStateStore {
    * @throws IOException
    */
   boolean existsJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
-      DagActionStore.DagActionType dagActionType) throws IOException, SQLException;
+      DagActionStore.DagActionType dagActionType) throws IOException;
 
   /**
    * Check if an action exists in dagAction store by flow group, flow name, and flow execution id, it assumes jobName is
