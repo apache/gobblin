@@ -2,7 +2,7 @@
   "type": "record",
   "name": "GaaSFlowObservabilityEvent",
   "namespace": "org.apache.gobblin.metrics",
-  "doc": "An event schema for GaaS to emit during and after a flow is executed.",
+  "doc": "An event schema for GaaS to emit after a flow is executed.",
   "fields": [
     {
       "name": "eventTimestamp",
@@ -77,6 +77,24 @@
       ],
       "default": null,
       "doc": "The deployment ID of GaaS that is sending the event (if multiple GaaS instances are running)"
+    },
+    {
+      "name": "flowStartTimestamp",
+      "type": [
+        "null",
+        "long"
+      ],
+      "doc": "Start time of the flow - when the dag is initialized, in millis since Epoch. Null if the job was never run",
+      "compliance": "NONE"
+    },
+    {
+      "name": "flowEndTimestamp",
+      "type": [
+        "null",
+        "long"
+      ],
+      "doc": "Finish time of the job in millis since Epoch, null if the job was never run",
+      "compliance": "NONE"
     }
   ]
 }

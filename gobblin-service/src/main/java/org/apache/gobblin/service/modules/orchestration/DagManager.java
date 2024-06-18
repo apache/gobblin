@@ -999,6 +999,9 @@ public class DagManager extends AbstractIdleService {
         // Add serialized job properties as part of the orchestrated job event metadata
         jobMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, PropertiesUtils.serialize(jobSpec.getConfigAsProperties()));
         jobOrchestrationTimer.stop(jobMetadata);
+        if (dagNode.getParentNodes().isEmpty()) {
+          DagManagerUtils.emitFlowEvent(eventSubmitter, this.jobToDag.get(dagNode), TimingEvent.FlowTimings.FLOW_ORCHESTRATED);
+        }
         log.info("Orchestrated job: {} on Executor: {}", DagManagerUtils.getFullyQualifiedJobName(dagNode), specExecutorUri);
         this.dagManagerMetrics.incrementJobsSentToExecutor(dagNode);
       } catch (Exception e) {
