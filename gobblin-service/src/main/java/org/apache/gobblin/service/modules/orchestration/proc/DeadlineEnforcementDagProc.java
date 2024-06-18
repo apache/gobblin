@@ -28,7 +28,9 @@ import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
-
+/**
+ * An abstract implementation for {@link DagProc} that enforces deadline for jobs.
+ */
 @Slf4j
 abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
 
@@ -63,8 +65,7 @@ abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<Jo
     DagActionStore.DagAction dagAction = getDagTask().getDagAction();
     if (!dagManagementStateStore.existsJobDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(),
         dagAction.getFlowExecutionId(), dagAction.getJobName(), dagAction.getDagActionType())) {
-      log.warn("{} not found in the store. Was the flow finished and dag action cleaned up right before the dag action act?",
-          dagAction);
+      log.warn("Dag action {} is cleaned up from DMSS. No further action is required.", dagAction);
       return false;
     }
 

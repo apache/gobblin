@@ -107,6 +107,11 @@ public class EnforceDeadlineDagProcsTest {
             .filter(a -> a.getMethod().getName().equals("deleteDagNodeState")).count());
   }
 
+  /*
+  This test simulate deletion of a dag action (by not adding it into DMSS).
+  Absence of dag action signals that deadline enforcement is not required and hence the test verifies no further action
+  is taken by deadline dag proc.
+   */
   @Test
   public void enforceJobStartDeadlineTestWithMissingDagAction() throws Exception {
     String flowGroup = "fg";
