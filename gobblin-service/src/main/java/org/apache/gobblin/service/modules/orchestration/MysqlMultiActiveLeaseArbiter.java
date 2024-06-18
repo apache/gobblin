@@ -441,10 +441,10 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
               if (exponentialBackoff.awaitNextRetryIfAvailable()) {
                 return attemptLeaseIfNewRow(dagAction, exponentialBackoff);
               }
-            } catch (InterruptedException | IOException e2) {
+            } catch (InterruptedException e2) {
               throw new IOException(e2);
             }
-            return 0;
+            throw e; 
           }
           catch (SQLIntegrityConstraintViolationException e) {
             if (!e.getMessage().contains("Duplicate entry")) {
