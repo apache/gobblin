@@ -71,6 +71,8 @@ public class CreateAndSetDirectoryPermissionCommitStep implements CommitStep {
         if (!fs.exists(path)) {
           log.info("Creating path {} with permission {}", path, entry.getValue().getFsPermission());
           fs.mkdirs(path, entry.getValue().getFsPermission());
+          // Set owner and group since created directories will have owner set to the job runner (instead of the data owner)
+          fs.setOwner(path, entry.getValue().getOwner(), entry.getValue().getGroup());
         } else {
           log.info("Setting permission {} on existing path {}", entry.getValue().getFsPermission(), path);
           fs.setPermission(path, entry.getValue().getFsPermission());
