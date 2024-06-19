@@ -17,22 +17,34 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import com.github.rholder.retry.RetryException;
-import com.github.rholder.retry.Retryer;
-import com.github.rholder.retry.RetryerBuilder;
-import com.github.rholder.retry.StopStrategies;
 import java.io.IOException;
+import java.time.Duration;
+import java.util.Optional;
 import java.util.Properties;
-
-import com.google.common.annotations.VisibleForTesting;
-
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutionException;
+
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.catalog.TableIdentifier;
+
+import com.github.rholder.retry.Attempt;
+import com.github.rholder.retry.Retryer;
+import com.github.rholder.retry.RetryListener;
+import com.github.rholder.retry.RetryException;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.annotations.VisibleForTesting;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.util.retry.RetryerFactory;
+
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIMES;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
+import static org.apache.gobblin.util.retry.RetryerFactory.RetryType;
 
 
 /**
@@ -54,7 +66,12 @@ public class IcebergRegisterStep implements CommitStep {
   private final TableMetadata readTimeSrcTableMetadata;
   private final TableMetadata justPriorDestTableMetadata;
   private final Properties properties;
-  private final Integer MAX_NUMBER_OF_ATTEMPTS = 3;
+  public static final String ICEBERG_REGISTER_STEP_PREFIX = "icebergRegisterStep";
+
+  private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
+      RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(3L),
+      RETRY_TIMES, 5,
+      RETRY_TYPE, RetryType.FIXED_ATTEMPT.name()));
 
   public IcebergRegisterStep(TableIdentifier srcTableId, TableIdentifier destTableId,
       TableMetadata readTimeSrcTableMetadata, TableMetadata justPriorDestTableMetadata,
@@ -91,9 +108,7 @@ public class IcebergRegisterStep implements CommitStep {
       if (!isJustPriorDestMetadataStillCurrent) {
         throw new IOException("error: likely concurrent writing to destination: " + determinationMsg);
       }
-      Retryer<Void> registerRetryer = RetryerBuilder.<Void>newBuilder()
-          .retryIfException()
-          .withStopStrategy(StopStrategies.stopAfterAttempt(MAX_NUMBER_OF_ATTEMPTS)).build();
+      Retryer<Void> registerRetryer = createRegisterRetryer(ConfigFactory.load());
       registerRetryer.call(() -> {
         destIcebergTable.registerIcebergTable(readTimeSrcTableMetadata, currentDestMetadata);
         return null;
@@ -102,9 +117,19 @@ public class IcebergRegisterStep implements CommitStep {
       String msg = "Destination table (with TableMetadata) does not exist: " + tnfe.getMessage();
       log.error(msg);
       throw new IOException(msg, tnfe);
-    } catch (ExecutionException | RetryException e) {
-      log.error("Exception Encountered while Registering Iceberg Table", e);
-      throw new RuntimeException(e);
+    } catch (ExecutionException executionException) {
+      String msg = "Failed to register iceberg table";
+      log.error(msg, executionException);
+      throw new RuntimeException(msg, executionException.getCause());
+    } catch (RetryException retryException) {
+      String interruptedNote = Thread.currentThread().isInterrupted() ? "... then interrupted" : "";
+      String msg = String.format("Failed to register iceberg table (retried %d times %s)",
+          retryException.getNumberOfFailedAttempts(), interruptedNote);
+      Throwable informativeException = retryException.getLastFailedAttempt().hasException()
+          ? retryException.getLastFailedAttempt().getExceptionCause()
+          : retryException;
+      log.error(msg, informativeException);
+      throw new RuntimeException(msg, informativeException);
     }
   }
 
@@ -117,5 +142,22 @@ public class IcebergRegisterStep implements CommitStep {
   @VisibleForTesting
   protected IcebergCatalog createDestinationCatalog() throws IOException {
     return IcebergDatasetFinder.createIcebergCatalog(this.properties, IcebergDatasetFinder.CatalogLocation.DESTINATION);
+  }
+
+  private Retryer<Void> createRegisterRetryer(Config config) {
+    Config retryerOverridesConfig = config.hasPath(IcebergRegisterStep.ICEBERG_REGISTER_STEP_PREFIX)
+        ? config.getConfig(IcebergRegisterStep.ICEBERG_REGISTER_STEP_PREFIX)
+        : ConfigFactory.empty();
+
+    return RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
+      @Override
+      public <V> void onRetry(Attempt<V> attempt) {
+        if (attempt.hasException()) {
+          String msg = String.format("Exception caught while registering iceberg table [attempt: %d; %s after start]",
+              attempt.getAttemptNumber(), Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());
+          log.warn(msg, attempt.getExceptionCause());
+        }
+      }
+    }));
   }
 }
