@@ -99,6 +99,14 @@ public class DatasetHiveSchemaContainsNonOptionalUnionTest extends HiveMetastore
     Assert.assertTrue(predicate.test(dataset));
   }
 
+  @Test
+  public void testContainsNonOptionalUnionWithOptionalDbName() throws Exception {
+    state.setProp(DatasetHiveSchemaContainsNonOptionalUnion.OPTIONAL_DB_NAME, "optionalDbName");
+    DatasetHiveSchemaContainsNonOptionalUnion predicate = new DatasetHiveSchemaContainsNonOptionalUnion(state.getProperties());
+    Dataset dataset = new SimpleDatasetForTesting(datasetUrn);
+    Assert.assertTrue(predicate.test(dataset));
+    state.removeProp(DatasetHiveSchemaContainsNonOptionalUnion.OPTIONAL_DB_NAME); // Clean up the property
+  }
   private HiveTable createTestHiveTable_Avro(State props) {
     HiveTable.Builder builder = new HiveTable.Builder();
     HiveTable hiveTable = builder.withDbName(dbName).withTableName(testTable).withProps(props).build();
