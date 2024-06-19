@@ -141,7 +141,7 @@ public class IcebergRegisterStepTest {
     return catalog;
   }
 
-    protected IcebergTable mockIcebergTableForRetryer(String tableUuid, String tableMetadataFileLocation, Boolean throwOnlyExceptionsForRegisterIcebergTable) throws IOException {
+  protected IcebergTable mockIcebergTableForRetryer(String tableUuid, String tableMetadataFileLocation, Boolean throwOnlyExceptionsForRegisterIcebergTable) throws IOException {
     TableMetadata mockMetadata = mockTableMetadata(tableUuid, tableMetadataFileLocation);
 
     IcebergTable mockTable = Mockito.mock(IcebergTable.class);
