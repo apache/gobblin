@@ -75,6 +75,46 @@ public class IcebergRegisterStepTest {
     }
   }
 
+  @Test
+  public void testRegisterIcebergTableWithRetryer() throws IOException {
+    TableMetadata justPriorDestTableMetadata = mockTableMetadata("foo", "bar");
+    TableMetadata readTimeSrcTableMetadata = Mockito.mock(TableMetadata.class);
+    IcebergTable mockTable = mockIcebergTableForRetryer("foo", "bar", Boolean.FALSE);
+    IcebergRegisterStep regStep =
+        new IcebergRegisterStep(srcTableId, destTableId, readTimeSrcTableMetadata, justPriorDestTableMetadata, new Properties()) {
+          @Override
+          protected IcebergCatalog createDestinationCatalog() throws IOException {
+            return mockSingleTableIcebergCatalog(mockTable);
+          }
+        };
+    try {
+      regStep.execute();
+      Mockito.verify(mockTable, Mockito.times(3)).registerIcebergTable(any(), any());
+    } catch (RuntimeException re) {
+      Assert.fail("Got Unexpected Runtime Exception", re);
+    }
+  }
+
+  @Test
+  public void testRegisterIcebergTableWithRetryerThrowsRuntimeException() throws IOException {
+    TableMetadata justPriorDestTableMetadata = mockTableMetadata("foo", "bar");
+    TableMetadata readTimeSrcTableMetadata = Mockito.mock(TableMetadata.class);
+    IcebergTable mockTable = mockIcebergTableForRetryer("foo", "bar", Boolean.TRUE);
+    IcebergRegisterStep regStep =
+        new IcebergRegisterStep(srcTableId, destTableId, readTimeSrcTableMetadata, justPriorDestTableMetadata, new Properties()) {
+          @Override
+          protected IcebergCatalog createDestinationCatalog() throws IOException {
+            return mockSingleTableIcebergCatalog(mockTable);
+          }
+        };
+    try {
+      regStep.execute();
+      Assert.fail("Expected Runtime Exception");
+    } catch (RuntimeException re) {
+      Assert.assertTrue(re.getMessage().startsWith("Failed to register iceberg table (retried"), re.getMessage());
+    }
+  }
+
   protected TableMetadata mockTableMetadata(String uuid, String metadataFileLocation) throws IOException {
     TableMetadata mockMetadata = Mockito.mock(TableMetadata.class);
     Mockito.when(mockMetadata.uuid()).thenReturn(uuid);
@@ -99,5 +139,18 @@ public class IcebergRegisterStepTest {
     IcebergCatalog catalog = Mockito.mock(IcebergCatalog.class);
     Mockito.when(catalog.openTable(any())).thenReturn(mockTable);
     return catalog;
+  }
+
+    protected IcebergTable mockIcebergTableForRetryer(String tableUuid, String tableMetadataFileLocation, Boolean throwOnlyExceptionsForRegisterIcebergTable) throws IOException {
+    TableMetadata mockMetadata = mockTableMetadata(tableUuid, tableMetadataFileLocation);
+
+    IcebergTable mockTable = Mockito.mock(IcebergTable.class);
+    Mockito.when(mockTable.accessTableMetadata()).thenReturn(mockMetadata);
+    if (throwOnlyExceptionsForRegisterIcebergTable) {
+      Mockito.doThrow(new RuntimeException()).when(mockTable).registerIcebergTable(any(), any());
+    } else {
+      Mockito.doThrow(new RuntimeException()).doThrow(new RuntimeException()).doNothing().when(mockTable).registerIcebergTable(any(), any());
+    }
+    return mockTable;
   }
 }
