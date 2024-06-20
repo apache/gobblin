@@ -23,6 +23,7 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.SQLIntegrityConstraintViolationException;
+import java.sql.SQLTransientException;
 import java.sql.Timestamp;
 import java.util.Calendar;
 import java.util.Optional;
@@ -41,6 +42,7 @@ import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.DBStatementExecutor;
+import org.apache.gobblin.util.ExponentialBackoff;
 
 
 /**
@@ -171,6 +173,9 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   // Complete lease acquisition if values have not changed since lease was acquired
   protected static final String CONDITIONALLY_COMPLETE_LEASE_STATEMENT = "UPDATE %s SET "
       + "event_timestamp=event_timestamp, lease_acquisition_timestamp = NULL " + WHERE_CLAUSE_TO_MATCH_ROW;
+  protected static final int MAX_RETRIES = 3;
+  protected static final long MIN_INITIAL_DELAY_MILLIS = 20L;
+  protected static final long DELAY_FOR_RETRY_RANGE_MILLIS = 200L;
   private static final ThreadLocal<Calendar> UTC_CAL =
       ThreadLocal.withInitial(() -> Calendar.getInstance(TimeZone.getTimeZone("UTC")));
 
@@ -254,7 +259,10 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         log.debug("tryAcquireLease for [{}, is; {}, eventTimestamp: {}] - CASE 1: no existing row for this dag action,"
             + " then go ahead and insert", dagActionLeaseObject.getDagAction(),
             dagActionLeaseObject.isReminder() ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis());
-        int numRowsUpdated = attemptLeaseIfNewRow(dagActionLeaseObject.getDagAction());
+        int numRowsUpdated = attemptLeaseIfNewRow(dagActionLeaseObject.getDagAction(),
+            ExponentialBackoff.builder().maxRetries(MAX_RETRIES)
+                .initialDelay(MIN_INITIAL_DELAY_MILLIS + (long) Math.random() * DELAY_FOR_RETRY_RANGE_MILLIS)
+                .build());
        return evaluateStatusAfterLeaseAttempt(numRowsUpdated, dagActionLeaseObject.getDagAction(),
            Optional.empty(), dagActionLeaseObject.isReminder(), adoptConsensusFlowExecutionId);
       }
@@ -420,7 +428,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
    * near past for it.
    * @return int corresponding to number of rows updated by INSERT statement to acquire lease
    */
-  protected int attemptLeaseIfNewRow(DagActionStore.DagAction dagAction) throws IOException {
+  protected int attemptLeaseIfNewRow(DagActionStore.DagAction dagAction, ExponentialBackoff exponentialBackoff) throws IOException {
     String formattedAcquireLeaseNewRowStatement =
         String.format(ACQUIRE_LEASE_IF_NEW_ROW_STATEMENT, this.leaseArbiterTableName);
     return dbStatementExecutor.withPreparedStatement(formattedAcquireLeaseNewRowStatement,
@@ -428,7 +436,17 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
           completeInsertPreparedStatement(insertStatement, dagAction);
           try {
             return insertStatement.executeUpdate();
-          } catch (SQLIntegrityConstraintViolationException e) {
+          } catch (SQLTransientException e) {
+            try {
+              if (exponentialBackoff.awaitNextRetryIfAvailable()) {
+                return attemptLeaseIfNewRow(dagAction, exponentialBackoff);
+              }
+            } catch (InterruptedException e2) {
+              throw new IOException(e2);
+            }
+            throw e; 
+          }
+          catch (SQLIntegrityConstraintViolationException e) {
             if (!e.getMessage().contains("Duplicate entry")) {
               throw e;
             }

@@ -23,6 +23,7 @@ import java.sql.Timestamp;
 import java.util.Optional;
 import java.util.UUID;
 
+import org.apache.gobblin.util.ExponentialBackoff;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -201,9 +202,13 @@ public class MysqlMultiActiveLeaseArbiterTest {
   @Test
   public void testAcquireLeaseIfNewRow() throws IOException {
     // Inserting the first time should update 1 row
-    Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction), 1);
+    Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction,
+        ExponentialBackoff.builder().maxRetries(MysqlMultiActiveLeaseArbiter.MAX_RETRIES)
+            .initialDelay(MysqlMultiActiveLeaseArbiter.MIN_INITIAL_DELAY_MILLIS).build()), 1);
     // Inserting the second time should not update any rows
-    Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction), 0);
+    Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction,
+        ExponentialBackoff.builder().maxRetries(MysqlMultiActiveLeaseArbiter.MAX_RETRIES)
+            .initialDelay(MysqlMultiActiveLeaseArbiter.MIN_INITIAL_DELAY_MILLIS).build()), 0);
   }
 
     /*
