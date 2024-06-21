@@ -65,7 +65,9 @@ public class MysqlSpecStoreTest {
   private final URI uri2 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg2").setFlowGroup("fn2"));
   private final URI uri3 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg3").setFlowGroup("fn3"));
   private final URI uri4 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg4").setFlowGroup("fn4"));
-  private FlowSpec flowSpec1, flowSpec2, flowSpec3, flowSpec4;
+  private final URI uri5 = FlowSpec.Utils.createFlowSpecUri(new FlowId().setFlowName("fg5").setFlowGroup("fn5"));
+
+  private FlowSpec flowSpec1, flowSpec2, flowSpec3, flowSpec4,flowSpec5,flowSpec5Updated;
 
   public MysqlSpecStoreTest()
       throws URISyntaxException { // (based on `uri1` and other initializations just above)
@@ -130,6 +132,35 @@ public class MysqlSpecStoreTest {
         .withDescription("Test flow spec 4")
         .withVersion("Test version 4")
         .build();
+    flowSpec5=
+        FlowSpec.builder(this.uri5)
+            .withConfig(ConfigBuilder.create()
+                .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "source")
+                .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
+                .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0 0 8 * * ? *")
+                .addPrimitive(ConfigurationKeys.FLOW_OWNING_GROUP_KEY, "owningGroup")
+                .addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false")
+                .addPrimitive("user.to.proxy", "userA")
+                .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg5")
+                .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn5").build())
+            .withDescription("Test flow spec 5")
+            .withVersion("Test version 5")
+            .build();
+
+    flowSpec5Updated=
+        FlowSpec.builder(this.uri5)
+            .withConfig(ConfigBuilder.create()
+                .addPrimitive(FLOW_SOURCE_IDENTIFIER_KEY, "sourceUpdated")
+                .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destinationUpdated")
+                .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0 0 9 * * ? *")
+                .addPrimitive(ConfigurationKeys.FLOW_OWNING_GROUP_KEY, "owningGroupUpdated")
+                .addPrimitive(ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "true")
+                .addPrimitive("user.to.proxy", "userAUpdated")
+                .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg5")
+                .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn5").build())
+            .withDescription("Test flow spec 5")
+            .withVersion("Test version 5")
+            .build();
   }
 
   @AfterClass(alwaysRun = true)
@@ -214,6 +245,60 @@ public class MysqlSpecStoreTest {
     specs = this.specStore.getSpecs(flowSpecSearchObject);
     Assert.assertEquals(specs.size(), 1);
     Assert.assertTrue(specs.contains(this.flowSpec4));
+  }
+  @Test
+  public void testGetSpecsAfterUpdate() throws Exception {
+    this.specStore.addSpec(this.flowSpec5);
+    FlowSpec result = (FlowSpec) this.specStore.getSpec(this.uri5);
+    removeModificationTimestampFromSpecs(result);
+    Assert.assertEquals(result, this.flowSpec5);
+    // Updating  flowSpec5
+    this.specStore.addSpec(this.flowSpec5Updated);
+
+    FlowSpecSearchObject flowSpecSearchObject = FlowSpecSearchObject.builder().flowGroup("fg5").build();
+    Collection<Spec>  specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertTrue(specs.contains(this.flowSpec5Updated));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().flowName("fn5").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertTrue(specs.contains(this.flowSpec5Updated));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().flowName("fn5").flowGroup("fg5").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 1);
+    Assert.assertTrue(specs.contains(this.flowSpec5Updated));
+
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().propertyFilter(FLOW_SOURCE_IDENTIFIER_KEY+"="+"sourceUpdated").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertTrue(specs.contains(this.flowSpec5Updated));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().propertyFilter(FLOW_DESTINATION_IDENTIFIER_KEY+"="+"destinationUpdated").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertTrue(specs.contains(this.flowSpec5Updated));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().propertyFilter(ConfigurationKeys.JOB_SCHEDULE_KEY+"="+"0 0 9 * * ? *").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertTrue(specs.contains(this.flowSpec5Updated));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().propertyFilter(ConfigurationKeys.FLOW_OWNING_GROUP_KEY+"="+"owningGroupUpdated").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertTrue(specs.contains(this.flowSpec5Updated));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().propertyFilter(ConfigurationKeys.FLOW_RUN_IMMEDIATELY+"="+"true").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertTrue(specs.contains(this.flowSpec5Updated));
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().propertyFilter("user.to.proxy=userAUpdated").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertTrue(specs.contains(this.flowSpec5Updated));
+
+    //Deleting the spec
+    this.specStore.deleteSpec(this.flowSpec5Updated);
+
+    flowSpecSearchObject = FlowSpecSearchObject.builder().flowName("fn5").flowGroup("fg5").build();
+    specs = this.specStore.getSpecs(flowSpecSearchObject);
+    Assert.assertEquals(specs.size(), 0);
   }
 
   @Test  (dependsOnMethods = "testGetSpec")
