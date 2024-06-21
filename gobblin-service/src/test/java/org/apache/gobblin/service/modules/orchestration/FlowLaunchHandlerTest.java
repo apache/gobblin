@@ -67,8 +67,8 @@ public class FlowLaunchHandlerTest {
     originalProperties.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY, "1");
     oldJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
 
-    JobDataMap newJobDataMap = FlowLaunchHandler.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
-        schedulerBackOffMillis);
+    JobDataMap newJobDataMap =
+        FlowLaunchHandler.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus, schedulerBackOffMillis);
     Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     Assert.assertTrue(newProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY).endsWith(cronExpressionSuffix));
     Assert.assertNotEquals("0",
@@ -76,6 +76,25 @@ public class FlowLaunchHandlerTest {
     Assert.assertEquals(String.valueOf(leasedToAnotherStatus.getEventTimeMillis()),
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY));
     Assert.assertTrue(Boolean.parseBoolean(newProperties.getProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY)));
+    // Note these objects refer to the same object because the original map is passed to updatePropsInJobDataMap
+    Assert.assertSame(oldJobDataMap, newJobDataMap);
+  }
+
+  /**
+   * Assert that the JobDataMap and Properties objects do not reference the same memory location if using
+   */
+  @Test
+  public void testDeepCopyJobDataMap() {
+    JobDataMap originalJobDataMap = new JobDataMap();
+    Properties properties = new Properties();
+    properties.setProperty("key", "value");
+    originalJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, properties);
+
+    JobDataMap newJobDataMap = FlowLaunchHandler.deepCopyJobDataMap(originalJobDataMap);
+
+    Assert.assertNotSame(originalJobDataMap, newJobDataMap);
+    Assert.assertNotSame(originalJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY),
+        newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY));
   }
 
   /**

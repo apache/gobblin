@@ -24,6 +24,7 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Locale;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
@@ -233,7 +234,7 @@ public class FlowLaunchHandler {
       throws SchedulerException {
     JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
     jobDetail.setKey(reminderKey);
-    JobDataMap jobDataMap = jobDetail.getJobDataMap();
+    JobDataMap jobDataMap = deepCopyJobDataMap(jobDetail.getJobDataMap());
     jobDataMap = updatePropsInJobDataMap(jobDataMap, status, schedulerMaxBackoffMillis);
     jobDetail.setJobDataMap(jobDataMap);
     return jobDetail;
@@ -273,6 +274,27 @@ public class FlowLaunchHandler {
     // Update job data map and reset it in jobDetail
     jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, prevJobProps);
     return jobDataMap;
+  }
+
+  public static JobDataMap deepCopyJobDataMap(JobDataMap original) {
+    JobDataMap copy = new JobDataMap();
+    for (Map.Entry<String, Object> entry : original.entrySet()) {
+      // Assuming all values stored in the JobDataMap are serializable
+      Object value = entry.getValue();
+      if(value instanceof Properties) {
+        value = deepCopyProperties((Properties) value);
+      }
+      copy.put(entry.getKey(), value);
+    }
+    return copy;
+  }
+
+  public static Properties deepCopyProperties(Properties original) {
+    Properties copy = new Properties();
+    for (String key : original.stringPropertyNames()) {
+      copy.setProperty(key, original.getProperty(key));
+    }
+    return copy;
   }
 
   /**
