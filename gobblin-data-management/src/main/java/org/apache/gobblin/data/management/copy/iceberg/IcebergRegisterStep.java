@@ -159,8 +159,11 @@ public class IcebergRegisterStep implements CommitStep {
       @Override
       public <V> void onRetry(Attempt<V> attempt) {
         if (attempt.hasException()) {
-          String msg = String.format("Exception caught while registering iceberg table [attempt: %d; %s after start]",
-              attempt.getAttemptNumber(), Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());
+          String msg = String.format("Exception caught while registering iceberg table : (src: {%s}) - (dest: {%s}) : [attempt: %d; %s after start]",
+                                      srcTableIdStr,
+                                      destTableIdStr,
+                                      attempt.getAttemptNumber(),
+                                      Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());
           log.warn(msg, attempt.getExceptionCause());
         }
       }

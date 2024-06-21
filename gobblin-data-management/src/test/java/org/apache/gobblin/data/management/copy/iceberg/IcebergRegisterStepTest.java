@@ -104,8 +104,7 @@ public class IcebergRegisterStepTest {
       Assert.fail("Expected Runtime Exception");
     } catch (RuntimeException re) {
       // The default number of retries is 5 so register iceberg table should fail after retrying for 5 times
-      String msg = String.format("Failed to register iceberg table : (src: {%s}) - (dest: {%s}) : (retried %d times)", srcTableId, destTableId, 5);
-      Assert.assertTrue(re.getMessage().startsWith(msg), re.getMessage());
+      assertRetryTimes(re, 5);
     }
   }
 
@@ -126,8 +125,7 @@ public class IcebergRegisterStepTest {
       Assert.fail("Expected Runtime Exception");
     } catch (RuntimeException re) {
       // register iceberg table should fail after retrying for retryCount times mentioned above
-      String msg = String.format("Failed to register iceberg table : (src: {%s}) - (dest: {%s}) : (retried %d times)", srcTableId, destTableId, Integer.parseInt(retryCount));
-      Assert.assertTrue(re.getMessage().startsWith(msg), re.getMessage());
+      assertRetryTimes(re, Integer.parseInt(retryCount));
     }
   }
 
@@ -167,5 +165,10 @@ public class IcebergRegisterStepTest {
         return mockSingleTableIcebergCatalog(mockTable);
       }
     };
+  }
+
+  private void assertRetryTimes(RuntimeException re, Integer retryTimes) {
+    String msg = String.format("Failed to register iceberg table : (src: {%s}) - (dest: {%s}) : (retried %d times)", srcTableId, destTableId, retryTimes);
+    Assert.assertTrue(re.getMessage().startsWith(msg), re.getMessage());
   }
 }
