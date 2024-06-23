@@ -292,7 +292,7 @@ public class FlowLaunchHandler {
   public static Properties deepCopyProperties(Properties original) {
     Properties copy = new Properties();
     for (String key : original.stringPropertyNames()) {
-      copy.setProperty(key, original.getProperty(key));
+      copy.setProperty(new String(key), new String(original.getProperty(key)));
     }
     return copy;
   }

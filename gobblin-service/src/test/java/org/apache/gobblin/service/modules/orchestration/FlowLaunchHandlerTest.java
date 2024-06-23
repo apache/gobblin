@@ -86,15 +86,15 @@ public class FlowLaunchHandlerTest {
   @Test
   public void testDeepCopyJobDataMap() {
     JobDataMap originalJobDataMap = new JobDataMap();
-    Properties properties = new Properties();
-    properties.setProperty("key", "value");
-    originalJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, properties);
+    Properties originalProperties = new Properties();
+    originalProperties.setProperty("key", "value");
+    originalJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
 
     JobDataMap newJobDataMap = FlowLaunchHandler.deepCopyJobDataMap(originalJobDataMap);
 
     Assert.assertNotSame(originalJobDataMap, newJobDataMap);
-    Assert.assertNotSame(originalJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY),
-        newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY));
+    Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
+    Assert.assertNotSame(originalProperties, newProperties);
   }
 
   /**
