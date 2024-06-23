@@ -245,8 +245,9 @@ public class FlowLaunchHandler {
   }
 
   /**
-   * Updates the cronExpression, reminderTimestamp, originalEventTime values in the properties map of a JobDataMap
-   * provided returns the updated JobDataMap to the user
+   * Adds the cronExpression, reminderTimestamp, originalEventTime values in the properties map of a JobDataMap
+   * provided returns the updated JobDataMap to the user. This method modifies the JobDataMap and Properties map
+   * provided as input.
    * @param jobDataMap
    * @param leasedToAnotherStatus
    * @param schedulerMaxBackoffMillis
@@ -255,24 +256,24 @@ public class FlowLaunchHandler {
   @VisibleForTesting
   public static JobDataMap updatePropsInJobDataMap(JobDataMap jobDataMap,
       LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus, int schedulerMaxBackoffMillis) {
-    Properties prevJobProps = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
+    Properties jobProperties = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     // Add a small randomization to the minimum reminder wait time to avoid 'thundering herd' issue
     long delayPeriodMillis = leasedToAnotherStatus.getMinimumLingerDurationMillis()
         + random.nextInt(schedulerMaxBackoffMillis);
     String cronExpression = createCronFromDelayPeriod(delayPeriodMillis);
-    prevJobProps.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
+    jobProperties.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
     // Saves the following properties in jobProps to retrieve when the trigger fires
-    prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY,
+    jobProperties.setProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY,
         String.valueOf(getUTCTimeFromDelayPeriod(delayPeriodMillis)));
     // Use the db consensus timestamp for the reminder to ensure inter-host agreement. Participant trigger timestamps
     // can differ between participants and be interpreted as a reminder for a distinct flow trigger which will cause
     // excess flows to be triggered by the reminder functionality.
-    prevJobProps.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY,
+    jobProperties.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY,
         String.valueOf(leasedToAnotherStatus.getEventTimeMillis()));
     // Use this boolean to indicate whether this is a reminder event
-    prevJobProps.setProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, String.valueOf(true));
+    jobProperties.setProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, String.valueOf(true));
     // Update job data map and reset it in jobDetail
-    jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, prevJobProps);
+    jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, jobProperties);
     return jobDataMap;
   }
 
@@ -292,7 +293,7 @@ public class FlowLaunchHandler {
   public static Properties deepCopyProperties(Properties original) {
     Properties copy = new Properties();
     for (String key : original.stringPropertyNames()) {
-      copy.setProperty(new String(key), new String(original.getProperty(key)));
+      copy.setProperty(key, original.getProperty(key));
     }
     return copy;
   }
