@@ -232,11 +232,15 @@ public class FlowLaunchHandler {
   protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, JobKey reminderKey,
       LeaseAttemptStatus.LeasedToAnotherStatus status)
       throws SchedulerException {
-    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
+    /* Cloning the original jobDetail creates a new object reference but the jobDataMap and Properties fields are
+    shallow copies that need to be replaced by deep ones to avoid shared references between the original and reminder
+    jobs in the scheduler
+     */
+    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey).clone();
     jobDetail.setKey(reminderKey);
-    JobDataMap jobDataMap = deepCopyJobDataMap(jobDetail.getJobDataMap());
-    jobDataMap = updatePropsInJobDataMap(jobDataMap, status, schedulerMaxBackoffMillis);
-    jobDetail.setJobDataMap(jobDataMap);
+    JobDataMap originalJobDataMap = jobDetail.getJobDataMap();
+    JobDataMap newJobDataMap = updatePropsInJobDataMap(originalJobDataMap, status, schedulerMaxBackoffMillis);
+    jobDetail.setJobDataMap(newJobDataMap);
     return jobDetail;
   }
 
@@ -245,9 +249,8 @@ public class FlowLaunchHandler {
   }
 
   /**
-   * Adds the cronExpression, reminderTimestamp, originalEventTime values in the properties map of a JobDataMap
-   * provided returns the updated JobDataMap to the user. This method modifies the JobDataMap and Properties map
-   * provided as input.
+   * Adds the cronExpression, reminderTimestamp, originalEventTime values in the properties map of a deep copy of the
+   * jobDataMap provided and returns the new JobDataMap to the user.
    * @param jobDataMap
    * @param leasedToAnotherStatus
    * @param schedulerMaxBackoffMillis
@@ -256,46 +259,27 @@ public class FlowLaunchHandler {
   @VisibleForTesting
   public static JobDataMap updatePropsInJobDataMap(JobDataMap jobDataMap,
       LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus, int schedulerMaxBackoffMillis) {
-    Properties jobProperties = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
+    JobDataMap newJobDataMap = (JobDataMap) jobDataMap.clone();
+    Properties newJobProperties =
+        (Properties) ((Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY)).clone();
     // Add a small randomization to the minimum reminder wait time to avoid 'thundering herd' issue
     long delayPeriodMillis = leasedToAnotherStatus.getMinimumLingerDurationMillis()
         + random.nextInt(schedulerMaxBackoffMillis);
     String cronExpression = createCronFromDelayPeriod(delayPeriodMillis);
-    jobProperties.setProperty(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
+    newJobProperties.put(ConfigurationKeys.JOB_SCHEDULE_KEY, cronExpression);
     // Saves the following properties in jobProps to retrieve when the trigger fires
-    jobProperties.setProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY,
+    newJobProperties.put(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY,
         String.valueOf(getUTCTimeFromDelayPeriod(delayPeriodMillis)));
     // Use the db consensus timestamp for the reminder to ensure inter-host agreement. Participant trigger timestamps
     // can differ between participants and be interpreted as a reminder for a distinct flow trigger which will cause
     // excess flows to be triggered by the reminder functionality.
-    jobProperties.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY,
+    newJobProperties.put(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY,
         String.valueOf(leasedToAnotherStatus.getEventTimeMillis()));
     // Use this boolean to indicate whether this is a reminder event
-    jobProperties.setProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, String.valueOf(true));
-    // Update job data map and reset it in jobDetail
-    jobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, jobProperties);
+    newJobProperties.put(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, String.valueOf(true));
+    // Replace reference to old Properties map with new cloned Properties
+    newJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, newJobProperties);
     return jobDataMap;
-  }
-
-  public static JobDataMap deepCopyJobDataMap(JobDataMap original) {
-    JobDataMap copy = new JobDataMap();
-    for (Map.Entry<String, Object> entry : original.entrySet()) {
-      // Assuming all values stored in the JobDataMap are serializable
-      Object value = entry.getValue();
-      if(value instanceof Properties) {
-        value = deepCopyProperties((Properties) value);
-      }
-      copy.put(entry.getKey(), value);
-    }
-    return copy;
-  }
-
-  public static Properties deepCopyProperties(Properties original) {
-    Properties copy = new Properties();
-    for (String key : original.stringPropertyNames()) {
-      copy.setProperty(key, original.getProperty(key));
-    }
-    return copy;
   }
 
   /**

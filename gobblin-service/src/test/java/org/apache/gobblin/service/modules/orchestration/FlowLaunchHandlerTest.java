@@ -56,7 +56,9 @@ public class FlowLaunchHandlerTest {
 
   /**
    * Provides an input with all three values (cronExpression, reminderTimestamp, originalEventTime) set in the map
-   * Properties and checks that they are updated properly
+   * Properties and checks that they are updated properly in new jobDataMap's Properties object. It checks that the
+   * JobDataMap returned along with the Properties object it contains do not reference the same
+   * original objects.
    */
   @Test
   public void testUpdatePropsInJobDataMap() {
@@ -76,26 +78,11 @@ public class FlowLaunchHandlerTest {
     Assert.assertEquals(String.valueOf(leasedToAnotherStatus.getEventTimeMillis()),
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY));
     Assert.assertTrue(Boolean.parseBoolean(newProperties.getProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY)));
-    // Note these objects refer to the same object because the original map is passed to updatePropsInJobDataMap
-    Assert.assertSame(oldJobDataMap, newJobDataMap);
-  }
 
-  /**
-   * Assert that the JobDataMap and Properties objects do not reference the same memory location if using
-   */
-  @Test
-  public void testDeepCopyJobDataMap() {
-    JobDataMap originalJobDataMap = new JobDataMap();
-    Properties originalProperties = new Properties();
-    originalProperties.setProperty("key", "value");
-    originalJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
-
-    JobDataMap newJobDataMap = FlowLaunchHandler.deepCopyJobDataMap(originalJobDataMap);
-
-    Assert.assertNotSame(originalJobDataMap, newJobDataMap);
-    Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
+    Assert.assertNotSame(oldJobDataMap, newJobDataMap);
     Assert.assertNotSame(originalProperties, newProperties);
   }
+
 
   /**
    * Provides input with an empty Properties object and checks that the three values in question are set.
@@ -114,6 +101,9 @@ public class FlowLaunchHandlerTest {
     Assert.assertEquals(String.valueOf(leasedToAnotherStatus.getEventTimeMillis()),
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY));
     Assert.assertTrue(Boolean.parseBoolean(newProperties.getProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY)));
+
+    Assert.assertNotSame(oldJobDataMap, newJobDataMap);
+    Assert.assertNotSame(originalProperties, newProperties);
   }
 
   /**
