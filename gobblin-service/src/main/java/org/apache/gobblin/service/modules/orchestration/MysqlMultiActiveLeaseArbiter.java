@@ -249,7 +249,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
 
   @Override
   public LeaseAttemptStatus tryAcquireLease(DagActionStore.DagActionLeaseObject dagActionLeaseObject, boolean adoptConsensusFlowExecutionId) throws IOException {
-    log.info("Multi-active scheduler about to handle trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
+    log.info("Multi-active lease arbiter about to handle trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
        dagActionLeaseObject.getDagAction(), dagActionLeaseObject.isReminder() ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis());
     // Query lease arbiter table about this dag action
     Optional<GetEventInfoResult> getResult = getExistingEventInfo(dagActionLeaseObject);
@@ -302,11 +302,13 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         }
       }
 
-      log.info("Multi-active arbiter replacing local trigger event timestamp [{}, is: {}, triggerEventTimestamp: {}] "
-          + "with database eventTimestamp {} (in epoch-millis)", dagActionLeaseObject.getDagAction(),
-          dagActionLeaseObject.isReminder ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis(),
-          dbCurrentTimestamp.getTime());
-
+      // TODO: check whether reminder event before replacing flowExecutionId
+      if (adoptConsensusFlowExecutionId) {
+        log.info("Multi-active arbiter replacing local trigger event timestamp [{}, is: {}, triggerEventTimestamp: {}] "
+                + "with database eventTimestamp {} (in epoch-millis)", dagActionLeaseObject.getDagAction(),
+            dagActionLeaseObject.isReminder ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis(),
+            dbCurrentTimestamp.getTime());
+      }
       /* Note that we use `adoptConsensusFlowExecutionId` parameter's value to determine whether we should use the db
       laundered event timestamp as the flowExecutionId or maintain the original one
        */
@@ -444,7 +446,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
             } catch (InterruptedException e2) {
               throw new IOException(e2);
             }
-            throw e; 
+            throw e;
           }
           catch (SQLIntegrityConstraintViolationException e) {
             if (!e.getMessage().contains("Duplicate entry")) {
