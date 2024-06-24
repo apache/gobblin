@@ -19,8 +19,8 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.net.URI;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -98,12 +98,7 @@ public class MostlyMySqlDagManagementStateStoreTest {
     Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getDag(dagId).get().toString());
     Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNodeWithJobStatus(dagNodeId).getLeft().get());
 
-    List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
-    Assert.assertEquals(2, dagNodes.size());
-    Assert.assertEquals(dagNode, dagNodes.get(0));
-    Assert.assertEquals(dagNode2, dagNodes.get(1));
-
-    dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
+    Set<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
     Assert.assertEquals(2, dagNodes.size());
     Assert.assertTrue(dagNodes.contains(dagNode));
     Assert.assertTrue(dagNodes.contains(dagNode2));

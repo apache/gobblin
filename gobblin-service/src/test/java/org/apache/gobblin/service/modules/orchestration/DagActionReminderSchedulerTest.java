@@ -54,8 +54,8 @@ public class DagActionReminderSchedulerTest {
     long reminderDuration = 666L;
     Supplier<Long> getCurrentTimeMillis = () -> 12345600000L;
     Trigger reminderTrigger = DagActionReminderScheduler
-        .createReminderJobTrigger(launchDagAction, reminderDuration, getCurrentTimeMillis);
-    Assert.assertEquals(reminderTrigger.getKey().toString(), flowGroup + "." + expectedKey);
+        .createReminderJobTrigger(launchDagAction, reminderDuration, getCurrentTimeMillis, false);
+    Assert.assertEquals(reminderTrigger.getKey().toString(), DagActionReminderScheduler.RetryReminderKeyGroup + "." + expectedKey);
     List<Date> fireTimes = TriggerUtils.computeFireTimes((OperableTrigger) reminderTrigger, null, 1);
     Assert.assertEquals(fireTimes.get(0), new Date(reminderDuration + getCurrentTimeMillis.get()));
   }
@@ -63,8 +63,8 @@ public class DagActionReminderSchedulerTest {
   @Test
   public void testCreateReminderJobDetail() {
     long expectedEventTimeMillis = 55L;
-    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(new DagActionStore.DagActionLeaseObject(launchDagAction, false, expectedEventTimeMillis));
-    Assert.assertEquals(jobDetail.getKey().toString(), flowGroup + "." + expectedKey);
+    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(new DagActionStore.DagActionLeaseObject(launchDagAction, false, expectedEventTimeMillis), false);
+    Assert.assertEquals(jobDetail.getKey().toString(), DagActionReminderScheduler.RetryReminderKeyGroup + "." + expectedKey);
     JobDataMap dataMap = jobDetail.getJobDataMap();
     Assert.assertEquals(dataMap.get(ConfigurationKeys.FLOW_GROUP_KEY), flowGroup);
     Assert.assertEquals(dataMap.get(ConfigurationKeys.FLOW_NAME_KEY), flowName);
