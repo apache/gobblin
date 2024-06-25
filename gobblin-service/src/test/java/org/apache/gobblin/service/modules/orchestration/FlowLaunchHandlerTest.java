@@ -81,6 +81,7 @@ public class FlowLaunchHandlerTest {
 
     Assert.assertNotSame(oldJobDataMap, newJobDataMap);
     Assert.assertNotSame(originalProperties, newProperties);
+    Assert.assertFalse(originalProperties.containsKey(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY));
   }
 
 
@@ -107,6 +108,7 @@ public class FlowLaunchHandlerTest {
 
     Assert.assertNotSame(oldJobDataMap, newJobDataMap);
     Assert.assertNotSame(originalProperties, newProperties);
+    Assert.assertFalse(originalProperties.containsKey(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY));
   }
 
   /**
