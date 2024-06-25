@@ -246,8 +246,10 @@ public class FlowLaunchHandler {
   }
 
   /**
-   * Adds the cronExpression, reminderTimestamp, originalEventTime values in the properties map of a deep copy of the
-   * jobDataMap provided and returns the new JobDataMap to the user.
+   * Adds the cronExpression, reminderTimestamp, originalEventTime values in the properties map of a new jobDataMap
+   * cloned from the one provided and returns the new JobDataMap to the user.
+   * Note: the jobDataMap and Properties field reference different objects than the original, but the keys and values
+   * themselves are not cloned.
    * @param jobDataMap
    * @param leasedToAnotherStatus
    * @param schedulerMaxBackoffMillis
