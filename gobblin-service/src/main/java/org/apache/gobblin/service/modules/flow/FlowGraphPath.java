@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.flow;
 
-import com.google.common.collect.Maps;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -32,6 +31,7 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
+import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;

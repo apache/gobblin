@@ -19,8 +19,8 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.net.URI;
 import java.util.HashMap;
-import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -29,12 +29,14 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
@@ -98,12 +100,7 @@ public class MostlyMySqlDagManagementStateStoreTest {
     Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getDag(dagId).get().toString());
     Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNodeWithJobStatus(dagNodeId).getLeft().get());
 
-    List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
-    Assert.assertEquals(2, dagNodes.size());
-    Assert.assertEquals(dagNode, dagNodes.get(0));
-    Assert.assertEquals(dagNode2, dagNodes.get(1));
-
-    dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
+    Set<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
     Assert.assertEquals(2, dagNodes.size());
     Assert.assertTrue(dagNodes.contains(dagNode));
     Assert.assertTrue(dagNodes.contains(dagNode2));
@@ -112,6 +109,14 @@ public class MostlyMySqlDagManagementStateStoreTest {
     Assert.assertFalse(this.dagManagementStateStore.getDagNodes(dagId).contains(dagNode));
     Assert.assertTrue(this.dagManagementStateStore.getDagNodes(dagId).contains(dagNode2));
     Assert.assertTrue(this.dagManagementStateStore.getDagNodes(dagId2).contains(dagNode3));
+
+    // test to verify that adding a new dag node with the same dag node id (defined by the jobSpec) replaces the existing one
+    Assert.assertEquals(this.dagManagementStateStore.getDagNodes(dagId).size(), 1);
+    JobExecutionPlan duplicateJobExecutionPlan = new JobExecutionPlan(dagNode2.getValue().getJobSpec(),
+        new MockedSpecExecutor(ConfigFactory.empty()));
+    Dag.DagNode<JobExecutionPlan> duplicateDagNode = new Dag.DagNode<>(duplicateJobExecutionPlan);
+    this.dagManagementStateStore.addDagNodeState(duplicateDagNode, dagId);
+    Assert.assertEquals(this.dagManagementStateStore.getDagNodes(dagId).size(), 1);
   }
 
   public static MostlyMySqlDagManagementStateStore getDummyDMSS(ITestMetastoreDatabase testMetastoreDatabase) throws Exception {

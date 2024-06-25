@@ -31,6 +31,7 @@ import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
 import org.quartz.impl.StdSchedulerFactory;
 
 import javax.inject.Inject;
@@ -45,10 +46,20 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
  * This class is used to keep track of reminders of pending flow action events to execute. A host calls the
  * {#scheduleReminderJob} on a flow action that it failed to acquire a lease on but has not yet completed. The reminder
  * will fire once the previous lease owner's lease is expected to expire.
+ * There are two type of reminders, i) Deadline reminders, that are created while processing deadline
+ * {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.DagActionType#ENFORCE_FLOW_FINISH_DEADLINE} and
+ * {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.DagActionType#ENFORCE_JOB_START_DEADLINE} when
+ * they set reminder for the duration equals for the "deadline time", and ii) Retry reminders, that are created to retry
+ * the processing of any dag action in case the first attempt by other lease owner fails.
+ * Note that deadline dag actions first create `Deadline reminders` and then `Retry reminders` in their life-cycle, while
+ * other dag actions only create `Retry reminders`.
  */
+@Slf4j
 @Singleton
 public class DagActionReminderScheduler {
   public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
+  public static final String RetryReminderKeyGroup = "RetryReminder";
+  public static final String DeadlineReminderKeyGroup = "DeadlineReminder";
   private final Scheduler quartzScheduler;
 
   @Inject
@@ -65,16 +76,20 @@ public class DagActionReminderScheduler {
    * @param reminderDurationMillis
    * @throws SchedulerException
    */
-  public void scheduleReminder(DagActionStore.DagActionLeaseObject dagActionLeaseObject, long reminderDurationMillis)
+  public void scheduleReminder(DagActionStore.DagActionLeaseObject dagActionLeaseObject, long reminderDurationMillis,
+      boolean isDeadlineReminder)
       throws SchedulerException {
-    JobDetail jobDetail = createReminderJobDetail(dagActionLeaseObject);
+    JobDetail jobDetail = createReminderJobDetail(dagActionLeaseObject, isDeadlineReminder);
     Trigger trigger = createReminderJobTrigger(dagActionLeaseObject.getDagAction(), reminderDurationMillis,
-        System::currentTimeMillis);
+        System::currentTimeMillis, isDeadlineReminder);
+    log.info("Reminder set for dagAction {} to fire after {} ms, isDeadlineTrigger: {}",
+        dagActionLeaseObject.getDagAction(), reminderDurationMillis, isDeadlineReminder);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
 
-  public void unscheduleReminderJob(DagActionStore.DagAction dagAction) throws SchedulerException {
-    quartzScheduler.deleteJob(createJobKey(dagAction));
+  public void unscheduleReminderJob(DagActionStore.DagAction dagAction, boolean isDeadlineTrigger) throws SchedulerException {
+    log.info("Reminder unset for dagAction {}, isDeadlineTrigger: {}", dagAction, isDeadlineTrigger);
+    quartzScheduler.deleteJob(createJobKey(dagAction, isDeadlineTrigger));
   }
 
   /**
@@ -124,15 +139,20 @@ public class DagActionReminderScheduler {
    * Creates a JobKey object for the reminder job where the name is the DagActionReminderKey from above and the group is
    * the flowGroup
    */
-  public static JobKey createJobKey(DagActionStore.DagAction dagAction) {
-    return new JobKey(createDagActionReminderKey(dagAction), dagAction.getFlowGroup());
+  public static JobKey createJobKey(DagActionStore.DagAction dagAction, boolean isDeadlineReminder) {
+    return new JobKey(createDagActionReminderKey(dagAction), isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
+  }
+
+  private static TriggerKey createTriggerKey(DagActionStore.DagAction dagAction, boolean isDeadlineReminder) {
+    return new TriggerKey(createDagActionReminderKey(dagAction), isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
   }
 
   /**
    * Creates a jobDetail containing flow and job identifying information in the jobDataMap, uniquely identified
-   *  by a key comprised of the dagAction's fields.
+   *  by a key comprised of the dagAction's fields. boolean isDeadlineReminder is flag that tells if this createReminder
+   *  requests are for deadline dag actions that are setting reminder for deadline duration.
    */
-  public static JobDetail createReminderJobDetail(DagActionStore.DagActionLeaseObject dagActionLeaseObject) {
+  public static JobDetail createReminderJobDetail(DagActionStore.DagActionLeaseObject dagActionLeaseObject, boolean isDeadlineReminder) {
     JobDataMap dataMap = new JobDataMap();
     dataMap.put(ConfigurationKeys.FLOW_NAME_KEY, dagActionLeaseObject.getDagAction().getFlowName());
     dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, dagActionLeaseObject.getDagAction().getFlowGroup());
@@ -142,8 +162,7 @@ public class DagActionReminderScheduler {
     dataMap.put(ReminderJob.FLOW_ACTION_EVENT_TIME_KEY, dagActionLeaseObject.getEventTimeMillis());
 
     return JobBuilder.newJob(ReminderJob.class)
-        .withIdentity(createDagActionReminderKey(dagActionLeaseObject.getDagAction()),
-            dagActionLeaseObject.getDagAction().getFlowGroup())
+        .withIdentity(createJobKey(dagActionLeaseObject.getDagAction(), isDeadlineReminder))
         .usingJobData(dataMap)
         .build();
   }
@@ -154,9 +173,9 @@ public class DagActionReminderScheduler {
    * `getCurrentTimeMillis` to determine the current time.
    */
   public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis,
-      Supplier<Long> getCurrentTimeMillis) {
+      Supplier<Long> getCurrentTimeMillis, boolean isDeadlineReminder) {
     return TriggerBuilder.newTrigger()
-        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())
+        .withIdentity(createTriggerKey(dagAction, isDeadlineReminder))
         .startAt(new Date(getCurrentTimeMillis.get() + reminderDurationMillis))
         .build();
   }
