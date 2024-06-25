@@ -101,7 +101,7 @@ jobs:
     needs: build
     services:
       mysql:
-        image: mysql:5.7.32
+        image: mysql:8.0.20
         env:
           MYSQL_USER: testUser
           MYSQL_PASSWORD: testPassword
