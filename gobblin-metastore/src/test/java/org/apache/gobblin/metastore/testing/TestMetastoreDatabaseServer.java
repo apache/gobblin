@@ -46,7 +46,6 @@ class TestMetastoreDatabaseServer implements Closeable {
 
   private static final String INFORMATION_SCHEMA = "information_schema";
   private static final String ROOT_USER = "root";
-  private static final String ROOT_PASSWORD = "password";
   private static final String DROP_DATABASE_TEMPLATE = "DROP DATABASE IF EXISTS %s;";
   private static final String CREATE_DATABASE_TEMPLATE = "CREATE DATABASE %s CHARACTER SET = %s COLLATE = %s;";
   private static final String ADD_USER_TEMPLATE = "GRANT ALL ON %s.* TO '%s'@'%%';";
@@ -84,8 +83,8 @@ class TestMetastoreDatabaseServer implements Closeable {
       mySQLContainer = new MySQLContainer<>("mysql:" + MYSQL_VERSION)
           .withUsername(this.dbUserName)
           .withPassword(this.dbUserPassword);
+      mySQLContainer.withEnv(MYSQL_ROOT_PASSWORD_KEY, this.dbUserPassword);
       mySQLContainer.start();
-      mySQLContainer.withEnv(MYSQL_ROOT_PASSWORD_KEY, ROOT_PASSWORD);
 
       this.dbHost = mySQLContainer.getHost();
       this.dbPort = mySQLContainer.getFirstMappedPort();
@@ -146,7 +145,7 @@ class TestMetastoreDatabaseServer implements Closeable {
 
   private MySqlJdbcUrl getInformationSchemaJdbcUrl() throws URISyntaxException {
     // embedded mysql has an empty password by default
-    String password =  this.embeddedMysqlEnabled ? "" : ROOT_PASSWORD;
+    String password =  this.embeddedMysqlEnabled ? "" : this.dbUserPassword;
     return getBaseJdbcUrl()
         .setPath(INFORMATION_SCHEMA)
         .setUser(ROOT_USER)
