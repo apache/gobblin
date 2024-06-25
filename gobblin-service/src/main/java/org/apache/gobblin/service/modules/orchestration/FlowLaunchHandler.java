@@ -231,10 +231,11 @@ public class FlowLaunchHandler {
   protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, JobKey reminderKey,
       LeaseAttemptStatus.LeasedToAnotherStatus status)
       throws SchedulerException {
-    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey).clone();
-    JobDataMap originalJobDataMap = jobDetail.getJobDataMap();
-    JobDataMap newJobDataMap = updatePropsInJobDataMap(originalJobDataMap, status, schedulerMaxBackoffMillis);
-    jobDetail.setJobDataMap(newJobDataMap);
+    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey);
+    jobDetail.setKey(reminderKey);
+    JobDataMap jobDataMap = jobDetail.getJobDataMap();
+    jobDataMap = updatePropsInJobDataMap(jobDataMap, status, schedulerMaxBackoffMillis);
+    jobDetail.setJobDataMap(jobDataMap);
     return jobDetail;
   }
 
@@ -253,10 +254,7 @@ public class FlowLaunchHandler {
   @VisibleForTesting
   public static JobDataMap updatePropsInJobDataMap(JobDataMap jobDataMap,
       LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus, int schedulerMaxBackoffMillis) {
-    JobDataMap newJobDataMap = (JobDataMap) jobDataMap.clone();
     Properties prevJobProps = (Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
-    Properties newJobProperties =
-        (Properties) ((Properties) jobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY)).clone();
     // Add a small randomization to the minimum reminder wait time to avoid 'thundering herd' issue
     long delayPeriodMillis = leasedToAnotherStatus.getMinimumLingerDurationMillis()
         + random.nextInt(schedulerMaxBackoffMillis);
