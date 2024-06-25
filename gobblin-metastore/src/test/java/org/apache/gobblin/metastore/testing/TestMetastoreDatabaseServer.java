@@ -63,7 +63,7 @@ class TestMetastoreDatabaseServer implements Closeable {
   public static final String DBPORT_KEY = "dbPort";
   public static final String DBPORT_FULL_KEY = CONFIG_PREFIX + "." + DBPORT_KEY;
   public static final String MYSQL_VERSION = "8.0.20";
-  public static final String MYSQL_ROOT_PASSWORD = "MYSQL_ROOT_PASSWORD";
+  public static final String MYSQL_ROOT_PASSWORD_KEY = "MYSQL_ROOT_PASSWORD";
   private static final String CHARSET_UTF_8_MB_4 = "utf8mb4";
   private static final String COLLATE_UTF_8_MB_4_UNICODE_CI = "utf8mb4_unicode_ci";
 
@@ -83,10 +83,10 @@ class TestMetastoreDatabaseServer implements Closeable {
     if (this.embeddedMysqlEnabled) {
       mySQLContainer = new MySQLContainer<>("mysql:" + MYSQL_VERSION)
           .withUsername(this.dbUserName)
-          .withPassword(this.dbUserPassword)
-          .withEnv(MYSQL_ROOT_PASSWORD, "");
-
+          .withPassword(this.dbUserPassword);
       mySQLContainer.start();
+      mySQLContainer.withEnv(MYSQL_ROOT_PASSWORD_KEY, ROOT_PASSWORD);
+
       this.dbHost = mySQLContainer.getHost();
       this.dbPort = mySQLContainer.getFirstMappedPort();
 
