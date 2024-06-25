@@ -35,5 +35,5 @@ public interface DagManagement {
   /**
    * Used to add reminder dagActions to the queue that already contain an eventTimestamp from the previous lease attempt
    */
-  void addReminderDagAction(DagActionStore.DagActionLeaseObject reminderDagActionLeaseObject) throws IOException;
+  void addReminderDagAction(DagActionStore.DagActionLeaseParams reminderDagActionLeaseParams) throws IOException;
 }

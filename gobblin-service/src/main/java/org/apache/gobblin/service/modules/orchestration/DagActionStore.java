@@ -28,6 +28,12 @@ import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 
 
+/**
+ * This interface defines the generic APIs for storing and retrieval of {@link DagAction}s in GaaS. This store maintains
+ * state about the new actions to be performed on a flow or job, which can be initiated by either client requests or
+ * the GaaS system itself to progress a flow execution and enforce system constraints. The flow management layer
+ * retrieves these new requests and executes them.
+ */
 public interface DagActionStore {
   public static final String NO_JOB_NAME_DEFAULT = "";
   enum DagActionType {
@@ -39,6 +45,13 @@ public interface DagActionStore {
     RESUME, // Resume flow invoked through API call
   }
 
+  /**
+   * A DagAction uniquely identifies a particular flow (or job level) execution and the action to be performed on it,
+   * denoted by the `dagActionType` field. Flow group, name, and executionId are sufficient to define a flow level
+   * action (used with NO_JOB_NAME_DEFAULT). When `jobName` is provided, it can be used to identify the specific job
+   * on which the action is to be performed. The schema of this class matches exactly with the schema of the
+   * {@link DagActionStore}.
+   */
   @Data
   @RequiredArgsConstructor
   class DagAction {
@@ -78,9 +91,15 @@ public interface DagActionStore {
     }
   }
 
+  /**
+   * This object is used locally (in-memory) by the {@link MultiActiveLeaseArbiter} to identify a particular
+   * {@link DagAction} along with the time it was requested, denoted by the `eventTimeMillis` field. It also tracks
+   * whether it has been previously passed to the {@link MultiActiveLeaseArbiter} to attempt ownership over the flow
+   * event, indicated by the 'isReminder' field (true when it has been previously attempted).
+   */
   @Data
   @RequiredArgsConstructor
-  class DagActionLeaseObject {
+  class DagActionLeaseParams {
     final DagAction dagAction;
     final boolean isReminder;
     final long eventTimeMillis;
@@ -88,10 +107,15 @@ public interface DagActionStore {
     /**
      * Creates a lease object for a dagAction and eventTimeMillis representing an original event (isReminder is False)
      */
-    public DagActionLeaseObject(DagAction dagAction, long eventTimeMillis) {
-      this.dagAction = dagAction;
-      this.isReminder = false;
-      this.eventTimeMillis = eventTimeMillis;
+    public DagActionLeaseParams(DagAction dagAction, long eventTimeMillis) {
+      this(dagAction, false, eventTimeMillis);
+    }
+
+    /**
+     *   Replace flow execution id in dagAction with agreed upon event time to easily track the flow
+     */
+    public DagAction updateDagActionFlowExecutionId(long flowExecutionId) {
+      return this.dagAction.updateFlowExecutionId(flowExecutionId);
     }
   }
 
