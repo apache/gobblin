@@ -82,6 +82,11 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
    */
   public abstract List<FlowStatus> getFlowStatusesForFlowGroupExecutions(String flowGroup, int countJobStatusesPerFlowName);
 
+  /**
+   * Get all the  {@link FlowStatus}es of executions of flows belonging to this flow group and flowName.  Currently, latest flow execution
+   * is decided by comparing {@link JobStatus#getFlowExecutionId()}.
+   * @return `FlowStatus`es are ordered by descending flowExecutionId.
+   **/
   public abstract List<FlowStatus> getAllFlowStatusesForFlowExecutionsOrdered(String flowGroup,String flowName);
 
 

@@ -166,7 +166,7 @@ public class FlowStatusGenerator {
           + " and flowStatus: " + flowExecutionStatus + " with incoming flowExecutionId: " + flowExecutionId);
 
       // Check if it is not the current flowExecutionId and the status is not in FINISHED_STATUSES
-      if (flowStatus.getFlowExecutionId() != flowExecutionId && !FINISHED_STATUSES.contains(flowExecutionStatus.name()) {
+      if (flowStatus.getFlowExecutionId() != flowExecutionId && !FINISHED_STATUSES.contains(flowExecutionStatus.name())) {
         return true;
       }
     }
