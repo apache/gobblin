@@ -54,6 +54,7 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
  * Note that deadline dag actions first create `Deadline reminders` and then `Retry reminders` in their life-cycle, while
  * other dag actions only create `Retry reminders`.
  */
+@Slf4j
 @Singleton
 public class DagActionReminderScheduler {
   public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
@@ -81,10 +82,13 @@ public class DagActionReminderScheduler {
     JobDetail jobDetail = createReminderJobDetail(dagActionLeaseObject, isDeadlineReminder);
     Trigger trigger = createReminderJobTrigger(dagActionLeaseObject.getDagAction(), reminderDurationMillis,
         System::currentTimeMillis, isDeadlineReminder);
+    log.info("Reminder set for dagAction {} to fire after {} ms, isDeadlineTrigger: {}",
+        dagActionLeaseObject.getDagAction(), reminderDurationMillis, isDeadlineReminder);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
 
   public void unscheduleReminderJob(DagActionStore.DagAction dagAction, boolean isDeadlineTrigger) throws SchedulerException {
+    log.info("Reminder unset for dagAction {}, isDeadlineTrigger: {}", dagAction, isDeadlineTrigger);
     quartzScheduler.deleteJob(createJobKey(dagAction, isDeadlineTrigger));
   }
 
