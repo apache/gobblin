@@ -61,7 +61,9 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     // Local FS has no monitor to update job state yet, for now check if standalone is completed with job, and mark as done
     // Otherwise the job is pending
     try {
-      String fileName = LocalFsSpecProducer.getJobFileName(new URI(File.separatorChar + flowGroup + File.separatorChar + flowName), String.valueOf(flowExecutionId)) + suffix;
+      String fileName =
+          LocalFsSpecProducer.getJobFileName(new URI(File.separatorChar + flowGroup + File.separatorChar + flowName),
+              String.valueOf(flowExecutionId)) + suffix;
       return new File(this.specProducerPath + File.separatorChar + fileName).exists();
     } catch (URISyntaxException e) {
       log.error("URISyntaxException occurred when retrieving job status for flow: {},{}", flowGroup, flowName, e);
@@ -90,11 +92,25 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
 
     String JOB_DONE_SUFFIX = ".done";
     if (this.doesJobExist(flowName, flowGroup, flowExecutionId, JOB_DONE_SUFFIX)) {
-      jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
-          jobName(jobName).jobGroup(jobGroup).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.COMPLETE.name()).build();
+      jobStatus = JobStatus.builder()
+          .flowName(flowName)
+          .flowGroup(flowGroup)
+          .flowExecutionId(flowExecutionId)
+          .jobName(jobName)
+          .jobGroup(jobGroup)
+          .jobExecutionId(flowExecutionId)
+          .eventName(ExecutionStatus.COMPLETE.name())
+          .build();
     } else if (this.doesJobExist(flowName, flowGroup, flowExecutionId, "")) {
-      jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).flowExecutionId(flowExecutionId).
-          jobName(jobName).jobGroup(jobGroup).jobExecutionId(flowExecutionId).eventName(ExecutionStatus.PENDING.name()).build();
+      jobStatus = JobStatus.builder()
+          .flowName(flowName)
+          .flowGroup(flowGroup)
+          .flowExecutionId(flowExecutionId)
+          .jobName(jobName)
+          .jobGroup(jobGroup)
+          .jobExecutionId(flowExecutionId)
+          .eventName(ExecutionStatus.PENDING.name())
+          .build();
     } else {
       return Collections.emptyIterator();
     }
@@ -128,6 +144,19 @@ public class LocalFsJobStatusRetriever extends JobStatusRetriever {
     Preconditions.checkArgument(flowGroup != null, "flowGroup cannot be null");
     Preconditions.checkArgument(countJobStatusesPerFlowName > 0,
         "Number of job statuses per flow name must be at least 1 (was: %s).", countJobStatusesPerFlowName);
+    throw new UnsupportedOperationException("Not yet implemented");
+  }
+
+  /**
+   * @param flowGroup
+   * @param flowName
+   * @return  all the  flow statuses for the given flowGroup and flowName.
+   */
+  @Override
+  public List<FlowStatus> getAllFlowStatusesForFlowExecutionsOrdered(String flowGroup, String flowName) {
+    Preconditions.checkArgument(flowGroup != null, "flowGroup cannot be null");
+    Preconditions.checkArgument(flowName != null, "flowName cannot be null");
+
     throw new UnsupportedOperationException("Not yet implemented");
   }
 

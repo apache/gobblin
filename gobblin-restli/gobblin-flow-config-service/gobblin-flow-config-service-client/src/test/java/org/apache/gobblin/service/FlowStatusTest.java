@@ -91,6 +91,12 @@ public class FlowStatusTest {
         int countJobStatusesPerFlowName) {
       return Lists.newArrayList(); // (as this method not exercised within `FlowStatusResource`)
     }
+
+    @Override
+    public List<org.apache.gobblin.service.monitoring.FlowStatus> getAllFlowStatusesForFlowExecutionsOrdered(
+        String flowGroup, String flowName) {
+      return Lists.newArrayList();
+    }
   }
 
   @BeforeClass

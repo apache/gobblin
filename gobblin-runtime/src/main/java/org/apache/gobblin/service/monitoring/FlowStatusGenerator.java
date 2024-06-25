@@ -154,16 +154,23 @@ public class FlowStatusGenerator {
    * @return true, if any jobs of the flow are RUNNING.
    */
   public boolean isFlowRunning(String flowName, String flowGroup, long flowExecutionId) {
-    List<FlowStatus> flowStatusList = getLatestFlowStatus(flowName, flowGroup, 1, null);
+    List<FlowStatus> flowStatusList = jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(flowName, flowGroup);
+
     if (flowStatusList == null || flowStatusList.isEmpty()) {
       return false;
-    } else {
-      FlowStatus flowStatus = flowStatusList.get(0);
-      ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
-      log.info("Comparing flow execution status with flowExecutionId: " + flowStatus.getFlowExecutionId() + " and flowStatus: " + flowExecutionStatus + " with incoming flowExecutionId: " + flowExecutionId);
-      // If the latest flow status is the current job about to get kicked off, we should ignore this check
-      return flowStatus.getFlowExecutionId() != flowExecutionId && !FINISHED_STATUSES.contains(flowExecutionStatus.name());
     }
+    // Iterating through all flow statuses to check the condition
+    for (FlowStatus flowStatus : flowStatusList) {
+      ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
+      log.info("Comparing flow execution status with flowExecutionId: " + flowStatus.getFlowExecutionId()
+          + " and flowStatus: " + flowExecutionStatus + " with incoming flowExecutionId: " + flowExecutionId);
+
+      // Check if it is not the current flowExecutionId and the status is not in FINISHED_STATUSES
+      if (flowStatus.getFlowExecutionId() != flowExecutionId && !FINISHED_STATUSES.contains(flowExecutionStatus.name()) {
+        return true;
+      }
+    }
+    return false; // Return false if all flow statuses are in terminal status
   }
 
   /** @return only `jobStatuses` that represent a flow or, when `tag != null`, represent a job tagged as `tag` */
