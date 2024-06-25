@@ -71,8 +71,8 @@ public class DagManagerFlowTest {
   private static final String TABLE = "dag_action_store";
   private static final String flowGroup = "testFlowGroup";
   private static final String flowName = "testFlowName";
-  private static final String flowExecutionId = "12345677";
-  private static final String flowExecutionId_2 = "12345678";
+  private static final long flowExecutionId = 12345677L;
+  private static final long flowExecutionId_2 = 12345678L;
   private ITestMetastoreDatabase testDb;
   private DagActionStore dagActionStore;
 
@@ -136,9 +136,9 @@ public class DagManagerFlowTest {
 
     // mock add spec
     // for very first dag to be added, add dag action to store and check its deleted by the addDag call
-    dagManager.getDagActionStore().get().addFlowDagAction("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.DagActionType.LAUNCH);
+    dagManager.getDagActionStore().get().addFlowDagAction("group0", "flow0", flowExecutionId1, DagActionStore.DagActionType.LAUNCH);
     dagManager.addDag(dag1, true, true);
-    Assert.assertFalse(dagManager.getDagActionStore().get().exists("group0", "flow0", Long.toString(flowExecutionId1), DagActionStore.DagActionType.LAUNCH));
+    Assert.assertFalse(dagManager.getDagActionStore().get().exists("group0", "flow0", flowExecutionId1, DagActionStore.DagActionType.LAUNCH));
     dagManager.addDag(dag2, true, true);
     dagManager.addDag(dag3, true, true);
 
@@ -345,15 +345,14 @@ public class DagManagerFlowTest {
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
     // Add kill action to action store and call kill
-    dagActionStore.addFlowDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.DagActionType.KILL);
+    dagActionStore.addFlowDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionType.KILL);
     dagManager.handleKillFlowRequest(flowGroup, flowName, flowExecutionId);
 
     // Check that the kill dag action is removed
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).
         assertTrue(input -> {
       try {
-        return !dagActionStore.exists(flowGroup, flowName, String.valueOf(flowExecutionId),
-            DagActionStore.DagActionType.KILL);
+        return !dagActionStore.exists(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionType.KILL);
       } catch (IOException | SQLException e) {
         throw new RuntimeException(e);
       }
@@ -362,13 +361,13 @@ public class DagManagerFlowTest {
 
 
     // Add resume action to action store and call resume
-    dagActionStore.addFlowDagAction(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.DagActionType.RESUME);
+    dagActionStore.addFlowDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionType.RESUME);
     dagManager.handleResumeFlowRequest(flowGroup, flowName, flowExecutionId);
 
     // Check that the resume dag action is removed
     AssertWithBackoff.create().maxSleepMs(5000).backoffFactor(1).assertTrue(input -> {
           try {
-            return !dagActionStore.exists(flowGroup, flowName, String.valueOf(flowExecutionId), DagActionStore.DagActionType.RESUME);
+            return !dagActionStore.exists(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionType.RESUME);
           } catch (IOException | SQLException e) {
             throw new RuntimeException(e);
           }

@@ -26,6 +26,7 @@ import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
+import org.quartz.JobKey;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
@@ -60,20 +61,20 @@ public class DagActionReminderScheduler {
   /**
    *  Uses a dagAction & reminder duration in milliseconds to create a reminder job that will fire
    *  `reminderDurationMillis` after the current time
-   * @param dagAction
+   * @param dagActionLeaseObject
    * @param reminderDurationMillis
    * @throws SchedulerException
    */
-  public void scheduleReminder(DagActionStore.DagAction dagAction, long reminderDurationMillis)
+  public void scheduleReminder(DagActionStore.DagActionLeaseObject dagActionLeaseObject, long reminderDurationMillis)
       throws SchedulerException {
-    JobDetail jobDetail = createReminderJobDetail(dagAction);
-    Trigger trigger = createReminderJobTrigger(dagAction, reminderDurationMillis, System::currentTimeMillis);
+    JobDetail jobDetail = createReminderJobDetail(dagActionLeaseObject);
+    Trigger trigger = createReminderJobTrigger(dagActionLeaseObject.getDagAction(), reminderDurationMillis,
+        System::currentTimeMillis);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
 
   public void unscheduleReminderJob(DagActionStore.DagAction dagAction) throws SchedulerException {
-    JobDetail jobDetail = createReminderJobDetail(dagAction);
-    quartzScheduler.deleteJob(jobDetail.getKey());
+    quartzScheduler.deleteJob(createJobKey(dagAction));
   }
 
   /**
@@ -84,6 +85,7 @@ public class DagActionReminderScheduler {
   @Slf4j
   public static class ReminderJob implements Job {
     public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
+    public static final String FLOW_ACTION_EVENT_TIME_KEY = "flow.eventTime";
 
     @Override
     public void execute(JobExecutionContext context) {
@@ -92,19 +94,20 @@ public class DagActionReminderScheduler {
       String flowName = jobDataMap.getString(ConfigurationKeys.FLOW_NAME_KEY);
       String flowGroup = jobDataMap.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String jobName = jobDataMap.getString(ConfigurationKeys.JOB_NAME_KEY);
-      String flowExecutionId = jobDataMap.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+      long flowExecutionId = jobDataMap.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
       DagActionStore.DagActionType dagActionType = (DagActionStore.DagActionType) jobDataMap.get(FLOW_ACTION_TYPE_KEY);
+      long eventTimeMillis = jobDataMap.getLong(FLOW_ACTION_EVENT_TIME_KEY);
 
-      log.info("DagProc reminder triggered for (flowGroup: " + flowGroup + ", flowName: " + flowName
-          + ", flowExecutionId: " + flowExecutionId + ", jobName: " + jobName + ", dagActionType: " + dagActionType + ")");
-
-      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType, true);
+      DagActionStore.DagActionLeaseObject reminderDagActionLeaseObject = new DagActionStore.DagActionLeaseObject(
+          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType),
+          true, eventTimeMillis);
+      log.info("DagProc reminder triggered for dagAction event: {}", reminderDagActionLeaseObject);
 
       try {
         DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class);
-        dagManagement.addDagAction(dagAction);
+        dagManagement.addReminderDagAction(reminderDagActionLeaseObject);
       } catch (IOException e) {
-        log.error("Failed to add DagAction to DagManagement. Action: {}", dagAction);
+        log.error("Failed to add DagAction event to DagManagement. dagAction event: {}", reminderDagActionLeaseObject);
       }
     }
   }
@@ -118,19 +121,29 @@ public class DagActionReminderScheduler {
   }
 
   /**
+   * Creates a JobKey object for the reminder job where the name is the DagActionReminderKey from above and the group is
+   * the flowGroup
+   */
+  public static JobKey createJobKey(DagActionStore.DagAction dagAction) {
+    return new JobKey(createDagActionReminderKey(dagAction), dagAction.getFlowGroup());
+  }
+
+  /**
    * Creates a jobDetail containing flow and job identifying information in the jobDataMap, uniquely identified
    *  by a key comprised of the dagAction's fields.
    */
-  public static JobDetail createReminderJobDetail(DagActionStore.DagAction dagAction) {
+  public static JobDetail createReminderJobDetail(DagActionStore.DagActionLeaseObject dagActionLeaseObject) {
     JobDataMap dataMap = new JobDataMap();
-    dataMap.put(ConfigurationKeys.FLOW_NAME_KEY, dagAction.getFlowName());
-    dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, dagAction.getFlowGroup());
-    dataMap.put(ConfigurationKeys.JOB_NAME_KEY, dagAction.getJobName());
-    dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
-    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.getDagActionType());
+    dataMap.put(ConfigurationKeys.FLOW_NAME_KEY, dagActionLeaseObject.getDagAction().getFlowName());
+    dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, dagActionLeaseObject.getDagAction().getFlowGroup());
+    dataMap.put(ConfigurationKeys.JOB_NAME_KEY, dagActionLeaseObject.getDagAction().getJobName());
+    dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagActionLeaseObject.getDagAction().getFlowExecutionId());
+    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagActionLeaseObject.getDagAction().getDagActionType());
+    dataMap.put(ReminderJob.FLOW_ACTION_EVENT_TIME_KEY, dagActionLeaseObject.getEventTimeMillis());
 
     return JobBuilder.newJob(ReminderJob.class)
-        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())
+        .withIdentity(createDagActionReminderKey(dagActionLeaseObject.getDagAction()),
+            dagActionLeaseObject.getDagAction().getFlowGroup())
         .usingJobData(dataMap)
         .build();
   }

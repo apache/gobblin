@@ -97,46 +97,30 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   @Override
-  public boolean exists(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType) throws IOException, SQLException {
+  public boolean exists(String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionType dagActionType) throws IOException {
     return dbStatementExecutor.withPreparedStatement(String.format(EXISTS_STATEMENT, tableName), existStatement -> {
-      int i = 0;
-      existStatement.setString(++i, flowGroup);
-      existStatement.setString(++i, flowName);
-      existStatement.setString(++i, flowExecutionId);
-      existStatement.setString(++i, jobName);
-      existStatement.setString(++i, dagActionType.toString());
-      ResultSet rs = null;
-      try {
-        rs = existStatement.executeQuery();
+      fillPreparedStatement(flowGroup, flowName, flowExecutionId, jobName, dagActionType, existStatement);
+      try (ResultSet rs = existStatement.executeQuery()) {
         rs.next();
         return rs.getBoolean(1);
       } catch (SQLException e) {
         throw new IOException(String.format("Failure checking existence of DagAction: %s in table %s",
             new DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType), tableName), e);
-      } finally {
-        if (rs != null) {
-          rs.close();
-        }
       }
     }, true);
   }
 
   @Override
-  public boolean exists(String flowGroup, String flowName, String flowExecutionId, DagActionType dagActionType) throws IOException, SQLException {
+  public boolean exists(String flowGroup, String flowName, long flowExecutionId, DagActionType dagActionType) throws IOException, SQLException {
     return exists(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
   }
 
   @Override
-  public void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType)
+  public void addJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionType dagActionType)
       throws IOException {
     dbStatementExecutor.withPreparedStatement(String.format(INSERT_STATEMENT, tableName), insertStatement -> {
     try {
-      int i = 0;
-      insertStatement.setString(++i, flowGroup);
-      insertStatement.setString(++i, flowName);
-      insertStatement.setString(++i, flowExecutionId);
-      insertStatement.setString(++i, jobName);
-      insertStatement.setString(++i, dagActionType.toString());
+      fillPreparedStatement(flowGroup, flowName, flowExecutionId, jobName, dagActionType, insertStatement);
       return insertStatement.executeUpdate();
     } catch (SQLException e) {
       throw new IOException(String.format("Failure adding action for DagAction: %s in table %s",
@@ -148,14 +132,9 @@ public class MysqlDagActionStore implements DagActionStore {
   public boolean deleteDagAction(DagAction dagAction) throws IOException {
     return dbStatementExecutor.withPreparedStatement(String.format(DELETE_STATEMENT, tableName), deleteStatement -> {
     try {
-      int i = 0;
-      deleteStatement.setString(++i, dagAction.getFlowGroup());
-      deleteStatement.setString(++i, dagAction.getFlowName());
-      deleteStatement.setString(++i, dagAction.getFlowExecutionId());
-      deleteStatement.setString(++i, dagAction.getJobName());
-      deleteStatement.setString(++i, dagAction.getDagActionType().toString());
-      int result = deleteStatement.executeUpdate();
-      return result != 0;
+      fillPreparedStatement(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(),
+          dagAction.getJobName(), dagAction.getDagActionType(), deleteStatement);
+      return deleteStatement.executeUpdate() != 0;
     } catch (SQLException e) {
       throw new IOException(String.format("Failure deleting action for DagAction: %s in table %s", dagAction,
           tableName), e);
@@ -163,17 +142,17 @@ public class MysqlDagActionStore implements DagActionStore {
   }
 
   // TODO: later change this to getDagActions relating to a particular flow execution if it makes sense
-  private DagAction getDagActionWithRetry(String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionType dagActionType, ExponentialBackoff exponentialBackoff)
+  private DagAction getDagActionWithRetry(String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionType dagActionType, ExponentialBackoff exponentialBackoff)
       throws IOException, SQLException {
     return dbStatementExecutor.withPreparedStatement(String.format(GET_STATEMENT, tableName), getStatement -> {
       int i = 0;
       getStatement.setString(++i, flowGroup);
       getStatement.setString(++i, flowName);
-      getStatement.setString(++i, flowExecutionId);
+      getStatement.setString(++i, String.valueOf(flowExecutionId));
       getStatement.setString(++i, dagActionType.toString());
       try (ResultSet rs = getStatement.executeQuery()) {
         if (rs.next()) {
-          return new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), DagActionType.valueOf(rs.getString(5)));
+          return new DagAction(rs.getString(1), rs.getString(2), rs.getLong(3), rs.getString(4), DagActionType.valueOf(rs.getString(5)));
         } else if (exponentialBackoff.awaitNextRetryIfAvailable()) {
           return getDagActionWithRetry(flowGroup, flowName, flowExecutionId, jobName, dagActionType, exponentialBackoff);
         } else {
@@ -194,12 +173,23 @@ public class MysqlDagActionStore implements DagActionStore {
       HashSet<DagAction> result = new HashSet<>();
       try (ResultSet rs = getAllStatement.executeQuery()) {
         while (rs.next()) {
-          result.add(new DagAction(rs.getString(1), rs.getString(2), rs.getString(3), rs.getString(4), DagActionType.valueOf(rs.getString(5))));
+          result.add(new DagAction(rs.getString(1), rs.getString(2), rs.getLong(3), rs.getString(4), DagActionType.valueOf(rs.getString(5))));
         }
         return result;
       } catch (SQLException e) {
         throw new IOException(String.format("Failure get dag actions from table %s ", tableName), e);
       }
     }, true);
+  }
+
+  private static void fillPreparedStatement(String flowGroup, String flowName, long flowExecutionId, String jobName,
+      DagActionType dagActionType, PreparedStatement statement)
+      throws SQLException {
+    int i = 0;
+    statement.setString(++i, flowGroup);
+    statement.setString(++i, flowName);
+    statement.setString(++i, String.valueOf(flowExecutionId));
+    statement.setString(++i, jobName);
+    statement.setString(++i, dagActionType.toString());
   }
 }

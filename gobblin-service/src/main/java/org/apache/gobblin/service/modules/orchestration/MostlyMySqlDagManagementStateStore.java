@@ -74,7 +74,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   private final UserQuotaManager quotaManager;
   Map<URI, TopologySpec> topologySpecMap;
   private final Config config;
-  private static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
+  public static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   public static final String DAG_STATESTORE_CLASS_KEY = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreClass";
   FlowCatalog flowCatalog;
   @Getter
@@ -194,8 +194,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   @Override
   public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
       throws IOException {
-    Optional<Dag<JobExecutionPlan>> dag = getDag(dagId);
-    if (!dag.isPresent()) {
+    if (!containsDag(dagId)) {
       throw new RuntimeException("Dag " + dagId + " not found");
     }
     this.dagNodes.put(dagNode.getValue().getId(), dagNode);
@@ -264,25 +263,32 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     }
   }
 
+  /* todo - this method works because when the jobs finish they are deleted from the DMSS -> if no more job is found, means
+   no more running jobs.
+   But DMSS still has dags and which still contains dag nodes. We need to revisit this method's logic when we change
+   DMSS to a fully mysql backed implementation. then we may want to consider this approach
+   return getDagNodes(dagId).stream()
+       .anyMatch(node -> !FlowStatusGenerator.FINISHED_STATUSES.contains(node.getValue().getExecutionStatus().name()));
+  */
   @Override
   public boolean hasRunningJobs(DagManager.DagId dagId) {
     return !getDagNodes(dagId).isEmpty();
   }
 
   @Override
-  public boolean existsJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
-      DagActionStore.DagActionType dagActionType) throws IOException, SQLException {
+  public boolean existsJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
+      DagActionStore.DagActionType dagActionType) throws IOException {
     return this.dagActionStore.exists(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
   }
 
   @Override
-  public boolean existsFlowDagAction(String flowGroup, String flowName, String flowExecutionId,
+  public boolean existsFlowDagAction(String flowGroup, String flowName, long flowExecutionId,
       DagActionStore.DagActionType dagActionType) throws IOException, SQLException {
     return this.dagActionStore.exists(flowGroup, flowName, flowExecutionId, dagActionType);
   }
 
   @Override
-  public void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
+  public void addJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
       DagActionStore.DagActionType dagActionType) throws IOException {
     this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
   }

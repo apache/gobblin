@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -44,6 +45,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
@@ -55,6 +57,29 @@ import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
  */
 @Slf4j
 public class DagProcUtils {
+
+  /**
+   * If there is a single job to run next, it runs it. If there are multiple jobs to run, it creates a
+   * {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.DagActionType#REEVALUATE} dag action for
+   * each of them and those jobs will be launched in respective {@link ReevaluateDagProc}.
+   */
+  public static void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
+      DagManager.DagId dagId) throws IOException {
+    Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
+
+    if (nextNodes.size() == 1) {
+      Dag.DagNode<JobExecutionPlan> dagNode = nextNodes.iterator().next();
+      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, dagId);
+      log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), dagId);
+    } else {
+      for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
+        JobExecutionPlan jobExecutionPlan = dagNode.getValue();
+        dagManagementStateStore.addJobDagAction(jobExecutionPlan.getFlowGroup(), jobExecutionPlan.getFlowName(),
+            jobExecutionPlan.getFlowExecutionId(), jobExecutionPlan.getJobName(), DagActionStore.DagActionType.REEVALUATE);
+      }
+    }
+  }
+
   /**
    * - submits a {@link JobSpec} to a {@link SpecExecutor}
    * - emits a {@link TimingEvent.LauncherTimings#JOB_ORCHESTRATED} {@link org.apache.gobblin.metrics.GobblinTrackingEvent}
@@ -122,6 +147,8 @@ public class DagProcUtils {
       }
       throw new RuntimeException(e);
     }
+
+    log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), dagId);
   }
 
   public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, DagManagementStateStore dagManagementStateStore) throws IOException {
@@ -134,7 +161,7 @@ public class DagProcUtils {
 
     try {
       if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
-        Future future = dagNodeToCancel.getValue().getJobFuture().get();
+        Future<?> future = dagNodeToCancel.getValue().getJobFuture().get();
         String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
         props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
         sendCancellationEvent(dagNodeToCancel.getValue());
@@ -168,7 +195,7 @@ public class DagProcUtils {
   private static void sendEnforceJobStartDeadlineDagAction(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode)
       throws IOException {
     dagManagementStateStore.addJobDagAction(dagNode.getValue().getFlowGroup(), dagNode.getValue().getFlowName(),
-        String.valueOf(dagNode.getValue().getFlowExecutionId()), dagNode.getValue().getJobName(),
+        dagNode.getValue().getFlowExecutionId(), dagNode.getValue().getJobName(),
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
   }
 
@@ -183,5 +210,37 @@ public class DagProcUtils {
         config, DagManager.JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
     return jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, DagManager.JOB_START_SLA_TIME,
         ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
+  }
+
+  public static boolean isJobLevelStatus(String jobName) {
+    return !jobName.equals(JobStatusRetriever.NA_KEY);
+  }
+
+  public static void removeEnforceJobStartDeadlineDagAction(DagManagementStateStore dagManagementStateStore, String flowGroup,
+      String flowName, long flowExecutionId, String jobName) {
+    DagActionStore.DagAction enforceJobStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
+        flowExecutionId, jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+    log.info("Deleting dag action {}", enforceJobStartDeadlineDagAction);
+    // todo - add metrics
+
+    try {
+      dagManagementStateStore.deleteDagAction(enforceJobStartDeadlineDagAction);
+    } catch (IOException e) {
+      log.warn("Failed to delete dag action {}", enforceJobStartDeadlineDagAction);
+    }
+  }
+
+  public static void removeFlowFinishDeadlineDagAction(DagManagementStateStore dagManagementStateStore, DagManager.DagId dagId) {
+    DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = DagActionStore.DagAction.forFlow(dagId.getFlowGroup(),
+        dagId.getFlowName(), dagId.getFlowExecutionId(),
+        DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+    log.info("Deleting dag action {}", enforceFlowFinishDeadlineDagAction);
+    // todo - add metrics
+
+    try {
+      dagManagementStateStore.deleteDagAction(enforceFlowFinishDeadlineDagAction);
+    } catch (IOException e) {
+      log.warn("Failed to delete dag action {}", enforceFlowFinishDeadlineDagAction);
+    }
   }
 }

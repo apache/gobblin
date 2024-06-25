@@ -36,12 +36,11 @@ import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.commit.CommitStep;
-import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
-import org.apache.gobblin.util.commit.SetPermissionCommitStep;
+import org.apache.gobblin.util.commit.CreateAndSetDirectoryPermissionCommitStep;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -51,7 +50,7 @@ import org.apache.hadoop.fs.Path;
 /**
  * A dataset that based on Manifest. We expect the Manifest contains the list of all the files for this dataset.
  * At first phase, we only support copy across different clusters to the same location. (We can add more feature to support rename in the future)
- * We will delete the file on target if it's listed in the manifest and not exist on source when {@link ManifestBasedDataset.DELETE_FILE_NOT_EXIST_ON_SOURCE} set to be true
+ * We will delete the file on target if it's listed in the manifest and not exist on source when {@link ManifestBasedDataset#DELETE_FILE_NOT_EXIST_ON_SOURCE} set to be true
  */
 @Slf4j
 public class ManifestBasedDataset implements IterableCopyableDataset {
@@ -162,9 +161,9 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         }
       }
       Properties props = new Properties();
-      props.setProperty(SetPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
-      CommitStep setPermissionCommitStep = new SetPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
-      copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
+      props.setProperty(CreateAndSetDirectoryPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
+      CommitStep setPermissionCommitStep = new CreateAndSetDirectoryPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
+      copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
 
       if (!toDelete.isEmpty()) {
         //todo: add support sync for empty dir

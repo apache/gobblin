@@ -24,23 +24,28 @@ import java.util.concurrent.Future;
 import org.mockito.Mockito;
 
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
+
+import lombok.EqualsAndHashCode;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.util.CompletedFuture;
+import org.apache.gobblin.util.ConfigUtils;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.when;
 
 
+@EqualsAndHashCode(of = "config", callSuper=false)
 public class MockedSpecExecutor extends InMemorySpecExecutor {
-  private SpecProducer<Spec> mockedSpecProducer;
+  private final SpecProducer<Spec> mockedSpecProducer;
+  private final Config config;
 
   public MockedSpecExecutor(Config config) {
     super(config);
+    this.config = config;
     this.mockedSpecProducer = Mockito.mock(SpecProducer.class);
     when(mockedSpecProducer.addSpec(any())).thenReturn(new CompletedFuture(Boolean.TRUE, null));
     when(mockedSpecProducer.serializeAddSpecResponse(any())).thenReturn("");
@@ -49,9 +54,17 @@ public class MockedSpecExecutor extends InMemorySpecExecutor {
     }
 
   public static SpecExecutor createDummySpecExecutor(URI uri) {
+    return new MockedSpecExecutor(makeDummyConfigsForSpecExecutor(uri.toString()));
+  }
+
+  public static Config makeDummyConfigsForSpecExecutor(String specUriInString) {
+    String specStoreDir = "/tmp/specStoreDir";
     Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, uri.toString());
-    return new MockedSpecExecutor(ConfigFactory.parseProperties(properties));
+    properties.put("specStore.fs.dir", specStoreDir);
+    properties.put("specExecInstance.capabilities", "source:destination");
+    properties.put(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, specUriInString);
+    properties.put("uri", specUriInString);
+    return ConfigUtils.propertiesToConfig(properties);
   }
 
   @Override

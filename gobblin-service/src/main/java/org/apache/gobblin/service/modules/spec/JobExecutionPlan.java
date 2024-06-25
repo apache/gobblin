@@ -60,6 +60,7 @@ import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLAT
  */
 @Data
 @EqualsAndHashCode(exclude = {"executionStatus", "currentAttempts", "jobFuture", "flowStartTime"})
+// todo - consider excluding SpecExecutor from EqualsAndHashCode or only including DagNodeId
 public class JobExecutionPlan {
   public static final String JOB_MAX_ATTEMPTS = "job.maxAttempts";
   public static final String JOB_PROPS_KEY = "job.props";
@@ -68,6 +69,10 @@ public class JobExecutionPlan {
 
   private final JobSpec jobSpec;
   private final SpecExecutor specExecutor;
+  // the field is only read in one place in ResumeDagProc, in other places, a dag node's status is queried
+  // through API DagManagementStateStore#getDagNodeWithJobStatus which retrieves status directly from JobStatusRetriever
+  // todo - we should either keep this field updated as soon as a status is received so it can be used everywhere
+  //  or consider removing it completely
   private ExecutionStatus executionStatus = ExecutionStatus.PENDING;
   private final int maxAttempts;
   private int currentGeneration = 1;
