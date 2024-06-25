@@ -249,16 +249,14 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
 
   @Override
   public LeaseAttemptStatus tryAcquireLease(DagActionStore.DagActionLeaseObject dagActionLeaseObject, boolean adoptConsensusFlowExecutionId) throws IOException {
-    log.info("Multi-active lease arbiter about to handle trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
-       dagActionLeaseObject.getDagAction(), dagActionLeaseObject.isReminder() ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis());
+    log.info("Multi-active arbiter about to handle trigger event: {}", dagActionLeaseObject);
     // Query lease arbiter table about this dag action
     Optional<GetEventInfoResult> getResult = getExistingEventInfo(dagActionLeaseObject);
 
     try {
       if (!getResult.isPresent()) {
-        log.debug("tryAcquireLease for [{}, is; {}, eventTimestamp: {}] - CASE 1: no existing row for this dag action,"
-            + " then go ahead and insert", dagActionLeaseObject.getDagAction(),
-            dagActionLeaseObject.isReminder() ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis());
+        log.debug("tryAcquireLease for {} - CASE 1: no existing row for this dag action, then go ahead and insert",
+            dagActionLeaseObject);
         int numRowsUpdated = attemptLeaseIfNewRow(dagActionLeaseObject.getDagAction(),
             ExponentialBackoff.builder().maxRetries(MAX_RETRIES)
                 .initialDelay(MIN_INITIAL_DELAY_MILLIS + (long) Math.random() * DELAY_FOR_RETRY_RANGE_MILLIS)
@@ -280,34 +278,28 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       // because db laundering tells us that the currently worked on db event is newer and will have its own reminders
       if (dagActionLeaseObject.isReminder()) {
         if (dagActionLeaseObject.getEventTimeMillis() < dbEventTimestamp.getTime()) {
-          log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - dbEventTimeMillis: {} - A new event trigger "
-                  + "is being worked on, so this older reminder will be dropped.", dagActionLeaseObject.getDagAction(),
-             dagActionLeaseObject.isReminder ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis(),
+          log.debug("tryAcquireLease for {} - dbEventTimeMillis: {} - A new event trigger "
+                  + "is being worked on, so this older reminder will be dropped.", dagActionLeaseObject,
               dbEventTimestamp);
           return new LeaseAttemptStatus.NoLongerLeasingStatus();
         }
         if (dagActionLeaseObject.getEventTimeMillis() > dbEventTimestamp.getTime()) {
           // TODO: emit metric here to capture this unexpected behavior
-          log.warn("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - dbEventTimeMillis: {} - Severe constraint "
+          log.warn("tryAcquireLease for {} - dbEventTimeMillis: {} - Severe constraint "
                   + "violation encountered: a reminder event newer than db event was found when db laundering should "
-                  + "ensure monotonically increasing laundered event times.", dagActionLeaseObject.getDagAction(),
-             dagActionLeaseObject.isReminder ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis(),
+                  + "ensure monotonically increasing laundered event times.", dagActionLeaseObject,
               dbEventTimestamp.getTime());
         }
         if (dagActionLeaseObject.getEventTimeMillis() == dbEventTimestamp.getTime()) {
-          log.debug("tryAcquireLease for [{}, is: {}, eventTimestamp: {}] - dbEventTimeMillis: {} - Reminder event time "
-                  + "is the same as db event.", dagActionLeaseObject.getDagAction(),
-              dagActionLeaseObject.isReminder ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis(),
-              dbEventTimestamp);
+          log.debug("tryAcquireLease for {} - dbEventTimeMillis: {} - Reminder event time "
+                  + "is the same as db event.", dagActionLeaseObject, dbEventTimestamp);
         }
       }
 
       // TODO: check whether reminder event before replacing flowExecutionId
       if (adoptConsensusFlowExecutionId) {
-        log.info("Multi-active arbiter replacing local trigger event timestamp [{}, is: {}, triggerEventTimestamp: {}] "
-                + "with database eventTimestamp {} (in epoch-millis)", dagActionLeaseObject.getDagAction(),
-            dagActionLeaseObject.isReminder ? "reminder" : "original", dagActionLeaseObject.getEventTimeMillis(),
-            dbCurrentTimestamp.getTime());
+        log.info("Multi-active arbiter replacing local trigger event timestamp {} with database eventTimestamp {} (in "
+                + "epoch-millis)", dagActionLeaseObject, dbCurrentTimestamp.getTime());
       }
       /* Note that we use `adoptConsensusFlowExecutionId` parameter's value to determine whether we should use the db
       laundered event timestamp as the flowExecutionId or maintain the original one

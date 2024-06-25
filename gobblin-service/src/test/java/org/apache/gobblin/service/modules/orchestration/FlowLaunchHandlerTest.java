@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.util.Properties;
 
 import org.junit.Assert;
+import org.mockito.Mockito;
 import org.quartz.JobDataMap;
 import org.testng.annotations.Test;
 
@@ -68,9 +69,10 @@ public class FlowLaunchHandlerTest {
     originalProperties.setProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY, "0");
     originalProperties.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY, "1");
     oldJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
+    JobDataMap spyOldJobDataMap = Mockito.spy(oldJobDataMap);
 
     JobDataMap newJobDataMap =
-        FlowLaunchHandler.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus, schedulerBackOffMillis);
+        FlowLaunchHandler.cloneAndUpdateJobProperties(spyOldJobDataMap, leasedToAnotherStatus, schedulerBackOffMillis);
     Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     Assert.assertTrue(newProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY).endsWith(cronExpressionSuffix));
     Assert.assertNotEquals("0",
@@ -82,6 +84,10 @@ public class FlowLaunchHandlerTest {
     Assert.assertNotSame(oldJobDataMap, newJobDataMap);
     Assert.assertNotSame(originalProperties, newProperties);
     Assert.assertFalse(originalProperties.containsKey(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY));
+    // Verify that only clone() and get() methods are called on the oldJobDataMap
+    Mockito.verify(spyOldJobDataMap).clone();
+    Mockito.verify(spyOldJobDataMap).get(Mockito.any());
+    Mockito.verifyNoMoreInteractions(spyOldJobDataMap);
   }
 
 
@@ -93,8 +99,9 @@ public class FlowLaunchHandlerTest {
     JobDataMap oldJobDataMap = new JobDataMap();
     Properties originalProperties = new Properties();
     oldJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
+    JobDataMap spyOldJobDataMap = Mockito.spy(oldJobDataMap);
 
-    JobDataMap newJobDataMap = FlowLaunchHandler.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
+    JobDataMap newJobDataMap = FlowLaunchHandler.cloneAndUpdateJobProperties(spyOldJobDataMap, leasedToAnotherStatus,
         schedulerBackOffMillis);
     Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
 
@@ -109,6 +116,10 @@ public class FlowLaunchHandlerTest {
     Assert.assertNotSame(oldJobDataMap, newJobDataMap);
     Assert.assertNotSame(originalProperties, newProperties);
     Assert.assertFalse(originalProperties.containsKey(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY));
+    // Verify that only clone() and get() methods are called on the oldJobDataMap
+    Mockito.verify(spyOldJobDataMap).clone();
+    Mockito.verify(spyOldJobDataMap).get(Mockito.any());
+    Mockito.verifyNoMoreInteractions(spyOldJobDataMap);
   }
 
   /**

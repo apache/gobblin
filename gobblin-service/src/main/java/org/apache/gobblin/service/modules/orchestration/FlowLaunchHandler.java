@@ -230,15 +230,14 @@ public class FlowLaunchHandler {
    */
   protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, LeaseAttemptStatus.LeasedToAnotherStatus status)
       throws SchedulerException {
-    /* Cloning the original jobDetail creates a new object reference but the jobDataMap and Properties fields are
-    shallow copies that need to be replaced by deep ones to avoid shared references between the original and reminder
-    jobs in the scheduler
-     */
-    JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey).clone();
-    JobDataMap originalJobDataMap = jobDetail.getJobDataMap();
-    JobDataMap newJobDataMap = updatePropsInJobDataMap(originalJobDataMap, status, schedulerMaxBackoffMillis);
-    jobDetail.setJobDataMap(newJobDataMap);
-    return jobDetail;
+    // 1. shallow `.clone()` this top-level `JobDetailImpl`
+    JobDetailImpl clonedJobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey).clone();
+    JobDataMap originalJobDataMap = clonedJobDetail.getJobDataMap();
+    // 2. create a fresh `JobDataMap` specific to the reminder
+    JobDataMap newJobDataMap = cloneAndUpdateJobProperties(originalJobDataMap, status, schedulerMaxBackoffMillis);
+    // 3. update `clonedJobDetail` to point to the new `JobDataMap`
+    clonedJobDetail.setJobDataMap(newJobDataMap);
+    return clonedJobDetail;
   }
 
   public static Properties getJobPropertiesFromJobDetail(JobDetail jobDetail) {
@@ -248,15 +247,14 @@ public class FlowLaunchHandler {
   /**
    * Adds the cronExpression, reminderTimestamp, originalEventTime values in the properties map of a new jobDataMap
    * cloned from the one provided and returns the new JobDataMap to the user.
-   * Note: the jobDataMap and Properties field reference different objects than the original, but the keys and values
-   * themselves are not cloned.
+   * `jobDataMap` and its `GobblinServiceJobScheduler.PROPERTIES_KEY` field are shallow, not deep-copied
    * @param jobDataMap
    * @param leasedToAnotherStatus
    * @param schedulerMaxBackoffMillis
    * @return
    */
   @VisibleForTesting
-  public static JobDataMap updatePropsInJobDataMap(JobDataMap jobDataMap,
+  public static JobDataMap cloneAndUpdateJobProperties(JobDataMap jobDataMap,
       LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus, int schedulerMaxBackoffMillis) {
     JobDataMap newJobDataMap = (JobDataMap) jobDataMap.clone();
     Properties newJobProperties =
