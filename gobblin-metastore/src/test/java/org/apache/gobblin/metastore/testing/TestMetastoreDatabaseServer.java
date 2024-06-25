@@ -40,7 +40,6 @@ import com.zaxxer.hikari.HikariDataSource;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.util.DatabaseJobHistoryStoreSchemaManager;
 import org.apache.gobblin.metastore.util.MySqlJdbcUrl;
-import org.apache.gobblin.util.PortUtils;
 
 
 class TestMetastoreDatabaseServer implements Closeable {
@@ -65,8 +64,8 @@ class TestMetastoreDatabaseServer implements Closeable {
   public static final String DBPORT_FULL_KEY = CONFIG_PREFIX + "." + DBPORT_KEY;
   public static final String MYSQL_VERSION = "8.0.20";
   public static final String MYSQL_ROOT_PASSWORD = "MYSQL_ROOT_PASSWORD";
-  private final String charSet = "utf8mb4";
-  private final String collate = "utf8mb4_unicode_ci";
+  private static final String CHARSET_UTF_8_MB_4 = "utf8mb4";
+  private static final String COLLATE_UTF_8_MB_4_UNICODE_CI = "utf8mb4_unicode_ci";
 
   private final Logger log = LoggerFactory.getLogger(TestMetastoreDatabaseServer.class);
   private final MySQLContainer mySQLContainer;
@@ -91,14 +90,13 @@ class TestMetastoreDatabaseServer implements Closeable {
       this.dbHost = mySQLContainer.getHost();
       this.dbPort = mySQLContainer.getFirstMappedPort();
 
-      this.log.info("Started with config: embeddedMysqlEnabled={} dbUserName={} dbHost={} dbPort={}",
-          this.embeddedMysqlEnabled, this.dbUserName, this.dbHost, this.dbPort);
     } else {
       mySQLContainer = null;
-      this.dbHost = this.embeddedMysqlEnabled ? "localhost" : realConfig.getString(DBHOST_KEY);
-      this.dbPort =
-          this.embeddedMysqlEnabled ? new PortUtils.ServerSocketPortLocator().random() : realConfig.getInt(DBPORT_KEY);
+      this.dbHost =  realConfig.getString(DBHOST_KEY);
+      this.dbPort =  realConfig.getInt(DBPORT_KEY);
     }
+    this.log.info("Started with config: embeddedMysqlEnabled={} dbUserName={} dbHost={} dbPort={}",
+        this.embeddedMysqlEnabled, this.dbUserName, this.dbHost, this.dbPort);
   }
 
   static Config getDefaultConfig() {
@@ -172,7 +170,7 @@ class TestMetastoreDatabaseServer implements Closeable {
       executeStatements(connection,
           String.format(DROP_DATABASE_TEMPLATE, database),
           String.format(CREATE_DATABASE_TEMPLATE, database,
-                 this.charSet, this.collate),
+                 this.CHARSET_UTF_8_MB_4, this.COLLATE_UTF_8_MB_4_UNICODE_CI),
           String.format(ADD_USER_TEMPLATE, database, this.dbUserName));
     } finally {
       if (connectionOptional.isPresent()) {
