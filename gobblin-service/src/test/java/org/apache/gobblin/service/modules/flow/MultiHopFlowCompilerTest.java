@@ -395,7 +395,7 @@ public class MultiHopFlowCompilerTest {
 
   }
 
-  @Test (dependsOnMethods = "testCompileFlowWithRetention")
+  @Test (dependsOnMethods = "testCompileFlow")
   public void testCompileFlowAfterFirstEdgeDeletion() throws URISyntaxException, IOException {
     //Delete the self edge on HDFS-1 that performs convert-to-json-and-encrypt.
     this.flowGraph.get().deleteFlowEdge("HDFS-1_HDFS-1_hdfsConvertToJsonAndEncrypt");
