@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.util.Properties;
 
 import org.junit.Assert;
+import org.mockito.Mockito;
 import org.quartz.JobDataMap;
 import org.testng.annotations.Test;
 
@@ -56,7 +57,9 @@ public class FlowLaunchHandlerTest {
 
   /**
    * Provides an input with all three values (cronExpression, reminderTimestamp, originalEventTime) set in the map
-   * Properties and checks that they are updated properly
+   * Properties and checks that they are updated properly in new jobDataMap's Properties object. It checks that the
+   * JobDataMap returned along with the Properties object it contains do not reference the same
+   * original objects.
    */
   @Test
   public void testUpdatePropsInJobDataMap() {
@@ -66,9 +69,10 @@ public class FlowLaunchHandlerTest {
     originalProperties.setProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY, "0");
     originalProperties.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY, "1");
     oldJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
+    JobDataMap spyOldJobDataMap = Mockito.spy(oldJobDataMap);
 
-    JobDataMap newJobDataMap = FlowLaunchHandler.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
-        schedulerBackOffMillis);
+    JobDataMap newJobDataMap =
+        FlowLaunchHandler.cloneAndUpdateJobProperties(spyOldJobDataMap, leasedToAnotherStatus, schedulerBackOffMillis);
     Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
     Assert.assertTrue(newProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY).endsWith(cronExpressionSuffix));
     Assert.assertNotEquals("0",
@@ -76,7 +80,16 @@ public class FlowLaunchHandlerTest {
     Assert.assertEquals(String.valueOf(leasedToAnotherStatus.getEventTimeMillis()),
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY));
     Assert.assertTrue(Boolean.parseBoolean(newProperties.getProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY)));
+
+    Assert.assertNotSame(oldJobDataMap, newJobDataMap);
+    Assert.assertNotSame(originalProperties, newProperties);
+    Assert.assertFalse(originalProperties.containsKey(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY));
+    // Verify that only clone() and get() methods are called on the oldJobDataMap
+    Mockito.verify(spyOldJobDataMap).clone();
+    Mockito.verify(spyOldJobDataMap).get(Mockito.any());
+    Mockito.verifyNoMoreInteractions(spyOldJobDataMap);
   }
+
 
   /**
    * Provides input with an empty Properties object and checks that the three values in question are set.
@@ -86,15 +99,27 @@ public class FlowLaunchHandlerTest {
     JobDataMap oldJobDataMap = new JobDataMap();
     Properties originalProperties = new Properties();
     oldJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, originalProperties);
+    JobDataMap spyOldJobDataMap = Mockito.spy(oldJobDataMap);
 
-    JobDataMap newJobDataMap = FlowLaunchHandler.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
+    JobDataMap newJobDataMap = FlowLaunchHandler.cloneAndUpdateJobProperties(spyOldJobDataMap, leasedToAnotherStatus,
         schedulerBackOffMillis);
     Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
+
+    Assert.assertNotSame(oldJobDataMap, newJobDataMap);
+    Assert.assertNotSame(originalProperties, newProperties);
     Assert.assertTrue(newProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY).endsWith(cronExpressionSuffix));
     Assert.assertTrue(newProperties.containsKey(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY));
     Assert.assertEquals(String.valueOf(leasedToAnotherStatus.getEventTimeMillis()),
         newProperties.getProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY));
     Assert.assertTrue(Boolean.parseBoolean(newProperties.getProperty(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY)));
+
+    Assert.assertNotSame(oldJobDataMap, newJobDataMap);
+    Assert.assertNotSame(originalProperties, newProperties);
+    Assert.assertFalse(originalProperties.containsKey(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY));
+    // Verify that only clone() and get() methods are called on the oldJobDataMap
+    Mockito.verify(spyOldJobDataMap).clone();
+    Mockito.verify(spyOldJobDataMap).get(Mockito.any());
+    Mockito.verifyNoMoreInteractions(spyOldJobDataMap);
   }
 
   /**
