@@ -96,6 +96,9 @@ public class FlowLaunchHandlerTest {
     JobDataMap newJobDataMap = FlowLaunchHandler.updatePropsInJobDataMap(oldJobDataMap, leasedToAnotherStatus,
         schedulerBackOffMillis);
     Properties newProperties = (Properties) newJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY);
+
+    Assert.assertNotSame(oldJobDataMap, newJobDataMap);
+    Assert.assertNotSame(originalProperties, newProperties);
     Assert.assertTrue(newProperties.getProperty(ConfigurationKeys.JOB_SCHEDULE_KEY).endsWith(cronExpressionSuffix));
     Assert.assertTrue(newProperties.containsKey(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY));
     Assert.assertEquals(String.valueOf(leasedToAnotherStatus.getEventTimeMillis()),

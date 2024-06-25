@@ -24,7 +24,6 @@ import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.Date;
 import java.util.Locale;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Random;
@@ -153,8 +152,8 @@ public class FlowLaunchHandler {
   }
 
   /**
-   * This method is used by {@link FlowLaunchHandler#handleFlowLaunchTriggerEvent} to schedule a self-reminder to check on
-   * the other participant's progress to finish acting on a dag action after the time the lease should expire.
+   * This method is used by {@link FlowLaunchHandler#handleFlowLaunchTriggerEvent} to schedule a self-reminder to check
+   * on the other participant's progress to finish acting on a dag action after the time the lease should expire.
    * @param jobProps
    * @param status used to extract event to be reminded for (stored in `consensusDagAction`) and the minimum time after
    *               which reminder should occur
@@ -198,7 +197,8 @@ public class FlowLaunchHandler {
     // refer to the same set of jobProperties)
     String reminderSuffix = createSuffixForJobTrigger(status);
     JobKey reminderJobKey = new JobKey(origJobKey.getName() + reminderSuffix, origJobKey.getGroup());
-    JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, reminderJobKey, status);
+    JobDetailImpl jobDetail = createJobDetailForReminderEvent(origJobKey, status);
+    jobDetail.setKey(reminderJobKey);
     Trigger reminderTrigger = JobScheduler.createTriggerForJob(reminderJobKey, getJobPropertiesFromJobDetail(jobDetail),
         Optional.of(reminderSuffix));
     log.debug("Flow Launch Handler - [{}, eventTimestamp: {}] -  attempting to schedule reminder for event {} with "
@@ -224,20 +224,17 @@ public class FlowLaunchHandler {
    * the event to revisit. It will update the jobKey to the reminderKey provides and the Properties map to
    * contain the cron scheduler for the reminder event and information about the event to revisit
    * @param originalKey
-   * @param reminderKey
    * @param status
    * @return
    * @throws SchedulerException
    */
-  protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, JobKey reminderKey,
-      LeaseAttemptStatus.LeasedToAnotherStatus status)
+  protected JobDetailImpl createJobDetailForReminderEvent(JobKey originalKey, LeaseAttemptStatus.LeasedToAnotherStatus status)
       throws SchedulerException {
     /* Cloning the original jobDetail creates a new object reference but the jobDataMap and Properties fields are
     shallow copies that need to be replaced by deep ones to avoid shared references between the original and reminder
     jobs in the scheduler
      */
     JobDetailImpl jobDetail = (JobDetailImpl) this.schedulerService.getScheduler().getJobDetail(originalKey).clone();
-    jobDetail.setKey(reminderKey);
     JobDataMap originalJobDataMap = jobDetail.getJobDataMap();
     JobDataMap newJobDataMap = updatePropsInJobDataMap(originalJobDataMap, status, schedulerMaxBackoffMillis);
     jobDetail.setJobDataMap(newJobDataMap);
@@ -279,7 +276,7 @@ public class FlowLaunchHandler {
     newJobProperties.put(ConfigurationKeys.FLOW_IS_REMINDER_EVENT_KEY, String.valueOf(true));
     // Replace reference to old Properties map with new cloned Properties
     newJobDataMap.put(GobblinServiceJobScheduler.PROPERTIES_KEY, newJobProperties);
-    return jobDataMap;
+    return newJobDataMap;
   }
 
   /**
