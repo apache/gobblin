@@ -45,9 +45,13 @@ public abstract class JobStatusRetrieverTest {
   protected static final String FLOW_NAME = "myFlowName";
   protected static final String FLOW_GROUP_ALT_A = "myFlowGroup-alt-A";
   protected static final String FLOW_GROUP_ALT_B = "myFlowGroup-alt-B";
+  protected static final String FLOW_GROUP_ALT_C = "myFlowGroup-alt-C";
+  protected static final String FLOW_GROUP_ALT_D = "myFlowGroup-alt-D";
   protected static final String FLOW_NAME_ALT_1 = "myFlowName-alt-1";
   protected static final String FLOW_NAME_ALT_2 = "myFlowName-alt-2";
   protected static final String FLOW_NAME_ALT_3 = "myFlowName-alt-3";
+  protected static final String FLOW_NAME_ALT_4 = "myFlowName-alt-4";
+  protected static final String FLOW_NAME_ALT_5 = "myFlowName-alt-5";
   protected String jobGroup;
   private static final String MY_JOB_GROUP = "myJobGroup";
   protected static final String MY_JOB_NAME_1 = "myJobName1";
@@ -281,7 +285,7 @@ public abstract class JobStatusRetrieverTest {
   }
 
   @Test
-  public void testGetFlowStatusesForFlowGroupExecutions() throws IOException {
+  public void testGetFlowStatusesForFlowGroupExecutions() throws Exception {
     // a.) simplify to begin, in `FLOW_GROUP_ALT_A`, leaving out job-level status
     addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 101L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
     addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 102L, JobStatusRetriever.NA_KEY, ExecutionStatus.RUNNING.name());
@@ -334,62 +338,62 @@ public abstract class JobStatusRetrieverTest {
             JobStatusMatch.Dependent.of(MY_JOB_GROUP, MY_JOB_NAME_2, 1111L, ExecutionStatus.ORCHESTRATED.name()))));
   }
   @Test
-  public void testAllFlowStatusesForFlowExecutionsOrdered() throws IOException {
+  public void testAllFlowStatusesForFlowExecutionsOrdered() throws Exception {
     // a.) simplify to begin, in `FLOW_GROUP_ALT_A`, leaving out job-level status
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 101L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 102L, JobStatusRetriever.NA_KEY, ExecutionStatus.RUNNING.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 101L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 102L, JobStatusRetriever.NA_KEY, ExecutionStatus.RUNNING.name());
 
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 111L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 111L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
 
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 121L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 122L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 121L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 122L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPILED.name());
 
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 131L, JobStatusRetriever.NA_KEY, ExecutionStatus.FAILED.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 132L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_A, FLOW_NAME, 133L, JobStatusRetriever.NA_KEY, ExecutionStatus.PENDING_RESUME.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 131L, JobStatusRetriever.NA_KEY, ExecutionStatus.FAILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 132L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 133L, JobStatusRetriever.NA_KEY, ExecutionStatus.PENDING_RESUME.name());
 
     // b.) include job-level status, in `FLOW_GROUP_ALT_B`
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 211L, JobStatusRetriever.NA_KEY, ExecutionStatus.FAILED.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 211L, MY_JOB_NAME_2, ExecutionStatus.ORCHESTRATED.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 231L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 231L, MY_JOB_NAME_1, ExecutionStatus.FAILED.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 231L, MY_JOB_NAME_2, ExecutionStatus.COMPLETE.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 232L, JobStatusRetriever.NA_KEY, ExecutionStatus.FAILED.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 233L, JobStatusRetriever.NA_KEY, ExecutionStatus.ORCHESTRATED.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 233L, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name());
-    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 233L, MY_JOB_NAME_2, ExecutionStatus.ORCHESTRATED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 211L, JobStatusRetriever.NA_KEY, ExecutionStatus.FAILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 211L, MY_JOB_NAME_2, ExecutionStatus.ORCHESTRATED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 231L, JobStatusRetriever.NA_KEY, ExecutionStatus.COMPLETE.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 231L, MY_JOB_NAME_1, ExecutionStatus.FAILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 231L, MY_JOB_NAME_2, ExecutionStatus.COMPLETE.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 232L, JobStatusRetriever.NA_KEY, ExecutionStatus.FAILED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 233L, JobStatusRetriever.NA_KEY, ExecutionStatus.ORCHESTRATED.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 233L, MY_JOB_NAME_1, ExecutionStatus.COMPLETE.name());
+    addFlowIdJobStatusToStateStore(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 233L, MY_JOB_NAME_2, ExecutionStatus.ORCHESTRATED.name());
 
-    List<FlowStatus> flowStatusesForGroupAltA = this.jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(FLOW_GROUP_ALT_A, FLOW_NAME);
+    List<FlowStatus> flowStatusesForGroupAltA = this.jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4);
     Assert.assertEquals(flowStatusesForGroupAltA.size(), 8);
 
-    assertThat(flowStatusesForGroupAltA.get(0), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME, 133L, ExecutionStatus.PENDING_RESUME));
-    assertThat(flowStatusesForGroupAltA.get(1), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME, 132L, ExecutionStatus.COMPLETE));
-    assertThat(flowStatusesForGroupAltA.get(2), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME, 131L, ExecutionStatus.FAILED));
+    assertThat(flowStatusesForGroupAltA.get(0), FlowStatusMatch.of(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 133L, ExecutionStatus.PENDING_RESUME));
+    assertThat(flowStatusesForGroupAltA.get(1), FlowStatusMatch.of(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 132L, ExecutionStatus.COMPLETE));
+    assertThat(flowStatusesForGroupAltA.get(2), FlowStatusMatch.of(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 131L, ExecutionStatus.FAILED));
 
-    assertThat(flowStatusesForGroupAltA.get(3), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME, 122L, ExecutionStatus.COMPILED));
+    assertThat(flowStatusesForGroupAltA.get(3), FlowStatusMatch.of(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 122L, ExecutionStatus.COMPILED));
 
-    assertThat(flowStatusesForGroupAltA.get(4), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME, 121L, ExecutionStatus.COMPLETE));
-    assertThat(flowStatusesForGroupAltA.get(5), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME, 111L, ExecutionStatus.COMPILED));
+    assertThat(flowStatusesForGroupAltA.get(4), FlowStatusMatch.of(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 121L, ExecutionStatus.COMPLETE));
+    assertThat(flowStatusesForGroupAltA.get(5), FlowStatusMatch.of(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 111L, ExecutionStatus.COMPILED));
 
-    assertThat(flowStatusesForGroupAltA.get(6), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME, 102L, ExecutionStatus.RUNNING));
-    assertThat(flowStatusesForGroupAltA.get(7), FlowStatusMatch.of(FLOW_GROUP_ALT_A, FLOW_NAME, 101L, ExecutionStatus.COMPILED));
+    assertThat(flowStatusesForGroupAltA.get(6), FlowStatusMatch.of(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 102L, ExecutionStatus.RUNNING));
+    assertThat(flowStatusesForGroupAltA.get(7), FlowStatusMatch.of(FLOW_GROUP_ALT_C, FLOW_NAME_ALT_4, 101L, ExecutionStatus.COMPILED));
 
 
-    List<FlowStatus> flowStatusesForGroupAltB = this.jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1);
+    List<FlowStatus> flowStatusesForGroupAltB = this.jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5);
     Assert.assertEquals(flowStatusesForGroupAltB.size(), 4);
 
-    assertThat(flowStatusesForGroupAltB.get(0), FlowStatusMatch.withDependentJobStatuses(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 233L, ExecutionStatus.ORCHESTRATED,
+    assertThat(flowStatusesForGroupAltB.get(0), FlowStatusMatch.withDependentJobStatuses(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 233L, ExecutionStatus.ORCHESTRATED,
         ImmutableList.of(
             JobStatusMatch.Dependent.of(MY_JOB_GROUP, MY_JOB_NAME_1, 1111L, ExecutionStatus.COMPLETE.name()),
             JobStatusMatch.Dependent.of(MY_JOB_GROUP, MY_JOB_NAME_2, 1111L, ExecutionStatus.ORCHESTRATED.name()))));
 
-    assertThat(flowStatusesForGroupAltB.get(1), FlowStatusMatch.withDependentJobStatuses(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 232L, ExecutionStatus.FAILED,
+    assertThat(flowStatusesForGroupAltB.get(1), FlowStatusMatch.withDependentJobStatuses(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 232L, ExecutionStatus.FAILED,
         Collections.emptyList()));
-    assertThat(flowStatusesForGroupAltB.get(2), FlowStatusMatch.withDependentJobStatuses(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 231L, ExecutionStatus.COMPLETE,
+    assertThat(flowStatusesForGroupAltB.get(2), FlowStatusMatch.withDependentJobStatuses(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 231L, ExecutionStatus.COMPLETE,
         ImmutableList.of(
             JobStatusMatch.Dependent.of(MY_JOB_GROUP, MY_JOB_NAME_1, 1111L, ExecutionStatus.FAILED.name()),
             JobStatusMatch.Dependent.of(MY_JOB_GROUP, MY_JOB_NAME_2, 1111L, ExecutionStatus.COMPLETE.name()))));
-    assertThat(flowStatusesForGroupAltB.get(3), FlowStatusMatch.withDependentJobStatuses(FLOW_GROUP_ALT_B, FLOW_NAME_ALT_1, 211L, ExecutionStatus.FAILED,
+    assertThat(flowStatusesForGroupAltB.get(3), FlowStatusMatch.withDependentJobStatuses(FLOW_GROUP_ALT_D, FLOW_NAME_ALT_5, 211L, ExecutionStatus.FAILED,
         ImmutableList.of(
             JobStatusMatch.Dependent.of(MY_JOB_GROUP, MY_JOB_NAME_2, 1111L, ExecutionStatus.ORCHESTRATED.name()))));
   }
