@@ -131,8 +131,7 @@ public class MysqlSpecStoreTest {
             .addPrimitive(FLOW_DESTINATION_IDENTIFIER_KEY, "destination")
             .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "fg4")
             .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "fn4")
-            .addPrimitive(ConfigurationKeys.FLOW_OWNING_GROUP_KEY, "owningGroup4")
-            .build())
+            .addPrimitive(ConfigurationKeys.FLOW_OWNING_GROUP_KEY, "owningGroup4").build())
         .withDescription("Test flow spec 4")
         .withVersion("Test version 4")
         .build();
@@ -499,6 +498,11 @@ public class MysqlSpecStoreTest {
         FlowSpecSearchObject.builder().flowName("fn5").flowGroup("fg5").build();
     preUpdateValidations.add(new Pair<>(flowGroupFlowNameSearchOb, true));
     postUpdateValidations.add(new Pair<>(flowGroupFlowNameSearchOb, true));
+
+    FlowSpecSearchObject preUpdateSourceIdentifierSearchOb =
+        FlowSpecSearchObject.builder().sourceIdentifier("source5").build();
+    preUpdateValidations.add(new Pair<>(preUpdateSourceIdentifierSearchOb, true));
+    postUpdateValidations.add(new Pair<>(preUpdateSourceIdentifierSearchOb, false));
 
     FlowSpecSearchObject postUpdateSourceIdentifierSearchOb =
         FlowSpecSearchObject.builder().sourceIdentifier("source5Updated").build();
