@@ -26,6 +26,8 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Maps;
 
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
+
 
 /**
  * Utils class to generate dummy {@link CopyableFile}s for testing. Random strings are generated for null paths.

@@ -63,12 +63,13 @@ import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.CopyableFileUtils;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
-import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 import org.apache.gobblin.data.management.copy.PreserveAttributes;
 import org.apache.gobblin.data.management.copy.TestCopyableDataset;
 import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.TestUtils;
 import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 import org.apache.gobblin.util.io.StreamUtils;
 
 import static org.mockito.Mockito.any;
@@ -579,7 +580,7 @@ public class FileAwareInputStreamDataWriterTest {
     String[] stickyBit = {"" ,"1"};
     for (String bit : stickyBit) {
       for (int index = 0; index < setPermissions.length; ++index) {
-        Assert.assertEquals(FileAwareInputStreamDataWriter.addExecutePermissionToOwner(new FsPermission(bit + setPermissions[index])),
+        Assert.assertEquals(HadoopUtils.addExecutePermissionToOwner(new FsPermission(bit + setPermissions[index])),
                 new FsPermission(bit + expectPermissions[index]));
       }
     }
