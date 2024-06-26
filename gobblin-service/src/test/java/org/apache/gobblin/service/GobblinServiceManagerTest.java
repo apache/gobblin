@@ -231,6 +231,8 @@ public class GobblinServiceManagerTest {
 
     DagManager spiedDagManager = spy(gobblinServiceManager.getDagManager());
     doNothing().when(spiedDagManager).setActive(anyBoolean());
+    // WARNING: this `spiedDagManager` WILL NOT BE the one used by the `Orchestrator`: its DM has apparently already been
+    // provided to the `Orchestrator` ctor, prior to this replacement here of `GobblinServiceManager.dagManager`
     gobblinServiceManager.dagManager = spiedDagManager;
     return gobblinServiceManager;
   }
@@ -242,7 +244,7 @@ public class GobblinServiceManagerTest {
     }
   }
 
-  @AfterClass
+  @AfterClass (alwaysRun = true)
   public void cleanUp() throws Exception {
     // Shutdown Service
     try {
@@ -276,7 +278,10 @@ public class GobblinServiceManagerTest {
     }
 
     mysql.stop();
-    testMetastoreDatabase.close();
+
+    if (testMetastoreDatabase != null) {
+      testMetastoreDatabase.close();
+    }
   }
 
   /**
@@ -367,7 +372,7 @@ public class GobblinServiceManagerTest {
 
     this.flowConfigClient.createFlowConfig(flowConfig);
 
-    // FlowSpec still remains it is only deleted by inactiveDagManager
+    // FlowSpec still remains: it is only deleted by activeDagManager
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(4000L).backoffFactor(1)
         .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 1,
             "Waiting for job to get orchestrated...");
@@ -405,7 +410,7 @@ public class GobblinServiceManagerTest {
     }
   }
 
-  @Test (dependsOnMethods = "testUncompilableJob")
+  @Test (dependsOnMethods = "testRunQuotaExceeds")
   public void testExplainJob() throws Exception {
     int sizeBeforeTest = this.gobblinServiceManager.getFlowCatalog().getSpecs().size();
     FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);
@@ -822,7 +827,7 @@ public class GobblinServiceManagerTest {
   /*
   Creates a unique flowId for a given group using the current timestamp as the flowName.
    */
-  public FlowId createFlowIdWithUniqueName(String groupName) {
+  public static FlowId createFlowIdWithUniqueName(String groupName) {
     return new FlowId().setFlowGroup(groupName).setFlowName(String.valueOf(System.currentTimeMillis()));
   }
 }

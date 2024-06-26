@@ -46,7 +46,7 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 
 @Alpha
 @Singleton
-public class DagProcFactory implements DagTaskVisitor<DagProc> {
+public class DagProcFactory implements DagTaskVisitor<DagProc<?>> {
 
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
 
@@ -56,15 +56,14 @@ public class DagProcFactory implements DagTaskVisitor<DagProc> {
   }
 
   @Override
-  public DagProc meet(EnforceFlowFinishDeadlineDagTask enforceFlowFinishDeadlineDagTask) {
+  public EnforceFlowFinishDeadlineDagProc meet(EnforceFlowFinishDeadlineDagTask enforceFlowFinishDeadlineDagTask) {
     return new EnforceFlowFinishDeadlineDagProc(enforceFlowFinishDeadlineDagTask);
   }
 
   @Override
-  public DagProc meet(EnforceJobStartDeadlineDagTask enforceJobStartDeadlineDagTask) {
+  public EnforceJobStartDeadlineDagProc meet(EnforceJobStartDeadlineDagTask enforceJobStartDeadlineDagTask) {
     return new EnforceJobStartDeadlineDagProc(enforceJobStartDeadlineDagTask);
   }
-
 
   @Override
   public LaunchDagProc meet(LaunchDagTask launchDagTask) {
@@ -85,6 +84,5 @@ public class DagProcFactory implements DagTaskVisitor<DagProc> {
   public ResumeDagProc meet(ResumeDagTask resumeDagTask) {
     return new ResumeDagProc(resumeDagTask);
   }
-  //todo - overload meet method for other dag tasks
 }
 

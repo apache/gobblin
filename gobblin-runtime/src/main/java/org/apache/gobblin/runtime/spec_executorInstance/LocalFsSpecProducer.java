@@ -16,7 +16,7 @@
  */
 
 package org.apache.gobblin.runtime.spec_executorInstance;
-import com.typesafe.config.Config;
+
 import java.io.File;
 import java.io.FileOutputStream;
 import java.io.IOException;
@@ -24,7 +24,11 @@ import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.Future;
+
+import com.typesafe.config.Config;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -70,7 +74,7 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
   private Future<?> writeSpec(Spec spec, SpecExecutor.Verb verb) {
     if (spec instanceof JobSpec) {
       // format the JobSpec to have file of <flowGroup>_<flowName>.job
-      String flowExecutionId = ((JobSpec) spec).getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+      long flowExecutionId = ((JobSpec) spec).getConfig().getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
       String jobFileName = getJobFileName(spec.getUri(), flowExecutionId);
       try (
         FileOutputStream fStream = new FileOutputStream(this.specProducerPath + File.separatorChar + jobFileName);
@@ -117,7 +121,7 @@ public class LocalFsSpecProducer implements SpecProducer<Spec> {
     throw new UnsupportedOperationException();
   }
 
-  public static String getJobFileName(URI specUri, String flowExecutionId) {
+  public static String getJobFileName(URI specUri, long flowExecutionId) {
     String[] uriTokens = specUri.getPath().split("/");
     return String.join("_", uriTokens) + "_" + flowExecutionId + ".job";
   }

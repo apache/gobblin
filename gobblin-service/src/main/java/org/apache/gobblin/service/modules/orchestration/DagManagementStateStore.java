@@ -145,7 +145,7 @@ public interface DagManagementStateStore {
    * Returned list will be empty if the dag is not found in the store.
    * @param dagId DagId of the dag for which all DagNodes are requested
    */
-  List<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
+  Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
 
   /**
    * Deletes the dag node state that was added through {@link DagManagementStateStore#addDagNodeState(Dag.DagNode, DagManager.DagId)}
@@ -206,8 +206,8 @@ public interface DagManagementStateStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  boolean existsJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
-      DagActionStore.DagActionType dagActionType) throws IOException, SQLException;
+  boolean existsJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
+      DagActionStore.DagActionType dagActionType) throws IOException;
 
   /**
    * Check if an action exists in dagAction store by flow group, flow name, and flow execution id, it assumes jobName is
@@ -218,7 +218,7 @@ public interface DagManagementStateStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  boolean existsFlowDagAction(String flowGroup, String flowName, String flowExecutionId,
+  boolean existsFlowDagAction(String flowGroup, String flowName, long flowExecutionId,
       DagActionStore.DagActionType dagActionType) throws IOException, SQLException;
 
   /** Persist the {@link DagActionStore.DagAction} in {@link DagActionStore} for durability */
@@ -240,7 +240,7 @@ public interface DagManagementStateStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  void addJobDagAction(String flowGroup, String flowName, String flowExecutionId, String jobName,
+  void addJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
       DagActionStore.DagActionType dagActionType) throws IOException;
 
   /**
@@ -251,7 +251,7 @@ public interface DagManagementStateStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  default void addFlowDagAction(String flowGroup, String flowName, String flowExecutionId,
+  default void addFlowDagAction(String flowGroup, String flowName, long flowExecutionId,
       DagActionStore.DagActionType dagActionType) throws IOException {
     addDagAction(DagActionStore.DagAction.forFlow(flowGroup, flowName, flowExecutionId, dagActionType));
   }

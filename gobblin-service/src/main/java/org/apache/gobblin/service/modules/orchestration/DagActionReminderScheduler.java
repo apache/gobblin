@@ -26,10 +26,12 @@ import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
+import org.quartz.JobKey;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
 import org.quartz.impl.StdSchedulerFactory;
 
 import javax.inject.Inject;
@@ -44,10 +46,20 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
  * This class is used to keep track of reminders of pending flow action events to execute. A host calls the
  * {#scheduleReminderJob} on a flow action that it failed to acquire a lease on but has not yet completed. The reminder
  * will fire once the previous lease owner's lease is expected to expire.
+ * There are two type of reminders, i) Deadline reminders, that are created while processing deadline
+ * {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.DagActionType#ENFORCE_FLOW_FINISH_DEADLINE} and
+ * {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.DagActionType#ENFORCE_JOB_START_DEADLINE} when
+ * they set reminder for the duration equals for the "deadline time", and ii) Retry reminders, that are created to retry
+ * the processing of any dag action in case the first attempt by other lease owner fails.
+ * Note that deadline dag actions first create `Deadline reminders` and then `Retry reminders` in their life-cycle, while
+ * other dag actions only create `Retry reminders`.
  */
+@Slf4j
 @Singleton
 public class DagActionReminderScheduler {
   public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
+  public static final String RetryReminderKeyGroup = "RetryReminder";
+  public static final String DeadlineReminderKeyGroup = "DeadlineReminder";
   private final Scheduler quartzScheduler;
 
   @Inject
@@ -60,20 +72,24 @@ public class DagActionReminderScheduler {
   /**
    *  Uses a dagAction & reminder duration in milliseconds to create a reminder job that will fire
    *  `reminderDurationMillis` after the current time
-   * @param dagAction
+   * @param dagActionLeaseObject
    * @param reminderDurationMillis
    * @throws SchedulerException
    */
-  public void scheduleReminder(DagActionStore.DagAction dagAction, long reminderDurationMillis)
+  public void scheduleReminder(DagActionStore.DagActionLeaseObject dagActionLeaseObject, long reminderDurationMillis,
+      boolean isDeadlineReminder)
       throws SchedulerException {
-    JobDetail jobDetail = createReminderJobDetail(dagAction);
-    Trigger trigger = createReminderJobTrigger(dagAction, reminderDurationMillis, System::currentTimeMillis);
+    JobDetail jobDetail = createReminderJobDetail(dagActionLeaseObject, isDeadlineReminder);
+    Trigger trigger = createReminderJobTrigger(dagActionLeaseObject.getDagAction(), reminderDurationMillis,
+        System::currentTimeMillis, isDeadlineReminder);
+    log.info("Reminder set for dagAction {} to fire after {} ms, isDeadlineTrigger: {}",
+        dagActionLeaseObject.getDagAction(), reminderDurationMillis, isDeadlineReminder);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
 
-  public void unscheduleReminderJob(DagActionStore.DagAction dagAction) throws SchedulerException {
-    JobDetail jobDetail = createReminderJobDetail(dagAction);
-    quartzScheduler.deleteJob(jobDetail.getKey());
+  public void unscheduleReminderJob(DagActionStore.DagAction dagAction, boolean isDeadlineTrigger) throws SchedulerException {
+    log.info("Reminder unset for dagAction {}, isDeadlineTrigger: {}", dagAction, isDeadlineTrigger);
+    quartzScheduler.deleteJob(createJobKey(dagAction, isDeadlineTrigger));
   }
 
   /**
@@ -84,6 +100,7 @@ public class DagActionReminderScheduler {
   @Slf4j
   public static class ReminderJob implements Job {
     public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
+    public static final String FLOW_ACTION_EVENT_TIME_KEY = "flow.eventTime";
 
     @Override
     public void execute(JobExecutionContext context) {
@@ -92,19 +109,20 @@ public class DagActionReminderScheduler {
       String flowName = jobDataMap.getString(ConfigurationKeys.FLOW_NAME_KEY);
       String flowGroup = jobDataMap.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String jobName = jobDataMap.getString(ConfigurationKeys.JOB_NAME_KEY);
-      String flowExecutionId = jobDataMap.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+      long flowExecutionId = jobDataMap.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
       DagActionStore.DagActionType dagActionType = (DagActionStore.DagActionType) jobDataMap.get(FLOW_ACTION_TYPE_KEY);
+      long eventTimeMillis = jobDataMap.getLong(FLOW_ACTION_EVENT_TIME_KEY);
 
-      log.info("DagProc reminder triggered for (flowGroup: " + flowGroup + ", flowName: " + flowName
-          + ", flowExecutionId: " + flowExecutionId + ", jobName: " + jobName + ", dagActionType: " + dagActionType + ")");
-
-      DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType, true);
+      DagActionStore.DagActionLeaseObject reminderDagActionLeaseObject = new DagActionStore.DagActionLeaseObject(
+          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType),
+          true, eventTimeMillis);
+      log.info("DagProc reminder triggered for dagAction event: {}", reminderDagActionLeaseObject);
 
       try {
         DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class);
-        dagManagement.addDagAction(dagAction);
+        dagManagement.addReminderDagAction(reminderDagActionLeaseObject);
       } catch (IOException e) {
-        log.error("Failed to add DagAction to DagManagement. Action: {}", dagAction);
+        log.error("Failed to add DagAction event to DagManagement. dagAction event: {}", reminderDagActionLeaseObject);
       }
     }
   }
@@ -118,19 +136,33 @@ public class DagActionReminderScheduler {
   }
 
   /**
-   * Creates a jobDetail containing flow and job identifying information in the jobDataMap, uniquely identified
-   *  by a key comprised of the dagAction's fields.
+   * Creates a JobKey object for the reminder job where the name is the DagActionReminderKey from above and the group is
+   * the flowGroup
    */
-  public static JobDetail createReminderJobDetail(DagActionStore.DagAction dagAction) {
+  public static JobKey createJobKey(DagActionStore.DagAction dagAction, boolean isDeadlineReminder) {
+    return new JobKey(createDagActionReminderKey(dagAction), isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
+  }
+
+  private static TriggerKey createTriggerKey(DagActionStore.DagAction dagAction, boolean isDeadlineReminder) {
+    return new TriggerKey(createDagActionReminderKey(dagAction), isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
+  }
+
+  /**
+   * Creates a jobDetail containing flow and job identifying information in the jobDataMap, uniquely identified
+   *  by a key comprised of the dagAction's fields. boolean isDeadlineReminder is flag that tells if this createReminder
+   *  requests are for deadline dag actions that are setting reminder for deadline duration.
+   */
+  public static JobDetail createReminderJobDetail(DagActionStore.DagActionLeaseObject dagActionLeaseObject, boolean isDeadlineReminder) {
     JobDataMap dataMap = new JobDataMap();
-    dataMap.put(ConfigurationKeys.FLOW_NAME_KEY, dagAction.getFlowName());
-    dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, dagAction.getFlowGroup());
-    dataMap.put(ConfigurationKeys.JOB_NAME_KEY, dagAction.getJobName());
-    dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
-    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.getDagActionType());
+    dataMap.put(ConfigurationKeys.FLOW_NAME_KEY, dagActionLeaseObject.getDagAction().getFlowName());
+    dataMap.put(ConfigurationKeys.FLOW_GROUP_KEY, dagActionLeaseObject.getDagAction().getFlowGroup());
+    dataMap.put(ConfigurationKeys.JOB_NAME_KEY, dagActionLeaseObject.getDagAction().getJobName());
+    dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagActionLeaseObject.getDagAction().getFlowExecutionId());
+    dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagActionLeaseObject.getDagAction().getDagActionType());
+    dataMap.put(ReminderJob.FLOW_ACTION_EVENT_TIME_KEY, dagActionLeaseObject.getEventTimeMillis());
 
     return JobBuilder.newJob(ReminderJob.class)
-        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())
+        .withIdentity(createJobKey(dagActionLeaseObject.getDagAction(), isDeadlineReminder))
         .usingJobData(dataMap)
         .build();
   }
@@ -141,9 +173,9 @@ public class DagActionReminderScheduler {
    * `getCurrentTimeMillis` to determine the current time.
    */
   public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis,
-      Supplier<Long> getCurrentTimeMillis) {
+      Supplier<Long> getCurrentTimeMillis, boolean isDeadlineReminder) {
     return TriggerBuilder.newTrigger()
-        .withIdentity(createDagActionReminderKey(dagAction), dagAction.getFlowGroup())
+        .withIdentity(createTriggerKey(dagAction, isDeadlineReminder))
         .startAt(new Date(getCurrentTimeMillis.get() + reminderDurationMillis))
         .build();
   }

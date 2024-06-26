@@ -56,13 +56,13 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
 
   @Override
   public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
-    FlowStatusId id = key.getKey();
+    FlowStatusId id = this.get(key).getId(); // pre-check to throw `HttpStatus.S_404_NOT_FOUND`, in case FlowExecution doesn't exist
     addDagAction(id.getFlowGroup(), id.getFlowName(), id.getFlowExecutionId(), DagActionStore.DagActionType.RESUME);
   }
 
   @Override
   public UpdateResponse delete(ComplexResourceKey<org.apache.gobblin.service.FlowStatusId, EmptyRecord> key) {
-    FlowStatusId id = key.getKey();
+    FlowStatusId id = this.get(key).getId();  // pre-check to throw `HttpStatus.S_404_NOT_FOUND`, in case FlowExecution doesn't exist
     addDagAction(id.getFlowGroup(), id.getFlowName(), id.getFlowExecutionId(), DagActionStore.DagActionType.KILL);
     return new UpdateResponse(HttpStatus.S_200_OK);
   }
@@ -71,12 +71,12 @@ public class GobblinServiceFlowExecutionResourceHandlerWithWarmStandby extends G
   protected void addDagAction(String flowGroup, String flowName, Long flowExecutionId, DagActionStore.DagActionType actionType) {
     try {
       // If an existing resume request is still pending then do not accept this request
-      if (this.dagManagementStateStore.existsFlowDagAction(flowGroup, flowName, flowExecutionId.toString(), actionType)) {
+      if (this.dagManagementStateStore.existsFlowDagAction(flowGroup, flowName, flowExecutionId, actionType)) {
         this.throwErrorResponse("There is already a pending " + actionType + " action for this flow. Please wait to resubmit and wait "
             + "for action to be completed.", HttpStatus.S_409_CONFLICT);
         return;
       }
-      this.dagManagementStateStore.addFlowDagAction(flowGroup, flowName, flowExecutionId.toString(), actionType);
+      this.dagManagementStateStore.addFlowDagAction(flowGroup, flowName, flowExecutionId, actionType);
     } catch (IOException | SQLException e) {
       log.warn(
           String.format("Failed to add %s action for flow %s %s %s to dag action store due to:", actionType, flowGroup,

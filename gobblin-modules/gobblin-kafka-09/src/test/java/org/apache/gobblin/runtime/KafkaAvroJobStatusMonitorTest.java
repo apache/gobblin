@@ -29,9 +29,9 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
-import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -72,9 +72,10 @@ import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueReposi
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.service.modules.core.GobblinServiceManager;
-import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
 import org.apache.gobblin.service.monitoring.GaaSJobObservabilityEventProducer;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.service.monitoring.KafkaAvroJobStatusMonitor;
@@ -84,6 +85,9 @@ import org.apache.gobblin.service.monitoring.NoopGaaSJobObservabilityEventProduc
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_MULTIPLIER;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 
 
@@ -91,18 +95,17 @@ public class KafkaAvroJobStatusMonitorTest {
   public static final String TOPIC = KafkaAvroJobStatusMonitorTest.class.getSimpleName();
 
   private KafkaTestBase kafkaTestHelper;
-  private String flowGroup = "myFlowGroup";
-  private String flowName = "myFlowName";
-  private String jobGroup = "myJobGroup";
-  private String jobName = "myJobName";
-  private String flowExecutionId = "1234";
-  private String jobExecutionId = "1111";
-  private String message = "https://myServer:8143/1234/1111";
-  private String stateStoreDir = "/tmp/jobStatusMonitor/statestore";
+  private final String flowGroup = "myFlowGroup";
+  private final String flowName = "myFlowName";
+  private final String jobGroup = "myJobGroup";
+  private final String jobName = "myJobName";
+  private final long flowExecutionId = 1234L;
+  private final String jobExecutionId = "1111";
+  private final String message = "https://myServer:8143/1234/1111";
+  private final String stateStoreDir = "/tmp/jobStatusMonitor/statestore";
   private MetricContext context;
   private KafkaAvroEventKeyValueReporter.Builder<?> builder;
-  private DagManagementStateStore dagManagementStateStore;
-  private final MockedStatic<GobblinServiceManager> mockedGobblinServiceManager = Mockito.mockStatic(GobblinServiceManager.class);
+  DagActionStore.DagAction enforceJobStartDeadlineDagAction;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -112,7 +115,7 @@ public class KafkaAvroJobStatusMonitorTest {
     kafkaTestHelper.provisionTopic(TOPIC);
 
     // Create KeyValueProducerPusher instance.
-    Pusher pusher = new KafkaKeyValueProducerPusher<byte[], byte[]>("localhost:dummy", TOPIC,
+    Pusher<Pair<byte[], byte[]>> pusher = new KafkaKeyValueProducerPusher<>("localhost:dummy", TOPIC,
         Optional.of(ConfigFactory.parseMap(ImmutableMap.of(
             ProducerConfig.BOOTSTRAP_SERVERS_CONFIG, "localhost:" + this.kafkaTestHelper.getKafkaServerPort()))));
 
@@ -121,12 +124,14 @@ public class KafkaAvroJobStatusMonitorTest {
     builder = KafkaAvroEventKeyValueReporter.Factory.forContext(context);
     builder = builder.withKafkaPusher(pusher).withKeys(Lists.newArrayList(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD,
         TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD));
-    this.dagManagementStateStore = mock(DagManagementStateStore.class);
-    this.mockedGobblinServiceManager.when(() -> GobblinServiceManager.getClass(DagActionReminderScheduler.class)).thenReturn(mock(DagActionReminderScheduler.class));
+
+    this.enforceJobStartDeadlineDagAction = new DagActionStore.DagAction(this.flowGroup, this.flowName, this.flowExecutionId, this.jobName,
+        DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
   }
 
   @Test
   public void testProcessMessageForSuccessfulFlow() throws IOException, ReflectiveOperationException {
+    DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic1");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -148,24 +153,36 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-      new NoopGaaSJobObservabilityEventProducer());
+      new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
         this::convertMessageAndMetadataToDecodableKafkaRecord);
 
     State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
+        anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     // (per above, is a 'dummy' event)
     Assert.assertNull(jobStatusMonitor.parseJobStatus(
@@ -180,6 +197,7 @@ public class KafkaAvroJobStatusMonitorTest {
 
   @Test (dependsOnMethods = "testProcessMessageForSuccessfulFlow")
   public void testProcessMessageForFailedFlow() throws IOException, ReflectiveOperationException {
+    DagManagementStateStore dagManagementStateStore = mock(MostlyMySqlDagManagementStateStore.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic2");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -206,7 +224,8 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
+        ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
@@ -215,15 +234,15 @@ public class KafkaAvroJobStatusMonitorTest {
     // Verify undecodeable message is skipped
     byte[] undecodeableMessage = Arrays.copyOf(messageAndMetadata.message(),
         messageAndMetadata.message().length - 1);
-    ConsumerRecord undecodeableRecord = new ConsumerRecord<>(TOPIC, messageAndMetadata.partition(),
+    ConsumerRecord<byte[], byte[]> undecodeableRecord = new ConsumerRecord<>(TOPIC, messageAndMetadata.partition(),
         messageAndMetadata.offset(), messageAndMetadata.key(), undecodeableMessage);
     Assert.assertEquals(jobStatusMonitor.getMessageParseFailures().getCount(), 0L);
-    jobStatusMonitor.processMessage(new Kafka09ConsumerClient.Kafka09ConsumerRecord(undecodeableRecord));
+    jobStatusMonitor.processMessage(new Kafka09ConsumerClient.Kafka09ConsumerRecord<>(undecodeableRecord));
     Assert.assertEquals(jobStatusMonitor.getMessageParseFailures().getCount(), 1L);
     // Re-test when properly encoded, as expected for a normal event
     jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
-    StateStore stateStore = jobStatusMonitor.getStateStore();
+    StateStore<State> stateStore = jobStatusMonitor.getStateStore();
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     String tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, "NA", "NA");
     List<State> stateList  = stateStore.getAll(storeName, tableName);
@@ -231,40 +250,59 @@ public class KafkaAvroJobStatusMonitorTest {
     State state = stateList.get(0);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
 
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         iterator,
         this::convertMessageAndMetadataToDecodableKafkaRecord);
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
 
     //Because the maximum attempt is set to 2, so the state is set to PENDING_RETRY after the first failure
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.PENDING_RETRY.name());
     Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(true));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     //Job orchestrated for retrying
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     //Because the maximum attempt is set to 2, so the state is set to PENDING_RETRY after the first failure
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(2)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     //Because the maximum attempt is set to 2, so the state is set to Failed after trying twice
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.FAILED.name());
     Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(false));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
+        anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(2)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     jobStatusMonitor.shutDown();
   }
 
   @Test (dependsOnMethods = "testProcessMessageForFailedFlow")
   public void testProcessMessageForSkippedFlow() throws IOException, ReflectiveOperationException {
+    DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic2");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -284,7 +322,7 @@ public class KafkaAvroJobStatusMonitorTest {
     }
 
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-        new NoopGaaSJobObservabilityEventProducer());
+        new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
@@ -293,15 +331,15 @@ public class KafkaAvroJobStatusMonitorTest {
     // Verify undecodeable message is skipped
     byte[] undecodeableMessage = Arrays.copyOf(messageAndMetadata.message(),
         messageAndMetadata.message().length - 1);
-    ConsumerRecord undecodeableRecord = new ConsumerRecord<>(TOPIC, messageAndMetadata.partition(),
+    ConsumerRecord<byte[], byte[]> undecodeableRecord = new ConsumerRecord<>(TOPIC, messageAndMetadata.partition(),
         messageAndMetadata.offset(), messageAndMetadata.key(), undecodeableMessage);
     Assert.assertEquals(jobStatusMonitor.getMessageParseFailures().getCount(), 0L);
-    jobStatusMonitor.processMessage(new Kafka09ConsumerClient.Kafka09ConsumerRecord(undecodeableRecord));
+    jobStatusMonitor.processMessage(new Kafka09ConsumerClient.Kafka09ConsumerRecord<>(undecodeableRecord));
     Assert.assertEquals(jobStatusMonitor.getMessageParseFailures().getCount(), 1L);
     // Re-test when properly encoded, as expected for a normal event
     jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
 
-    StateStore stateStore = jobStatusMonitor.getStateStore();
+    StateStore<State> stateStore = jobStatusMonitor.getStateStore();
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     String tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, "NA", "NA");
     List<State> stateList  = stateStore.getAll(storeName, tableName);
@@ -309,20 +347,27 @@ public class KafkaAvroJobStatusMonitorTest {
     State state = stateList.get(0);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
 
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         iterator,
         this::convertMessageAndMetadataToDecodableKafkaRecord);
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
+        anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
     jobStatusMonitor.shutDown();
   }
 
   @Test (dependsOnMethods = "testProcessMessageForSkippedFlow")
   public void testProcessingRetriedForApparentlyTransientErrors() throws IOException, ReflectiveOperationException {
+    DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic3");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -344,10 +389,10 @@ public class KafkaAvroJobStatusMonitorTest {
     Config conf = ConfigFactory.empty().withValue(
         KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX + "." + RETRY_MULTIPLIER, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.toMillis(1L)));
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(shouldThrowFakeExceptionInParseJobStatusToggle, conf,
-        new NoopGaaSJobObservabilityEventProducer());
+        new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
 
     jobStatusMonitor.buildMetricsContextAndMetrics();
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
         this::convertMessageAndMetadataToDecodableKafkaRecord);
 
@@ -373,12 +418,17 @@ public class KafkaAvroJobStatusMonitorTest {
             jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus()));
 
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
+
     toggleManagementExecutor.shutdownNow();
     jobStatusMonitor.shutDown();
   }
 
   @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
   public void testProcessMessageForCancelledAndKilledEvent() throws IOException, ReflectiveOperationException {
+    DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -402,43 +452,66 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
+        ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
     jobStatusMonitor.buildMetricsContextAndMetrics();
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
         this::convertMessageAndMetadataToDecodableKafkaRecord);
 
     State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.PENDING_RETRY.name());
     Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(true));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     //Job orchestrated for retrying
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.PENDING_RETRY.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     //Job orchestrated for retrying
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     // Received kill flow event, should not retry the flow even though there is 1 pending attempt left
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
     Assert.assertEquals(state.getProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD), Boolean.toString(false));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
+        anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     jobStatusMonitor.shutDown();
   }
 
   @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
   public void testProcessMessageForFlowPendingResume() throws IOException, ReflectiveOperationException {
+    DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -461,34 +534,56 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer());
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
+        ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
     jobStatusMonitor.buildMetricsContextAndMetrics();
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
         this::convertMessageAndMetadataToDecodableKafkaRecord);
 
     State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.CANCELLED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
+        anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     // Job for flow pending resume status after it was cancelled or failed
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.PENDING_RESUME.name());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
+        anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     //Job orchestrated for retrying
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
+        anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
+        anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(2)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
+    Mockito.verify(dagManagementStateStore, Mockito.times(2)).addJobDagAction(any(), any(),
+        anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+    Mockito.verify(dagManagementStateStore, Mockito.times(2)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
     jobStatusMonitor.shutDown();
   }
@@ -512,9 +607,9 @@ public class KafkaAvroJobStatusMonitorTest {
     }
 
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-        new NoopGaaSJobObservabilityEventProducer());
+        new NoopGaaSJobObservabilityEventProducer(), mock(DagManagementStateStore.class));
     jobStatusMonitor.buildMetricsContextAndMetrics();
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
         this::convertMessageAndMetadataToDecodableKafkaRecord);
 
@@ -544,10 +639,10 @@ public class KafkaAvroJobStatusMonitorTest {
     MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
     MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(ConfigUtils.configToState(ConfigFactory.empty()),
         issueRepository, false);
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-        mockEventProducer);
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
+        ConfigFactory.empty(), mockEventProducer, mock(DagManagementStateStore.class));
     jobStatusMonitor.buildMetricsContextAndMetrics();
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
         this::convertMessageAndMetadataToDecodableKafkaRecord);
 
@@ -591,10 +686,10 @@ public class KafkaAvroJobStatusMonitorTest {
     MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
     MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(ConfigUtils.configToState(ConfigFactory.empty()),
         issueRepository, false);
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-        mockEventProducer);
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
+        ConfigFactory.empty(), mockEventProducer, mock(DagManagementStateStore.class));
     jobStatusMonitor.buildMetricsContextAndMetrics();
-    Iterator<DecodeableKafkaRecord> recordIterator = Iterators.transform(
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
         this::convertMessageAndMetadataToDecodableKafkaRecord);
 
@@ -619,10 +714,10 @@ public class KafkaAvroJobStatusMonitorTest {
     jobStatusMonitor.shutDown();
   }
 
-  private State getNextJobStatusState(MockKafkaAvroJobStatusMonitor jobStatusMonitor, Iterator<DecodeableKafkaRecord> recordIterator,
+  private State getNextJobStatusState(MockKafkaAvroJobStatusMonitor jobStatusMonitor, Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator,
       String jobGroup, String jobName) throws IOException {
     jobStatusMonitor.processMessage(recordIterator.next());
-    StateStore stateStore = jobStatusMonitor.getStateStore();
+    StateStore<State> stateStore = jobStatusMonitor.getStateStore();
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
     String tableName = KafkaJobStatusMonitor.jobStatusTableName(this.flowExecutionId, jobGroup, jobName);
     List<State> stateList  = stateStore.getAll(storeName, tableName);
@@ -707,7 +802,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Map<String, String> metadata = Maps.newHashMap();
     metadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, this.flowGroup);
     metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, this.flowName);
-    metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, this.flowExecutionId);
+    metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, String.valueOf(this.flowExecutionId));
     metadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, this.jobName);
     metadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, this.jobGroup);
     metadata.put(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, this.jobExecutionId);
@@ -719,13 +814,15 @@ public class KafkaAvroJobStatusMonitorTest {
   }
 
   MockKafkaAvroJobStatusMonitor createMockKafkaAvroJobStatusMonitor(AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, Config additionalConfig,
-      GaaSJobObservabilityEventProducer eventProducer) throws IOException, ReflectiveOperationException {
+      GaaSJobObservabilityEventProducer eventProducer, DagManagementStateStore dagManagementStateStore) throws IOException, ReflectiveOperationException {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"))
+        .withValue(ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, ConfigValueFactory.fromAnyRef("true"))
         .withFallback(additionalConfig);
-    return new MockKafkaAvroJobStatusMonitor("test",config, 1, shouldThrowFakeExceptionInParseJobStatusToggle, eventProducer);
+    return new MockKafkaAvroJobStatusMonitor("test", config, 1, shouldThrowFakeExceptionInParseJobStatusToggle,
+        eventProducer, dagManagementStateStore);
   }
   /**
    *   Create a dummy event to test if it is filtered out by the consumer.
@@ -767,13 +864,12 @@ public class KafkaAvroJobStatusMonitorTest {
   public void tearDown() {
     try {
       this.kafkaTestHelper.close();
-      this.mockedGobblinServiceManager.close();
     } catch(Exception e) {
       System.err.println("Failed to close Kafka server.");
     }
   }
 
-  class MockKafkaAvroJobStatusMonitor extends KafkaAvroJobStatusMonitor {
+  static class MockKafkaAvroJobStatusMonitor extends KafkaAvroJobStatusMonitor {
     private final AtomicBoolean shouldThrowFakeExceptionInParseJobStatus;
     @Getter
     private volatile int numFakeExceptionsFromParseJobStatus = 0;
@@ -782,14 +878,15 @@ public class KafkaAvroJobStatusMonitorTest {
      * @param shouldThrowFakeExceptionInParseJobStatusToggle - pass (and retain) to dial whether `parseJobStatus` throws
      */
     public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
-        AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, GaaSJobObservabilityEventProducer producer)
+        AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, GaaSJobObservabilityEventProducer producer,
+        DagManagementStateStore dagManagementStateStore)
         throws IOException, ReflectiveOperationException {
       super(topic, config, numThreads, mock(JobIssueEventHandler.class), producer, dagManagementStateStore);
       shouldThrowFakeExceptionInParseJobStatus = shouldThrowFakeExceptionInParseJobStatusToggle;
     }
 
     @Override
-    protected void processMessage(DecodeableKafkaRecord record) {
+    protected void processMessage(DecodeableKafkaRecord<byte[], byte[]> record) {
       super.processMessage(record);
     }
 

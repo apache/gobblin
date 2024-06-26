@@ -26,7 +26,6 @@ import org.apache.gobblin.metrics.ContextAwareMeter;
 @Slf4j
 public final class ChangeMonitorUtils {
   private ChangeMonitorUtils() {
-    return;
   }
 
   /**
