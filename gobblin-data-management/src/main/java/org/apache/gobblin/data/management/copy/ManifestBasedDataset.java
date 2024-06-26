@@ -103,7 +103,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     List<FileStatus> toDelete = Lists.newArrayList();
     // map of paths and permissions sorted by depth of path, so that permissions can be set in order
     Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissions = new HashMap<>();
-    Map<String, OwnerAndPermission> flattenedAncestorPermissions = new TreeMap<>(
+    TreeMap<String, OwnerAndPermission> flattenedAncestorPermissions = new TreeMap<>(
         (o1, o2) -> Long.compare(o1.chars().filter(ch -> ch == '/').count(), o2.chars().filter(ch -> ch == '/').count()));
     try {
       long startTime = System.currentTimeMillis();
@@ -152,7 +152,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         }
       }
       // We need both precommit step to create the directories copying to, and a postcommit step to ensure that the execute bit needed for recursive rename is reset
-      CommitStep createDirectoryWithPermissionsCommitStep = new CreateDirectoryWithPermissionsCommitStep(targetFs, ancestorOwnerAndPermissions);
+      CommitStep createDirectoryWithPermissionsCommitStep = new CreateDirectoryWithPermissionsCommitStep(targetFs, ancestorOwnerAndPermissions, this.properties);
       CommitStep setPermissionCommitStep = new SetPermissionCommitStep(targetFs, flattenedAncestorPermissions, this.properties);
       copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), createDirectoryWithPermissionsCommitStep, 1));
       copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));

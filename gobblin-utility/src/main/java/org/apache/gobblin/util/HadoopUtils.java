@@ -761,18 +761,29 @@ public class HadoopUtils {
     }
   }
 
-  public static void ensureDirectoryExists(FileSystem fs, Path path, Iterator<OwnerAndPermission> ownerAndPermissionIterator)
+  /**
+   * Creates a directory with the given path and enforces the given owner and permissions recursively all the way up to root, or
+   * until the list of owner and permissions is exhausted.
+   * If any of the parent directories already exists, it will not overwrite the existing permissions and this function will be a no-op.
+   * @param fs
+   * @param path
+   * @param ownerAndPermissionIterator
+   * @param failIfOwnerSetFails
+   * @throws IOException
+   */
+
+  public static void ensureDirectoryExists(FileSystem fs, Path path, Iterator<OwnerAndPermission> ownerAndPermissionIterator, boolean failIfOwnerSetFails)
       throws IOException {
 
     if (fs.exists(path)) {
       return;
-    }
-
-    if (ownerAndPermissionIterator.hasNext()) {
+    } else if (!ownerAndPermissionIterator.hasNext()) {
+      fs.mkdirs(path);
+    } else {
       OwnerAndPermission ownerAndPermission = ownerAndPermissionIterator.next();
 
       if (path.getParent() != null) {
-        ensureDirectoryExists(fs, path.getParent(), ownerAndPermissionIterator);
+        ensureDirectoryExists(fs, path.getParent(), ownerAndPermissionIterator, failIfOwnerSetFails);
       }
 
       if (!fs.mkdirs(path)) {
@@ -794,16 +805,17 @@ public class HadoopUtils {
 
       String group = ownerAndPermission.getGroup();
       String owner = ownerAndPermission.getOwner();
-      try {
-        if (group != null || owner != null) {
-          log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
+      if (group != null || owner != null) {
+        log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
+        try {
           fs.setOwner(path, owner, group);
+        } catch (IOException e) {
+          log.warn("Failed to set owner and/or group for path " + path + " to " + owner + ":" + group, e);
+          if (failIfOwnerSetFails) {
+            throw e;
+          }
         }
-      } catch (IOException ioe) {
-        log.warn("Failed to set owner and/or group for path " + path + " to " + owner + ":" + group, ioe);
       }
-    } else {
-      fs.mkdirs(path);
     }
   }
 

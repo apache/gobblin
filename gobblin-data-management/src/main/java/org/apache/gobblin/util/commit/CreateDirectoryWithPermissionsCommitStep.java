@@ -26,7 +26,6 @@ import java.util.Properties;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.security.AccessControlException;
 
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -49,9 +48,16 @@ public class CreateDirectoryWithPermissionsCommitStep implements CommitStep {
   private final URI fsUri;
   private boolean isCompleted = false;
 
-  public CreateDirectoryWithPermissionsCommitStep(FileSystem targetFs, Map<String, List<OwnerAndPermission>> pathAndPermissions) {
+  public static final String CREATE_DIR_CONFIG_PREFIX = CreateDirectoryWithPermissionsCommitStep.class.getSimpleName();
+  public static final String STOP_ON_ERROR_KEY = CREATE_DIR_CONFIG_PREFIX + "stop.on.error";
+  public static final String DEFAULT_STOP_ON_ERROR = "true";
+
+  public final boolean stopOnError;
+
+  public CreateDirectoryWithPermissionsCommitStep(FileSystem targetFs, Map<String, List<OwnerAndPermission>> pathAndPermissions, Properties props) {
     this.pathAndPermissions = pathAndPermissions;
     this.fsUri = targetFs.getUri();
+    this.stopOnError = Boolean.parseBoolean(props.getProperty(STOP_ON_ERROR_KEY, DEFAULT_STOP_ON_ERROR));
   }
 
   @Override
@@ -68,10 +74,13 @@ public class CreateDirectoryWithPermissionsCommitStep implements CommitStep {
       try {
         // Is a no-op if directory already exists, stops when it hits first parent
         // Sets the execute bit for USER in order to rename files to the folder, so it should be reset after this step is completed
-        HadoopUtils.ensureDirectoryExists(fs, path, entry.getValue().iterator());
-      } catch (AccessControlException e) {
-        log.warn("Error while setting permission on " + path, e);
-        break;
+        HadoopUtils.ensureDirectoryExists(fs, path, entry.getValue().iterator(), stopOnError);
+      } catch (IOException e) {
+        log.warn("Error while creating directory or setting owners/permission on " + path, e);
+        if (this.stopOnError) {
+          log.info("Skip setting rest of the permissions because stopOnError is true.");
+          throw e;
+        }
       }
     }
 

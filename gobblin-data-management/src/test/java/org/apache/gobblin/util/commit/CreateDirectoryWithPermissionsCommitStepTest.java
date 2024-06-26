@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -50,7 +51,7 @@ public class CreateDirectoryWithPermissionsCommitStepTest {
   @BeforeClass
   public void setUp() throws IOException {
     this.fs = FileSystem.getLocal(new Configuration());
-    this.fs.delete(ROOT_DIR, true);
+    this.fs.delete(ROOT_DIR.getParent(), true);
     this.fs.mkdirs(ROOT_DIR);
   }
 
@@ -70,9 +71,10 @@ public class CreateDirectoryWithPermissionsCommitStepTest {
     Map<String, List<OwnerAndPermission>> pathAndPermissions = new HashMap<>();
     pathAndPermissions.put(dir1.toString(), Lists.newArrayList(ownerAndPermission));
 
-    CommitStep step = new CreateDirectoryWithPermissionsCommitStep(this.fs, pathAndPermissions);
+    CommitStep step = new CreateDirectoryWithPermissionsCommitStep(this.fs, pathAndPermissions, new Properties());
+    Assert.assertFalse(this.fs.exists(dir1));
     step.execute();
-    Assert.assertEquals(this.fs.exists(dir1), true);
+    Assert.assertTrue(this.fs.exists(dir1));
     Assert.assertEquals(this.fs.getFileStatus(dir1).getPermission(), permission);
     Assert.assertEquals(this.fs.getFileStatus(dir1).getOwner(), this.fs.getFileStatus(ROOT_DIR).getOwner());
     Assert.assertEquals(this.fs.getFileStatus(dir1).getGroup(), this.fs.getFileStatus(ROOT_DIR).getGroup());
@@ -93,14 +95,40 @@ public class CreateDirectoryWithPermissionsCommitStepTest {
     Map<String, List<OwnerAndPermission>> pathAndPermissions = new HashMap<>();
     pathAndPermissions.put(dirNestedChild.toString(), Lists.newArrayList(ownerAndPermissionChild, ownerAndPermissionParent));
 
-    CommitStep step = new CreateDirectoryWithPermissionsCommitStep(this.fs, pathAndPermissions);
+    CommitStep step = new CreateDirectoryWithPermissionsCommitStep(this.fs, pathAndPermissions, new Properties());
+    Assert.assertFalse(this.fs.exists(dirNestedParent));
+    Assert.assertFalse(this.fs.exists(dirNestedChild));
+
     step.execute();
     Assert.assertEquals(this.fs.exists(dirNestedChild), true);
+    Assert.assertEquals(this.fs.exists(dirNestedParent), true);
     Assert.assertEquals(this.fs.getFileStatus(dirNestedChild).getPermission(), permissionChild);
     Assert.assertEquals(this.fs.getFileStatus(dirNestedChild).getOwner(), this.fs.getFileStatus(ROOT_DIR).getOwner());
     Assert.assertEquals(this.fs.getFileStatus(dirNestedChild).getGroup(), this.fs.getFileStatus(ROOT_DIR).getGroup());
     Assert.assertEquals(this.fs.getFileStatus(dirNestedParent).getPermission(), permissionParent);
+  }
 
+  @Test
+  void testFailsLoudlyWhenConfigured() throws IOException{
+    Path dir = new Path(ROOT_DIR, "dirParent");
+    FsPermission fsPermission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
+    OwnerAndPermission ownerAndPermission = new OwnerAndPermission("nonExistentOwner", "nonExistentGroup", fsPermission);
+
+    Map<String, List<OwnerAndPermission>> pathAndPermissions = new HashMap<>();
+    pathAndPermissions.put(dir.toString(), Lists.newArrayList(ownerAndPermission));
+
+    CommitStep failingStep = new CreateDirectoryWithPermissionsCommitStep(this.fs, pathAndPermissions, new Properties());
+    Assert.assertFalse(this.fs.exists(dir));
+
+    Assert.assertThrows(IOException.class, failingStep::execute);
+
+    Properties props = new Properties();
+    props.setProperty(CreateDirectoryWithPermissionsCommitStep.STOP_ON_ERROR_KEY, "false");
+    CommitStep passingStep = new CreateDirectoryWithPermissionsCommitStep(this.fs, pathAndPermissions, props);
+    passingStep.execute();
+    Assert.assertTrue(this.fs.exists(dir));
+    // Set owner will fail silently due to not being configured
+    Assert.assertNotEquals(this.fs.getFileStatus(dir).getOwner(), "nonExistentOwner");
   }
 
 }

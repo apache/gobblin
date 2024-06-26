@@ -34,8 +34,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.AclEntry;
-import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.codahale.metrics.Meter;
@@ -477,7 +475,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
           copyableFile.getAncestorsOwnerAndPermission() == null ? Collections.emptyIterator()
               : copyableFile.getAncestorsOwnerAndPermission().iterator();
 
-      HadoopUtils.ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt);
+      HadoopUtils.ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt, false);
       if (copyableFile.getFileStatus().isDirectory() && this.fs.exists(outputFilePath)) {
         log.info(String.format("CopyableFile %s is a directory which already exists at %s - skipping overwrite; if necessary, publisher will sync metadata",
             stagingFilePath, outputFilePath));

@@ -47,13 +47,17 @@ import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 @Test(groups = { "gobblin.commit" })
 public class SetPermissionCommitStepTest {
   private static final Path ROOT_DIR = new Path(Files.createTempDir().getPath(),"set-permissions-test");
+  String owner;
+  String group;
 
   private FileSystem fs;
   @BeforeClass
   public void setUp() throws IOException {
     this.fs = FileSystem.getLocal(new Configuration());
-    this.fs.delete(ROOT_DIR, true);
+    this.fs.delete(ROOT_DIR.getParent(), true);
     this.fs.mkdirs(ROOT_DIR);
+    this.owner = this.fs.getFileStatus(ROOT_DIR).getOwner();
+    this.group = this.fs.getFileStatus(ROOT_DIR).getGroup();
   }
 
   @AfterClass
@@ -64,20 +68,17 @@ public class SetPermissionCommitStepTest {
   @Test
   public void testExecuteSingleLevel() throws IOException {
     Path dir1 = new Path(ROOT_DIR, "dir1");
-    String owner = this.fs.getFileStatus(ROOT_DIR).getOwner();
-    String group = this.fs.getFileStatus(ROOT_DIR).getGroup();
     FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
     fs.mkdirs(dir1);
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(owner, group, permission);
-    Map<String, OwnerAndPermission> pathAndPermissions = new HashMap<>();
+    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(this.owner, this.group, permission);
+    TreeMap<String, OwnerAndPermission> pathAndPermissions = new TreeMap<>();
     pathAndPermissions.put(dir1.toString(), ownerAndPermission);
 
     CommitStep step = new SetPermissionCommitStep(this.fs, pathAndPermissions, new Properties());
+    Assert.assertNotEquals(this.fs.getFileStatus(dir1).getPermission(), permission);
     step.execute();
     Assert.assertEquals(this.fs.exists(dir1), true);
     Assert.assertEquals(this.fs.getFileStatus(dir1).getPermission(), permission);
-    Assert.assertEquals(this.fs.getFileStatus(dir1).getOwner(), this.fs.getFileStatus(ROOT_DIR).getOwner());
-    Assert.assertEquals(this.fs.getFileStatus(dir1).getGroup(), this.fs.getFileStatus(ROOT_DIR).getGroup());
   }
 
   @Test
@@ -92,16 +93,17 @@ public class SetPermissionCommitStepTest {
     FsPermission permissionChild = new FsPermission(FsAction.ALL, FsAction.NONE, FsAction.NONE);
     OwnerAndPermission ownerAndPermissionChild = new OwnerAndPermission(owner, group, permissionChild);
 
-    Map<String, OwnerAndPermission> pathAndPermissions = new TreeMap<>();
+    TreeMap<String, OwnerAndPermission> pathAndPermissions = new TreeMap<>();
     pathAndPermissions.put(dirNestedParent.toString(), ownerAndPermissionParent);
     pathAndPermissions.put(dirNestedChild.toString(), ownerAndPermissionChild);
 
     CommitStep step = new SetPermissionCommitStep(this.fs, pathAndPermissions, new Properties());
+    Assert.assertNotEquals(this.fs.getFileStatus(dirNestedParent).getPermission(), permissionParent);
+    Assert.assertNotEquals(this.fs.getFileStatus(dirNestedChild).getPermission(), permissionChild);
+
     step.execute();
     Assert.assertEquals(this.fs.exists(dirNestedChild), true);
     Assert.assertEquals(this.fs.getFileStatus(dirNestedChild).getPermission(), permissionChild);
-    Assert.assertEquals(this.fs.getFileStatus(dirNestedChild).getOwner(), this.fs.getFileStatus(ROOT_DIR).getOwner());
-    Assert.assertEquals(this.fs.getFileStatus(dirNestedChild).getGroup(), this.fs.getFileStatus(ROOT_DIR).getGroup());
     Assert.assertEquals(this.fs.getFileStatus(dirNestedParent).getPermission(), permissionParent);
   }
 

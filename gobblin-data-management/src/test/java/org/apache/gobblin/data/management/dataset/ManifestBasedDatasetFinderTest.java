@@ -201,7 +201,7 @@ public class ManifestBasedDatasetFinderTest {
         CopyConfiguration.builder(destFs, props).build());
     Assert.assertTrue(fileSets.hasNext());
     FileSet<CopyEntity> fileSet = fileSets.next();
-    Assert.assertEquals(fileSet.getFiles().size(), 3);  // 1 files to copy + 1 post publish step
+    Assert.assertEquals(fileSet.getFiles().size(), 3);  // 1 files to copy + 1 pre publish step + 1 post publish step
     Assert.assertTrue(((PrePublishStep) fileSet.getFiles().get(1)).getStep() instanceof CreateDirectoryWithPermissionsCommitStep);
     Assert.assertTrue(((PostPublishStep) fileSet.getFiles().get(2)).getStep() instanceof SetPermissionCommitStep);
 

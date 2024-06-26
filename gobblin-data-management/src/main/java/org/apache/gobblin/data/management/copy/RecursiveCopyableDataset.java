@@ -44,7 +44,6 @@ import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.commit.CreateDirectoryWithPermissionsCommitStep;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.gobblin.util.commit.SetPermissionCommitStep;
 import org.apache.gobblin.util.filesystem.OwnerAndPermission;
@@ -144,7 +143,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
     List<CopyableFile> copyableFiles = Lists.newArrayList();
 
     // map of paths and permissions sorted by depth of path, so that permissions can be set in order
-    Map<String, OwnerAndPermission> ancestorOwnerAndPermissions = new TreeMap<>(
+    TreeMap<String, OwnerAndPermission> ancestorOwnerAndPermissions = new TreeMap<>(
         (o1, o2) -> Long.compare(o2.chars().filter(ch -> ch == '/').count(), o1.chars().filter(ch -> ch == '/').count()));
 
     for (Path path : toCopy) {

@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.Map;
 import java.util.Properties;
+import java.util.TreeMap;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -37,6 +38,8 @@ import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 /**
  * An implementation of {@link CommitStep} for setting any file permissions.
  * Current implementation only sets permissions, but it is capable of setting owner and group as well.
+ * Expects a tree map of path to {@link OwnerAndPermission} ordered by highest path depth to least path depth in order to
+ * handle the edge case where setting permissions at a parent folder can lock out setting permissions on children
  */
 @Slf4j
 public class SetPermissionCommitStep implements CommitStep {
@@ -44,11 +47,13 @@ public class SetPermissionCommitStep implements CommitStep {
   Map<String, OwnerAndPermission> pathAndPermissions;
   private final URI fsUri;
   public final boolean stopOnError;
-  public static final String STOP_ON_ERROR_KEY = "stop.on.error";
+
+  public static final String SET_PERMISSION_CONFIG_PREFIX = SetPermissionCommitStep.class.getSimpleName();
+  public static final String STOP_ON_ERROR_KEY = SET_PERMISSION_CONFIG_PREFIX + "stop.on.error";
   public static final String DEFAULT_STOP_ON_ERROR = "false";
   private boolean isCompleted = false;
 
-  public SetPermissionCommitStep(FileSystem targetFs, Map<String, OwnerAndPermission> pathAndPermissions,
+  public SetPermissionCommitStep(FileSystem targetFs, TreeMap<String, OwnerAndPermission> pathAndPermissions,
       Properties props) {
     this.pathAndPermissions = pathAndPermissions;
     this.fsUri = targetFs.getUri();
