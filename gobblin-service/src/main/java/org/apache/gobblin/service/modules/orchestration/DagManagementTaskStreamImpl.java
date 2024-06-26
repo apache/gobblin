@@ -170,6 +170,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     long reminderDuration = jobSubmissionTime + timeOutForJobStart - System.currentTimeMillis();
 
     dagActionReminderScheduler.get().scheduleReminder(dagActionLeaseParams, reminderDuration);
+    dagActionReminderScheduler.get().scheduleReminder(dagActionLeaseParams, reminderDuration, true);
   }
 
   private void createFlowFinishDeadlineTrigger(DagActionStore.DagActionLeaseParams dagActionLeaseParams)
@@ -190,7 +191,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     long flowStartTime = DagManagerUtils.getFlowStartTime(dagNode);
     long reminderDuration = flowStartTime + timeOutForJobFinish - System.currentTimeMillis();
 
-    dagActionReminderScheduler.get().scheduleReminder(dagActionLeaseParams, reminderDuration);
+    dagActionReminderScheduler.get().scheduleReminder(dagActionLeaseParams, reminderDuration, true);
   }
 
   /**
@@ -243,6 +244,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   */
   protected void scheduleReminderForEvent(LeaseAttemptStatus leaseStatus)
       throws SchedulerException {
-    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getConsensusDagActionLeaseParams(), leaseStatus.getMinimumLingerDurationMillis());
+    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getConsensusDagActionLeaseParams(),
+        leaseStatus.getMinimumLingerDurationMillis(), false);
   }
 }
