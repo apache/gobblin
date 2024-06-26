@@ -45,6 +45,7 @@ dependencies {
   }
 
   compile externalDependency.gson
+  compile externalDependency.lombok
   compile externalDependency.pegasus.restliServer
   compile externalDependency.pegasus.restliCommon
   compile externalDependency.pegasus.restliNettyStandalone

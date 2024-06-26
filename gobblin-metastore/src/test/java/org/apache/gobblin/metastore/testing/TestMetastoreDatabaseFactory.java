@@ -56,7 +56,7 @@ public class TestMetastoreDatabaseFactory {
     public static ITestMetastoreDatabase get(String version, Config dbConfig) throws Exception {
         try {
             synchronized (syncObject) {
-                ensureDatabaseExists(dbConfig);
+                ensureDatabaseServerExists(dbConfig);
                 TestMetadataDatabase instance = new TestMetadataDatabase(testMetastoreDatabaseServer, version);
                 instances.add(instance);
                 return instance;
@@ -72,14 +72,14 @@ public class TestMetastoreDatabaseFactory {
 
     static void release(ITestMetastoreDatabase instance) throws IOException {
         synchronized (syncObject) {
-            if (instances.remove(instance) && instances.size() == 0) {
+            if (instances.remove(instance) && instances.isEmpty()) {
                 testMetastoreDatabaseServer.close();
                 testMetastoreDatabaseServer = null;
             }
         }
     }
 
-    private static void ensureDatabaseExists(Config dbConfig) throws Exception {
+    private static void ensureDatabaseServerExists(Config dbConfig) throws Exception {
         if (testMetastoreDatabaseServer == null) {
             try (Mutex ignored = new Mutex()) {
                 if (testMetastoreDatabaseServer == null) {

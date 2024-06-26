@@ -42,29 +42,32 @@ public class MysqlDagActionStoreTest {
   private static final String flowName = "testFlowName";
   private static final String jobName = "testJobName";
   private static final String jobName_2 = "testJobName2";
-  private static final String flowExecutionId = "12345677";
-  private static final String flowExecutionId_2 = "12345678";
-  private static final String flowExecutionId_3 = "12345679";
+  private static final long flowExecutionId = 12345677L;
+  private static final long flowExecutionId_2 = 12345678L;
+  private static final long flowExecutionId_3 = 12345679L;
   private ITestMetastoreDatabase testDb;
-  private MysqlDagActionStore mysqlDagActionStore;
+  private DagActionStore mysqlDagActionStore;
 
   @BeforeClass
   public void setUp() throws Exception {
     this.testDb = TestMetastoreDatabaseFactory.get();
-    Config config = ConfigBuilder.create()
-        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, this.testDb.getJdbcUrl())
-        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
-        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
-        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
-        .build();
-
-    this.mysqlDagActionStore = new MysqlDagActionStore(config);
+    this.mysqlDagActionStore = getTestDagActionStore(this.testDb);
   }
 
   @AfterClass(alwaysRun = true)
   public void tearDown() throws IOException {
     // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
     this.testDb.close();
+  }
+
+  public static DagActionStore getTestDagActionStore(ITestMetastoreDatabase testDb) throws Exception {
+    Config config = ConfigBuilder.create()
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
+        .build();
+    return new MysqlDagActionStore(config);
   }
 
   @Test

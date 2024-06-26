@@ -368,8 +368,10 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
           this.gitConfigMonitor.setActive(false);
         }
 
-        this.dagManager.setActive(false);
-        this.eventBus.unregister(this.dagManager);
+        if (!this.configuration.isDagProcessingEngineEnabled()) {
+          this.dagManager.setActive(false);
+          this.eventBus.unregister(this.dagManager);
+        }
 
         if (configuration.isOnlyAnnounceLeader()) {
           this.d2Announcer.markDownServer();

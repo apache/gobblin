@@ -37,8 +37,8 @@ import org.apache.gobblin.temporal.workflows.metrics.SubmitGTEActivityImpl;
 
 /** Worker for the {@link ProcessWorkUnitsWorkflowImpl} super-workflow */
 public class WorkFulfillmentWorker extends AbstractTemporalWorker {
-    public static final long DEADLOCK_DETECTION_TIMEOUT_SECONDS = 120;
-    public static final int MAX_EXECUTION_CONCURRENCY = 3;
+    public static final long DEADLOCK_DETECTION_TIMEOUT_SECONDS = 120; // TODO: make configurable!
+    public static final int MAX_EXECUTION_CONCURRENCY = 5; // TODO: make configurable!
 
     public WorkFulfillmentWorker(Config config, WorkflowClient workflowClient) {
         super(config, workflowClient);
