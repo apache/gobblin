@@ -126,7 +126,7 @@ ext.externalDependency = [
     "commonsVfs": "org.apache.commons:commons-vfs2:2.0",
     "mysqlConnector": "mysql:mysql-connector-java:8.0.24",
     "javaxInject": "javax.inject:javax.inject:1",
-    "guice": "com.google.inject:guice:4.0",
+    "guice": "com.google.inject:guice:4.2.2",
     "guiceMultibindings": "com.google.inject.extensions:guice-multibindings:4.0",
     "guiceServlet": "com.google.inject.extensions:guice-servlet:4.0",
     "derby": "org.apache.derby:derby:10.12.1.1",
