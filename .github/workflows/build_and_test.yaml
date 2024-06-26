@@ -101,12 +101,12 @@ jobs:
     needs: build
     services:
       mysql:
-        image: mysql:5.7.32
+        image: mysql:8.0.20
         env:
           MYSQL_USER: testUser
           MYSQL_PASSWORD: testPassword
           MYSQL_DATABASE: test
-          MYSQL_ROOT_PASSWORD: password
+          MYSQL_ROOT_PASSWORD: testPassword
         ports:
           - 3306:3306
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
@@ -134,8 +134,8 @@ jobs:
             sudo dpkg -l | grep -i mysql
             sudo apt-get clean
             sudo apt-get install -y mysql-client
-            mysql --host 127.0.0.1 --port 3306 -uroot -ppassword -e "SET GLOBAL max_connections=2000"
-            mysql --host 127.0.0.1 --port 3306 -uroot -ppassword -e "SHOW DATABASES"
+            mysql --host 127.0.0.1 --port 3306 -uroot -ptestPassword -e "SHOW DATABASES"
+            mysql --host 127.0.0.1 --port 3306 -uroot -ptestPassword -e "SET GLOBAL max_connections=2000"
       - name: Cache Gradle Dependencies
         uses: actions/cache@v2
         with:
