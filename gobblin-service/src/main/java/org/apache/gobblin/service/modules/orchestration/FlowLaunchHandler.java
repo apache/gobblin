@@ -106,10 +106,10 @@ public class FlowLaunchHandler {
    * the status of the attempt.
    */
   public void handleFlowLaunchTriggerEvent(Properties jobProps,
-      DagActionStore.DagActionLeaseParams dagActionLeaseParams, boolean adoptConsensusFlowExecutionId)
+      DagActionStore.LeaseParams leaseParams, boolean adoptConsensusFlowExecutionId)
       throws IOException {
-    long previousEventTimeMillis = dagActionLeaseParams.getEventTimeMillis();
-    LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(dagActionLeaseParams, adoptConsensusFlowExecutionId);
+    long previousEventTimeMillis = leaseParams.getEventTimeMillis();
+    LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(leaseParams, adoptConsensusFlowExecutionId);
     if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus
         && persistLaunchDagAction((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt)) {
       log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseAttempt.getConsensusDagAction(),
@@ -128,7 +128,7 @@ public class FlowLaunchHandler {
       return Optional.of((LeaseAttemptStatus.LeasedToAnotherStatus) leaseAttempt);
     } else if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus) { // remind w/o delay to immediately re-attempt handling
       return Optional.of(new LeaseAttemptStatus.LeasedToAnotherStatus(
-          ((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt).getConsensusDagActionLeaseParams(), 0L));
+          ((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt).getConsensusLeaseParams(), 0L));
     } else {
       throw new RuntimeException("unexpected `LeaseAttemptStatus` derived type: '" + leaseAttempt.getClass().getName() + "' in '" + leaseAttempt + "'");
     }

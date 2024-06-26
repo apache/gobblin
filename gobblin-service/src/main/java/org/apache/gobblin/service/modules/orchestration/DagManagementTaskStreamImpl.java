@@ -80,7 +80,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   protected Optional<DagActionReminderScheduler> dagActionReminderScheduler;
   private final boolean isMultiActiveExecutionEnabled;
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
-  private final BlockingQueue<DagActionStore.DagActionLeaseParams> _dagActionLeaseParamsQueue = new LinkedBlockingQueue<>();
+  private final BlockingQueue<DagActionStore.LeaseParams> leaseParamsQueue = new LinkedBlockingQueue<>();
   private final DagManagementStateStore dagManagementStateStore;
 
   @Inject
@@ -112,19 +112,18 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     // TODO: Used to track missing dag issue, remove later as needed
     log.info("Add original (non-reminder) dagAction {}", dagAction);
 
-    if (!this._dagActionLeaseParamsQueue.offer(new DagActionStore.DagActionLeaseParams(dagAction, false, System.currentTimeMillis()))) {
+    if (!this.leaseParamsQueue.offer(new DagActionStore.LeaseParams(dagAction, false, System.currentTimeMillis()))) {
       throw new RuntimeException(String.format("Could not add dag action to the queue %s", dagAction));
     }
   }
 
   @Override
-  public synchronized void addReminderDagAction(DagActionStore.DagActionLeaseParams reminderDagActionLeaseParams) {
+  public synchronized void addReminderDagAction(DagActionStore.LeaseParams reminderLeaseParams) {
     // TODO: Used to track missing dag issue, remove later as needed
-    log.info("Add reminder dagAction {}", reminderDagActionLeaseParams);
+    log.info("Add reminder dagAction {}", reminderLeaseParams);
 
-    if (!this._dagActionLeaseParamsQueue.offer(reminderDagActionLeaseParams)) {
-      throw new RuntimeException(String.format("Could not add reminder dag action to the queue %s",
-          reminderDagActionLeaseParams));
+    if (!this.leaseParamsQueue.offer(reminderLeaseParams)) {
+      throw new RuntimeException(String.format("Could not add reminder dag action to the queue %s", reminderLeaseParams));
     }
   }
 
@@ -138,17 +137,17 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       while (true) {
         DagActionStore.DagAction dagAction = null;
         try {
-          DagActionStore.DagActionLeaseParams dagActionLeaseParams = this._dagActionLeaseParamsQueue.take();
-          dagAction = dagActionLeaseParams.getDagAction();
+          DagActionStore.LeaseParams leaseParams = this.leaseParamsQueue.take();
+          dagAction = leaseParams.getDagAction();
           /* Create triggers for original (non-reminder) dag actions of type ENFORCE_JOB_START_DEADLINE and ENFORCE_FLOW_FINISH_DEADLINE.
              Reminder triggers are used to inform hosts once the job start deadline and flow finish deadline are passed;
              then only is lease arbitration done to enforce the deadline violation and fail the job or flow if needed */
-          if (!dagActionLeaseParams.isReminder() && dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE) {
-            createJobStartDeadlineTrigger(dagActionLeaseParams);
-          } else if (!dagActionLeaseParams.isReminder() && dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE) {
-            createFlowFinishDeadlineTrigger(dagActionLeaseParams);
+          if (!leaseParams.isReminder() && dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE) {
+            createJobStartDeadlineTrigger(leaseParams);
+          } else if (!leaseParams.isReminder() && dagAction.dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE) {
+            createFlowFinishDeadlineTrigger(leaseParams);
           } else { // Handle original non-deadline dagActions as well as reminder events of all types
-            LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(dagActionLeaseParams);
+            LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(leaseParams);
             if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
               return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
             }
@@ -160,23 +159,22 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       }
   }
 
-  private void createJobStartDeadlineTrigger(DagActionStore.DagActionLeaseParams dagActionLeaseParams)
+  private void createJobStartDeadlineTrigger(DagActionStore.LeaseParams leaseParams)
       throws SchedulerException, IOException {
     long timeOutForJobStart = DagManagerUtils.getJobStartSla(this.dagManagementStateStore.getDag(
-        dagActionLeaseParams.getDagAction().getDagId()).get().getNodes().get(0), DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
+        leaseParams.getDagAction().getDagId()).get().getNodes().get(0), DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
     // todo - this timestamp is just an approximation, the real job submission has happened in past, and that is when a
     // ENFORCE_JOB_START_DEADLINE dag action was created; we are just processing that dag action here
     long jobSubmissionTime = System.currentTimeMillis();
     long reminderDuration = jobSubmissionTime + timeOutForJobStart - System.currentTimeMillis();
 
-    dagActionReminderScheduler.get().scheduleReminder(dagActionLeaseParams, reminderDuration);
-    dagActionReminderScheduler.get().scheduleReminder(dagActionLeaseParams, reminderDuration, true);
+    dagActionReminderScheduler.get().scheduleReminder(leaseParams, reminderDuration, true);
   }
 
-  private void createFlowFinishDeadlineTrigger(DagActionStore.DagActionLeaseParams dagActionLeaseParams)
+  private void createFlowFinishDeadlineTrigger(DagActionStore.LeaseParams leaseParams)
       throws SchedulerException, IOException {
     long timeOutForJobFinish;
-    Dag.DagNode<JobExecutionPlan> dagNode = this.dagManagementStateStore.getDag(dagActionLeaseParams.getDagAction().getDagId()).get().getNodes().get(0);
+    Dag.DagNode<JobExecutionPlan> dagNode = this.dagManagementStateStore.getDag(leaseParams.getDagAction().getDagId()).get().getNodes().get(0);
 
     try {
       timeOutForJobFinish = DagManagerUtils.getFlowSLA(dagNode);
@@ -191,23 +189,23 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     long flowStartTime = DagManagerUtils.getFlowStartTime(dagNode);
     long reminderDuration = flowStartTime + timeOutForJobFinish - System.currentTimeMillis();
 
-    dagActionReminderScheduler.get().scheduleReminder(dagActionLeaseParams, reminderDuration, true);
+    dagActionReminderScheduler.get().scheduleReminder(leaseParams, reminderDuration, true);
   }
 
   /**
    * Returns a {@link LeaseAttemptStatus} associated with the
    * `dagAction` by calling
-   * {@link MultiActiveLeaseArbiter#tryAcquireLease(DagActionStore.DagActionLeaseParams, boolean)}.
-   * @param dagActionLeaseParams
+   * {@link MultiActiveLeaseArbiter#tryAcquireLease(DagActionStore.LeaseParams, boolean)}.
+   * @param leaseParams
    * @return
    * @throws IOException
    * @throws SchedulerException
    */
-  private LeaseAttemptStatus retrieveLeaseStatus(DagActionStore.DagActionLeaseParams dagActionLeaseParams)
+  private LeaseAttemptStatus retrieveLeaseStatus(DagActionStore.LeaseParams leaseParams)
       throws IOException, SchedulerException {
     // Uses reminder flag to determine whether to use current time as event time or previously saved event time
     LeaseAttemptStatus leaseAttemptStatus = this.dagActionProcessingLeaseArbiter
-        .tryAcquireLease(dagActionLeaseParams, false);
+        .tryAcquireLease(leaseParams, false);
         /* Schedule a reminder for the event unless the lease has been completed to safeguard against the case where
         even we, when we might become the lease owner still fail to complete processing
         */
@@ -244,7 +242,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   */
   protected void scheduleReminderForEvent(LeaseAttemptStatus leaseStatus)
       throws SchedulerException {
-    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getConsensusDagActionLeaseParams(),
+    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getConsensusLeaseParams(),
         leaseStatus.getMinimumLingerDurationMillis(), false);
   }
 }
