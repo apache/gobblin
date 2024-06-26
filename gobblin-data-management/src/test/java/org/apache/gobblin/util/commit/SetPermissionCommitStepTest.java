@@ -18,9 +18,6 @@
 package org.apache.gobblin.util.commit;
 
 import java.io.IOException;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
 
@@ -34,7 +31,6 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
-import com.google.common.collect.Lists;
 import com.google.common.io.Files;
 
 import org.apache.gobblin.commit.CommitStep;
