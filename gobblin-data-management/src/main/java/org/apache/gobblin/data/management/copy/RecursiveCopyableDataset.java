@@ -38,13 +38,12 @@ import com.google.common.collect.Maps;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.commit.CommitStep;
-import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.commit.SetPermissionCommitStep;
+import org.apache.gobblin.util.commit.CreateAndSetDirectoryPermissionCommitStep;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 
 
@@ -177,9 +176,9 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     if (this.useNewPreserveLogic) {
       Properties props = new Properties();
-      props.setProperty(SetPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
-      CommitStep step = new SetPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
-      copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), step, 1));
+      props.setProperty(CreateAndSetDirectoryPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
+      CommitStep step = new CreateAndSetDirectoryPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
+      copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
     }
 
     return copyEntities;

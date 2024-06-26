@@ -76,7 +76,7 @@ public class DagManagerUtils {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName =  jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
-    String flowExecutionId = jobConfig.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+    long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
     String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
   }
@@ -117,7 +117,7 @@ public class DagManagerUtils {
   private static DagManager.DagId generateDagId(Config jobConfig) {
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
-    String flowExecutionId = jobConfig.getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+    long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
 
     return new DagManager.DagId(flowGroup, flowName, flowExecutionId);
   }
@@ -127,10 +127,6 @@ public class DagManagerUtils {
   }
 
   public static DagManager.DagId generateDagId(String flowGroup, String flowName, long flowExecutionId) {
-    return generateDagId(flowGroup, flowName, String.valueOf(flowExecutionId));
-  }
-
-  public static DagManager.DagId generateDagId(String flowGroup, String flowName, String flowExecutionId) {
     return new DagManager.DagId(flowGroup, flowName, flowExecutionId);
   }
 

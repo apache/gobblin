@@ -145,7 +145,7 @@ public class FlowCompilationValidationHelper {
     }
     addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
 
-    if (isExecutionPermitted(flowStatusGenerator, flowName, flowGroup, allowConcurrentExecution,
+    if (isExecutionPermitted(flowStatusGenerator, flowGroup, flowName, allowConcurrentExecution,
         Long.parseLong(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)))) {
       return Optional.fromNullable(jobExecutionPlanDag);
     } else {
@@ -176,7 +176,7 @@ public class FlowCompilationValidationHelper {
    * @param allowConcurrentExecution
    * @return true if the {@link FlowSpec} allows concurrent executions or if no other instance of the flow is currently RUNNING.
    */
-  private boolean isExecutionPermitted(FlowStatusGenerator flowStatusGenerator, String flowName, String flowGroup,
+  private boolean isExecutionPermitted(FlowStatusGenerator flowStatusGenerator, String flowGroup, String flowName,
       boolean allowConcurrentExecution, long flowExecutionId) {
     return allowConcurrentExecution || !flowStatusGenerator.isFlowRunning(flowName, flowGroup, flowExecutionId);
   }

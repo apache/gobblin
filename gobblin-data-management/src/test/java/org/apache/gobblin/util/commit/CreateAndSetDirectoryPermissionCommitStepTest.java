@@ -32,45 +32,51 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.io.Files;
+
 import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 
 
 /**
- * Test for {@link SetPermissionCommitStep}.
+ * Test for {@link CreateAndSetDirectoryPermissionCommitStep}.
  */
 @Test(groups = { "gobblin.commit" })
-public class SetPermissionCommitStepTest {
-  private static final String ROOT_DIR = "set-permission-commit-step-test";
+public class CreateAndSetDirectoryPermissionCommitStepTest {
+  private static final Path ROOT_DIR = new Path(Files.createTempDir().getPath(),"set-permission-commit-step-test");
 
   private FileSystem fs;
-  private SetPermissionCommitStep step;
+  private CreateAndSetDirectoryPermissionCommitStep step;
   Path dir1;
   FsPermission permission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
 
   @BeforeClass
   public void setUp() throws IOException {
     this.fs = FileSystem.getLocal(new Configuration());
-    this.fs.delete(new Path(ROOT_DIR), true);
+    this.fs.delete(ROOT_DIR, true);
+    this.fs.mkdirs(ROOT_DIR);
 
     dir1 = new Path(ROOT_DIR, "dir1");
-    this.fs.mkdirs(dir1);
+    String owner = this.fs.getFileStatus(ROOT_DIR).getOwner();
+    String group = this.fs.getFileStatus(ROOT_DIR).getGroup();
 
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission("owner", "group", permission);
+    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(owner, group, permission);
     Map<String, OwnerAndPermission> pathAndPermissions = new HashMap<>();
     pathAndPermissions.put(dir1.toString(), ownerAndPermission);
 
-    this.step = new SetPermissionCommitStep(this.fs, pathAndPermissions, new Properties());
+    this.step = new CreateAndSetDirectoryPermissionCommitStep(this.fs, pathAndPermissions, new Properties());
   }
 
   @AfterClass
   public void tearDown() throws IOException {
-    this.fs.delete(new Path(ROOT_DIR), true);
+    this.fs.delete(ROOT_DIR, true);
   }
 
   @Test
   public void testExecute() throws IOException {
-    Assert.assertNotEquals(this.fs.getFileStatus(dir1).getPermission(), permission);
     this.step.execute();
+    Assert.assertEquals(this.fs.exists(dir1), true);
     Assert.assertEquals(this.fs.getFileStatus(dir1).getPermission(), permission);
+    Assert.assertEquals(this.fs.getFileStatus(dir1).getOwner(), this.fs.getFileStatus(ROOT_DIR).getOwner());
+    Assert.assertEquals(this.fs.getFileStatus(dir1).getGroup(), this.fs.getFileStatus(ROOT_DIR).getGroup());
   }
 }

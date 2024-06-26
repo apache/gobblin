@@ -283,11 +283,7 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
       queryStatement.setString(++index, tableName);
 
       try (ResultSet rs = queryStatement.executeQuery()) {
-        if (rs.next()) {
-          return true;
-        } else {
-          return false;
-        }
+        return rs.next();
       }
     } catch (SQLException e) {
       throw new IOException("Failure checking existence of storeName " + storeName + " tableName " + tableName, e);
