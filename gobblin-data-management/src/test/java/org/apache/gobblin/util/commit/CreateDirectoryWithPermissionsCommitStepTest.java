@@ -110,7 +110,7 @@ public class CreateDirectoryWithPermissionsCommitStepTest {
 
   @Test
   void testFailsLoudlyWhenConfigured() throws IOException{
-    Path dir = new Path(ROOT_DIR, "dirParent");
+    Path dir = new Path(ROOT_DIR, "dirFail");
     FsPermission fsPermission = new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL);
     OwnerAndPermission ownerAndPermission = new OwnerAndPermission("nonExistentOwner", "nonExistentGroup", fsPermission);
 
