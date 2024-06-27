@@ -17,11 +17,13 @@
 
 package org.apache.gobblin.util;
 
+import com.google.common.base.Function;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.runtime.job_spec.JobSpecResolver;
+import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.util.filesystem.PathAlterationListener;
 import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
 import org.apache.gobblin.util.filesystem.PathAlterationObserverScheduler;
@@ -277,11 +279,10 @@ public class SchedulerUtilsTest {
       jobProps5.setProperty("k1", "b1");
       // test-job-conf-dir/test3/test31.PULL
       jobProps5.store(new FileWriter(sameContentFile), "");
-      // sleep for the observer to observe changes once
-      Thread.sleep(1500);
 
+      AssertWithBackoff.create().timeoutMs(2000).backoffFactor(2.0)
+          .assertEquals(input -> fileAltered.size(), 4, "should eventually succeed");
       semaphore.acquire(4);
-      Assert.assertEquals(fileAltered.size(), 4);
 
       Assert.assertTrue(fileAltered.contains(new Path("file:" + jobConfigFile)));
       Assert.assertTrue(fileAltered.contains(new Path("file:" + commonPropsFile)));

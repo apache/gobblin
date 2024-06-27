@@ -29,7 +29,10 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import lombok.extern.slf4j.Slf4j;
 
+
+@Slf4j
 public class FileStatusEntry extends FileStatus {
 
   static final FileStatusEntry[] EMPTY_ENTRIES = new FileStatusEntry[0];
@@ -70,12 +73,14 @@ public class FileStatusEntry extends FileStatus {
         this.changeTime = getChangeTime(path);
         this.exists = this._fileStatus.isPresent();
 
+        // using ctime instead of modificationTime since modificationTime is set to start of epoch for a new file
         return (oldStatus.isPresent() != this._fileStatus.isPresent()
             || (oldChangeTime != null && !oldChangeTime.equals(this.changeTime))
             || oldStatus.get().isDirectory() != this._fileStatus.get().isDirectory()
             || oldStatus.get().getLen() != this._fileStatus.get().getLen());
       } catch (FileNotFoundException e) {
         _fileStatus = Optional.absent();
+        this.changeTime = null;
         this.exists = false;
         return true;
       }
@@ -198,6 +203,7 @@ public class FileStatusEntry extends FileStatus {
       return (FileTime) Files.getAttribute(filePath, "unix:ctime");
     }
     catch (Exception e) {
+      log.info("Exception occurred while getting ctime for {}", path.toUri().getPath(), e);
       return null;
     }
   }
