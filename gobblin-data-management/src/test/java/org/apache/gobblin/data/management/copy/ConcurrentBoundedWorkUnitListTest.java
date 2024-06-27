@@ -34,6 +34,7 @@ import com.google.common.collect.Lists;
 import org.apache.gobblin.data.management.dataset.DummyDataset;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 
 
 public class ConcurrentBoundedWorkUnitListTest {

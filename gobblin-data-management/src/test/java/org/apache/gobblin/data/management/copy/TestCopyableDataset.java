@@ -30,6 +30,7 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import com.google.common.collect.Lists;
 
 import org.apache.gobblin.dataset.FileSystemDataset;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 
 
 /**

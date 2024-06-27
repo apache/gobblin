@@ -29,6 +29,7 @@ import java.io.OutputStream;
 import java.net.URI;
 import java.nio.file.AccessDeniedException;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map.Entry;
 import java.util.Properties;
@@ -50,6 +51,8 @@ import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.RawLocalFileSystem;
 import org.apache.hadoop.fs.Trash;
+import org.apache.hadoop.fs.permission.AclEntry;
+import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.hdfs.DistributedFileSystem;
 import org.apache.hadoop.io.IOUtils;
@@ -73,6 +76,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.deprecation.DeprecationUtils;
 import org.apache.gobblin.util.executors.ScalingThreadPoolExecutor;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 import org.apache.gobblin.writer.DataWriter;
 
 
@@ -755,6 +759,69 @@ public class HadoopUtils {
         log.info(String.format("File already exists %s. Will not rewrite", toFilePath));
       }
     }
+  }
+
+  /**
+   * Creates a directory with the given path and enforces the given owner and permissions recursively all the way up to root, or
+   * until the list of owner and permissions is exhausted.
+   * If any of the parent directories already exists, it will not overwrite the existing permissions and this function will be a no-op.
+   * @param fs
+   * @param path
+   * @param ownerAndPermissionIterator
+   * @param failIfOwnerSetFails
+   * @throws IOException
+   */
+
+  public static void ensureDirectoryExists(FileSystem fs, Path path, Iterator<OwnerAndPermission> ownerAndPermissionIterator, boolean failIfOwnerSetFails)
+      throws IOException {
+
+    if (fs.exists(path)) {
+      return;
+    } else if (!ownerAndPermissionIterator.hasNext()) {
+      fs.mkdirs(path);
+    } else {
+      OwnerAndPermission ownerAndPermission = ownerAndPermissionIterator.next();
+
+      if (path.getParent() != null) {
+        ensureDirectoryExists(fs, path.getParent(), ownerAndPermissionIterator, failIfOwnerSetFails);
+      }
+
+      if (!fs.mkdirs(path)) {
+        // fs.mkdirs returns false if path already existed. Do not overwrite permissions
+        return;
+      }
+
+      List<AclEntry> aclEntries = ownerAndPermission.getAclEntries();
+      if (!aclEntries.isEmpty()) {
+        // use modify acls instead of setAcl since latter requires all three acl entry types: user, group and others
+        // while overwriting the acls for a given path. If anyone is absent it fails acl transformation validation.
+        fs.modifyAclEntries(path, aclEntries);
+      }
+
+      if (ownerAndPermission.getFsPermission() != null) {
+        log.debug("Applying permissions {} to path {}.", ownerAndPermission.getFsPermission(), path);
+        fs.setPermission(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
+      }
+
+      String group = ownerAndPermission.getGroup();
+      String owner = ownerAndPermission.getOwner();
+      if (group != null || owner != null) {
+        log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
+        try {
+          fs.setOwner(path, owner, group);
+        } catch (IOException e) {
+          log.warn("Failed to set owner and/or group for path " + path + " to " + owner + ":" + group, e);
+          if (failIfOwnerSetFails) {
+            throw e;
+          }
+        }
+      }
+    }
+  }
+
+  public static FsPermission addExecutePermissionToOwner(FsPermission fsPermission) {
+    FsAction newOwnerAction = fsPermission.getUserAction().or(FsAction.EXECUTE);
+    return new FsPermission(newOwnerAction, fsPermission.getGroupAction(), fsPermission.getOtherAction(), fsPermission.getStickyBit());
   }
 
   public static Configuration getConfFromState(State state) {
