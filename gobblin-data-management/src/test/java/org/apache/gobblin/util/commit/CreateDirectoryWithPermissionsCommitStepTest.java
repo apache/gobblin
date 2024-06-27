@@ -123,7 +123,7 @@ public class CreateDirectoryWithPermissionsCommitStepTest {
     Assert.assertThrows(IOException.class, failingStep::execute);
 
     Properties props = new Properties();
-    props.setProperty(CreateDirectoryWithPermissionsCommitStep.STOP_ON_ERROR_KEY, "false");
+    props.setProperty(CreateDirectoryWithPermissionsCommitStep.THROW_ON_ERROR_KEY, "false");
     CommitStep passingStep = new CreateDirectoryWithPermissionsCommitStep(this.fs, pathAndPermissions, props);
     passingStep.execute();
     Assert.assertTrue(this.fs.exists(dir));
