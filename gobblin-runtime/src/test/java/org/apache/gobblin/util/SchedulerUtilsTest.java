@@ -58,6 +58,7 @@ public class SchedulerUtilsTest {
   private File subDir1;
   private File subDir11;
   private File subDir2;
+  private File subDir3;
 
   @BeforeClass
   public void setUp()
@@ -68,10 +69,12 @@ public class SchedulerUtilsTest {
     this.subDir1 = new File(this.jobConfigDir, "test1");
     this.subDir11 = new File(this.subDir1, "test11");
     this.subDir2 = new File(this.jobConfigDir, "test2");
+    this.subDir3 = new File(this.jobConfigDir, "test3");
 
     this.subDir1.mkdirs();
     this.subDir11.mkdirs();
     this.subDir2.mkdirs();
+    this.subDir3.mkdirs();
 
     Properties rootProps = new Properties();
     rootProps.setProperty("k1", "a1");
@@ -114,6 +117,11 @@ public class SchedulerUtilsTest {
     jobProps4.setProperty("k5", "b5");
     // test-job-conf-dir/test2/test21.PULL
     jobProps4.store(new FileWriter(new File(this.subDir2, "test21.PULL")), "");
+
+    Properties jobProps5 = new Properties();
+    jobProps5.setProperty("k1", "b1");
+    // test-job-conf-dir/test3/test31.PULL
+    jobProps5.store(new FileWriter(new File(this.subDir3, "test31.PULL")), "");
   }
 
   @Test
@@ -122,7 +130,7 @@ public class SchedulerUtilsTest {
     Properties properties = new Properties();
     properties.setProperty(ConfigurationKeys.JOB_CONFIG_FILE_GENERAL_PATH_KEY, this.jobConfigDir.getAbsolutePath());
     List<Properties> jobConfigs = SchedulerUtils.loadGenericJobConfigs(properties, JobSpecResolver.mock());
-    Assert.assertEquals(jobConfigs.size(), 4);
+    Assert.assertEquals(jobConfigs.size(), 5);
 
     // test-job-conf-dir/test1/test11/test111.pull
     Properties jobProps1 = getJobConfigForFile(jobConfigs, "test111.pull");
@@ -263,12 +271,22 @@ public class SchedulerUtilsTest {
       File newJobConfigFile = new File(this.subDir11, "test112.pull");
       Files.append("k1=v1", newJobConfigFile, ConfigurationKeys.DEFAULT_CHARSET_ENCODING);
 
-      semaphore.acquire(3);
-      Assert.assertEquals(fileAltered.size(), 3);
+      // Create file with same content again
+      File sameContentFile = new File(this.subDir3, "test31.PULL");
+      Properties jobProps5 = new Properties();
+      jobProps5.setProperty("k1", "b1");
+      // test-job-conf-dir/test3/test31.PULL
+      jobProps5.store(new FileWriter(sameContentFile), "");
+      // sleep for the observer to observe changes once
+      Thread.sleep(1500);
+
+      semaphore.acquire(4);
+      Assert.assertEquals(fileAltered.size(), 4);
 
       Assert.assertTrue(fileAltered.contains(new Path("file:" + jobConfigFile)));
       Assert.assertTrue(fileAltered.contains(new Path("file:" + commonPropsFile)));
       Assert.assertTrue(fileAltered.contains(new Path("file:" + newJobConfigFile)));
+      Assert.assertTrue(fileAltered.contains(new Path("file:" + sameContentFile)));
     } finally {
       monitor.stop();
     }

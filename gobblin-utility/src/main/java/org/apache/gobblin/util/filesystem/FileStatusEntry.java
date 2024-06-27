@@ -20,6 +20,9 @@ package org.apache.gobblin.util.filesystem;
 import com.google.common.base.Optional;
 import java.io.FileNotFoundException;
 import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.attribute.FileTime;
+import java.nio.file.Paths;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -37,6 +40,8 @@ public class FileStatusEntry extends FileStatus {
   private boolean exists;
   private final FileSystem fs;
 
+  private FileTime changeTime;
+
   public Optional<FileStatus> _fileStatus;
 
   public FileStatusEntry(final Path path)
@@ -52,18 +57,21 @@ public class FileStatusEntry extends FileStatus {
     this.parent = parent;
     this.fs = fs;
     this._fileStatus = Optional.fromNullable(this.fs.getFileStatus(path));
+    this.changeTime = getChangeTime(path);
   }
 
   public boolean refresh(final Path path)
       throws IOException {
     if (_fileStatus.isPresent()) {
       Optional<FileStatus> oldStatus = this._fileStatus;
+      FileTime oldChangeTime = this.changeTime;
       try {
         this._fileStatus = Optional.of(this.fs.getFileStatus(path));
+        this.changeTime = getChangeTime(path);
         this.exists = this._fileStatus.isPresent();
 
         return (oldStatus.isPresent() != this._fileStatus.isPresent()
-            || oldStatus.get().getModificationTime() != this._fileStatus.get().getModificationTime()
+            || (oldChangeTime != null && !oldChangeTime.equals(this.changeTime))
             || oldStatus.get().isDirectory() != this._fileStatus.get().isDirectory()
             || oldStatus.get().getLen() != this._fileStatus.get().getLen());
       } catch (FileNotFoundException e) {
@@ -74,6 +82,7 @@ public class FileStatusEntry extends FileStatus {
     } else {
       if (path.getFileSystem(new Configuration()).exists(path)) {
         _fileStatus = Optional.of(this.fs.getFileStatus(path));
+        this.changeTime = getChangeTime(path);
         return true;
       } else {
         return false;
@@ -181,5 +190,15 @@ public class FileStatusEntry extends FileStatus {
   @Override
   public int hashCode() {
     return getPath().hashCode();
+  }
+
+  private FileTime getChangeTime(Path path) {
+    try{
+      java.nio.file.Path filePath = Paths.get(path.toUri().getPath());
+      return (FileTime) Files.getAttribute(filePath, "unix:ctime");
+    }
+    catch (Exception e) {
+      return null;
+    }
   }
 }
