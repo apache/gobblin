@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.util;
 
-import com.google.common.base.Function;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
 import com.typesafe.config.ConfigFactory;
