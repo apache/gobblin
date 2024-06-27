@@ -43,8 +43,8 @@ import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 @Test(groups = { "gobblin.commit" })
 public class SetPermissionCommitStepTest {
   private static final Path ROOT_DIR = new Path(Files.createTempDir().getPath(),"set-permissions-test");
-  String owner;
-  String group;
+  private String owner;
+  private String group;
 
   private FileSystem fs;
   @BeforeClass
