@@ -96,31 +96,44 @@ public class DagProcessingEngineMetrics {
     switch (metricName) {
       case ServiceMetricNames.DAG_ACTIONS_STORED:
         updateMetricForDagAction(this.dagActionsStoredMeters, dagActionType);
+        break;
       case ServiceMetricNames.DAG_ACTIONS_OBSERVED:
         updateMetricForDagAction(this.dagActionsObservedMeters, dagActionType);
+        break;
       case ServiceMetricNames.DAG_ACTIONS_LEASES_OBTAINED:
         updateMetricForDagAction(this.dagActionsLeasesObtainedMeters, dagActionType);
+        break;
       case ServiceMetricNames.DAG_ACTIONS_NO_LONGER_LEASING:
         updateMetricForDagAction(this.dagActionsNoLongerLeasingMeters, dagActionType);
+        break;
       case ServiceMetricNames.DAG_ACTION_LEASE_REMINDERS_SCHEDULED:
         updateMetricForDagAction(this.dagActionLeaseRemindersScheduledMeters, dagActionType);
+        break;
       case ServiceMetricNames.DAG_ACTION_REMINDERS_PROCESSED:
         updateMetricForDagAction(this.dagActionRemindersProcessedMeters, dagActionType);
+        break;
       // TODO: implement evaluating max retries later
         case ServiceMetricNames.DAG_ACTIONS_EXCEEDED_MAX_RETRY:
         updateMetricForDagAction(this.dagActionsExceededMaxRetryMeters, dagActionType);
+          break;
       case ServiceMetricNames.DAG_ACTIONS_INIT_FAILED:
         updateMetricForDagAction(this.dagActionsInitFailedMeters, dagActionType);
+        break;
       case ServiceMetricNames.DAG_ACTIONS_INIT_SUCCEEDED:
         updateMetricForDagAction(this.dagActionsInitSucceededMeters, dagActionType);
+        break;
       case ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED:
         updateMetricForDagAction(this.dagActionExecutionsFailedMeters, dagActionType);
+        break;
       case ServiceMetricNames.DAG_ACTION_EXECUTIONS_SUCCEEDED:
         updateMetricForDagAction(this.dagActionExecutionsSucceededMeters, dagActionType);
+        break;
       case ServiceMetricNames.DAG_ACTION_CONCLUSIONS_FAILED:
         updateMetricForDagAction(this.dagActionConclusionsFailedMeters, dagActionType);
+        break;
       case ServiceMetricNames.DAG_ACTION_CONCLUSIONS_SUCCEEDED:
         updateMetricForDagAction(this.dagActionConclusionsSucceededMeters, dagActionType);
+        break;
     }
   }
 
