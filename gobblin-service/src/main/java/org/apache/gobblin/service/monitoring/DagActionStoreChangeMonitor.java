@@ -24,6 +24,8 @@ import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
+import org.jetbrains.annotations.NotNull;
+
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
@@ -65,16 +67,11 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
   // Metrics
   protected ContextAwareMeter killsInvoked;
   protected ContextAwareMeter resumesInvoked;
-  private ContextAwareMeter successfulLaunchSubmissions;
-  private ContextAwareMeter failedLaunchSubmissions;
-  private ContextAwareMeter successfulLaunchSubmissionsOnStartup;
-  private ContextAwareMeter failedLaunchSubmissionsOnStartup;
   protected ContextAwareMeter unexpectedErrors;
   protected ContextAwareMeter messageProcessedMeter;
   protected ContextAwareMeter duplicateMessagesMeter;
   protected ContextAwareMeter heartbeatMessagesMeter;
   protected ContextAwareMeter nullDagActionTypeMessagesMeter;
-  private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
 
   protected volatile Long produceToConsumeDelayValue = -1L;
 
@@ -83,7 +80,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
-    public String load(String key) throws Exception {
+    public String load(@NotNull String key) {
       return key;
     }
   };
@@ -351,21 +348,29 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
     this.killsInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_KILLS_INVOKED);
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
     // TODO: rename this metrics to match the variable name after debugging launch related issues
-    this.successfulLaunchSubmissions = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_SUCCESSFUL_LAUNCH_SUBMISSIONS);
-    this.failedLaunchSubmissions = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_FAILED_FLOW_LAUNCHED_SUBMISSIONS);
-    this.successfulLaunchSubmissionsOnStartup = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_SUCCESSFUL_LAUNCH_SUBMISSIONS_ON_STARTUP);
-    this.failedLaunchSubmissionsOnStartup = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_FAILED_LAUNCH_SUBMISSIONS_ON_STARTUP);
+    ContextAwareMeter successfulLaunchSubmissions = this.getMetricContext()
+        .contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_SUCCESSFUL_LAUNCH_SUBMISSIONS);
+    ContextAwareMeter failedLaunchSubmissions = this.getMetricContext()
+        .contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_FAILED_FLOW_LAUNCHED_SUBMISSIONS);
+    ContextAwareMeter successfulLaunchSubmissionsOnStartup = this.getMetricContext()
+        .contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_SUCCESSFUL_LAUNCH_SUBMISSIONS_ON_STARTUP);
+    ContextAwareMeter failedLaunchSubmissionsOnStartup = this.getMetricContext()
+        .contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_FAILED_LAUNCH_SUBMISSIONS_ON_STARTUP);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGE_PROCESSED);
     this.duplicateMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_DUPLICATE_MESSAGES);
     this.heartbeatMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_HEARTBEAT_MESSAGES);
     this.nullDagActionTypeMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_NULL_DAG_ACTION_TYPE_MESSAGES);
-    this.produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
-    this.getMetricContext().register(this.produceToConsumeDelayMillis);
+    // Reports delay from all partitions in one gauge
+    ContextAwareGauge produceToConsumeDelayMillis = this.getMetricContext()
+        .newContextAwareGauge(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS,
+            () -> produceToConsumeDelayValue);
+    this.getMetricContext().register(produceToConsumeDelayMillis);
 
     // Setup proxy for launch submission metrics
-    this.ON_STARTUP = new LaunchSubmissionMetricProxy(this.successfulLaunchSubmissionsOnStartup, this.failedLaunchSubmissionsOnStartup);
-    this.POST_STARTUP = new LaunchSubmissionMetricProxy(this.successfulLaunchSubmissions, this.failedLaunchSubmissions);
+    this.ON_STARTUP = new LaunchSubmissionMetricProxy(successfulLaunchSubmissionsOnStartup,
+        failedLaunchSubmissionsOnStartup);
+    this.POST_STARTUP = new LaunchSubmissionMetricProxy(successfulLaunchSubmissions, failedLaunchSubmissions);
   }
 
   @Override
