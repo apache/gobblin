@@ -113,6 +113,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       if (flowEvent.equals(TimingEvent.FlowTimings.FLOW_SUCCEEDED)) {
         // todo - verify if work from PR#3641 is required
         dagManagementStateStore.deleteDag(getDagId());
+        log.info("Deleted completed dag {}", getDagId());
       } else {
         dagManagementStateStore.markDagFailed(dag);
       }

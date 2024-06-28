@@ -75,9 +75,7 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
           log.debug("Deleted dagAction from DagActionStore: {}", dagAction);
           if (dagActionType == DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE
               || dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE) {
-            this.dagActionReminderScheduler.unscheduleReminderJob(dagAction, true);
-            // clear any deadline reminders as well as any retry reminders
-            this.dagActionReminderScheduler.unscheduleReminderJob(dagAction, false);
+            this.dagActionReminderScheduler.unscheduleReminder(dagAction, true);
           }
           break;
         default:
@@ -110,7 +108,7 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
         case LAUNCH :
         case REEVALUATE :
         case RESUME:
-          dagManagement.addDagAction(dagAction);
+          dagManagement.addDagAction(new DagActionStore.LeaseParams(dagAction, false, System.currentTimeMillis()));
           break;
         default:
           log.warn("Received unsupported dagAction {}. Expected to be a RESUME, KILL, REEVALUATE or LAUNCH", dagAction.getDagActionType());

@@ -104,7 +104,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final StateStore<org.apache.gobblin.configuration.State> stateStore;
   private final ScheduledExecutorService scheduledExecutorService;
   private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
-      RETRY_TIME_OUT_MS, TimeUnit.HOURS.toMillis(24L), // after a day, presume non-transient and give up
+      // keeping the retry timeout less until we configure retryer to retry only the transient exceptions
+      RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(30L), // after 30 minutes, presume non-transient and give up
       RETRY_INTERVAL_MS, TimeUnit.MINUTES.toMillis(1L), // back-off to once/minute
       RETRY_TYPE, RetryType.EXPONENTIAL.name()));
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
@@ -139,6 +140,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         : ConfigFactory.empty();
     // log exceptions to expose errors we suffer under and/or guide intervention when resolution not readily forthcoming
+    // todo - this retryer retries all the exceptions. we should make it retry only really transient
     this.persistJobStatusRetryer =
         RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
           @Override

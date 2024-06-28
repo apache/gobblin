@@ -22,6 +22,7 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.concurrent.TimeUnit;
@@ -122,6 +123,9 @@ public class MysqlDagActionStore implements DagActionStore {
     try {
       fillPreparedStatement(flowGroup, flowName, flowExecutionId, jobName, dagActionType, insertStatement);
       return insertStatement.executeUpdate();
+    } catch (SQLIntegrityConstraintViolationException e) {
+      log.error(e.getMessage());
+      return 0;
     } catch (SQLException e) {
       throw new IOException(String.format("Failure adding action for DagAction: %s in table %s",
           new DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType), tableName), e);
