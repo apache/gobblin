@@ -131,6 +131,23 @@ public class FsJobStatusRetriever extends JobStatusRetriever {
     }
   }
 
+  @Override
+  public List<FlowStatus> getAllFlowStatusesForFlowExecutionsOrdered(String flowGroup, String flowName) {
+    Preconditions.checkArgument(flowGroup != null, "flowGroup cannot be null");
+    Preconditions.checkArgument(flowName != null, "flowName cannot be null");
+    try {
+      String storeNamePrefix = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
+      List<String> storeNamesForFlowGroup = stateStore.getStoreNames(storeName -> storeName.startsWith(storeNamePrefix));
+      List<State> flowGroupExecutionsStates = storeNamesForFlowGroup.stream().flatMap(CheckedExceptionFunction.wrapToUnchecked(storeName ->
+          stateStore.getAll(storeName).stream()
+      )).collect(Collectors.toList());
+      return asFlowStatuses(groupByFlowExecutionAndRetainLatest(flowGroup, flowGroupExecutionsStates, null));
+    } catch (IOException | RuntimeException e) { // (latter likely wrapping `IOException` originating within `wrapUnchecked`)
+      log.error(String.format("Exception encountered when listing files for flow group: %s", flowGroup), e);
+      return ImmutableList.of();
+    }
+  }
+
   /**
    * @param flowName
    * @param flowGroup

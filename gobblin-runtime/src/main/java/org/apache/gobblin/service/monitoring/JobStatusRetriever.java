@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.Iterator;
@@ -80,6 +81,14 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
    * NOTE: return `List`, not `Iterator` for non-side-effecting access.
    */
   public abstract List<FlowStatus> getFlowStatusesForFlowGroupExecutions(String flowGroup, int countJobStatusesPerFlowName);
+
+  /**
+   * Get all the  {@link FlowStatus}es of executions of flows belonging to this flow group and flowName.  Currently, latest flow execution
+   * is decided by comparing {@link JobStatus#getFlowExecutionId()}.
+   * @return `FlowStatus`es are ordered by descending flowExecutionId.
+   **/
+  public abstract List<FlowStatus> getAllFlowStatusesForFlowExecutionsOrdered(String flowGroup,String flowName);
+
 
   public long getLatestExecutionIdForFlow(String flowName, String flowGroup) {
     List<Long> lastKExecutionIds = getLatestExecutionIdsForFlow(flowName, flowGroup, 1);
@@ -202,9 +211,18 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     private final long flowExecutionId;
     private final List<State> jobStates;
   }
-
+  /**
+   * Groups job status states by flow execution IDs optionally limiting the number of executions per flow name.
+   *
+   * @param flowGroup The group to which the flow executions belong.
+   * @param jobStatusStates List of job status states to process.
+   * @param maxCountPerFlowName Maximum number of executions to retain per flow name.
+   *                           If null, all executions are returned
+   * @return List of FlowExecutionJobStateGrouping objects containing the latest job states
+   *         grouped by flow execution ID and sorted by flow name in ascending order.
+   */
   protected List<FlowExecutionJobStateGrouping> groupByFlowExecutionAndRetainLatest(
-      String flowGroup, List<State> jobStatusStates, int maxCountPerFlowName) {
+      String flowGroup, List<State> jobStatusStates, Integer maxCountPerFlowName) {
     Map<String, Map<Long, List<State>>> statesByFlowExecutionIdByName = jobStatusStates.stream().collect(
         Collectors.groupingBy(JobStatusRetriever::getFlowName, Collectors.groupingBy(JobStatusRetriever::getFlowExecutionId)));
 
@@ -212,7 +230,15 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
       String flowName = flowNameEntry.getKey();
       Map<Long, List<State>> statesByFlowExecutionIdForName = flowNameEntry.getValue();
 
-      List<Long> executionIds = Ordering.<Long>natural().greatestOf(statesByFlowExecutionIdForName.keySet(), maxCountPerFlowName);
+      List<Long> executionIds;
+      if (maxCountPerFlowName != null) {
+        // If maxCountPerFlowName is specified, limit the number of executions per flow name
+        executionIds = Ordering.natural().greatestOf(statesByFlowExecutionIdForName.keySet(), maxCountPerFlowName);
+      } else {
+        // If maxCountPerFlowName is not specified (null), return all execution IDs sorted in descending order
+        executionIds = new ArrayList<>(statesByFlowExecutionIdForName.keySet());
+        executionIds.sort(Comparator.reverseOrder());
+      }
       return executionIds.stream().map(executionId ->
           new FlowExecutionJobStateGrouping(flowGroup, flowName, executionId, statesByFlowExecutionIdForName.get(executionId)));
     }).collect(Collectors.toList());
