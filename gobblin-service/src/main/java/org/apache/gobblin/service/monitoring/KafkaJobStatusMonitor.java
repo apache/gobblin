@@ -18,7 +18,9 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -104,7 +106,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final StateStore<org.apache.gobblin.configuration.State> stateStore;
   private final ScheduledExecutorService scheduledExecutorService;
   private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
-      RETRY_TIME_OUT_MS, TimeUnit.HOURS.toMillis(24L), // after a day, presume non-transient and give up
+      // keeping the retry timeout less until we configure retryer to retry only the transient exceptions
+      RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(30L), // after 30 minutes, presume non-transient and give up
       RETRY_INTERVAL_MS, TimeUnit.MINUTES.toMillis(1L), // back-off to once/minute
       RETRY_TYPE, RetryType.EXPONENTIAL.name()));
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
@@ -120,6 +123,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final GaaSJobObservabilityEventProducer eventProducer;
   private final DagManagementStateStore dagManagementStateStore;
   private final boolean dagProcEngineEnabled;
+  private final List<Class<? extends Exception>> nonTransientExceptions = Collections.singletonList(SQLIntegrityConstraintViolationException.class);
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
       GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore)
@@ -139,6 +143,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         : ConfigFactory.empty();
     // log exceptions to expose errors we suffer under and/or guide intervention when resolution not readily forthcoming
+    // todo - this retryer retries all the exceptions. we should make it retry only really transient
     this.persistJobStatusRetryer =
         RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
           @Override
@@ -230,7 +235,16 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           if (this.dagProcEngineEnabled && DagProcUtils.isJobLevelStatus(jobName)) {
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
               // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
-              this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
+              try {
+                this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
+              } catch (Exception e) {
+                if (isExceptionInstanceOf(e, nonTransientExceptions)) {
+                  // todo - add metrics
+                  log.error(e.getMessage());
+                } else {
+                  throw e;
+                }
+              }
             } else if (updatedJobStatus.getRight() == NewState.RUNNING) {
               DagProcUtils.removeEnforceJobStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
             }
@@ -331,6 +345,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   private static NewState newState(org.apache.gobblin.configuration.State jobStatus, List<org.apache.gobblin.configuration.State> states) {
     if (isNewStateTransitionToFinal(jobStatus, states)) {
+      log.info("Flow ");
       return NewState.FINISHED;
     } else if (isNewStateTransitionToRunning(jobStatus, states)) {
       return NewState.RUNNING;
@@ -409,4 +424,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   protected abstract org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event);
 
+  public static boolean isExceptionInstanceOf(Exception exception, List<Class<? extends Exception>> typesList) {
+    for (Class<? extends Exception> type : typesList) {
+      if (type.isInstance(exception)) {
+        return true;
+      }
+    }
+    return false;
+  }
 }

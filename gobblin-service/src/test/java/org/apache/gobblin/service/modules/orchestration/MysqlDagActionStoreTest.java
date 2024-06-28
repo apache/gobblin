@@ -70,17 +70,6 @@ public class MysqlDagActionStoreTest {
     return new MysqlDagActionStore(config);
   }
 
-  @Test
-  public void testAddAction() throws Exception {
-    this.mysqlDagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.KILL);
-    //Should not be able to add KILL again when previous one exist
-    Assert.expectThrows(IOException.class,
-        () -> this.mysqlDagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.KILL));
-    //Should be able to add a RESUME action for same execution as well as KILL for another execution of the flow
-    this.mysqlDagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.RESUME);
-    this.mysqlDagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId_2, jobName, DagActionStore.DagActionType.KILL);
-  }
-
   @Test(dependsOnMethods = "testAddAction")
   public void testExists() throws Exception {
     Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.KILL));

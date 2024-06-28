@@ -140,6 +140,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     this.dagStateStore.cleanUp(dag);
     // todo - updated failedDagStateStore iff cleanup returned 1
     this.failedDagStateStore.writeCheckpoint(dag);
+    log.info("Marked dag failed {}", DagManagerUtils.generateDagId(dag));
   }
 
   @Override
@@ -155,6 +156,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   @Override
   public void deleteDag(DagManager.DagId dagId) throws IOException {
     this.dagStateStore.cleanUp(dagId.toString());
+    log.info("Deleted dag {}", dagId);
   }
 
   @Override
@@ -289,11 +291,14 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   @Override
   public void addJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
       DagActionStore.DagActionType dagActionType) throws IOException {
+    log.info("Adding Dag Action for flowGroup {}, flowName {}, flowExecutionId {}, jobName {}, dagActionType {}",
+        flowGroup, flowName, flowExecutionId, jobName, dagActionType);
     this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
   }
 
   @Override
   public boolean deleteDagAction(DagActionStore.DagAction dagAction) throws IOException {
+    log.info("Deleting Dag Action {}", dagAction);
     return this.dagActionStore.deleteDagAction(dagAction);
   }
 
