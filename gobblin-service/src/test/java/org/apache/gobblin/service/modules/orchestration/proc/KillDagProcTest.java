@@ -25,6 +25,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -63,12 +64,14 @@ import static org.mockito.Mockito.spy;
 public class KillDagProcTest {
   private MostlyMySqlDagManagementStateStore dagManagementStateStore;
   private ITestMetastoreDatabase testDb;
+  private DagProcessingEngineMetrics mockedDagProcEngineMetrics;
 
   @BeforeClass
   public void setUp() throws Exception {
     this.testDb = TestMetastoreDatabaseFactory.get();
     this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testDb));
     LaunchDagProcTest.mockDMSSCommonBehavior(this.dagManagementStateStore);
+    this.mockedDagProcEngineMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
   }
 
   @AfterClass(alwaysRun = true)
@@ -94,7 +97,7 @@ public class KillDagProcTest {
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow1",
         flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH),
         null, this.dagManagementStateStore), flowCompilationValidationHelper);
-    launchDagProc.process(this.dagManagementStateStore);
+    launchDagProc.process(this.dagManagementStateStore, this.mockedDagProcEngineMetrics);
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
       try {
@@ -107,7 +110,7 @@ public class KillDagProcTest {
     KillDagProc killDagProc = new KillDagProc(new KillDagTask(new DagActionStore.DagAction("fg", "flow1",
        flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.KILL),
         null, this.dagManagementStateStore));
-    killDagProc.process(this.dagManagementStateStore);
+    killDagProc.process(this.dagManagementStateStore, this.mockedDagProcEngineMetrics);
 
     long cancelJobCount = specProducers.stream()
         .mapToLong(p -> Mockito.mockingDetails(p)
@@ -140,7 +143,7 @@ public class KillDagProcTest {
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow2",
         flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH),
         null, this.dagManagementStateStore), flowCompilationValidationHelper);
-    launchDagProc.process(this.dagManagementStateStore);
+    launchDagProc.process(this.dagManagementStateStore, this.mockedDagProcEngineMetrics);
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
       try {
@@ -153,7 +156,7 @@ public class KillDagProcTest {
     KillDagProc killDagProc = new KillDagProc(new KillDagTask(new DagActionStore.DagAction("fg", "flow2",
         flowExecutionId, "job2", DagActionStore.DagActionType.KILL),
         null, this.dagManagementStateStore));
-    killDagProc.process(this.dagManagementStateStore);
+    killDagProc.process(this.dagManagementStateStore, this.mockedDagProcEngineMetrics);
 
     long cancelJobCount = specProducers.stream()
         .mapToLong(p -> Mockito.mockingDetails(p)

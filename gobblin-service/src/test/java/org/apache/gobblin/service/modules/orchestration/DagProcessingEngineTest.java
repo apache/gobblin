@@ -87,11 +87,11 @@ public class DagProcessingEngineTest {
 
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(dagManagementTaskStream, this.dagProcFactory,
-            dagManagementStateStore, 0);
+            dagManagementStateStore, mock(DagProcessingEngineMetrics.class), 0);
     this.dagTaskStream = spy(new MockedDagTaskStream());
     DagProcessingEngine dagProcessingEngine =
         new DagProcessingEngine(config, Optional.ofNullable(dagTaskStream), Optional.ofNullable(this.dagProcFactory),
-            Optional.ofNullable(dagManagementStateStore), 100000L);
+            Optional.ofNullable(dagManagementStateStore), 100000L, mock(DagProcessingEngineMetrics.class));
     dagProcessingEngine.startAsync();
   }
 

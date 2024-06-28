@@ -76,7 +76,7 @@ public class MysqlDagActionStoreTest {
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
         .build();
-    return new MysqlDagActionStore(config);
+    return new MysqlDagActionStore(config, Mockito.mock(DagProcessingEngineMetrics.class));
   }
 
   @Test

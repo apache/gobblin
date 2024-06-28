@@ -134,6 +134,9 @@ public class DagProcessingEngineMetrics {
       case ServiceMetricNames.DAG_ACTION_CONCLUSIONS_SUCCEEDED:
         updateMetricForDagAction(this.dagActionConclusionsSucceededMeters, dagActionType);
         break;
+      default:
+        log.warn("Skipping marking metric because no meter found to match it. Metric name: {}", metricName);
+        break;
     }
   }
 
@@ -143,8 +146,8 @@ public class DagProcessingEngineMetrics {
    */
   private void updateMetricForDagAction(ConcurrentMap<String, ContextAwareMeter> metricMap,
       DagActionStore.DagActionType dagActionType) {
-      if (metricMap.containsKey(dagActionType)) {
-        metricMap.get(dagActionType).mark();
+      if (metricMap.containsKey(dagActionType.toString())) {
+        metricMap.get(dagActionType.toString()).mark();
       } else {
         log.warn("Skipping metric. No meter exists for dagActionType {} in metricsMap {}");
       }
