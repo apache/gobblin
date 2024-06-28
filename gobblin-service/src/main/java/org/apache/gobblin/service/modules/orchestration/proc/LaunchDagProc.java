@@ -29,8 +29,10 @@ import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
@@ -61,8 +63,8 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
    * and compiles it to create a {@link Dag} and saves it in the {@link DagManagementStateStore}.
    */
   @Override
-  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
-      throws IOException {
+  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     try {
       FlowSpec flowSpec = dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(getDagId().getFlowId()));
       flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, getDagId().getFlowExecutionId());
@@ -70,24 +72,31 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       if (dag.isPresent()) {
         dagManagementStateStore.checkpointDag(dag.get());
       }
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_SUCCEEDED,
+          DagActionStore.DagActionType.LAUNCH);
       return dag;
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException | IOException e) {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_FAILED,
+          DagActionStore.DagActionType.LAUNCH);
       throw new RuntimeException(e);
     }
   }
 
   @Override
-  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
-      throws IOException {
+  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     if (!dag.isPresent()) {
       log.warn("Dag with id " + getDagId() + " could not be compiled.");
-      // todo - add metrics
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
+          DagActionStore.DagActionType.LAUNCH);
     } else {
       DagProcUtils.submitNextNodes(dagManagementStateStore, dag.get(), getDagId());
       // Checkpoint the dag state, it should have an updated value of dag nodes
       dagManagementStateStore.checkpointDag(dag.get());
       DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
       orchestrationDelayCounter.set(System.currentTimeMillis() - DagManagerUtils.getFlowExecId(dag.get()));
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_SUCCEEDED,
+          DagActionStore.DagActionType.LAUNCH);
     }
   }
 }

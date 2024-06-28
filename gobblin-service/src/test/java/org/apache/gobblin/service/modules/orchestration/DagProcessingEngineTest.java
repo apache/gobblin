@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -80,8 +81,8 @@ public class DagProcessingEngineTest {
     doReturn(true).when(dagActionStore).deleteDagAction(any());
     dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
-            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)), false,
-            dagManagementStateStore);
+            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
+            false, dagManagementStateStore, Mockito.mock(DagProcessingEngineMetrics.class));
     this.dagProcFactory = new DagProcFactory(null);
 
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
@@ -152,12 +153,14 @@ public class DagProcessingEngineTest {
     }
 
     @Override
-    protected Void initialize(DagManagementStateStore dagManagementStateStore) {
+    protected Void initialize(DagManagementStateStore dagManagementStateStore,
+        DagProcessingEngineMetrics dagProcEngineMetrics) {
       return null;
     }
 
     @Override
-    protected void act(DagManagementStateStore dagManagementStateStore, Void state) {
+    protected void act(DagManagementStateStore dagManagementStateStore, Void state,
+        DagProcessingEngineMetrics dagProcEngineMetrics) {
       if (this.isBad) {
         throw new RuntimeException("Simulating an exception!");
       }

@@ -3,11 +3,14 @@ package org.apache.gobblin.service.modules.orchestration.task;
 import java.util.concurrent.ConcurrentHashMap;
 
 import java.util.concurrent.ConcurrentMap;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 
+// TODO: initialize in guice
+@Slf4j
 /**
  * Used to track all metrics relating to processing dagActions when DagProcessingEngine is enabled. The metrics can be
  * used to trace the number of dagActions (which can be further broken down by time) at various points of the system,
@@ -61,10 +64,60 @@ public class DagProcessingEngineMetrics {
    * @param metricMap
    * @param metricName
    */
-  public void registerMetricForEachDagAction(ConcurrentMap<String, ContextAwareMeter> metricMap, String metricName) {
+  private void registerMetricForEachDagAction(ConcurrentMap<String, ContextAwareMeter> metricMap, String metricName) {
     for (DagActionStore.DagActionType dagActionType : DagActionStore.DagActionType.values()) {
       metricMap.put(dagActionType.toString(),
-          this.metricContext.contextAwareMeter(metricName + dagActionType.toString()));
+          this.metricContext.contextAwareMeter(metricName + dagActionType));
     }
+  }
+
+  /**
+   * Updates the meter corresponding to the metricsName and dagActionType provided if they match an existing metric
+   * @param metricName
+   * @param dagActionType
+   */
+  public void updateMetricForDagAction(String metricName, DagActionStore.DagActionType dagActionType) {
+    switch (metricName) {
+      case ServiceMetricNames.DAG_ACTIONS_STORED:
+        updateMetricForDagAction(this.dagActionsStoredMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTIONS_OBSERVED:
+        updateMetricForDagAction(this.dagActionsObservedMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTIONS_LEASES_OBTAINED:
+        updateMetricForDagAction(this.dagActionsLeasesObtainedMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTIONS_NO_LONGER_LEASING:
+        updateMetricForDagAction(this.dagActionsNoLongerLeasingMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTION_LEASE_REMINDERS_SCHEDULED:
+        updateMetricForDagAction(this.dagActionLeaseRemindersScheduledMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTION_REMINDERS_PROCESSED:
+        updateMetricForDagAction(this.dagActionRemindersProcessedMeters, dagActionType);
+      // TODO: implement evaluating max retries later
+        case ServiceMetricNames.DAG_ACTIONS_EXCEEDED_MAX_RETRY:
+        updateMetricForDagAction(this.dagActionsExceededMaxRetryMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTIONS_INIT_FAILED:
+        updateMetricForDagAction(this.dagActionsInitFailedMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTIONS_INIT_SUCCEEDED:
+        updateMetricForDagAction(this.dagActionsInitSucceededMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED:
+        updateMetricForDagAction(this.dagActionExecutionsFailedMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTION_EXECUTIONS_SUCCEEDED:
+        updateMetricForDagAction(this.dagActionExecutionsSucceededMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTION_CONCLUSIONS_FAILED:
+        updateMetricForDagAction(this.dagActionConclusionsFailedMeters, dagActionType);
+      case ServiceMetricNames.DAG_ACTION_CONCLUSIONS_SUCCEEDED:
+        updateMetricForDagAction(this.dagActionConclusionsSucceededMeters, dagActionType);
+    }
+  }
+
+  /**
+   * Generic helper used to increment a metric corresponding to the dagActionType in the provided map. It assumes the
+   * meter for each dagActionType can be identified by its name.
+   */
+  private void updateMetricForDagAction(ConcurrentMap<String, ContextAwareMeter> metricMap,
+      DagActionStore.DagActionType dagActionType) {
+      if (metricMap.containsKey(dagActionType)) {
+        metricMap.get(dagActionType).mark();
+      } else {
+        log.warn("Skipping metric. No meter exists for dagActionType {} in metricsMap {}");
+      }
   }
 }

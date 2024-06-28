@@ -23,10 +23,13 @@ import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -43,28 +46,38 @@ public class EnforceFlowFinishDeadlineDagProc extends DagProc<Optional<Dag<JobEx
   }
 
   @Override
-  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
-      throws IOException {
-   return dagManagementStateStore.getDag(getDagId());
+  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
+    try {
+      Optional<Dag<JobExecutionPlan>> dag = dagManagementStateStore.getDag(getDagId());
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_SUCCEEDED,
+          DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+      return dag;
+    } catch (Exception e) {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_FAILED,
+          DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+      throw e;
+    }
   }
 
   @Override
-  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
-      throws IOException {
+  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     log.info("Request to enforce deadlines for dag {}", getDagId());
 
     if (!dag.isPresent()) {
-      // todo - add a metric here
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
+          DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
       log.error("Did not find Dag with id {}, it might be already cancelled/finished and thus cleaned up from the store.",
           getDagId());
       return;
     }
 
-    enforceFlowFinishDeadline(dagManagementStateStore, dag);
+    enforceFlowFinishDeadline(dagManagementStateStore, dag, dagProcEngineMetrics);
   }
 
-  private void enforceFlowFinishDeadline(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
-      throws IOException {
+  private void enforceFlowFinishDeadline(DagManagementStateStore dagManagementStateStore,
+      Optional<Dag<JobExecutionPlan>> dag, DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     Dag.DagNode<JobExecutionPlan> dagNode = dag.get().getNodes().get(0);
     long flowFinishDeadline = DagManagerUtils.getFlowSLA(dagNode);
     long flowStartTime = DagManagerUtils.getFlowStartTime(dagNode);
@@ -81,7 +94,11 @@ public class EnforceFlowFinishDeadlineDagProc extends DagProc<Optional<Dag<JobEx
       dag.get().setFlowEvent(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
       dag.get().setMessage("Flow killed due to exceeding SLA of " + flowFinishDeadline + " ms");
       dagManagementStateStore.checkpointDag(dag.get());
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_SUCCEEDED,
+          DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
     } else {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
+          DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
       log.error("EnforceFlowFinishDeadline dagAction received before due time. flowStartTime {}, flowFinishDeadline {} ", flowStartTime, flowFinishDeadline);
     }
   }
