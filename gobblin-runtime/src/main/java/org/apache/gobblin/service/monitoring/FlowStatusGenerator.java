@@ -162,11 +162,10 @@ public class FlowStatusGenerator {
     // Iterating through all flow statuses to check the condition
     for (FlowStatus flowStatus : flowStatusList) {
       ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
-      log.info("Comparing flow execution status with flowExecutionId: " + flowStatus.getFlowExecutionId()
-          + " and flowStatus: " + flowExecutionStatus + " with incoming flowExecutionId: " + flowExecutionId);
-
       // Check if it is not the current flowExecutionId and the status is not in FINISHED_STATUSES
       if (flowStatus.getFlowExecutionId() != flowExecutionId && !FINISHED_STATUSES.contains(flowExecutionStatus.name())) {
+        log.info("Comparing flow execution status with flowExecutionId: " + flowStatus.getFlowExecutionId()
+            + " and flowStatus: " + flowExecutionStatus + " with incoming flowExecutionId: " + flowExecutionId);
         return true;
       }
     }
