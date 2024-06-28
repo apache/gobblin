@@ -33,6 +33,7 @@ import org.apache.gobblin.data.management.dataset.DatasetUtils;
 import org.apache.gobblin.dataset.FileSystemDataset;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 
 import lombok.extern.slf4j.Slf4j;
 

@@ -195,7 +195,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
    * and versionStrategy (usually relevant to modTime as well), since they are subject to change with Publish(rename)
    */
   private void preserveFileAttrInPublisher(CopyableFile copyableFile) throws IOException {
-    if (copyableFile.getFileStatus().isDirectory() && this.resyncDirOwnerAndPermission){
+    if (copyableFile.getFileStatus().isDirectory() && this.resyncDirOwnerAndPermission) {
       FileStatus dstFile = this.fs.getFileStatus(copyableFile.getDestination());
       // User specifically try to copy dir metadata, so we change the group and permissions on destination even when the dir already existed
       log.info("Setting destination directory {} owner and permission to {}", dstFile.getPath(), copyableFile.getDestinationOwnerAndPermission().getFsPermission());

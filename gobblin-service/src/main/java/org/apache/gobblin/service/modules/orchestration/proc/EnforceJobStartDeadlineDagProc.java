@@ -45,7 +45,7 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
  * {@link org.apache.gobblin.service.modules.orchestration.DagManager#JOB_START_SLA_TIME} time.
  */
 @Slf4j
-public class EnforceJobStartDeadlineDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
+public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
 
   public EnforceJobStartDeadlineDagProc(EnforceJobStartDeadlineDagTask enforceJobStartDeadlineDagTask) {
     super(enforceJobStartDeadlineDagTask);
@@ -112,9 +112,9 @@ public class EnforceJobStartDeadlineDagProc extends DagProc<Optional<Dag<JobExec
           DagManagerUtils.getJobName(dagNode), jobOrchestratedTime, timeOutForJobStart);
       dagManagementStateStore.getDagManagerMetrics().incrementCountsStartSlaExceeded(dagNode);
       DagProcUtils.cancelDagNode(dagNode, dagManagementStateStore);
-      dag.get().setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
-      dag.get().setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
-      dagManagementStateStore.checkpointDag(dag.get());
+      dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
+      dag.setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
+      dagManagementStateStore.checkpointDag(dag);
     }
     dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_SUCCEEDED,
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);

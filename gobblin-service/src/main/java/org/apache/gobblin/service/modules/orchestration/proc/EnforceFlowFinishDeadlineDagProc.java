@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,7 +38,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  * {@link org.apache.gobblin.configuration.ConfigurationKeys#GOBBLIN_FLOW_SLA_TIME} time.
  */
 @Slf4j
-public class EnforceFlowFinishDeadlineDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
+public class EnforceFlowFinishDeadlineDagProc extends DeadlineEnforcementDagProc {
 
   public EnforceFlowFinishDeadlineDagProc(EnforceFlowFinishDeadlineDagTask enforceFlowFinishDeadlineDagTask) {
     super(enforceFlowFinishDeadlineDagTask);
@@ -84,7 +83,7 @@ public class EnforceFlowFinishDeadlineDagProc extends DagProc<Optional<Dag<JobEx
 
     // note that this condition should be true because the triggered dag action has waited enough before reaching here
     if (System.currentTimeMillis() > flowStartTime + flowFinishDeadline) {
-      List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = dag.get().getNodes();
+      List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = dag.getNodes();
       log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), getDagId());
 
       for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {

@@ -68,6 +68,7 @@ public class KafkaExtractorStatsTracker {
   private static final String SLA_MISSED_RECORD_COUNT = "slaMissedRecordCount";
   private static final String MIN_LOG_APPEND_TIMESTAMP = "minLogAppendTimestamp";
   private static final String MAX_LOG_APPEND_TIMESTAMP = "maxLogAppendTimestamp";
+  private static final String MIN_RECORD_CREATION_TIMESTAMP = "minRecordCreationTimestamp";
   private static final String UNDECODABLE_MESSAGE_COUNT = "undecodableMessageCount";
   private static final String NULL_RECORD_COUNT = "nullRecordCount";
   private static final String PARTITION_TOTAL_SIZE = "partitionTotalSize";
@@ -181,6 +182,7 @@ public class KafkaExtractorStatsTracker {
     private long lastSuccessfulRecordHeaderTimestamp;
     private long minLogAppendTime = -1L;
     private long maxLogAppendTime = -1L;
+    private long minRecordCreationTime = -1L;
   }
 
   /**
@@ -289,12 +291,16 @@ public class KafkaExtractorStatsTracker {
           v.slaMissedRecordCount = 0;
           v.minLogAppendTime = logAppendTimestamp;
           v.maxLogAppendTime = logAppendTimestamp;
+          v.minRecordCreationTime = recordCreationTimestamp;
         } else {
           if (logAppendTimestamp < v.minLogAppendTime) {
             v.minLogAppendTime = logAppendTimestamp;
           }
           if (logAppendTimestamp > v.maxLogAppendTime) {
             v.maxLogAppendTime = logAppendTimestamp;
+          }
+          if(recordCreationTimestamp < v.minRecordCreationTime) {
+            v.minRecordCreationTime = recordCreationTimestamp;
           }
         }
         if (logAppendTimestamp > 0 && (System.currentTimeMillis() - logAppendTimestamp > recordLevelSlaMillis)) {
@@ -439,6 +445,7 @@ public class KafkaExtractorStatsTracker {
     tagsForPartition.put(SLA_MISSED_RECORD_COUNT, Long.toString(stats.getSlaMissedRecordCount()));
     tagsForPartition.put(MIN_LOG_APPEND_TIMESTAMP, Long.toString(stats.getMinLogAppendTime()));
     tagsForPartition.put(MAX_LOG_APPEND_TIMESTAMP, Long.toString(stats.getMaxLogAppendTime()));
+    tagsForPartition.put(MIN_RECORD_CREATION_TIMESTAMP, Long.toString(stats.getMinRecordCreationTime()));
     tagsForPartition.put(PARTITION_TOTAL_SIZE, Long.toString(stats.getPartitionTotalSize()));
     tagsForPartition.put(AVG_RECORD_SIZE, Long.toString(stats.getAvgRecordSize()));
     tagsForPartition.put(ELAPSED_TIME, Long.toString(stats.getElapsedTime()));

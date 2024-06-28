@@ -40,7 +40,8 @@ dependencies {
 
     testCompile externalDependency.testng
     testCompile externalDependency.embeddedProcess
-    testCompile externalDependency.testMysqlServer
+    testCompile externalDependency.testContainers
+    testCompile externalDependency.testContainersMysql
     testCompile externalDependency.slf4jToLog4j
 }
 

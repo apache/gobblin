@@ -43,11 +43,11 @@ import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.CopyableFileUtils;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
-import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 import org.apache.gobblin.data.management.copy.TestCopyableDataset;
 import org.apache.gobblin.data.management.copy.converter.UnGzipConverter;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.TestUtils;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 
 
 public class TarArchiveInputStreamDataWriterTest {

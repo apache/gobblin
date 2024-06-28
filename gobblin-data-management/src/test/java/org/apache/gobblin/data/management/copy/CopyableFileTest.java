@@ -40,6 +40,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.PartitionDescriptor;
 import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;

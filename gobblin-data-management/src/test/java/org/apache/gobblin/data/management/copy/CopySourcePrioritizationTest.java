@@ -44,6 +44,7 @@ import org.apache.gobblin.dataset.Dataset;
 import org.apache.gobblin.dataset.IterableDatasetFinder;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 
 
 public class CopySourcePrioritizationTest {

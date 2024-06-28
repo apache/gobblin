@@ -52,6 +52,7 @@ import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.dataset.Descriptor;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 import org.apache.gobblin.util.guid.Guid;
 
 

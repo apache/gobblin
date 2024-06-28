@@ -65,7 +65,6 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
-import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.hive.avro.HiveAvroCopyEntityHelper;
 import org.apache.gobblin.data.management.partition.FileSet;
@@ -86,6 +85,7 @@ import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.gobblin.util.filesystem.ModTimeDataFileVersionStrategy;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.apache.gobblin.util.request_allocation.PushDownRequestor;
 

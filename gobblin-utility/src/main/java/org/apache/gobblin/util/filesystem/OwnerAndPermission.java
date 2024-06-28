@@ -15,17 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.copy;
-
-import lombok.AccessLevel;
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
+package org.apache.gobblin.util.filesystem;
 
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
 import java.util.List;
+
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.permission.AclEntry;
@@ -33,7 +29,12 @@ import org.apache.hadoop.fs.permission.FsPermission;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.io.Writable;
 
-import com.google.api.client.util.Lists;
+import com.google.common.collect.Lists;
+
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
 
 
 /**
@@ -49,7 +50,7 @@ public class OwnerAndPermission implements Writable {
   private FsPermission fsPermission;
   private List<AclEntry> aclEntries;
 
-  public OwnerAndPermission (String owner, String group, FsPermission fsPermission) {
+  public OwnerAndPermission(String owner, String group, FsPermission fsPermission) {
     this(owner, group, fsPermission, Lists.newArrayList());
   }
 
@@ -68,7 +69,7 @@ public class OwnerAndPermission implements Writable {
   }
 
   /**
-   * Read a {@link org.apache.gobblin.data.management.copy.OwnerAndPermission} from a {@link java.io.DataInput}.
+   * Read a {@link OwnerAndPermission} from a {@link DataInput}.
    * @throws IOException
    */
   public static OwnerAndPermission read(DataInput input) throws IOException {

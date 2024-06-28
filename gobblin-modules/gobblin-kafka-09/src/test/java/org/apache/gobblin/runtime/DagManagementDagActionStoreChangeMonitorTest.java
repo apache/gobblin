@@ -98,7 +98,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    doNothing().when(dagActionReminderScheduler).unscheduleReminderJob(any());
+    doNothing().when(dagActionReminderScheduler).unscheduleReminderJob(any(), anyBoolean());
 
   }
 
@@ -113,7 +113,9 @@ public class DagManagementDagActionStoreChangeMonitorTest {
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
     mockDagManagementDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
     verify(mockDagManagementDagActionStoreChangeMonitor.getDagActionReminderScheduler(), times(1))
-        .unscheduleReminderJob(eq(dagAction));
+        .unscheduleReminderJob(eq(dagAction), eq(true));
+    verify(mockDagManagementDagActionStoreChangeMonitor.getDagActionReminderScheduler(), times(1))
+        .unscheduleReminderJob(eq(dagAction), eq(false));
   }
 
   /**

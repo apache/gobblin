@@ -119,7 +119,7 @@ public class LaunchDagProcTest {
   @Test
   public void launchDagWithMultipleParallelJobs() throws IOException, InterruptedException, URISyntaxException {
     String flowGroup = "fg";
-    String flowName = "fn";
+    String flowName = "fn2";
     long flowExecutionId = 12345L;
     Dag<JobExecutionPlan> dag = buildDagWithMultipleNodesAtDifferentLevels("1", flowExecutionId,
         DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),"user5", ConfigFactory.empty()
