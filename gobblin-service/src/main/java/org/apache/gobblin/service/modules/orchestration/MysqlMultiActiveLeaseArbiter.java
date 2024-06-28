@@ -278,7 +278,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
       // because db laundering tells us that the currently worked on db event is newer and will have its own reminders
       if (dagActionLeaseObject.isReminder()) {
         if (dagActionLeaseObject.getEventTimeMillis() < dbEventTimestamp.getTime()) {
-          log.debug("tryAcquireLease for {} - dbEventTimeMillis: {} - A new event trigger "
+          log.info("tryAcquireLease for {} - dbEventTimeMillis: {} - A new event trigger "
                   + "is being worked on, so this older reminder will be dropped.", dagActionLeaseObject,
               dbEventTimestamp);
           return new LeaseAttemptStatus.NoLongerLeasingStatus();

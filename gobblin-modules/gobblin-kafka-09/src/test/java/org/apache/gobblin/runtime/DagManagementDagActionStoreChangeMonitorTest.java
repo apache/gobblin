@@ -98,7 +98,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    doNothing().when(dagActionReminderScheduler).unscheduleReminderJob(any(), anyBoolean());
+    doReturn(true).when(dagActionReminderScheduler).unscheduleReminderJob(any(), anyBoolean());
 
   }
 

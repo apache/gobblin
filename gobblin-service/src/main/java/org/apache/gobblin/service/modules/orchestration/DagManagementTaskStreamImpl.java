@@ -116,11 +116,13 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       throw new RuntimeException(String.format("Could not add dag action to the queue %s", dagAction));
     }
   }
+  // todo - overload it, log the object not DA
+
 
   @Override
   public synchronized void addReminderDagAction(DagActionStore.DagActionLeaseObject reminderDagActionLeaseObject) {
     // TODO: Used to track missing dag issue, remove later as needed
-    log.info("Add reminder dagAction {}", reminderDagActionLeaseObject);
+    log.info("Add dagAction {} to dagActionQueue", reminderDagActionLeaseObject);
 
     if (!this.dagActionLeaseObjectQueue.offer(reminderDagActionLeaseObject)) {
       throw new RuntimeException(String.format("Could not add reminder dag action to the queue %s", reminderDagActionLeaseObject));
@@ -210,7 +212,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
         even we, when we might become the lease owner still fail to complete processing
         */
     if (!(leaseAttemptStatus instanceof LeaseAttemptStatus.NoLongerLeasingStatus)) {
-      scheduleReminderForEvent(leaseAttemptStatus);
+      scheduleReminderForEvent(leaseAttemptStatus); // todo add eventTimeMs in triggerKey
     }
     return leaseAttemptStatus;
   }

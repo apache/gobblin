@@ -27,6 +27,7 @@ import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
 import org.quartz.JobKey;
+import org.quartz.ObjectAlreadyExistsException;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
@@ -57,7 +58,6 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 @Slf4j
 @Singleton
 public class DagActionReminderScheduler {
-  public static final String DAG_ACTION_REMINDER_SCHEDULER_KEY = "DagActionReminderScheduler";
   public static final String RetryReminderKeyGroup = "RetryReminder";
   public static final String DeadlineReminderKeyGroup = "DeadlineReminder";
   private final Scheduler quartzScheduler;
@@ -82,14 +82,23 @@ public class DagActionReminderScheduler {
     JobDetail jobDetail = createReminderJobDetail(dagActionLeaseObject, isDeadlineReminder);
     Trigger trigger = createReminderJobTrigger(dagActionLeaseObject.getDagAction(), reminderDurationMillis,
         System::currentTimeMillis, isDeadlineReminder);
-    log.info("Reminder set for dagAction {} to fire after {} ms, isDeadlineTrigger: {}",
-        dagActionLeaseObject.getDagAction(), reminderDurationMillis, isDeadlineReminder);
-    quartzScheduler.scheduleJob(jobDetail, trigger);
+    log.info("Trying to set reminder for dagAction {} to fire after {} ms, isDeadlineTrigger: {}",
+        dagActionLeaseObject.getDagAction(), reminderDurationMillis, isDeadlineReminder); //todo add eventTime
+    try {
+      quartzScheduler.scheduleJob(jobDetail, trigger);
+    } catch (ObjectAlreadyExistsException e) {
+      log.warn("Reminder job {} already exists in the quartz scheduler. Possibly a duplicate request.", jobDetail.getKey());
+    }
   }
 
-  public void unscheduleReminderJob(DagActionStore.DagAction dagAction, boolean isDeadlineTrigger) throws SchedulerException {
+  public boolean unscheduleReminderJob(DagActionStore.DagAction dagAction, boolean isDeadlineTrigger) throws SchedulerException {
     log.info("Reminder unset for dagAction {}, isDeadlineTrigger: {}", dagAction, isDeadlineTrigger);
-    quartzScheduler.deleteJob(createJobKey(dagAction, isDeadlineTrigger));
+    return quartzScheduler.deleteJob(createJobKey(dagAction, isDeadlineTrigger));
+  }
+
+  public boolean unscheduleReminderJob(JobKey jobKey) throws SchedulerException {
+//    log.info("Reminder unset for dagAction {}, isDeadlineTrigger: {}", dagAction, isDeadlineTrigger);
+    return quartzScheduler.deleteJob(jobKey);
   }
 
   /**
@@ -119,6 +128,7 @@ public class DagActionReminderScheduler {
       log.info("DagProc reminder triggered for dagAction event: {}", reminderDagActionLeaseObject);
 
       try {
+        // todo cache DM
         DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class);
         dagManagement.addReminderDagAction(reminderDagActionLeaseObject);
       } catch (IOException e) {

@@ -21,10 +21,16 @@ import java.util.Date;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.Scheduler;
+import org.quartz.SchedulerException;
 import org.quartz.Trigger;
+import org.quartz.TriggerBuilder;
+import org.quartz.TriggerKey;
 import org.quartz.TriggerUtils;
+import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.spi.OperableTrigger;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -73,5 +79,37 @@ public class DagActionReminderSchedulerTest {
     Assert.assertEquals(dataMap.get(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_TYPE_KEY),
         DagActionStore.DagActionType.LAUNCH);
     Assert.assertEquals(dataMap.get(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_EVENT_TIME_KEY), expectedEventTimeMillis);
+  }
+
+  @Test
+  public void testCreateReminderJobDetail2() throws SchedulerException, InterruptedException {
+
+    JobDetail job = JobBuilder.newJob(MyJob.class)
+        .withIdentity("myJob", "group1")
+        .build();
+
+    Trigger trigger = TriggerBuilder.newTrigger()
+        .withIdentity("myTrigger", "group1")
+        .startAt(new Date(System.currentTimeMillis() + 2000L))
+        .build(); // One-time trigger
+
+    Scheduler scheduler = new StdSchedulerFactory().getScheduler();
+    scheduler.start();
+    scheduler.unscheduleJob(new TriggerKey("myTrigger", "group1"));
+
+    scheduler.scheduleJob(job, trigger);
+
+    // Before trigger fires
+    System.out.println("Job exists before trigger fires: " + scheduler.checkExists(job.getKey()));
+    System.out.println("Trigger exists before trigger fires: " + scheduler.checkExists(trigger.getKey()));
+
+// Wait for the trigger to fire (in a real scenario, you would let the scheduler run naturally)
+    Thread.sleep(3000);
+
+// After trigger fires
+    System.out.println("Job exists after trigger fires: " + scheduler.checkExists(job.getKey()));
+    System.out.println("Trigger exists after trigger fires: " + scheduler.checkExists(trigger.getKey()));
+
+
   }
 }
