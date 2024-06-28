@@ -40,7 +40,6 @@ import javax.inject.Singleton;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 
 
 /**
@@ -61,12 +60,14 @@ public class DagActionReminderScheduler {
   public static final String RetryReminderKeyGroup = "RetryReminder";
   public static final String DeadlineReminderKeyGroup = "DeadlineReminder";
   private final Scheduler quartzScheduler;
+  private final DagManagement dagManagement;
 
   @Inject
-  public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory)
+  public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory, DagManagement dagManagement)
       throws SchedulerException {
     // Creates a new Scheduler to be used solely for the DagProc reminders
     this.quartzScheduler = schedulerFactory.getScheduler();
+    this.dagManagement = dagManagement;
   }
 
   /**
@@ -82,7 +83,7 @@ public class DagActionReminderScheduler {
     JobDetail jobDetail = createReminderJobDetail(dagActionLeaseObject, isDeadlineReminder);
     Trigger trigger = createReminderJobTrigger(dagActionLeaseObject.getDagAction(), reminderDurationMillis,
         System::currentTimeMillis, isDeadlineReminder);
-    log.info("Trying to set reminder for dagAction {} to fire after {} ms, isDeadlineTrigger: {}",
+    log.info("Going to set reminder for dagAction {} to fire after {} ms, isDeadlineTrigger: {}",
         dagActionLeaseObject.getDagAction(), reminderDurationMillis, isDeadlineReminder); //todo add eventTime
     try {
       quartzScheduler.scheduleJob(jobDetail, trigger);
@@ -91,23 +92,12 @@ public class DagActionReminderScheduler {
     }
   }
 
-  public boolean unscheduleReminderJob(DagActionStore.DagAction dagAction, boolean isDeadlineTrigger) throws SchedulerException {
-    log.info("Reminder unset for dagAction {}, isDeadlineTrigger: {}", dagAction, isDeadlineTrigger);
-    return quartzScheduler.deleteJob(createJobKey(dagAction, isDeadlineTrigger));
-  }
-
-  public boolean unscheduleReminderJob(JobKey jobKey) throws SchedulerException {
-//    log.info("Reminder unset for dagAction {}, isDeadlineTrigger: {}", dagAction, isDeadlineTrigger);
-    return quartzScheduler.deleteJob(jobKey);
-  }
-
   /**
    * Static class used to store information regarding a pending dagAction that needs to be revisited at a later time
    * by {@link DagManagement} interface to re-attempt a lease on if it has not been completed by the previous owner.
    * These jobs are scheduled and used by the {@link DagActionReminderScheduler}.
    */
-  @Slf4j
-  public static class ReminderJob implements Job {
+  public class ReminderJob implements Job {
     public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
     public static final String FLOW_ACTION_EVENT_TIME_KEY = "flow.eventTime";
 
@@ -128,9 +118,7 @@ public class DagActionReminderScheduler {
       log.info("DagProc reminder triggered for dagAction event: {}", reminderDagActionLeaseObject);
 
       try {
-        // todo cache DM
-        DagManagement dagManagement = GobblinServiceManager.getClass(DagManagement.class);
-        dagManagement.addReminderDagAction(reminderDagActionLeaseObject);
+        dagManagement.addDagAction(reminderDagActionLeaseObject);
       } catch (IOException e) {
         log.error("Failed to add DagAction event to DagManagement. dagAction event: {}", reminderDagActionLeaseObject);
       }

@@ -93,9 +93,11 @@ public class DagManagementTaskStreamImplTest {
      LeaseObtainedStatus to the taskStream to break its loop and return a newly created dagTask
     */
     DagActionStore.DagAction launchAction = new DagActionStore.DagAction("fg", "fn", 12345L, "jn", DagActionStore.DagActionType.LAUNCH);
-    dagManagementTaskStream.addDagAction(launchAction);
-    dagManagementTaskStream.addDagAction(launchAction);
-    dagManagementTaskStream.addDagAction(launchAction);
+    DagActionStore.DagActionLeaseObject
+        dagActionLeaseObject = new DagActionStore.DagActionLeaseObject(launchAction, false, System.currentTimeMillis());
+    dagManagementTaskStream.addDagAction(dagActionLeaseObject);
+    dagManagementTaskStream.addDagAction(dagActionLeaseObject);
+    dagManagementTaskStream.addDagAction(dagActionLeaseObject);
     when(dagManagementTaskStream.getDagActionProcessingLeaseArbiter()
         .tryAcquireLease(any(DagActionStore.DagActionLeaseObject.class), anyBoolean()))
         .thenReturn(new LeaseAttemptStatus.NoLongerLeasingStatus(),

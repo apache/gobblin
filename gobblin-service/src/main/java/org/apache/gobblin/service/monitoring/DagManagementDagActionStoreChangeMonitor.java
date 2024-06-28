@@ -18,15 +18,8 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.TimeUnit;
-
-import org.jetbrains.annotations.NotNull;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.cache.CacheLoader;
-import com.google.common.cache.LoadingCache;
 import com.typesafe.config.Config;
 
 import lombok.Getter;
@@ -49,7 +42,6 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
   private final DagManagement dagManagement;
   @VisibleForTesting @Getter
   private final DagActionReminderScheduler dagActionReminderScheduler;
-  protected final LoadingCache<DagActionStore.DagAction, Boolean> deleteDeadlineDagActionCache;
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
@@ -61,55 +53,6 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
     super("", config, null, numThreads, flowCatalog, orchestrator, dagManagementStateStore, isMultiActiveSchedulerEnabled);
     this.dagManagement = dagManagement;
     this.dagActionReminderScheduler = dagActionReminderScheduler;
-    CacheLoader<DagActionStore.DagAction, Boolean> deleteDeadlineDagActionCacheLoader = new CacheLoader<DagActionStore.DagAction, Boolean>() {
-      @Override
-      public Boolean load(DagActionStore.@NotNull DagAction key) throws Exception {
-        return false;
-      }
-    };
-    this.deleteDeadlineDagActionCache = CacheBuilder.newBuilder()
-        .expireAfterWrite(5, TimeUnit.MINUTES).build(deleteDeadlineDagActionCacheLoader);
-  }
-
-  @Override
-  protected void handleDagAction(String operation, DagActionStore.DagAction dagAction, String flowGroup, String flowName,
-      long flowExecutionId, DagActionStore.DagActionType dagActionType) {
-    // We only expect INSERT and DELETE operations done to this table. INSERTs correspond to any type of
-    // {@link DagActionStore.FlowActionType} flow requests that have to be processed.
-    try {
-      switch (operation) {
-        case "INSERT":
-          handleDagAction(dagAction, false);
-          break;
-        case "UPDATE":
-          log.warn("Received an UPDATE action to the DagActionStore when values in this store are never supposed to be "
-                  + "updated. Flow group: {} name {} executionId {} were updated to action {}", flowGroup, flowName,
-              flowExecutionId, dagActionType);
-          this.unexpectedErrors.mark();
-          break;
-        case "DELETE":
-          log.debug("Deleted dagAction from DagActionStore: {}", dagAction);
-          if (dagActionType == DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE
-              || dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE) {
-            if (!this.dagActionReminderScheduler.unscheduleReminderJob(dagAction, true)) { //todo delete
-              log.warn("Trigger not found for {}. Possibly an out-of-order event received.", dagAction);
-              this.deleteDeadlineDagActionCache.put(dagAction, true);
-            }
-            // clear any deadline reminders as well as any retry reminders
-            this.dagActionReminderScheduler.unscheduleReminderJob(dagAction, false);
-          }
-          break;
-        default:
-          log.warn(
-              "Received unsupported change type of operation {}. Expected values to be in [INSERT, UPDATE, DELETE]",
-              operation);
-          this.unexpectedErrors.mark();
-          break;
-      }
-    } catch (Exception e) {
-      log.warn("Ran into unexpected error processing DagActionStore changes: ", e);
-      this.unexpectedErrors.mark();
-    }
   }
 
   /**
@@ -125,15 +68,11 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
       switch (dagAction.getDagActionType()) {
         case ENFORCE_FLOW_FINISH_DEADLINE:
         case ENFORCE_JOB_START_DEADLINE:
-          if (this.deleteDeadlineDagActionCache.get(dagAction)) {
-            log.info("Ignoring {} because the delete equivalent of the same received already.", dagAction);
-            break;
-          }
         case KILL :
         case LAUNCH :
         case REEVALUATE :
         case RESUME:
-          dagManagement.addDagAction(dagAction);
+          dagManagement.addDagAction(new DagActionStore.DagActionLeaseObject(dagAction, false, System.currentTimeMillis()));
           break;
         default:
           log.warn("Received unsupported dagAction {}. Expected to be a RESUME, KILL, REEVALUATE or LAUNCH", dagAction.getDagActionType());
@@ -142,8 +81,6 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
     } catch (IOException e) {
       log.warn("Failed to addDagAction for flowId {} due to exception {}", dagAction.getFlowId(), e.getMessage());
       launchSubmissionMetricProxy.markFailure();
-    } catch (ExecutionException e) {
-      log.error(e.getMessage());
     }
   }
 }

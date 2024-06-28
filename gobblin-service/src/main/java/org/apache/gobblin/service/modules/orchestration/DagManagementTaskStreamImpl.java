@@ -108,24 +108,10 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   }
 
   @Override
-  public synchronized void addDagAction(DagActionStore.DagAction dagAction) {
-    // TODO: Used to track missing dag issue, remove later as needed
-    log.info("Add original (non-reminder) dagAction {}", dagAction);
-
-    if (!this.dagActionLeaseObjectQueue.offer(new DagActionStore.DagActionLeaseObject(dagAction, false, System.currentTimeMillis()))) {
-      throw new RuntimeException(String.format("Could not add dag action to the queue %s", dagAction));
-    }
-  }
-  // todo - overload it, log the object not DA
-
-
-  @Override
-  public synchronized void addReminderDagAction(DagActionStore.DagActionLeaseObject reminderDagActionLeaseObject) {
-    // TODO: Used to track missing dag issue, remove later as needed
-    log.info("Add dagAction {} to dagActionQueue", reminderDagActionLeaseObject);
-
-    if (!this.dagActionLeaseObjectQueue.offer(reminderDagActionLeaseObject)) {
-      throw new RuntimeException(String.format("Could not add reminder dag action to the queue %s", reminderDagActionLeaseObject));
+  public synchronized void addDagAction(DagActionStore.DagActionLeaseObject dagActionLeaseObject) {
+    log.info("Add {} to queue", dagActionLeaseObject);
+    if (!this.dagActionLeaseObjectQueue.offer(dagActionLeaseObject)) {
+      throw new RuntimeException(String.format("Could not add %s to the queue", dagActionLeaseObject));
     }
   }
 

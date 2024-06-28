@@ -26,14 +26,9 @@ import java.io.IOException;
  * Consumption of the Dags happen through {@link DagTaskStream}.
  */
 public interface DagManagement {
-
   /**
-   * Used to add a dagAction event to DagManagement
+   * Used to add reminder {@link DagActionStore.DagActionLeaseObject} to the queue that already contain an eventTimestamp
+   * from the previous lease attempt
    */
-  void addDagAction(DagActionStore.DagAction dagAction) throws IOException;
-
-  /**
-   * Used to add reminder dagActions to the queue that already contain an eventTimestamp from the previous lease attempt
-   */
-  void addReminderDagAction(DagActionStore.DagActionLeaseObject reminderDagActionLeaseObject) throws IOException;
+  void addDagAction(DagActionStore.DagActionLeaseObject reminderDagActionLeaseObject) throws IOException;
 }
