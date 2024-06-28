@@ -154,15 +154,20 @@ public class FlowStatusGenerator {
    * @return true, if any jobs of the flow are RUNNING.
    */
   public boolean isFlowRunning(String flowName, String flowGroup, long flowExecutionId) {
-    List<FlowStatus> flowStatusList = getLatestFlowStatus(flowName, flowGroup, 1, null);
+    List<FlowStatus> flowStatusList = getLatestFlowStatus(flowName, flowGroup, 2, null);
     if (flowStatusList == null || flowStatusList.isEmpty()) {
       return false;
+    }
+    FlowStatus flowStatus = flowStatusList.get(0);
+    ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
+    log.info("Comparing flow execution status with flowExecutionId: " + flowStatus.getFlowExecutionId() + " and flowStatus: " + flowExecutionStatus + " with incoming flowExecutionId: " + flowExecutionId);
+    // If the latest flow status is the current job about to get kicked off, we should ignore this check
+    if (flowStatus.getFlowExecutionId() == flowExecutionId) {
+      // Another host may have already emitted a flow status that skipped this flow execution, so compare against the previous flow status
+      FlowStatus previousFlowStatus = flowStatusList.size() > 1 ? flowStatusList.get(1) : null;
+      return previousFlowStatus != null && FINISHED_STATUSES.contains(previousFlowStatus.getFlowExecutionStatus().name());
     } else {
-      FlowStatus flowStatus = flowStatusList.get(0);
-      ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
-      log.info("Comparing flow execution status with flowExecutionId: " + flowStatus.getFlowExecutionId() + " and flowStatus: " + flowExecutionStatus + " with incoming flowExecutionId: " + flowExecutionId);
-      // If the latest flow status is the current job about to get kicked off, we should ignore this check
-      return flowStatus.getFlowExecutionId() != flowExecutionId && !FINISHED_STATUSES.contains(flowExecutionStatus.name());
+      return !FINISHED_STATUSES.contains(flowExecutionStatus.name());
     }
   }
 
