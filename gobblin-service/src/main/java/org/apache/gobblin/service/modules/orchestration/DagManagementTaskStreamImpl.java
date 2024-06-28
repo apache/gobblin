@@ -154,10 +154,10 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
             LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(leaseParams);
             if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
               this.dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_LEASES_OBTAINED,
-                  dagActionLeaseObject.getDagAction().getDagActionType());
-              if (dagActionLeaseObject.isReminder()) {
+                  leaseParams.getDagAction().getDagActionType());
+              if (leaseParams.isReminder()) {
                 this.dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_REMINDERS_PROCESSED,
-                    dagActionLeaseObject.getDagAction().getDagActionType());
+                    leaseParams.getDagAction().getDagActionType());
               }
               return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
             }
@@ -222,10 +222,10 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     if (!(leaseAttemptStatus instanceof LeaseAttemptStatus.NoLongerLeasingStatus)) {
       scheduleReminderForEvent(leaseAttemptStatus);
       this.dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_LEASE_REMINDERS_SCHEDULED,
-          dagActionLeaseObject.getDagAction().getDagActionType());
+          leaseParams.getDagAction().getDagActionType());
     } else {
       this.dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_NO_LONGER_LEASING,
-          dagActionLeaseObject.getDagAction().getDagActionType());
+          leaseParams.getDagAction().getDagActionType());
     }
     return leaseAttemptStatus;
   }

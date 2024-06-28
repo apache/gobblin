@@ -55,10 +55,11 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
   protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore,
       DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     try {
-      Optional<Dag<JobExecutionPlan>> dag = dagManagementStateStore.getDag(getDagId());
+      Optional<Dag<JobExecutionPlan>> jobExecutionPlanDag =
+          super.initialize(dagManagementStateStore, dagProcEngineMetrics);
       dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_SUCCEEDED,
           DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
-      return dag;
+      return jobExecutionPlanDag;
     } catch (Exception e) {
       dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_FAILED,
           DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
@@ -69,21 +70,16 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
   @Override
   protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag,
       DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
-    log.info("Request to enforce deadlines for dag {}", getDagId());
-
-    if (!dag.isPresent()) {
+    if (validate(dag, dagManagementStateStore)) {
+      enforceDeadline(dagManagementStateStore, dag.get(), dagProcEngineMetrics);
+    } else {
       dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
           DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
-      log.error("Did not find Dag with id {}, it might be already cancelled/finished and thus cleaned up from the store.",
-          getDagId());
-      return;
     }
-
-    enforceJobStartDeadline(dagManagementStateStore, dag, dagProcEngineMetrics;
   }
 
-  private void enforceJobStartDeadline(DagManagementStateStore dagManagementStateStore,
-      Optional<Dag<JobExecutionPlan>> dag, DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
+  protected void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<org.apache.gobblin.service.monitoring.JobStatus>>
         dagNodeToCheckDeadline = dagManagementStateStore.getDagNodeWithJobStatus(getDagNodeId());
     if (!dagNodeToCheckDeadline.getLeft().isPresent()) {
