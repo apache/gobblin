@@ -25,6 +25,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -39,25 +40,25 @@ abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<Jo
   }
 
   @Override
-  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
-      throws IOException {
+  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     return dagManagementStateStore.getDag(getDagId());
   }
 
   @Override
-  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
-      throws IOException {
+  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     if (validate(dag, dagManagementStateStore)) {
-      enforceDeadline(dagManagementStateStore, dag.get());
+      enforceDeadline(dagManagementStateStore, dag.get(), dagProcEngineMetrics);
     }
   }
 
-  private boolean validate(Optional<Dag<JobExecutionPlan>> dag, DagManagementStateStore dagManagementStateStore) throws IOException {
+  protected boolean validate(Optional<Dag<JobExecutionPlan>> dag, DagManagementStateStore dagManagementStateStore)
+      throws IOException {
     log.info("Request to enforce deadlines for dag {}", getDagId());
     DagActionStore.DagAction dagAction = getDagTask().getDagAction();
 
     if (!dag.isPresent()) {
-      // todo - add a metric here
       log.error("Dag not present when validating {}. It may already have cancelled/finished. Dag {}",
           getDagId(), dagAction);
       return false;
@@ -72,5 +73,6 @@ abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<Jo
     return true;
   }
 
-  abstract void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag) throws IOException;
+  abstract void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException;
 }

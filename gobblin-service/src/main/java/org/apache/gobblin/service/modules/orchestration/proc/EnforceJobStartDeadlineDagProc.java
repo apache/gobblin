@@ -24,12 +24,15 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -48,13 +51,41 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
     super(enforceJobStartDeadlineDagTask);
   }
 
-  protected void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag)
-      throws IOException {
+  @Override
+  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
+    try {
+      Optional<Dag<JobExecutionPlan>> jobExecutionPlanDag =
+          super.initialize(dagManagementStateStore, dagProcEngineMetrics);
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_SUCCEEDED,
+          DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+      return jobExecutionPlanDag;
+    } catch (Exception e) {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_FAILED,
+          DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+      throw e;
+    }
+  }
+
+  @Override
+  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
+    if (validate(dag, dagManagementStateStore)) {
+      enforceDeadline(dagManagementStateStore, dag.get(), dagProcEngineMetrics);
+    } else {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
+          DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+    }
+  }
+
+  protected void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<org.apache.gobblin.service.monitoring.JobStatus>>
         dagNodeToCheckDeadline = dagManagementStateStore.getDagNodeWithJobStatus(getDagNodeId());
     if (!dagNodeToCheckDeadline.getLeft().isPresent()) {
       // this should never happen; a job for which DEADLINE_ENFORCEMENT dag action is created must have a dag node in store
-      // todo - add metrics
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
+          DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
       log.error("Dag node {} not found for EnforceJobStartDeadlineDagProc", getDagNodeId());
       return;
     }
@@ -63,6 +94,8 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
     long timeOutForJobStart = DagManagerUtils.getJobStartSla(dagNode, DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
     Optional<org.apache.gobblin.service.monitoring.JobStatus> jobStatus = dagNodeToCheckDeadline.getRight();
     if (!jobStatus.isPresent()) {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
+          DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
       log.error("Some job status should be present for dag node {} that this EnforceJobStartDeadlineDagProc belongs.", getDagNodeId());
       return;
     }
@@ -79,5 +112,7 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
       dag.setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
       dagManagementStateStore.checkpointDag(dag);
     }
+    dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_SUCCEEDED,
+        DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
   }
 }

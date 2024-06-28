@@ -41,6 +41,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
@@ -51,6 +52,7 @@ import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 
 
 /**
@@ -100,6 +102,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
   @VisibleForTesting
   protected FlowCatalog flowCatalog;
   protected DagManagementStateStore dagManagementStateStore;
+  protected final DagProcessingEngineMetrics dagProcEngineMetrics;
   @Getter
   private volatile boolean isActive;
 
@@ -107,7 +110,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
   // client itself to determine all Kafka related information dynamically rather than through the config.
   public DagActionStoreChangeMonitor(String topic, Config config, DagManager dagManager, int numThreads,
       FlowCatalog flowCatalog, Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore,
-      boolean isMultiActiveSchedulerEnabled) {
+      boolean isMultiActiveSchedulerEnabled, DagProcessingEngineMetrics dagProcEngineMetrics) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(DAG_ACTION_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
@@ -117,6 +120,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
     this.orchestrator = orchestrator;
     this.dagManagementStateStore = dagManagementStateStore;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
+    this.dagProcEngineMetrics = dagProcEngineMetrics;
 
     /*
     Metrics need to be created before initializeMonitor() below is called (or more specifically handleDagAction() is
@@ -229,16 +233,20 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
     dagActionsSeenCache.put(changeIdentifier, changeIdentifier);
   }
 
-  protected void handleDagAction(String operation, DagActionStore.DagAction dagAction, String flowGroup, String flowName,
-      long flowExecutionId, DagActionStore.DagActionType dagActionType) {
+  protected void handleDagAction(String operation, DagActionStore.DagAction dagAction, String flowGroup,
+      String flowName, long flowExecutionId, DagActionStore.DagActionType dagActionType) {
     // We only expect INSERT and DELETE operations done to this table. INSERTs correspond to any type of
     // {@link DagActionStore.FlowActionType} flow requests that have to be processed. DELETEs require no action.
     try {
       switch (operation) {
         case "INSERT":
           handleDagAction(dagAction, false);
+          this.dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_OBSERVED,
+              dagActionType);
           break;
         case "UPDATE":
+          this.dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_OBSERVED,
+              dagActionType);
           // TODO: change this warning message and process updates if for launch or reevaluate type
           log.warn("Received an UPDATE action to the DagActionStore when values in this store are never supposed to be "
                   + "updated. Flow group: {} name {} executionId {} were updated to action {}", flowGroup, flowName,

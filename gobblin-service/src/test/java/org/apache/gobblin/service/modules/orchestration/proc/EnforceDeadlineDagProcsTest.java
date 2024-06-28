@@ -21,6 +21,7 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.tuple.Pair;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -55,10 +56,12 @@ import static org.mockito.Mockito.spy;
 public class EnforceDeadlineDagProcsTest {
   private ITestMetastoreDatabase testMetastoreDatabase;
   private final MockedStatic<GobblinServiceManager> mockedGobblinServiceManager = Mockito.mockStatic(GobblinServiceManager.class);
+  private DagProcessingEngineMetrics mockedDagProcEngineMetrics;
 
   @BeforeClass
   public void setUp() throws Exception {
     this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    this.mockedDagProcEngineMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
   }
 
   @AfterClass(alwaysRun = true)
@@ -99,7 +102,7 @@ public class EnforceDeadlineDagProcsTest {
     EnforceJobStartDeadlineDagProc enforceJobStartDeadlineDagProc = new EnforceJobStartDeadlineDagProc(
         new EnforceJobStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
             "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null, dagManagementStateStore));
-    enforceJobStartDeadlineDagProc.process(dagManagementStateStore);
+    enforceJobStartDeadlineDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int expectedNumOfDeleteDagNodeStates = 1; // the one dag node corresponding to the EnforceStartDeadlineDagProc
     Assert.assertEquals(expectedNumOfDeleteDagNodeStates,
@@ -138,7 +141,7 @@ public class EnforceDeadlineDagProcsTest {
     EnforceJobStartDeadlineDagProc enforceJobStartDeadlineDagProc = new EnforceJobStartDeadlineDagProc(
         new EnforceJobStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
             "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null, dagManagementStateStore));
-    enforceJobStartDeadlineDagProc.process(dagManagementStateStore);
+    enforceJobStartDeadlineDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int expectedNumOfDeleteDagNodeStates = 0; // no dag node because we simulated (by not adding) missing dag action
     Assert.assertEquals(expectedNumOfDeleteDagNodeStates,
@@ -178,7 +181,7 @@ public class EnforceDeadlineDagProcsTest {
     EnforceFlowFinishDeadlineDagProc enforceFlowFinishDeadlineDagProc = new EnforceFlowFinishDeadlineDagProc(
         new EnforceFlowFinishDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
             "job0", DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE), null, dagManagementStateStore));
-    enforceFlowFinishDeadlineDagProc.process(dagManagementStateStore);
+    enforceFlowFinishDeadlineDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     Assert.assertEquals(numOfDagNodes,
         Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()

@@ -20,12 +20,16 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.util.List;
 
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -41,8 +45,35 @@ public class EnforceFlowFinishDeadlineDagProc extends DeadlineEnforcementDagProc
     super(enforceFlowFinishDeadlineDagTask);
   }
 
-  protected void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag)
-      throws IOException {
+  @Override
+  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
+    try {
+      Optional<Dag<JobExecutionPlan>> jobExecutionPlanDag =
+          super.initialize(dagManagementStateStore, dagProcEngineMetrics);
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_SUCCEEDED,
+          DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+      return jobExecutionPlanDag;
+    } catch (Exception e) {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_FAILED,
+          DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+      throw e;
+    }
+  }
+
+  @Override
+  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
+    if (validate(dag, dagManagementStateStore)) {
+      enforceDeadline(dagManagementStateStore, dag.get(), dagProcEngineMetrics);
+    } else {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
+          DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+    }
+  }
+
+  protected void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     Dag.DagNode<JobExecutionPlan> dagNode = dag.getNodes().get(0);
     long flowFinishDeadline = DagManagerUtils.getFlowSLA(dagNode);
     long flowStartTime = DagManagerUtils.getFlowStartTime(dagNode);
@@ -59,7 +90,11 @@ public class EnforceFlowFinishDeadlineDagProc extends DeadlineEnforcementDagProc
       dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
       dag.setMessage("Flow killed due to exceeding SLA of " + flowFinishDeadline + " ms");
       dagManagementStateStore.checkpointDag(dag);
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_SUCCEEDED,
+          DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
     } else {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
+          DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
       log.error("EnforceFlowFinishDeadline dagAction received before due time. flowStartTime {}, flowFinishDeadline {} ", flowStartTime, flowFinishDeadline);
     }
   }

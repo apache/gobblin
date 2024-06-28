@@ -25,12 +25,15 @@ import com.google.common.collect.Maps;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -50,18 +53,28 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   }
 
   @Override
-  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
-      throws IOException {
-   return dagManagementStateStore.getFailedDag(getDagId());
+  protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
+    try {
+      Optional<Dag<JobExecutionPlan>> dag = dagManagementStateStore.getFailedDag(getDagId());
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_SUCCEEDED,
+          DagActionStore.DagActionType.RESUME);
+      return dag;
+    } catch (Exception e) {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_FAILED,
+          DagActionStore.DagActionType.RESUME);
+      throw e;
+    }
   }
 
   @Override
-  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> failedDag)
-      throws IOException {
+  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> failedDag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     log.info("Request to resume dag {}", getDagId());
 
     if (!failedDag.isPresent()) {
-      // todo - add a metric here
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
+          DagActionStore.DagActionType.RESUME);
       log.error("Dag " + dagId + " was not found in dag state store");
       return;
     }
@@ -95,5 +108,7 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     DagProcUtils.submitNextNodes(dagManagementStateStore, failedDag.get(), getDagId());
 
     DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
+    dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_SUCCEEDED,
+        DagActionStore.DagActionType.RESUME);
   }
 }

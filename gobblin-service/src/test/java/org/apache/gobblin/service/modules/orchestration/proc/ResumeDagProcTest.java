@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -50,12 +51,14 @@ import static org.mockito.Mockito.spy;
 public class ResumeDagProcTest {
   private MostlyMySqlDagManagementStateStore dagManagementStateStore;
   private ITestMetastoreDatabase testDb;
+  private DagProcessingEngineMetrics mockedDagProcEngineMetrics;
 
   @BeforeClass
   public void setUp() throws Exception {
     testDb = TestMetastoreDatabaseFactory.get();
     this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(testDb));
     LaunchDagProcTest.mockDMSSCommonBehavior(this.dagManagementStateStore);
+    this.mockedDagProcEngineMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
   }
 
   @AfterClass(alwaysRun = true)
@@ -91,7 +94,7 @@ public class ResumeDagProcTest {
     ResumeDagProc resumeDagProc = new ResumeDagProc(new ResumeDagTask(new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.RESUME),
         null, this.dagManagementStateStore));
-    resumeDagProc.process(this.dagManagementStateStore);
+    resumeDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int expectedNumOfResumedJobs = 1; // = number of resumed nodes
 

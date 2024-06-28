@@ -32,6 +32,7 @@ import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 
 
@@ -63,13 +64,16 @@ public abstract class DagProc<T> {
     this.dagNodeId = this.dagTask.getDagAction().getDagNodeId();
   }
 
-  public final void process(DagManagementStateStore dagManagementStateStore) throws IOException {
-    T state = initialize(dagManagementStateStore);   // todo - retry
-    act(dagManagementStateStore, state);   // todo - retry
+  public final void process(DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
+    T state = initialize(dagManagementStateStore, dagProcEngineMetrics);   // todo - retry
+    act(dagManagementStateStore, state, dagProcEngineMetrics);   // todo - retry
     log.info("{} concluded processing for dagId : {}", getClass().getSimpleName(), this.dagId);
   }
 
-  protected abstract T initialize(DagManagementStateStore dagManagementStateStore) throws IOException;
+  protected abstract T initialize(DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException;
 
-  protected abstract void act(DagManagementStateStore dagManagementStateStore, T state) throws IOException;
+  protected abstract void act(DagManagementStateStore dagManagementStateStore, T state,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException;
 }

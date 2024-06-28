@@ -24,12 +24,15 @@ import org.apache.commons.lang3.tuple.Pair;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
@@ -49,19 +52,31 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
   }
 
   @Override
-  protected Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(DagManagementStateStore dagManagementStateStore)
+  protected Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(
+      DagManagementStateStore dagManagementStateStore, DagProcessingEngineMetrics dagProcEngineMetrics)
       throws IOException {
-    return dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId);
+    try {
+      Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> dagNodeWithStatus =
+          dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId);
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_SUCCEEDED,
+          DagActionStore.DagActionType.REEVALUATE);
+      return dagNodeWithStatus;
+    } catch (Exception e) {
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_INIT_FAILED,
+          DagActionStore.DagActionType.REEVALUATE);
+      throw e;
+    }
   }
 
   @Override
   protected void act(DagManagementStateStore dagManagementStateStore, Pair<Optional<Dag.DagNode<JobExecutionPlan>>,
-      Optional<JobStatus>> dagNodeWithJobStatus) throws IOException {
+      Optional<JobStatus>> dagNodeWithJobStatus, DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     if (!dagNodeWithJobStatus.getLeft().isPresent()) {
       // one of the reason this could arise is when the MALA leasing doesn't work cleanly and another DagProc::process
       // has cleaned up the Dag, yet did not complete the lease before this current one acquired its own
       log.error("DagNode or its job status not found for a Reevaluate DagAction with dag node id {}", this.dagNodeId);
-      // todo - add metrics to count such occurrences
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_FAILED,
+          DagActionStore.DagActionType.REEVALUATE);
       return;
     }
 
@@ -73,6 +88,8 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // dag actions for each of those parallel job and in this scenario there is no job status available.
       // If the job status is not present, this job was never launched, submit it now.
       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
+      dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_SUCCEEDED,
+          DagActionStore.DagActionType.REEVALUATE);
       return;
     }
 
@@ -119,6 +136,8 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
 
       DagProcUtils.removeFlowFinishDeadlineDagAction(dagManagementStateStore, getDagId());
     }
+    dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_EXECUTIONS_SUCCEEDED,
+        DagActionStore.DagActionType.REEVALUATE);
   }
 
   /**

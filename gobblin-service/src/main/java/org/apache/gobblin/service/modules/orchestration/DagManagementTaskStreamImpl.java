@@ -22,6 +22,8 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.gobblin.metrics.ServiceMetricNames;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.quartz.SchedulerException;
 
 import com.google.inject.Inject;
@@ -82,13 +84,14 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.LeaseParams> leaseParamsQueue = new LinkedBlockingQueue<>();
   private final DagManagementStateStore dagManagementStateStore;
+  private final DagProcessingEngineMetrics dagProcEngineMetrics;
 
   @Inject
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
       @Named(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter,
       Optional<DagActionReminderScheduler> dagActionReminderScheduler,
       @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled,
-      DagManagementStateStore dagManagementStateStore) {
+      DagManagementStateStore dagManagementStateStore, DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = config;
     if (!dagActionStore.isPresent()) {
       /* DagActionStore is optional because there are other configurations that do not require it and it's initialized
@@ -105,6 +108,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
     this.dagManagementStateStore = dagManagementStateStore;
+    this.dagProcEngineMetrics = dagProcEngineMetrics;
   }
 
   @Override
@@ -149,6 +153,12 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
           } else { // Handle original non-deadline dagActions as well as reminder events of all types
             LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(leaseParams);
             if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
+              this.dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_LEASES_OBTAINED,
+                  leaseParams.getDagAction().getDagActionType());
+              if (leaseParams.isReminder()) {
+                this.dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_REMINDERS_PROCESSED,
+                    leaseParams.getDagAction().getDagActionType());
+              }
               return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
             }
           }
@@ -211,6 +221,11 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
         */
     if (!(leaseAttemptStatus instanceof LeaseAttemptStatus.NoLongerLeasingStatus)) {
       scheduleReminderForEvent(leaseAttemptStatus);
+      this.dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTION_LEASE_REMINDERS_SCHEDULED,
+          leaseParams.getDagAction().getDagActionType());
+    } else {
+      this.dagProcEngineMetrics.updateMetricForDagAction(ServiceMetricNames.DAG_ACTIONS_NO_LONGER_LEASING,
+          leaseParams.getDagAction().getDagActionType());
     }
     return leaseAttemptStatus;
   }

@@ -22,6 +22,8 @@ import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashSet;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -51,7 +53,14 @@ public class MysqlDagActionStoreTest {
   @BeforeClass
   public void setUp() throws Exception {
     this.testDb = TestMetastoreDatabaseFactory.get();
-    this.mysqlDagActionStore = getTestDagActionStore(this.testDb);
+    Config config = ConfigBuilder.create()
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, this.testDb.getJdbcUrl())
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
+        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
+        .build();
+
+    this.mysqlDagActionStore = new MysqlDagActionStore(config, Mockito.mock(DagProcessingEngineMetrics.class));
   }
 
   @AfterClass(alwaysRun = true)
@@ -67,7 +76,7 @@ public class MysqlDagActionStoreTest {
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
         .build();
-    return new MysqlDagActionStore(config);
+    return new MysqlDagActionStore(config, Mockito.mock(DagProcessingEngineMetrics.class));
   }
 
   @Test
