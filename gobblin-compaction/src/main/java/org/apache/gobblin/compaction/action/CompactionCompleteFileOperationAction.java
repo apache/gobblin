@@ -136,11 +136,13 @@ public class CompactionCompleteFileOperationAction implements CompactionComplete
           dstPath =
               PathUtils.mergePaths(dstPath, new Path(String.format(COMPACTION_DIRECTORY_FORMAT, executionCount + 1)));
           this.configurator.getOldFiles().add(this.fs.makeQualified(oldFilePath).toString());
-          //Write to a new path, no need to delete the old path
         } else {
           this.configurator.getOldFiles().add(this.fs.makeQualified(dstPath).toString());
-          this.fs.delete(dstPath, true);
         }
+
+        // It is possible that the destination path is a non-empty directory if the previous run failed.
+        // Hence, always delete the destination path before moving the tmp path to the destination path.
+        this.fs.delete(dstPath, true);
         FsPermission permission =
             HadoopUtils.deserializeFsPermission(this.state, MRCompactorJobRunner.COMPACTION_JOB_OUTPUT_DIR_PERMISSION,
                 FsPermission.getDefault());
