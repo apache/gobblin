@@ -73,12 +73,14 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
           break;
         case "DELETE":
           log.debug("Deleted dagAction from DagActionStore: {}", dagAction);
+          /* TODO: skip deadline removal for now and let them fire
           if (dagActionType == DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE
               || dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE) {
             this.dagActionReminderScheduler.unscheduleReminderJob(dagAction, true);
             // clear any deadline reminders as well as any retry reminders
             this.dagActionReminderScheduler.unscheduleReminderJob(dagAction, false);
           }
+           */
           break;
         default:
           log.warn(

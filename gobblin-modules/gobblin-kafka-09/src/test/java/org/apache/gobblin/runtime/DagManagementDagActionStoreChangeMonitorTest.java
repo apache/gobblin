@@ -112,10 +112,12 @@ public class DagManagementDagActionStoreChangeMonitorTest {
     DagActionStore.DagAction dagAction = new DagActionStore.DagAction(FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, JOB_NAME,
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
     mockDagManagementDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
+    /* TODO: skip deadline removal for now and let them fire
     verify(mockDagManagementDagActionStoreChangeMonitor.getDagActionReminderScheduler(), times(1))
         .unscheduleReminderJob(eq(dagAction), eq(true));
     verify(mockDagManagementDagActionStoreChangeMonitor.getDagActionReminderScheduler(), times(1))
         .unscheduleReminderJob(eq(dagAction), eq(false));
+     */
   }
 
   /**
