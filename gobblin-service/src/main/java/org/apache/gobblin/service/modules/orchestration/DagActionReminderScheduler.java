@@ -129,14 +129,18 @@ public class DagActionReminderScheduler {
 
   /**
    * Creates a key for the reminder job by concatenating all dagAction fields and the eventTime of the dagAction to
-   * allow reminders for actions associated with multiple flow executions within a deadline period (e.g. another
-   * flow execution may occur before a flow finish or job start deadline expires)
+   * allow reminders for distinct action requests of the same flow execution within a deadline period (e.g. multiple
+   * kill requests for the same flow execution). 
    */
   public static String createDagActionReminderKey(DagActionStore.LeaseParams leaseParams) {
     DagActionStore.DagAction dagAction = leaseParams.getDagAction();
-    return String.format("%s.%s.%s.%s.%s.%s", dagAction.getFlowGroup(), dagAction.getFlowName(),
-        dagAction.getFlowExecutionId(), dagAction.getJobName(), dagAction.getDagActionType(),
-        leaseParams.getEventTimeMillis());
+    return String.join(".",
+        dagAction.getFlowGroup(),
+        dagAction.getFlowName(),
+        String.valueOf(dagAction.getFlowExecutionId()),
+        dagAction.getJobName(),
+        String.valueOf(dagAction.getDagActionType()),
+        String.valueOf(leaseParams.getEventTimeMillis()));
   }
 
   /**
