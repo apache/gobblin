@@ -275,14 +275,25 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     Instrumented.updateTimer(this.flowOrchestrationTimer, System.nanoTime() - startTime, TimeUnit.NANOSECONDS);
   }
 
-  public void submitFlowToDagManager(FlowSpec flowSpec) throws IOException, InterruptedException {
-    Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
-        this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec);
-    if (optionalJobExecutionPlanDag.isPresent()) {
-      submitFlowToDagManager(flowSpec, optionalJobExecutionPlanDag.get());
-    } else {
-      _log.warn("Flow: {} submitted to dagManager failed to compile and produce a job execution plan dag", flowSpec);
-      Instrumented.markMeter(this.flowOrchestrationFailedMeter);
+  /**
+   * Method that accepts a flowSpec that it compiles before forwarding to the DagManagerfor execution. It's meant to be
+   * called by {@link org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor}
+   * @param flowSpec
+   * @throws IOException
+   * @throws InterruptedException
+   */
+  public void compileAndSubmitFlowToDagManager(FlowSpec flowSpec) throws IOException, InterruptedException {
+    try {
+      Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlanDag =
+          this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec);
+      if (optionalJobExecutionPlanDag.isPresent()) {
+        submitFlowToDagManager(flowSpec, optionalJobExecutionPlanDag.get());
+      } else {
+        _log.warn("Flow: {} submitted to dagManager failed to compile and produce a job execution plan dag", flowSpec);
+        Instrumented.markMeter(this.flowOrchestrationFailedMeter);
+      }
+    } finally {
+      this.dagManager.removeFlowSpecIfAdhoc(flowSpec);
     }
   }
 
@@ -293,7 +304,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       Note that the responsibility of the multi-active scheduler mode ends after this method is completed AND the
       consumption of a launch type event is committed to the consumer.
        */
-      this.dagManager.addDagAndRemoveAdhocFlowSpec(flowSpec, jobExecutionPlanDag, true, true);
+      this.dagManager.addDag(jobExecutionPlanDag, true, true);
     } catch (Exception ex) {
       String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
       _log.warn("Orchestrator call - " + failureMessage, ex);

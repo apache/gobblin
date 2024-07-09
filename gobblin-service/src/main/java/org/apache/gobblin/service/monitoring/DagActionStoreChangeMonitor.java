@@ -315,7 +315,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       change. It's crucial to adopt the consensus flowExecutionId here to prevent creating a new one during compilation.
       */
       spec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
-      this.orchestrator.submitFlowToDagManager(spec);
+      this.orchestrator.compileAndSubmitFlowToDagManager(spec);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
       launchSubmissionMetricProxy.markFailure();
