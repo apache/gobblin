@@ -128,9 +128,13 @@ public class DagActionReminderScheduler {
   }
 
   /**
-   * Creates a key for the reminder job by concatenating all dagAction fields and the eventTime of the dagAction to
-   * allow reminders for distinct action requests of the same flow execution within a deadline period (e.g. multiple
-   * kill requests for the same flow execution). 
+   * Creates a key for the reminder job by concatenating all dagAction fields and the eventTime of the dagAction.
+   *
+   * This ensures unique keys for multiple instances of the same action on the same flow execution that originate more
+   * than 'epsilon' apart. {@link MultiActiveLeaseArbiter} uses the eventTime to distinguish these distinct occurrences
+   * of the same action. This is necessary to prevent insertion failures due to previous reminders.
+   *
+   * Applicable only for KILL and RESUME actions; duplication for other actions is an error.
    */
   public static String createDagActionReminderKey(DagActionStore.LeaseParams leaseParams) {
     DagActionStore.DagAction dagAction = leaseParams.getDagAction();
