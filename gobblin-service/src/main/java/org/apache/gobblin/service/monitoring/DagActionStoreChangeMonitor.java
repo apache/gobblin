@@ -321,8 +321,10 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       launchSubmissionMetricProxy.markFailure();
       return;
     } catch (SpecNotFoundException e) {
-      log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
-      launchSubmissionMetricProxy.markFailure();
+      log.info("Spec not found for flowId {} due to deletion by active dagManager host due to exception {}",
+          flowId, e.getMessage());
+      // TODO: mark this failure if there are other valid cases of this exception
+      // launchSubmissionMetricProxy.markFailure();
       return;
     } catch (IOException e) {
       log.warn("Failed to add Job Execution Plan for flowId {} due to exception {}", flowId, e.getMessage());
