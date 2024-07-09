@@ -80,16 +80,16 @@ public class DagActionReminderScheduler {
       boolean isDeadlineReminder)
       throws SchedulerException {
     JobDetail jobDetail = createReminderJobDetail(leaseParams, isDeadlineReminder);
-    Trigger trigger = createReminderJobTrigger(leaseParams.getDagAction(), reminderDurationMillis,
+    Trigger trigger = createReminderJobTrigger(leaseParams, reminderDurationMillis,
         System::currentTimeMillis, isDeadlineReminder);
     log.info("Reminder set for dagAction {} to fire after {} ms, isDeadlineTrigger: {}",
         leaseParams.getDagAction(), reminderDurationMillis, isDeadlineReminder);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
 
-  public void unscheduleReminderJob(DagActionStore.DagAction dagAction, boolean isDeadlineTrigger) throws SchedulerException {
-    log.info("Reminder unset for dagAction {}, isDeadlineTrigger: {}", dagAction, isDeadlineTrigger);
-    quartzScheduler.deleteJob(createJobKey(dagAction, isDeadlineTrigger));
+  public void unscheduleReminderJob(DagActionStore.LeaseParams leaseParams, boolean isDeadlineTrigger) throws SchedulerException {
+    log.info("Reminder unset for dagAction {}, isDeadlineTrigger: {}", leaseParams, isDeadlineTrigger);
+    quartzScheduler.deleteJob(createJobKey(leaseParams, isDeadlineTrigger));
   }
 
   /**
@@ -128,23 +128,35 @@ public class DagActionReminderScheduler {
   }
 
   /**
-   * Creates a key for the reminder job by concatenating all dagAction fields
+   * Creates a key for the reminder job by concatenating all dagAction fields and the eventTime of the dagAction.
+   *
+   * This ensures unique keys for multiple instances of the same action on the same flow execution that originate more
+   * than 'epsilon' apart. {@link MultiActiveLeaseArbiter} uses the eventTime to distinguish these distinct occurrences
+   * of the same action. This is necessary to prevent insertion failures due to previous reminders.
+   *
+   * Applicable only for KILL and RESUME actions; duplication for other actions is an error.
    */
-  public static String createDagActionReminderKey(DagActionStore.DagAction dagAction) {
-    return String.format("%s.%s.%s.%s.%s", dagAction.getFlowGroup(), dagAction.getFlowName(),
-        dagAction.getFlowExecutionId(), dagAction.getJobName(), dagAction.getDagActionType());
+  public static String createDagActionReminderKey(DagActionStore.LeaseParams leaseParams) {
+    DagActionStore.DagAction dagAction = leaseParams.getDagAction();
+    return String.join(".",
+        dagAction.getFlowGroup(),
+        dagAction.getFlowName(),
+        String.valueOf(dagAction.getFlowExecutionId()),
+        dagAction.getJobName(),
+        String.valueOf(dagAction.getDagActionType()),
+        String.valueOf(leaseParams.getEventTimeMillis()));
   }
 
   /**
    * Creates a JobKey object for the reminder job where the name is the DagActionReminderKey from above and the group is
    * the flowGroup
    */
-  public static JobKey createJobKey(DagActionStore.DagAction dagAction, boolean isDeadlineReminder) {
-    return new JobKey(createDagActionReminderKey(dagAction), isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
+  public static JobKey createJobKey(DagActionStore.LeaseParams leaseParams, boolean isDeadlineReminder) {
+    return new JobKey(createDagActionReminderKey(leaseParams), isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
   }
 
-  private static TriggerKey createTriggerKey(DagActionStore.DagAction dagAction, boolean isDeadlineReminder) {
-    return new TriggerKey(createDagActionReminderKey(dagAction), isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
+  private static TriggerKey createTriggerKey(DagActionStore.LeaseParams leaseParams, boolean isDeadlineReminder) {
+    return new TriggerKey(createDagActionReminderKey(leaseParams), isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
   }
 
   /**
@@ -163,7 +175,7 @@ public class DagActionReminderScheduler {
     dataMap.put(ReminderJob.FLOW_ACTION_EVENT_TIME_KEY, leaseParams.getEventTimeMillis());
 
     return JobBuilder.newJob(ReminderJob.class)
-        .withIdentity(createJobKey(leaseParams.getDagAction(), isDeadlineReminder))
+        .withIdentity(createJobKey(leaseParams, isDeadlineReminder))
         .usingJobData(dataMap)
         .build();
   }
@@ -173,10 +185,10 @@ public class DagActionReminderScheduler {
    * with a job at any given time) that should fire after `reminderDurationMillis` millis. It uses
    * `getCurrentTimeMillis` to determine the current time.
    */
-  public static Trigger createReminderJobTrigger(DagActionStore.DagAction dagAction, long reminderDurationMillis,
+  public static Trigger createReminderJobTrigger(DagActionStore.LeaseParams leaseParams, long reminderDurationMillis,
       Supplier<Long> getCurrentTimeMillis, boolean isDeadlineReminder) {
     return TriggerBuilder.newTrigger()
-        .withIdentity(createTriggerKey(dagAction, isDeadlineReminder))
+        .withIdentity(createTriggerKey(leaseParams, isDeadlineReminder))
         .startAt(new Date(getCurrentTimeMillis.get() + reminderDurationMillis))
         .build();
   }

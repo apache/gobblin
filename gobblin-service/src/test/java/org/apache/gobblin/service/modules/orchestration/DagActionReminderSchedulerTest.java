@@ -23,10 +23,13 @@ import java.util.function.Supplier;
 
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.SchedulerException;
 import org.quartz.Trigger;
 import org.quartz.TriggerUtils;
+import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.spi.OperableTrigger;
 import org.testng.Assert;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Joiner;
@@ -39,14 +42,29 @@ public class DagActionReminderSchedulerTest {
   String flowName = "fn";
   long flowExecutionId = 123L;
   String jobName = "jn";
+  long eventTimeMillis = 1234L;
+  long eventTimeMillis2 = 5678L;
   String expectedKey =  Joiner.on(".").join(flowGroup, flowName, flowExecutionId, jobName,
-      DagActionStore.DagActionType.LAUNCH.name());
+      DagActionStore.DagActionType.LAUNCH.name(), eventTimeMillis);
+  String expectedKey2 =  Joiner.on(".").join(flowGroup, flowName, flowExecutionId, jobName,
+      DagActionStore.DagActionType.LAUNCH.name(), eventTimeMillis2);
   DagActionStore.DagAction launchDagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName,
       DagActionStore.DagActionType.LAUNCH);
+  DagActionStore.LeaseParams launchLeaseParams = new DagActionStore.LeaseParams(launchDagAction, eventTimeMillis);
+  DagActionStore.LeaseParams launchLeaseParams2 = new DagActionStore.LeaseParams(launchDagAction, eventTimeMillis2);
+  DagActionReminderScheduler dagActionReminderScheduler;
+
+  @BeforeClass
+  private void setup() throws SchedulerException {
+    StdSchedulerFactory schedulerFactory = new StdSchedulerFactory();
+    schedulerFactory.getScheduler();
+    this.dagActionReminderScheduler = new DagActionReminderScheduler(schedulerFactory);
+  }
 
   @Test
   public void testCreateDagActionReminderKey() {
-    Assert.assertEquals(expectedKey, DagActionReminderScheduler.createDagActionReminderKey(launchDagAction));
+    Assert.assertEquals(expectedKey, DagActionReminderScheduler.createDagActionReminderKey(launchLeaseParams));
+    Assert.assertEquals(expectedKey2, DagActionReminderScheduler.createDagActionReminderKey(launchLeaseParams2));
   }
 
   @Test
@@ -54,7 +72,7 @@ public class DagActionReminderSchedulerTest {
     long reminderDuration = 666L;
     Supplier<Long> getCurrentTimeMillis = () -> 12345600000L;
     Trigger reminderTrigger = DagActionReminderScheduler
-        .createReminderJobTrigger(launchDagAction, reminderDuration, getCurrentTimeMillis, false);
+        .createReminderJobTrigger(launchLeaseParams, reminderDuration, getCurrentTimeMillis, false);
     Assert.assertEquals(reminderTrigger.getKey().toString(), DagActionReminderScheduler.RetryReminderKeyGroup + "." + expectedKey);
     List<Date> fireTimes = TriggerUtils.computeFireTimes((OperableTrigger) reminderTrigger, null, 1);
     Assert.assertEquals(fireTimes.get(0), new Date(reminderDuration + getCurrentTimeMillis.get()));
@@ -62,8 +80,7 @@ public class DagActionReminderSchedulerTest {
 
   @Test
   public void testCreateReminderJobDetail() {
-    long expectedEventTimeMillis = 55L;
-    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(new DagActionStore.LeaseParams(launchDagAction, false, expectedEventTimeMillis), false);
+    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(launchLeaseParams, false);
     Assert.assertEquals(jobDetail.getKey().toString(), DagActionReminderScheduler.RetryReminderKeyGroup + "." + expectedKey);
     JobDataMap dataMap = jobDetail.getJobDataMap();
     Assert.assertEquals(dataMap.get(ConfigurationKeys.FLOW_GROUP_KEY), flowGroup);
@@ -72,6 +89,18 @@ public class DagActionReminderSchedulerTest {
     Assert.assertEquals(dataMap.get(ConfigurationKeys.JOB_NAME_KEY), jobName);
     Assert.assertEquals(dataMap.get(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_TYPE_KEY),
         DagActionStore.DagActionType.LAUNCH);
-    Assert.assertEquals(dataMap.get(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_EVENT_TIME_KEY), expectedEventTimeMillis);
+    Assert.assertEquals(dataMap.get(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_EVENT_TIME_KEY), launchLeaseParams.getEventTimeMillis());
+  }
+
+  /*
+  Add deadline reminders for multiple launches of the same flow and assert no exception is thrown and they can be
+  deleted as well.
+   */
+  @Test
+  public void testRemindersForMultipleFlowExecutions() throws SchedulerException {
+    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams, 50000, true);
+    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams2, 50000, true);
+    this.dagActionReminderScheduler.unscheduleReminderJob(launchLeaseParams, true);
+    this.dagActionReminderScheduler.unscheduleReminderJob(launchLeaseParams2, true);
   }
 }
