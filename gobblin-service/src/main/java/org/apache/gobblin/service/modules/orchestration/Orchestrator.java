@@ -212,9 +212,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
       sharedFlowMetricsSingleton.addFlowGauge(spec, flowConfig, flowGroup, flowName);
-
-      // only compile and pass directly to `DagManager` when multi-active NOT enabled; otherwise recompilation to occur later,
-      // once `DagActionStoreChangeMonitor` subsequently delegates this `DagActionType.LAUNCH`
+      /* Only compile and pass directly to `DagManager` when multi-active scheduler NOT enabled; otherwise
+      recompilation to occur later, once `DagActionStoreChangeMonitor` subsequently delegates this
+      `DagActionType.LAUNCH`
+       */
       if (flowLaunchHandler.isPresent()) {
         DagActionStore.DagAction launchDagAction = DagActionStore.DagAction.forFlow(
             flowGroup,
@@ -230,7 +231,8 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
             launchDagAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
       } else {
         try {
-          TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
+          TimingEvent flowCompilationTimer =
+              new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
           Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
           Optional<Dag<JobExecutionPlan>> compiledDagOptional =
               this.flowCompilationValidationHelper.validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup,
@@ -259,8 +261,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           // Depending on if DagManager is present, handle execution
           submitFlowToDagManager(flowSpec, compiledDag);
         } finally {
-          // remove from the flow catalog, regardless of whether the flow was successfully validated and permitted to exec (concurrently)
-          this.dagManager.removeFlowSpecIfAdhoc(flowSpec);
+        /* Remove adhoc flow spec from the flow catalog, regardless of whether the flow was successfully validated
+        and permitted to exec (concurrently)
+         */
+        this.dagManager.removeFlowSpecIfAdhoc(flowSpec);
         }
       }
     } else {
@@ -289,7 +293,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       Note that the responsibility of the multi-active scheduler mode ends after this method is completed AND the
       consumption of a launch type event is committed to the consumer.
        */
-      this.dagManager.addDag(jobExecutionPlanDag, true, true);
+      this.dagManager.addDagAndRemoveAdhocFlowSpec(flowSpec, jobExecutionPlanDag, true, true);
     } catch (Exception ex) {
       String failureMessage = "Failed to add Job Execution Plan due to: " + ex.getMessage();
       _log.warn("Orchestrator call - " + failureMessage, ex);

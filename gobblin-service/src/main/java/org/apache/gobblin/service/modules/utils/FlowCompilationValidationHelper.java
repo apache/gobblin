@@ -140,31 +140,39 @@ public class FlowCompilationValidationHelper {
         ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, String.valueOf(this.isFlowConcurrencyEnabled)));
 
     Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
-    if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
-      return Optional.absent();
-    }
-    addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
+    Optional<Dag<JobExecutionPlan>> optionalJobExecutionPlan = null;
 
-    if (isExecutionPermitted(flowStatusGenerator, flowGroup, flowName, allowConcurrentExecution,
-        Long.parseLong(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)))) {
-      return Optional.fromNullable(jobExecutionPlanDag);
-    } else {
-      log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
-          + "concurrent executions are disabled for this flow.", flowGroup, flowName);
-      sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(flowSpec,
-          SharedFlowMetricsSingleton.CompiledState.SKIPPED);
-      Instrumented.markMeter(sharedFlowMetricsSingleton.getSkippedFlowsMeter());
-      if (!flowSpec.isScheduled()) {
-        // For ad-hoc flow, we might already increase quota, we need to decrease here
-        for (Dag.DagNode dagNode : jobExecutionPlanDag.getStartNodes()) {
-          quotaManager.releaseQuota(dagNode);
-        }
+    try {
+      if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
+        optionalJobExecutionPlan = Optional.absent();
       }
-      // Send FLOW_FAILED event
-      flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
-          + "executions are disabled. Set flow.allowConcurrentExecution to true in the flowSpec to change this behaviour.");
-      new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
-      return Optional.absent();
+      addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
+
+      if (isExecutionPermitted(flowStatusGenerator, flowGroup, flowName, allowConcurrentExecution,
+          Long.parseLong(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)))) {
+        optionalJobExecutionPlan = Optional.fromNullable(jobExecutionPlanDag);
+      } else {
+        log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
+            + "concurrent executions are disabled for this flow.", flowGroup, flowName);
+        optionalJobExecutionPlan = Optional.absent();
+      }
+    } finally {
+      if (optionalJobExecutionPlan == null || !optionalJobExecutionPlan.isPresent()) {
+        sharedFlowMetricsSingleton.conditionallyUpdateFlowGaugeSpecState(flowSpec,
+            SharedFlowMetricsSingleton.CompiledState.SKIPPED);
+        Instrumented.markMeter(sharedFlowMetricsSingleton.getSkippedFlowsMeter());
+        if (!flowSpec.isScheduled()) {
+          // For ad-hoc flow, we might already increase quota, we need to decrease here
+          for (Dag.DagNode dagNode : jobExecutionPlanDag.getStartNodes()) {
+            quotaManager.releaseQuota(dagNode);
+          }
+        }
+        // Send FLOW_FAILED event
+        flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
+            + "executions are disabled. Set flow.allowConcurrentExecution to true in the flowSpec to change this behaviour.");
+        new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
+      }
+      return optionalJobExecutionPlan;
     }
   }
 
