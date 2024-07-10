@@ -112,7 +112,7 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
         case LAUNCH :
         case REEVALUATE :
         case RESUME:
-          dagManagement.addDagAction(dagAction);
+          dagManagement.addDagAction(new DagActionStore.LeaseParams(dagAction));
           break;
         default:
           log.warn("Received unsupported dagAction {}. Expected to be a RESUME, KILL, REEVALUATE or LAUNCH", dagAction.getDagActionType());

@@ -36,6 +36,10 @@ import com.google.common.base.Joiner;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
+
 
 public class DagActionReminderSchedulerTest {
   String flowGroup = "fg";
@@ -55,10 +59,12 @@ public class DagActionReminderSchedulerTest {
   DagActionReminderScheduler dagActionReminderScheduler;
 
   @BeforeClass
-  private void setup() throws SchedulerException {
+  private void setup() throws Exception {
     StdSchedulerFactory schedulerFactory = new StdSchedulerFactory();
     schedulerFactory.getScheduler();
-    this.dagActionReminderScheduler = new DagActionReminderScheduler(schedulerFactory);
+    DagManagement dagManagement = mock(DagManagement.class);
+    doNothing().when(dagManagement).addDagAction(any());
+    this.dagActionReminderScheduler = new DagActionReminderScheduler(schedulerFactory, dagManagement);
   }
 
   @Test
