@@ -140,7 +140,12 @@ public class FlowCompilationValidationHelper {
         ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, String.valueOf(this.isFlowConcurrencyEnabled)));
 
     Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
+
     if (jobExecutionPlanDag == null || jobExecutionPlanDag.isEmpty()) {
+      // Send FLOW_FAILED event
+      flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Unable to compile flowSpec to produce non-empty "
+          + "jobExecutionPlanDag.");
+      new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
       return Optional.absent();
     }
     addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);

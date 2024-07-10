@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
@@ -25,6 +26,9 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.service.modules.flow.SpecCompiler;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -66,8 +70,7 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.*;
 
 
 public class OrchestratorTest {
@@ -92,7 +95,9 @@ public class OrchestratorTest {
   private ITestMetastoreDatabase testMetastoreDatabase;
   private FlowStatusGenerator mockFlowStatusGenerator;
   private DagManager mockDagManager;
+  private FlowCompilationValidationHelper mockedFlowCompilationValidationHelper;
   private Orchestrator dagMgrNotFlowLaunchHandlerBasedOrchestrator;
+  private Orchestrator mockedFlowCompValHelperBasedOrchestrator;
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_TABLE = "quotas";
@@ -141,6 +146,19 @@ public class OrchestratorTest {
         this.topologyCatalog, mockDagManager, Optional.of(logger), mockFlowStatusGenerator,
         Optional.absent(), sharedFlowMetricsSingleton, Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore),
         flowCompilationValidationHelper);
+
+    /* Initialize a second orchestrator with a mocked flowCompilationValidationHelper to use Mockito to spoof the dag
+    returned by a call to compile a flowSpec
+    */
+    this.mockedFlowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
+    when(mockedFlowCompilationValidationHelper.getSpecCompiler()).thenReturn(mock(SpecCompiler.class));
+    Mockito.doNothing().when(mockDagManager).setTopologySpecMap(anyMap());
+
+    this.mockedFlowCompValHelperBasedOrchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
+        this.topologyCatalog, mockDagManager, Optional.of(logger), mockFlowStatusGenerator,
+        Optional.absent(), sharedFlowMetricsSingleton, Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore),
+        this.mockedFlowCompilationValidationHelper);
+
     this.topologyCatalog.addListener(dagMgrNotFlowLaunchHandlerBasedOrchestrator);
     this.flowCatalog.addListener(dagMgrNotFlowLaunchHandlerBasedOrchestrator);
     // Start application
@@ -445,6 +463,28 @@ public class OrchestratorTest {
 
     Mockito.verify(this.mockDagManager, Mockito.never()).addDag(any(), anyBoolean(), anyBoolean());
     Mockito.verify(this.mockDagManager, Mockito.times(1)).removeFlowSpecIfAdhoc(any());
+  }
+
+
+  /**
+   * Tests that when compiling and forwarding a dagAction from
+   * {@link org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor#submitFlowToDagManagerHelper} to the
+   * DagManager that {@link DagManager#removeFlowSpecIfAdhoc(FlowSpec)} is called to ensure adhoc flowSpecs are deleted
+   * after compilation.
+   */
+  @Test
+  public void testDeleteFlowSpecCalledForMultiActivePath()
+      throws IOException, URISyntaxException, InterruptedException {
+    FlowId flowId = GobblinServiceManagerTest.createFlowIdWithUniqueName(TEST_FLOW_GROUP_NAME);
+    FlowSpec adhocSpec = createBasicFlowSpecForFlowId(flowId);
+    FlowSpec flowSpec1 = initFlowSpec();
+
+    Optional<Dag<JobExecutionPlan>> dag = Optional.of(
+        DagManagerTest.buildDag("0", 123L, "FINISH_RUNNING", false));
+    Mockito.when(this.mockedFlowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec1)).thenReturn(dag);
+    Mockito.doNothing().when(mockDagManager).removeFlowSpecIfAdhoc(flowSpec1);
+    this.mockedFlowCompValHelperBasedOrchestrator.compileAndSubmitFlowToDagManager(flowSpec1);
+    Mockito.verify(this.mockedFlowCompValHelperBasedOrchestrator.dagManager, times(1)).removeFlowSpecIfAdhoc(any(FlowSpec.class));
   }
 
   public static FlowSpec createBasicFlowSpecForFlowId(FlowId flowId) throws URISyntaxException {

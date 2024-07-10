@@ -315,14 +315,16 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       change. It's crucial to adopt the consensus flowExecutionId here to prevent creating a new one during compilation.
       */
       spec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
-      this.orchestrator.submitFlowToDagManager(spec);
+      this.orchestrator.compileAndSubmitFlowToDagManager(spec);
     } catch (URISyntaxException e) {
       log.warn("Could not create URI object for flowId {}. Exception {}", flowId, e.getMessage());
       launchSubmissionMetricProxy.markFailure();
       return;
     } catch (SpecNotFoundException e) {
-      log.warn("Spec not found for flowId {} due to exception {}", flowId, e.getMessage());
-      launchSubmissionMetricProxy.markFailure();
+      log.info("Spec not found for flowId {} due to deletion by active dagManager host due to exception {}",
+          flowId, e.getMessage());
+      // TODO: mark this failure if there are other valid cases of this exception
+      // launchSubmissionMetricProxy.markFailure();
       return;
     } catch (IOException e) {
       log.warn("Failed to add Job Execution Plan for flowId {} due to exception {}", flowId, e.getMessage());
