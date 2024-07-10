@@ -261,10 +261,10 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           // Depending on if DagManager is present, handle execution
           submitFlowToDagManager(flowSpec, compiledDag);
         } finally {
-        /* Remove adhoc flow spec from the flow catalog, regardless of whether the flow was successfully validated
-        and permitted to exec (concurrently)
-         */
-        this.dagManager.removeFlowSpecIfAdhoc(flowSpec);
+          /* Remove adhoc flow spec from the flow catalog, regardless of whether the flow was successfully validated
+          and permitted to exec (concurrently)
+           */
+          this.dagManager.removeFlowSpecIfAdhoc(flowSpec);
         }
       }
     } else {
@@ -276,11 +276,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   /**
-   * Method that accepts a flowSpec that it compiles before forwarding to the DagManagerfor execution. It's meant to be
-   * called by {@link org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor}
-   * @param flowSpec
-   * @throws IOException
-   * @throws InterruptedException
+   * Compiles the provided {@link FlowSpec} into a {@link Dag<JobExecutionPlan>} and forwards that to the
+   * {@link DagManager} for execution. It's meant to be called by
+   * {@link org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor}
    */
   public void compileAndSubmitFlowToDagManager(FlowSpec flowSpec) throws IOException, InterruptedException {
     try {
