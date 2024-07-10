@@ -107,10 +107,10 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     this.dagManagementStateStore = dagManagementStateStore;
   }
 
-  public synchronized void addDagAction(DagActionStore.LeaseParams reminderLeaseParams) {
-    log.info("Add {} to queue", reminderLeaseParams);
-    if (!this.leaseParamsQueue.offer(reminderLeaseParams)) {
-      throw new RuntimeException(String.format("Could not add %s to the queue", reminderLeaseParams));
+  public synchronized void addDagAction(DagActionStore.LeaseParams leaseParams) {
+    log.info("Adding {} to queue...", leaseParams);
+    if (!this.leaseParamsQueue.offer(leaseParams)) {
+      throw new RuntimeException(String.format("Could not add %s to the queue", leaseParams));
     }
   }
 

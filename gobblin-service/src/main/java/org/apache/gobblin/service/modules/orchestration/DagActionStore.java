@@ -114,6 +114,10 @@ public interface DagActionStore {
       this(dagAction, false, eventTimeMillis);
     }
 
+    public LeaseParams(DagAction dagAction) {
+      this(dagAction, System.currentTimeMillis());
+    }
+
     /**
      * Replace flow execution id in dagAction with agreed upon event time to easily track the flow
      */

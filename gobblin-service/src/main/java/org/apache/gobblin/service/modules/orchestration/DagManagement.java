@@ -27,7 +27,7 @@ import java.io.IOException;
  */
 public interface DagManagement {
   /**
-   * Used to add {@link DagActionStore.LeaseParams} to the queue that already contain an eventTimestamp from the previous lease attempt
+   * Used to add {@link DagActionStore.LeaseParams} to the queue
    */
-  void addDagAction(DagActionStore.LeaseParams reminderLeaseParams) throws IOException;
+  void addDagAction(DagActionStore.LeaseParams leaseParams) throws IOException;
 }

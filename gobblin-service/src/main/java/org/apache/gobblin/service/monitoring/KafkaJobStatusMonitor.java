@@ -107,7 +107,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final ScheduledExecutorService scheduledExecutorService;
   private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
       // keeping the retry timeout less until we configure retryer to retry only the transient exceptions
-      RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(30L), // after 30 minutes, presume non-transient and give up
+      RETRY_TIME_OUT_MS, TimeUnit.HOURS.toMillis(12L), // after 12 hours, presume non-transient and give up
       RETRY_INTERVAL_MS, TimeUnit.MINUTES.toMillis(1L), // back-off to once/minute
       RETRY_TYPE, RetryType.EXPONENTIAL.name()));
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
@@ -123,7 +123,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final GaaSJobObservabilityEventProducer eventProducer;
   private final DagManagementStateStore dagManagementStateStore;
   private final boolean dagProcEngineEnabled;
-  private final List<Class<? extends Exception>> nonTransientExceptions = Collections.singletonList(SQLIntegrityConstraintViolationException.class);
+  private final List<Class<? extends Exception>> nonRetryableExceptions = Collections.singletonList(SQLIntegrityConstraintViolationException.class);
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
       GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore)
@@ -238,9 +238,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
               try {
                 this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
               } catch (Exception e) {
-                if (isExceptionInstanceOf(e, nonTransientExceptions)) {
+                if (isExceptionInstanceOf(e, nonRetryableExceptions)) {
                   // todo - add metrics
-                  log.error(e.getMessage());
+                  log.warn("Duplicate REEVALUATE Dag Action is being created. Ignoring... " + e.getMessage());
                 } else {
                   throw e;
                 }
@@ -335,7 +335,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
 
       modifyStateIfRetryRequired(jobStatus);
-      return ImmutablePair.of(jobStatus, newState(jobStatus, states));
+      NewState newState = newState(jobStatus, states);
+      String newStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
+      if (newState == NewState.FINISHED) {
+        log.info("Flow {}:{}:{}:{} reached a terminal state {}", flowGroup, flowName, flowExecutionId, jobName, newStatus);
+      }
+      return ImmutablePair.of(jobStatus, newState);
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
@@ -345,7 +350,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   private static NewState newState(org.apache.gobblin.configuration.State jobStatus, List<org.apache.gobblin.configuration.State> states) {
     if (isNewStateTransitionToFinal(jobStatus, states)) {
-      log.info("Flow ");
       return NewState.FINISHED;
     } else if (isNewStateTransitionToRunning(jobStatus, states)) {
       return NewState.RUNNING;
@@ -425,11 +429,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   protected abstract org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event);
 
   public static boolean isExceptionInstanceOf(Exception exception, List<Class<? extends Exception>> typesList) {
-    for (Class<? extends Exception> type : typesList) {
-      if (type.isInstance(exception)) {
-        return true;
-      }
-    }
-    return false;
+    return typesList.stream().anyMatch(e -> e.isInstance(exception));
   }
 }
