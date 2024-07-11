@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -67,23 +66,9 @@ public interface DagManagementStateStore {
   void checkpointDag(Dag<JobExecutionPlan> dag) throws IOException;
 
   /**
-   @return whether `dagId` is currently known due to {@link DagManagementStateStore#checkpointDag} but not yet
-   {@link DagManagementStateStore#deleteDag}
-   */
-  boolean containsDag(DagManager.DagId dagId) throws IOException;
-
-  /**
    @return the {@link Dag}, if present
    */
   Optional<Dag<JobExecutionPlan>> getDag(DagManager.DagId dagId) throws IOException;
-
-  /**
-   * Delete the {@link Dag} from the backing store, typically called upon completion of execution.
-   * @param dag The dag completed/cancelled execution on {@link org.apache.gobblin.runtime.api.SpecExecutor}.
-   */
-  default void deleteDag(Dag<JobExecutionPlan> dag) throws IOException {
-    deleteDag(DagManagerUtils.generateDagId(dag));
-  }
 
   /**
    * Delete the {@link Dag} from the backing store, typically upon completion of execution.
@@ -96,12 +81,7 @@ public interface DagManagementStateStore {
    * Failed dags are queried using {@link DagManagementStateStore#getFailedDag(DagManager.DagId)} ()} later to be retried.
    * @param dag failing dag
    */
-  void markDagFailed(Dag<JobExecutionPlan> dag) throws IOException;
-
-  /**
-   * Return a list of all failed dags' IDs contained in the dag state store.
-   */
-  Set<String> getFailedDagIds() throws IOException;
+  void markDagFailed(DagManager.DagId dagId) throws IOException;
 
   /**
    * Returns the failed dag.
@@ -110,15 +90,6 @@ public interface DagManagementStateStore {
    * @param dagId dag id of the failed dag
    */
   Optional<Dag<JobExecutionPlan>> getFailedDag(DagManager.DagId dagId) throws IOException;
-
-  /**
-   * Deletes the failed dag. No-op if dag is not found or is not marked as failed.
-   * @param dag
-   * @throws IOException
-   */
-  default void deleteFailedDag(Dag<JobExecutionPlan> dag) throws IOException {
-    deleteFailedDag(DagManagerUtils.generateDagId(dag));
-  }
 
   void deleteFailedDag(DagManager.DagId dagId) throws IOException;
 
@@ -138,7 +109,8 @@ public interface DagManagementStateStore {
    * JobStatus can be non-empty only if DagNode is non-empty.
    * @param dagNodeId of the dag node
    */
-  Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> getDagNodeWithJobStatus(DagNodeId dagNodeId);
+  Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> getDagNodeWithJobStatus(DagNodeId dagNodeId)
+      throws IOException;
 
   /**
    * Returns a list of {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} for a {@link Dag}.
@@ -153,14 +125,8 @@ public interface DagManagementStateStore {
    * @param dagNode dag node to be deleted
    * @param dagId dag id of the dag this dag node belongs to
    */
-  void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode);
-
-  /**
-   * Loads all currently running {@link Dag}s from the underlying store. Typically, invoked when a new {@link DagManager}
-   * takes over or on restart of service.
-   * @return a {@link List} of currently running {@link Dag}s.
-   */
-  List<Dag<JobExecutionPlan>> getDags() throws IOException;
+  void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode)
+      throws IOException;
 
   /**
    * Initialize the dag quotas with the provided set of dags.
@@ -195,7 +161,8 @@ public interface DagManagementStateStore {
    * Returns true if the {@link Dag} identified by the given {@link org.apache.gobblin.service.modules.orchestration.DagManager.DagId}
    * has any running job, false otherwise.
    */
-  public boolean hasRunningJobs(DagManager.DagId dagId);
+  public boolean hasRunningJobs(DagManager.DagId dagId)
+      throws IOException;
 
   /**
    * Check if an action exists in dagAction store by flow group, flow name, flow execution id, and job name.

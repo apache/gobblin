@@ -47,10 +47,17 @@ public interface DagStateStore {
    */
   void cleanUp(Dag<JobExecutionPlan> dag) throws IOException;
 
+  default boolean cleanUp(DagManager.DagId dagId) throws IOException {
+    cleanUp(dagId.toString());
+    return true;
+  }
+
   /**
    * Delete the {@link Dag} from the backing store, typically upon completion of execution.
    * @param dagId The ID of the dag to clean up.
    */
+  // todo - change it to return boolean
+  @Deprecated
   void cleanUp(String dagId) throws IOException;
 
   /**
@@ -58,17 +65,24 @@ public interface DagStateStore {
    * takes over or on restart of service.
    * @return a {@link List} of currently running {@link Dag}s.
    */
+  @Deprecated
   List<Dag<JobExecutionPlan>> getDags() throws IOException;
 
   /**
    * Return a single dag from the dag state store.
    * @param dagId The ID of the dag to load.
    */
+  default Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException {
+    return getDag(dagId.toString());
+  }
+
+  @Deprecated
   Dag<JobExecutionPlan> getDag(String dagId) throws IOException;
 
   /**
    * Return a list of all dag IDs contained in the dag state store.
    */
+  @Deprecated
   Set<String> getDagIds() throws IOException;
 
   default boolean existsDag(DagManager.DagId dagId) throws IOException {

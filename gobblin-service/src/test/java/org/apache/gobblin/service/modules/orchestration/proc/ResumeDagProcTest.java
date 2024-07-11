@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.concurrent.ExecutionException;
 
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
@@ -37,8 +36,9 @@ import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
-import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStoreTest;
+import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
 import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -48,13 +48,13 @@ import static org.mockito.Mockito.spy;
 
 
 public class ResumeDagProcTest {
-  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  private MySqlDagManagementStateStore dagManagementStateStore;
   private ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
     testDb = TestMetastoreDatabaseFactory.get();
-    this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(testDb));
+    this.dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(testDb));
     LaunchDagProcTest.mockDMSSCommonBehavior(this.dagManagementStateStore);
   }
 
@@ -69,7 +69,7 @@ public class ResumeDagProcTest {
   This test creates a failed dag and launches a resume dag proc for it. It then verifies that the next jobs are set to run.
    */
   @Test
-  public void resumeDag() throws IOException, URISyntaxException, ExecutionException, InterruptedException {
+  public void resumeDag() throws IOException, URISyntaxException {
     long flowExecutionId = 12345L;
     String flowGroup = "fg";
     String flowName = "fn";
@@ -78,7 +78,8 @@ public class ResumeDagProcTest {
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
     // simulate a failed dag in store
     dag.getNodes().get(0).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
     dag.getNodes().get(1).getValue().setExecutionStatus(ExecutionStatus.FAILED);
@@ -86,7 +87,7 @@ public class ResumeDagProcTest {
     dag.getNodes().get(4).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
     this.dagManagementStateStore.checkpointDag(dag);
     // simulate it as a failed dag
-    this.dagManagementStateStore.markDagFailed(dag);
+    this.dagManagementStateStore.markDagFailed(dagId);
 
     ResumeDagProc resumeDagProc = new ResumeDagProc(new ResumeDagTask(new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.RESUME),

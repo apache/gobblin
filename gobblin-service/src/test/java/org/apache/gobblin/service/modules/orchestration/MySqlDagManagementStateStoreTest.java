@@ -18,7 +18,9 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.net.URI;
+import java.util.Collections;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -27,16 +29,15 @@ import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.api.TopologySpec;
-import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
@@ -44,6 +45,7 @@ import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProcTest;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
+import org.apache.gobblin.util.CompletedFuture;
 
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.anyString;
@@ -54,12 +56,12 @@ import static org.mockito.Mockito.mock;
 /**
  * Mainly testing functionalities related to DagStateStore but not Mysql-related components.
  */
-public class MostlyMySqlDagManagementStateStoreTest {
+public class MySqlDagManagementStateStoreTest {
 
   private ITestMetastoreDatabase testDb;
-  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  private MySqlDagManagementStateStore dagManagementStateStore;
   private static final String TEST_USER = "testUser";
-  private static final String TEST_PASSWORD = "testPassword";
+  public static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
   private static final String TEST_TABLE = "table";
   public static String TEST_SPEC_EXECUTOR_URI = "mySpecExecutor";
@@ -79,6 +81,18 @@ public class MostlyMySqlDagManagementStateStoreTest {
     }
   }
 
+  public static <T> boolean compareLists(List<T> list1, List<T> list2) {
+    if (list1.size() != list2.size()) {
+      return false;
+    }
+    for (T item : list1) {
+      if (Collections.frequency(list1, item) != Collections.frequency(list2, item)) {
+        return false;
+      }
+    }
+    return true;
+  }
+
   @Test
   public void testAddDag() throws Exception {
     Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("test", 12345L);
@@ -96,8 +110,7 @@ public class MostlyMySqlDagManagementStateStoreTest {
     this.dagManagementStateStore.addDagNodeState(dagNode2, dagId);
     this.dagManagementStateStore.addDagNodeState(dagNode3, dagId2);
 
-    Assert.assertTrue(this.dagManagementStateStore.containsDag(dagId));
-    Assert.assertEquals(dag.toString(), this.dagManagementStateStore.getDag(dagId).get().toString());
+    Assert.assertTrue(compareLists(dag.getNodes(), this.dagManagementStateStore.getDag(dagId).get().getNodes()));
     Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNodeWithJobStatus(dagNodeId).getLeft().get());
 
     Set<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagManagementStateStore.getDagNodes(dagId);
@@ -112,19 +125,25 @@ public class MostlyMySqlDagManagementStateStoreTest {
 
     // test to verify that adding a new dag node with the same dag node id (defined by the jobSpec) replaces the existing one
     Assert.assertEquals(this.dagManagementStateStore.getDagNodes(dagId).size(), 1);
-    JobExecutionPlan duplicateJobExecutionPlan = new JobExecutionPlan(dagNode2.getValue().getJobSpec(),
-        new MockedSpecExecutor(ConfigFactory.empty()));
-    Dag.DagNode<JobExecutionPlan> duplicateDagNode = new Dag.DagNode<>(duplicateJobExecutionPlan);
+    JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(dagNode2.getValue().getJobSpec(),
+        DagTestUtils.buildNaiveTopologySpec("mySpecExecutor").getSpecExecutor());
+    jobExecutionPlan.setExecutionStatus(ExecutionStatus.RUNNING);
+    // Future of type CompletedFuture is used because in tests InMemorySpecProducer is used and that responds with CompletedFuture
+    CompletedFuture<Boolean> future = new CompletedFuture<>(Boolean.TRUE, null);
+    jobExecutionPlan.setJobFuture(Optional.of(future));
+
+    Dag.DagNode<JobExecutionPlan> duplicateDagNode = new Dag.DagNode<>(jobExecutionPlan);
     this.dagManagementStateStore.addDagNodeState(duplicateDagNode, dagId);
     Assert.assertEquals(this.dagManagementStateStore.getDagNodes(dagId).size(), 1);
   }
 
-  public static MostlyMySqlDagManagementStateStore getDummyDMSS(ITestMetastoreDatabase testMetastoreDatabase) throws Exception {
+  public static MySqlDagManagementStateStore getDummyDMSS(ITestMetastoreDatabase testMetastoreDatabase) throws Exception {
     ConfigBuilder configBuilder = ConfigBuilder.create();
-    configBuilder.addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreTest.TestMysqlDagStateStore.class.getName())
+    configBuilder.addPrimitive(MySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreV2.class.getName())
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, testMetastoreDatabase.getJdbcUrl())
-        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TEST_TABLE + 1)
-        .addPrimitive(MostlyMySqlDagManagementStateStore.FAILED_DAG_STATESTORE_PREFIX
+        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, "dag" + 1)
+        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER)
+        .addPrimitive(MySqlDagManagementStateStore.FAILED_DAG_STATESTORE_PREFIX
             + "." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TEST_TABLE + 2);
     Config config = configBuilder.build();
     JobStatusRetriever jobStatusRetriever = mock(JobStatusRetriever.class);
@@ -139,8 +158,8 @@ public class MostlyMySqlDagManagementStateStoreTest {
     TopologySpec topologySpec = LaunchDagProcTest.buildNaiveTopologySpec(TEST_SPEC_EXECUTOR_URI);
     URI specExecURI = new URI(TEST_SPEC_EXECUTOR_URI);
     topologySpecMap.put(specExecURI, topologySpec);
-    MostlyMySqlDagManagementStateStore dagManagementStateStore =
-        new MostlyMySqlDagManagementStateStore(config, null, null, jobStatusRetriever,
+    MySqlDagManagementStateStore dagManagementStateStore =
+        new MySqlDagManagementStateStore(config, null, null, jobStatusRetriever,
             MysqlDagActionStoreTest.getTestDagActionStore(testMetastoreDatabase));
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     return dagManagementStateStore;

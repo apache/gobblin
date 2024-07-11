@@ -40,8 +40,8 @@ import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
-import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStoreTest;
+import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -77,7 +77,7 @@ public class EnforceDeadlineDagProcsTest {
     String flowGroup = "fg";
     String flowName = "fn";
     long flowExecutionId = System.currentTimeMillis();
-    MostlyMySqlDagManagementStateStore dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
+    MySqlDagManagementStateStore dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     LaunchDagProcTest.mockDMSSCommonBehavior(dagManagementStateStore);
     DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
@@ -88,7 +88,7 @@ public class EnforceDeadlineDagProcsTest {
             .withValue(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
             .withValue(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME, ConfigValueFactory.fromAnyRef(1L))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup).jobName("job0").flowExecutionId(flowExecutionId).
         message("Test message").eventName(ExecutionStatus.ORCHESTRATED.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
@@ -117,7 +117,7 @@ public class EnforceDeadlineDagProcsTest {
     String flowGroup = "fg";
     String flowName = "fn";
     long flowExecutionId = System.currentTimeMillis();
-    MostlyMySqlDagManagementStateStore dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
+    MySqlDagManagementStateStore dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     LaunchDagProcTest.mockDMSSCommonBehavior(dagManagementStateStore);
     DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
@@ -128,7 +128,7 @@ public class EnforceDeadlineDagProcsTest {
             .withValue(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
             .withValue(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME, ConfigValueFactory.fromAnyRef(1L))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup).jobName("job0").flowExecutionId(flowExecutionId).
         message("Test message").eventName(ExecutionStatus.ORCHESTRATED.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
@@ -155,7 +155,7 @@ public class EnforceDeadlineDagProcsTest {
     String flowGroup = "fg";
     String flowName = "fn";
     long flowExecutionId = System.currentTimeMillis();
-    MostlyMySqlDagManagementStateStore dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
+    MySqlDagManagementStateStore dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     LaunchDagProcTest.mockDMSSCommonBehavior(dagManagementStateStore);
     DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
         DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
@@ -167,7 +167,7 @@ public class EnforceDeadlineDagProcsTest {
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef(1L))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup).jobName("job0").flowExecutionId(flowExecutionId).
         message("Test message").eventName(ExecutionStatus.RUNNING.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());

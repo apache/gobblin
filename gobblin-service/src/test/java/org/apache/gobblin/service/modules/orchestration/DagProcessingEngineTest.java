@@ -54,7 +54,7 @@ public class DagProcessingEngineTest {
   private DagManagementTaskStreamImpl dagManagementTaskStream;
   private DagTaskStream dagTaskStream;
   private DagProcFactory dagProcFactory;
-  private static MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  private static MySqlDagManagementStateStore dagManagementStateStore;
   private ITestMetastoreDatabase testMetastoreDatabase;
   static LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
 
@@ -69,14 +69,14 @@ public class DagProcessingEngineTest {
 
     Config config;
     ConfigBuilder configBuilder = ConfigBuilder.create();
-    configBuilder.addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreTest.TestMysqlDagStateStore.class.getName())
+    configBuilder.addPrimitive(MySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreTest.TestMysqlDagStateStore.class.getName())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testMetastoreDatabase.getJdbcUrl())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE);
     config = configBuilder.build();
 
-    dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(testMetastoreDatabase));
+    dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(testMetastoreDatabase));
     doReturn(true).when(dagActionStore).deleteDagAction(any());
     dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
