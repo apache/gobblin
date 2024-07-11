@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.util.Date;
+import java.util.Properties;
 import java.util.function.Supplier;
 
 import org.quartz.Job;
@@ -33,6 +34,8 @@ import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
 import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.spi.JobFactory;
+import org.quartz.spi.TriggerFiredBundle;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -56,17 +59,26 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 @Slf4j
 @Singleton
 public class DagActionReminderScheduler {
+  public static final String DAG_ACTION_REMINDER_SCHEDULER_NAME = "DagActionReminderScheduler";
   public static final String RetryReminderKeyGroup = "RetryReminder";
   public static final String DeadlineReminderKeyGroup = "DeadlineReminder";
-  private final Scheduler quartzScheduler;
+  final Scheduler quartzScheduler;
   private final DagManagement dagManagement;
 
   @Inject
-  public DagActionReminderScheduler(StdSchedulerFactory schedulerFactory, DagManagement dagManagement)
-      throws SchedulerException {
+  public DagActionReminderScheduler(DagManagement dagManagement) throws SchedulerException {
     // Creates a new Scheduler to be used solely for the DagProc reminders
-    this.quartzScheduler = schedulerFactory.getScheduler();
+    this.quartzScheduler = createScheduler();
+    this.quartzScheduler.start();
+    this.quartzScheduler.setJobFactory(new ReminderJobFactory());
     this.dagManagement = dagManagement;
+  }
+
+  private Scheduler createScheduler() throws SchedulerException {
+    Properties properties = new Properties();
+    properties.setProperty("org.quartz.scheduler.instanceName", DAG_ACTION_REMINDER_SCHEDULER_NAME);
+    properties.setProperty("org.quartz.threadPool.threadCount", "10");
+    return new StdSchedulerFactory(properties).getScheduler();
   }
 
   /**
@@ -95,45 +107,12 @@ public class DagActionReminderScheduler {
   }
 
   /**
-   * Static class used to store information regarding a pending dagAction that needs to be revisited at a later time
-   * by {@link DagManagement} interface to re-attempt a lease on if it has not been completed by the previous owner.
-   * These jobs are scheduled and used by the {@link DagActionReminderScheduler}.
-   */
-  public class ReminderJob implements Job {
-    public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
-    public static final String FLOW_ACTION_EVENT_TIME_KEY = "flow.eventTime";
-
-    @Override
-    public void execute(JobExecutionContext context) {
-      // Get properties from the trigger to create a dagAction
-      JobDataMap jobDataMap = context.getMergedJobDataMap();
-      String flowName = jobDataMap.getString(ConfigurationKeys.FLOW_NAME_KEY);
-      String flowGroup = jobDataMap.getString(ConfigurationKeys.FLOW_GROUP_KEY);
-      String jobName = jobDataMap.getString(ConfigurationKeys.JOB_NAME_KEY);
-      long flowExecutionId = jobDataMap.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-      DagActionStore.DagActionType dagActionType = (DagActionStore.DagActionType) jobDataMap.get(FLOW_ACTION_TYPE_KEY);
-      long eventTimeMillis = jobDataMap.getLong(FLOW_ACTION_EVENT_TIME_KEY);
-
-      DagActionStore.LeaseParams reminderLeaseParams = new DagActionStore.LeaseParams(
-          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType),
-          true, eventTimeMillis);
-      log.info("DagProc reminder triggered for dagAction event: {}", reminderLeaseParams);
-
-      try {
-        dagManagement.addDagAction(reminderLeaseParams);
-      } catch (IOException e) {
-        log.error("Failed to add DagAction event to DagManagement. dagAction event: {}", reminderLeaseParams);
-      }
-    }
-  }
-
-  /**
    * Creates a key for the reminder job by concatenating all dagAction fields and the eventTime of the dagAction.
-   *
+   * <p>
    * This ensures unique keys for multiple instances of the same action on the same flow execution that originate more
    * than 'epsilon' apart. {@link MultiActiveLeaseArbiter} uses the eventTime to distinguish these distinct occurrences
    * of the same action. This is necessary to prevent insertion failures due to previous reminders.
-   *
+   * <p>
    * Applicable only for KILL and RESUME actions; duplication for other actions is an error.
    */
   public static String createDagActionReminderKey(DagActionStore.LeaseParams leaseParams) {
@@ -191,5 +170,45 @@ public class DagActionReminderScheduler {
         .withIdentity(createTriggerKey(leaseParams, isDeadlineReminder))
         .startAt(new Date(getCurrentTimeMillis.get() + reminderDurationMillis))
         .build();
+  }
+
+  public class ReminderJobFactory implements JobFactory {
+    @Override
+    public Job newJob(TriggerFiredBundle bundle, Scheduler scheduler) {
+      return new ReminderJob();
+    }
+  }
+
+  /**
+   * Class used to store information regarding a pending dagAction that needs to be revisited at a later time
+   * by {@link DagManagement} interface to re-attempt a lease on if it has not been completed by the previous owner.
+   * These jobs are scheduled and used by the {@link DagActionReminderScheduler}.
+   */
+  public class ReminderJob implements Job {
+    public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
+    public static final String FLOW_ACTION_EVENT_TIME_KEY = "flow.eventTime";
+
+    @Override
+    public void execute(JobExecutionContext context) {
+      // Get properties from the trigger to create a dagAction
+      JobDataMap jobDataMap = context.getMergedJobDataMap();
+      String flowName = jobDataMap.getString(ConfigurationKeys.FLOW_NAME_KEY);
+      String flowGroup = jobDataMap.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+      String jobName = jobDataMap.getString(ConfigurationKeys.JOB_NAME_KEY);
+      long flowExecutionId = jobDataMap.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
+      DagActionStore.DagActionType dagActionType = (DagActionStore.DagActionType) jobDataMap.get(FLOW_ACTION_TYPE_KEY);
+      long eventTimeMillis = jobDataMap.getLong(FLOW_ACTION_EVENT_TIME_KEY);
+
+      DagActionStore.LeaseParams reminderLeaseParams = new DagActionStore.LeaseParams(
+          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType),
+          true, eventTimeMillis);
+      log.info("DagProc reminder triggered for dagAction event: {}", reminderLeaseParams);
+
+      try {
+        dagManagement.addDagAction(reminderLeaseParams);
+      } catch (IOException e) {
+        log.error("Failed to add DagAction event to DagManagement. dagAction event: {}", reminderLeaseParams);
+      }
+    }
   }
 }

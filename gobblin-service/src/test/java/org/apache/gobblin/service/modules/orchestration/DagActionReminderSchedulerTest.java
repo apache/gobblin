@@ -17,14 +17,21 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.util.Date;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.mockito.Mockito;
+import org.quartz.Job;
+import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
+import org.quartz.JobExecutionContext;
+import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
+import org.quartz.TriggerBuilder;
 import org.quartz.TriggerUtils;
 import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.spi.OperableTrigger;
@@ -57,14 +64,13 @@ public class DagActionReminderSchedulerTest {
   DagActionStore.LeaseParams launchLeaseParams = new DagActionStore.LeaseParams(launchDagAction, eventTimeMillis);
   DagActionStore.LeaseParams launchLeaseParams2 = new DagActionStore.LeaseParams(launchDagAction, eventTimeMillis2);
   DagActionReminderScheduler dagActionReminderScheduler;
+  DagManagement dagManagement = mock(DagManagement.class);
+  private static boolean testJobRan = false;
 
   @BeforeClass
   private void setup() throws Exception {
-    StdSchedulerFactory schedulerFactory = new StdSchedulerFactory();
-    schedulerFactory.getScheduler();
-    DagManagement dagManagement = mock(DagManagement.class);
     doNothing().when(dagManagement).addDagAction(any());
-    this.dagActionReminderScheduler = new DagActionReminderScheduler(schedulerFactory, dagManagement);
+    this.dagActionReminderScheduler = new DagActionReminderScheduler(this.dagManagement);
   }
 
   @Test
@@ -108,5 +114,53 @@ public class DagActionReminderSchedulerTest {
     this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams2, 50000, true);
     this.dagActionReminderScheduler.unscheduleReminderJob(launchLeaseParams, true);
     this.dagActionReminderScheduler.unscheduleReminderJob(launchLeaseParams2, true);
+  }
+
+  @Test
+  public void testScheduleReminder() throws SchedulerException, InterruptedException, IOException {
+    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(launchLeaseParams, false);
+    Scheduler scheduler1 = this.dagActionReminderScheduler.quartzScheduler;
+    Scheduler scheduler2 = new StdSchedulerFactory().getScheduler();
+
+    Assert.assertNotSame(scheduler1, scheduler2);
+
+    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams, 100L, false);
+
+    Assert.assertTrue(dagActionReminderScheduler.quartzScheduler.checkExists(jobDetail.getKey()));
+
+    Thread.sleep(200L);
+
+    // verify that the quartz job ran
+    Mockito.verify(this.dagManagement, Mockito.times(1)).addDagAction(any());
+    // verify that the quartz job cleaned itself without throwing any exception
+    Assert.assertFalse(dagActionReminderScheduler.quartzScheduler.checkExists(jobDetail.getKey()));
+
+    scheduler2.start();
+
+    JobDetail job = JobBuilder.newJob(TestJob.class)
+        .withIdentity("myJob", "group1")
+        .build();
+
+    Trigger trigger = TriggerBuilder.newTrigger()
+        .withIdentity("myTrigger", "group1")
+        .startAt(new Date(System.currentTimeMillis() + 100L))
+        .build();
+
+    scheduler2.scheduleJob(job, trigger);
+
+    Assert.assertTrue(scheduler2.checkExists(job.getKey()));
+    Thread.sleep(200L);
+
+    // verify that the quartz job ran
+    Assert.assertTrue(DagActionReminderSchedulerTest.testJobRan);
+    // verify that the quartz job cleaned itself without throwing any exception
+    Assert.assertFalse(scheduler2.checkExists(jobDetail.getKey()));
+  }
+
+  public static class TestJob implements Job {
+    @Override
+    public void execute(JobExecutionContext context) {
+      DagActionReminderSchedulerTest.testJobRan = true;
+    }
   }
 }

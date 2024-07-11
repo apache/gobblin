@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.helix.HelixManager;
-import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -199,9 +198,6 @@ public class GobblinServiceGuiceModule implements Module {
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
       binder.bind(FlowLaunchHandler.class);
     }
-
-    // Note: only one SchedulerFactory instance should exist per JVM
-    binder.bind(StdSchedulerFactory.class).in(Singleton.class);
 
     OptionalBinder.newOptionalBinder(binder, DagManagement.class);
     OptionalBinder.newOptionalBinder(binder, DagTaskStream.class);
