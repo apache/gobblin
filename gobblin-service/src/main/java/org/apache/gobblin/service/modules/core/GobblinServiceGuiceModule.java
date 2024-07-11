@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.core;
 import java.util.Objects;
 
 import org.apache.helix.HelixManager;
-import org.quartz.impl.StdSchedulerFactory;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,7 +77,7 @@ import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
 import org.apache.gobblin.service.modules.orchestration.FlowLaunchHandler;
 import org.apache.gobblin.service.modules.orchestration.FlowLaunchMultiActiveLeaseArbiterFactory;
 import org.apache.gobblin.service.modules.orchestration.MultiActiveLeaseArbiter;
-import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
@@ -178,7 +177,7 @@ public class GobblinServiceGuiceModule implements Module {
     OptionalBinder.newOptionalBinder(binder, DagActionStore.class);
     if (serviceConfig.isWarmStandbyEnabled()) {
       binder.bind(DagActionStore.class).to(MysqlDagActionStore.class);
-      binder.bind(DagManagementStateStore.class).to(MySqlDagManagementStateStore.class);
+      binder.bind(DagManagementStateStore.class).to(MostlyMySqlDagManagementStateStore.class);
       binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
       binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby.class);
       binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandlerWithWarmStandby.class);
@@ -199,8 +198,6 @@ public class GobblinServiceGuiceModule implements Module {
     if (serviceConfig.isMultiActiveSchedulerEnabled()) {
       binder.bind(FlowLaunchHandler.class);
     }
-
-    binder.bind(StdSchedulerFactory.class);
 
     OptionalBinder.newOptionalBinder(binder, DagManagement.class);
     OptionalBinder.newOptionalBinder(binder, DagTaskStream.class);

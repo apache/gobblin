@@ -116,8 +116,9 @@ public class DagActionReminderSchedulerTest {
     this.dagActionReminderScheduler.unscheduleReminderJob(launchLeaseParams2, true);
   }
 
+  // Test multiple schedulers can co-exist and run their jobs of different types
   @Test
-  public void testScheduleReminder() throws SchedulerException, InterruptedException, IOException {
+  public void testMultipleSchedules() throws SchedulerException, InterruptedException, IOException {
     JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(launchLeaseParams, false);
     Scheduler scheduler1 = this.dagActionReminderScheduler.quartzScheduler;
     Scheduler scheduler2 = new StdSchedulerFactory().getScheduler();

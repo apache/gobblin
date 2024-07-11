@@ -37,8 +37,11 @@ import org.quartz.impl.StdSchedulerFactory;
 import org.quartz.spi.JobFactory;
 import org.quartz.spi.TriggerFiredBundle;
 
+import com.google.common.annotations.VisibleForTesting;
+
 import javax.inject.Inject;
 import javax.inject.Singleton;
+import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -62,6 +65,7 @@ public class DagActionReminderScheduler {
   public static final String DAG_ACTION_REMINDER_SCHEDULER_NAME = "DagActionReminderScheduler";
   public static final String RetryReminderKeyGroup = "RetryReminder";
   public static final String DeadlineReminderKeyGroup = "DeadlineReminder";
+  @VisibleForTesting
   final Scheduler quartzScheduler;
   private final DagManagement dagManagement;
 
@@ -175,18 +179,20 @@ public class DagActionReminderScheduler {
   public class ReminderJobFactory implements JobFactory {
     @Override
     public Job newJob(TriggerFiredBundle bundle, Scheduler scheduler) {
-      return new ReminderJob();
+      return new ReminderJob(dagManagement);
     }
   }
 
   /**
-   * Class used to store information regarding a pending dagAction that needs to be revisited at a later time
-   * by {@link DagManagement} interface to re-attempt a lease on if it has not been completed by the previous owner.
    * These jobs are scheduled and used by the {@link DagActionReminderScheduler}.
+   * When the reminder deadline is completed, these jobs are invoked by Quartz scheduler.
+   * They create a {@link DagActionStore.LeaseParams} and forward them to {@link DagManagement} for further processing.
    */
-  public class ReminderJob implements Job {
+  @RequiredArgsConstructor
+  public static class ReminderJob implements Job {
     public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
     public static final String FLOW_ACTION_EVENT_TIME_KEY = "flow.eventTime";
+    private final DagManagement dagManagement;
 
     @Override
     public void execute(JobExecutionContext context) {
