@@ -69,6 +69,10 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       Optional<Dag<JobExecutionPlan>> dag = this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
       if (dag.isPresent()) {
         dagManagementStateStore.checkpointDag(dag.get());
+        // Delete adhoc flowSpecs from catalog after checkpointing the dag to be worked on
+        if (!flowSpec.isScheduled()) {
+          dagManagementStateStore.removeFlowSpec(flowSpec);
+        }
       }
       return dag;
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException | IOException e) {

@@ -106,6 +106,9 @@ public class LaunchDagProcTest {
 
     launchDagProc.process(this.dagManagementStateStore);
 
+    // Verify adhoc flow spec will be removed from catalog
+    Mockito.verify(this.dagManagementStateStore,Mockito.times(1)).removeFlowSpec(any());
+
     int numOfLaunchedJobs = 1; // = number of start nodes
     Mockito.verify(specProducers.get(0), Mockito.times(1)).addSpec(any());
 
@@ -135,6 +138,10 @@ public class LaunchDagProcTest {
         flowCompilationValidationHelper);
 
     launchDagProc.process(this.dagManagementStateStore);
+
+    // Verify adhoc flow spec will be removed from catalog
+    Mockito.verify(this.dagManagementStateStore,Mockito.times(2)).removeFlowSpec(any());
+
     int numOfLaunchedJobs = 3; // = number of start nodes
     // parallel jobs are launched through reevaluate dag action
     Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
@@ -180,6 +187,7 @@ public class LaunchDagProcTest {
 
   public static void mockDMSSCommonBehavior(DagManagementStateStore dagManagementStateStore) throws IOException, SpecNotFoundException {
     doReturn(FlowSpec.builder().build()).when(dagManagementStateStore).getFlowSpec(any());
+    doNothing().when(dagManagementStateStore).removeFlowSpec(any());
     doNothing().when(dagManagementStateStore).tryAcquireQuota(any());
     doReturn(true).when(dagManagementStateStore).releaseQuota(any());
   }
