@@ -24,7 +24,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 import com.github.rholder.retry.Retryer;
@@ -39,6 +38,8 @@ import com.typesafe.config.ConfigFactory;
 import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.gobblin.exception.NonTransientException;
+import org.apache.gobblin.util.ConfigUtils;
+
 
 /**
  * Factory class that builds Retryer.
