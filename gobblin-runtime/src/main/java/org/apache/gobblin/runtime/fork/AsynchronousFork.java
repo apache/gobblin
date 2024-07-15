@@ -88,13 +88,19 @@ public class AsynchronousFork extends Fork {
 
   @Override
   protected boolean putRecordImpl(Object record) throws InterruptedException {
-    return this.recordQueue.put(record);
+    boolean ret = this.recordQueue.put(record);
+    log.debug("put record in the recordQueue. {}", ret);
+    return ret;
   }
 
   boolean processRecord() throws IOException, DataConversionException {
     try {
       Object record = this.recordQueue.get();
       if (record == null || record == Fork.SHUTDOWN_RECORD) {
+        if (record == null) {
+          log.debug("recordQueue returned a null record.");
+          log.debug(this.recordQueue.stats().isPresent() ? this.recordQueue.stats().get().toString() : "");
+        }
         // The parent task has already done pulling records so no new record means this fork is done
         if (this.isParentTaskDone()) {
           return false;
