@@ -27,7 +27,24 @@ import org.apache.orc.TypeDescription;
  * A utility class that provides a method to convert {@link Schema} into {@link TypeDescription}.
  */
 public class AvroOrcSchemaConverter {
+  // Convert avro schema to orc schema, calling tryGetOrcSchema without recursive depth limit for backward compatibility
   public static TypeDescription getOrcSchema(Schema avroSchema) {
+    return tryGetOrcSchema(avroSchema, 0, Integer.MAX_VALUE - 1);
+  }
+
+  /**
+   * Try converting the avro schema into {@link TypeDescription}, but with max recursive depth to avoid stack overflow.
+   * A typical use case is the topic validation during work unit creation.
+   * @param avroSchema The avro schema to convert
+   * @param currentDepth Current depth of the recursive call
+   * @param maxDepth Max depth of the recursive call
+   * @return the converted {@link TypeDescription}
+   */
+  public static TypeDescription tryGetOrcSchema(Schema avroSchema, int currentDepth, int maxDepth)
+      throws StackOverflowError {
+    if (currentDepth == maxDepth + 1) {
+      throw new StackOverflowError("Recursive call of tryGetOrcSchema() reaches max depth " + maxDepth);
+    }
 
     final Schema.Type type = avroSchema.getType();
     switch (type) {
@@ -43,12 +60,12 @@ public class AvroOrcSchemaConverter {
       case FIXED:
         return getTypeDescriptionForBinarySchema(avroSchema);
       case ARRAY:
-        return TypeDescription.createList(getOrcSchema(avroSchema.getElementType()));
+        return TypeDescription.createList(tryGetOrcSchema(avroSchema.getElementType(), currentDepth + 1, maxDepth));
       case RECORD:
         final TypeDescription recordStruct = TypeDescription.createStruct();
         for (Schema.Field field2 : avroSchema.getFields()) {
           final Schema fieldSchema = field2.schema();
-          final TypeDescription fieldType = getOrcSchema(fieldSchema);
+          final TypeDescription fieldType = tryGetOrcSchema(fieldSchema, currentDepth + 1, maxDepth);
           if (fieldType != null) {
             recordStruct.addField(field2.name(), fieldType);
           } else {
@@ -59,19 +76,19 @@ public class AvroOrcSchemaConverter {
       case MAP:
         return TypeDescription.createMap(
             // in Avro maps, keys are always strings
-            TypeDescription.createString(), getOrcSchema(avroSchema.getValueType()));
+            TypeDescription.createString(), tryGetOrcSchema(avroSchema.getValueType(), currentDepth + 1, maxDepth));
       case UNION:
         final List<Schema> nonNullMembers = getNonNullMembersOfUnion(avroSchema);
         if (isNullableUnion(avroSchema, nonNullMembers)) {
           // a single non-null union member
           // this is how Avro represents "nullable" types; as a union of the NULL type with another
           // since ORC already supports nullability of all types, just use the child type directly
-          return getOrcSchema(nonNullMembers.get(0));
+          return tryGetOrcSchema(nonNullMembers.get(0), currentDepth + 1, maxDepth);
         } else {
           // not a nullable union type; represent as an actual ORC union of them
           final TypeDescription union = TypeDescription.createUnion();
           for (final Schema childSchema : nonNullMembers) {
-            union.addUnionChild(getOrcSchema(childSchema));
+            union.addUnionChild(tryGetOrcSchema(childSchema, currentDepth + 1, maxDepth));
           }
           return union;
         }
