@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
@@ -75,6 +76,13 @@ public class LaunchDagProcTest {
   @BeforeClass
   public void setUp() throws Exception {
     this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+  }
+
+  /**
+   * Reset DagManagementStateStore between tests so that Mockito asserts are done on a fresh state.
+   */
+  @BeforeMethod
+  public void resetDMSS() throws Exception {
     this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     mockDMSSCommonBehavior(this.dagManagementStateStore);
   }
@@ -140,7 +148,7 @@ public class LaunchDagProcTest {
     launchDagProc.process(this.dagManagementStateStore);
 
     // Verify adhoc flow spec will be removed from catalog
-    Mockito.verify(this.dagManagementStateStore,Mockito.times(2)).removeFlowSpec(any());
+    Mockito.verify(this.dagManagementStateStore,Mockito.times(1)).removeFlowSpec(any());
 
     int numOfLaunchedJobs = 3; // = number of start nodes
     // parallel jobs are launched through reevaluate dag action
