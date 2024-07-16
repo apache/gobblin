@@ -150,7 +150,7 @@ public class DagActionStoreChangeMonitorTest {
   @Test (dependsOnMethods = "testProcessMessageWithHeartbeatAndNullDagAction")
   public void testProcessMessageWithHeartbeatAndFlowInfo() throws SpecNotFoundException {
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
-        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, "", "", "", DagActionValue.RESUME);
+        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, FLOW_GROUP, "", "", DagActionValue.RESUME);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
