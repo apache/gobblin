@@ -129,7 +129,8 @@ public class FlowCompilationValidationHelper {
       flowCompilationTimer.stop(flowMetadata);
       return jobExecutionPlanDagOptional;
     } catch (IOException e) {
-      log.error("Encountered exception when attempting to compile and perform checks for flow: {}", flowSpec);
+      log.error("Encountered exception when attempting to compile and perform checks for flowGroup: {} flowName: {}",
+          flowGroup, flowName);
       throw e;
     }
   }
