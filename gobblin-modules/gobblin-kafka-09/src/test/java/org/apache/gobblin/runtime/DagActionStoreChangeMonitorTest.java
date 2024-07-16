@@ -70,7 +70,7 @@ public class DagActionStoreChangeMonitorTest {
 
   private final String FLOW_GROUP = "flowGroup";
   private final String FLOW_NAME = "flowName";
-  private final long FLOW_EXECUTION_ID = 123L;
+  private final String FLOW_EXECUTION_ID = "123456789";
   private MockDagActionStoreChangeMonitor mockDagActionStoreChangeMonitor;
   private int txidCounter = 0;
 
@@ -135,7 +135,7 @@ public class DagActionStoreChangeMonitorTest {
   @Test
   public void testProcessMessageWithHeartbeatAndNullDagAction() throws SpecNotFoundException {
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
-        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, "", "", FLOW_EXECUTION_ID, null);
+        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, "", "", "", null);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
@@ -150,7 +150,7 @@ public class DagActionStoreChangeMonitorTest {
   @Test (dependsOnMethods = "testProcessMessageWithHeartbeatAndNullDagAction")
   public void testProcessMessageWithHeartbeatAndFlowInfo() throws SpecNotFoundException {
     Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
-        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.RESUME);
+        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, "", "", "", DagActionValue.RESUME);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
     verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
@@ -251,12 +251,12 @@ public class DagActionStoreChangeMonitorTest {
    * Util to create a general DagActionStoreChange type event
    */
   private DagActionStoreChangeEvent createDagActionStoreChangeEvent(OperationType operationType,
-      String flowGroup, String flowName, long flowExecutionId, DagActionValue dagAction) {
+      String flowGroup, String flowName, String flowExecutionId, DagActionValue dagAction) {
     String key = getKeyForFlow(flowGroup, flowName, flowExecutionId);
     GenericStoreChangeEvent genericStoreChangeEvent =
         new GenericStoreChangeEvent(key, String.valueOf(txidCounter), System.currentTimeMillis(), operationType);
     txidCounter++;
-    return new DagActionStoreChangeEvent(genericStoreChangeEvent, flowGroup, flowName, String.valueOf(flowExecutionId),
+    return new DagActionStoreChangeEvent(genericStoreChangeEvent, flowGroup, flowName, flowExecutionId,
         DagActionStore.NO_JOB_NAME_DEFAULT, dagAction);
   }
 
@@ -264,7 +264,7 @@ public class DagActionStoreChangeMonitorTest {
    * Form a key for events using the flow identifiers
    * @return a key formed by adding an '_' delimiter between the flow identifiers
    */
-  public static String getKeyForFlow(String flowGroup, String flowName, long flowExecutionId) {
+  public static String getKeyForFlow(String flowGroup, String flowName, String flowExecutionId) {
     return flowGroup + "_" + flowName + "_" + flowExecutionId;
   }
 
@@ -272,7 +272,7 @@ public class DagActionStoreChangeMonitorTest {
    * Util to create wrapper around DagActionStoreChangeEvent
    */
   private Kafka09ConsumerClient.Kafka09ConsumerRecord wrapDagActionStoreChangeEvent(OperationType operationType,
-      String flowGroup, String flowName, long flowExecutionId, DagActionValue dagAction) {
+      String flowGroup, String flowName, String flowExecutionId, DagActionValue dagAction) {
     DagActionStoreChangeEvent eventToProcess = null;
     try {
       eventToProcess =

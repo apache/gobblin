@@ -60,7 +60,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
   private final int OFFSET = 1;
   private final String FLOW_GROUP = "flowGroup";
   private final String FLOW_NAME = "flowName";
-  private final long FLOW_EXECUTION_ID = 123L;
+  private final String FLOW_EXECUTION_ID = "987654321";
   private final String JOB_NAME = "jobName";
   private MockDagManagementDagActionStoreChangeMonitor mockDagManagementDagActionStoreChangeMonitor;
   private int txidCounter = 0;
@@ -109,7 +109,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
   public void testProcessMessageWithDelete() throws SchedulerException {
     Kafka09ConsumerClient.Kafka09ConsumerRecord<String, DagActionStoreChangeEvent> consumerRecord =
         wrapDagActionStoreChangeEvent(OperationType.DELETE, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, JOB_NAME, DagActionValue.ENFORCE_JOB_START_DEADLINE);
-    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, JOB_NAME,
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(FLOW_GROUP, FLOW_NAME, Long.parseLong(FLOW_EXECUTION_ID), JOB_NAME,
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
     mockDagManagementDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
     /* TODO: skip deadline removal for now and let them fire
@@ -124,7 +124,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
    * Util to create a general DagActionStoreChange type event
    */
   private DagActionStoreChangeEvent createDagActionStoreChangeEvent(OperationType operationType,
-      String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionValue dagAction) {
+      String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionValue dagAction) {
     String key = DagActionStoreChangeMonitorTest.getKeyForFlow(flowGroup, flowName, flowExecutionId);
     GenericStoreChangeEvent genericStoreChangeEvent =
         new GenericStoreChangeEvent(key, String.valueOf(txidCounter), System.currentTimeMillis(), operationType);
@@ -137,7 +137,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
    * Util to create wrapper around DagActionStoreChangeEvent
    */
   private Kafka09ConsumerClient.Kafka09ConsumerRecord<String, DagActionStoreChangeEvent> wrapDagActionStoreChangeEvent(
-      OperationType operationType, String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionValue dagAction) {
+      OperationType operationType, String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionValue dagAction) {
     DagActionStoreChangeEvent eventToProcess = null;
     try {
       eventToProcess =
