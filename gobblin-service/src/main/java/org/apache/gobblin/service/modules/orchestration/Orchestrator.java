@@ -290,6 +290,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         _log.warn("Flow: {} submitted to dagManager failed to compile and produce a job execution plan dag", flowSpec);
         Instrumented.markMeter(this.flowOrchestrationFailedMeter);
       }
+    } catch (IOException | InterruptedException e) {
+      Instrumented.markMeter(this.flowOrchestrationFailedMeter);
+      throw e;
     } finally {
       this.dagManager.removeFlowSpecIfAdhoc(flowSpec);
     }

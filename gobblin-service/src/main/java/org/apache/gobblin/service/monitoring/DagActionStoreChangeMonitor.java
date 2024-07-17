@@ -199,7 +199,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
     String operation = value.getChangeEventIdentifier().getOperationType().name();
     String flowGroup = value.getFlowGroup();
     String flowName = value.getFlowName();
-    long flowExecutionId = Long.parseLong(value.getFlowExecutionId());
+    String flowExecutionId = value.getFlowExecutionId();
     String jobName = value.getJobName();
 
     produceToConsumeDelayValue = calcMillisSince(produceTimestamp);
@@ -219,12 +219,14 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
     }
 
     DagActionStore.DagActionType dagActionType = DagActionStore.DagActionType.valueOf(value.getDagAction().toString());
+    // Parse flowExecutionIds after filtering out HB messages to prevent exception from parsing empty strings
+    long flowExecutionIdLong = Long.parseLong(flowExecutionId);
 
     // Used to easily log information to identify the dag action
-    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName,
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionIdLong, jobName,
         dagActionType);
 
-    handleDagAction(operation, dagAction, flowGroup, flowName, flowExecutionId, dagActionType);
+    handleDagAction(operation, dagAction, flowGroup, flowName, flowExecutionIdLong, dagActionType);
 
     dagActionsSeenCache.put(changeIdentifier, changeIdentifier);
   }
