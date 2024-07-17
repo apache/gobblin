@@ -473,7 +473,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
       Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt =
           copyableFile.getAncestorsOwnerAndPermission() == null ? Collections.emptyIterator()
-              : copyableFile.getAncestorsOwnerAndPermission().iterator();
+              : copyableFile.getAncestorsOwnerAndPermission().listIterator();
 
       HadoopUtils.ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt, false);
       if (copyableFile.getFileStatus().isDirectory() && this.fs.exists(outputFilePath)) {
