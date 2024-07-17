@@ -42,7 +42,8 @@ import org.apache.gobblin.util.function.CheckedExceptionPredicate;
 public class DatasetHiveSchemaContainsNonOptionalUnion<T extends Dataset> implements CheckedExceptionPredicate<T, IOException> {
   private final HiveRegister hiveRegister;
   private final Pattern pattern;
-  private final String optionalDbName;
+  private final Optional<String> optionalDbName;
+
 
   public static final String PREFIX = DatasetHiveSchemaContainsNonOptionalUnion.class.getName();
   /**
@@ -54,7 +55,7 @@ public class DatasetHiveSchemaContainsNonOptionalUnion<T extends Dataset> implem
   public DatasetHiveSchemaContainsNonOptionalUnion(Properties properties) {
     this.hiveRegister = getHiveRegister(new State(properties));
     this.pattern = Pattern.compile(properties.getProperty(PATTERN));
-    this.optionalDbName = properties.getProperty(OPTIONAL_DB_NAME, null);
+    this.optionalDbName = Optional.fromNullable(properties.getProperty(OPTIONAL_DB_NAME));
   }
 
   @Override
@@ -88,9 +89,9 @@ public class DatasetHiveSchemaContainsNonOptionalUnion<T extends Dataset> implem
       "Expected pattern = %s", dataset.getUrn(), pattern.pattern()));
     }
 
-    String db = optionalDbName != null ? optionalDbName : m.group(1);
-    if (optionalDbName != null) {
-      log.info("DB name from pattern: {}. Replacing with provided DB name: {}", m.group(1), optionalDbName);
+    String db = optionalDbName.or(m.group(1));
+    if (optionalDbName.isPresent()) {
+      log.info("DB name from pattern: {}. Replacing with provided DB name: {}", m.group(1), optionalDbName.get());
     }
 
     String table = HiveMetaStoreUtils.getHiveTableName(m.group(2));
