@@ -54,7 +54,7 @@ public class DagProcessingEngineTest {
   private DagManagementTaskStreamImpl dagManagementTaskStream;
   private DagTaskStream dagTaskStream;
   private DagProcFactory dagProcFactory;
-  private static MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  private static MostlyMySqlDagManagementStateStore testDagManagementStateStore;
   private ITestMetastoreDatabase testMetastoreDatabase;
   static LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
 
@@ -76,21 +76,21 @@ public class DagProcessingEngineTest {
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE);
     config = configBuilder.build();
 
-    dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(testMetastoreDatabase));
+    testDagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(testMetastoreDatabase));
     doReturn(true).when(dagActionStore).deleteDagAction(any());
     dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
             mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)), false,
-            dagManagementStateStore);
+            testDagManagementStateStore);
     this.dagProcFactory = new DagProcFactory(null);
 
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(dagManagementTaskStream, this.dagProcFactory,
-            dagManagementStateStore, 0);
+            testDagManagementStateStore, 0);
     this.dagTaskStream = spy(new MockedDagTaskStream());
     DagProcessingEngine dagProcessingEngine =
         new DagProcessingEngine(config, Optional.ofNullable(dagTaskStream), Optional.ofNullable(this.dagProcFactory),
-            Optional.ofNullable(dagManagementStateStore), 100000L);
+            Optional.ofNullable(testDagManagementStateStore), 100000L);
     dagProcessingEngine.startAsync();
   }
 
@@ -128,7 +128,7 @@ public class DagProcessingEngineTest {
     private final boolean isBad;
 
     public MockedDagTask(DagActionStore.DagAction dagAction, boolean isBad) {
-      super(dagAction, leaseObtainedStatus, dagManagementStateStore);
+      super(dagAction, leaseObtainedStatus, testDagManagementStateStore);
       this.isBad = isBad;
     }
 
@@ -180,6 +180,6 @@ public class DagProcessingEngineTest {
             + "Actual number of invocations " + Mockito.mockingDetails(this.dagTaskStream).getInvocations().size(),
         log, 1, 1000L);
 
-    Assert.assertEquals(dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
+    Assert.assertEquals(testDagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
   }
 }

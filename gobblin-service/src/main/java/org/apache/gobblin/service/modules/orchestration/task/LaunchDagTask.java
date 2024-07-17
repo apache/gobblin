@@ -17,8 +17,15 @@
 
 package org.apache.gobblin.service.modules.orchestration.task;
 
+import java.net.URISyntaxException;
+import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
 import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 
@@ -26,7 +33,7 @@ import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 /**
  * A {@link DagTask} responsible to handle launch tasks.
  */
-
+@Slf4j
 public class LaunchDagTask extends DagTask {
   public LaunchDagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
       DagManagementStateStore dagManagementStateStore) {
@@ -35,5 +42,26 @@ public class LaunchDagTask extends DagTask {
 
   public <T> T host(DagTaskVisitor<T> visitor) {
     return visitor.meet(this);
+  }
+
+  @Override
+  public final boolean conclude() {
+    try {
+      // Delete adhoc flowSpecs from catalog if the dag was concluded properly
+      if (super.conclude()) {
+        DagManager.DagId dagId = DagManagerUtils.generateDagId(this.dagAction.getFlowGroup(),
+            this.dagAction.getFlowName(), this.dagAction.getFlowExecutionId());
+        FlowSpec flowSpec =
+            this.dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(dagId.getFlowId()));
+        flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagId.getFlowExecutionId());
+        if (!flowSpec.isScheduled()) {
+          dagManagementStateStore.removeFlowSpec(flowSpec);
+        }
+        return true;
+      }
+    } catch (SpecNotFoundException | URISyntaxException e) {
+      log.error("Unable to retrieve flowSpec to delete from flowCatalog if adhoc.");
+      throw new RuntimeException(e);
+    } return false;
   }
 }
