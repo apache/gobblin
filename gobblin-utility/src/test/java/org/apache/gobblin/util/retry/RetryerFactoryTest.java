@@ -18,23 +18,24 @@ package org.apache.gobblin.util.retry;
 
 import java.util.Arrays;
 
-import org.mockito.Mockito;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
-import com.google.common.base.Predicate;
 import com.typesafe.config.Config;
+import com.google.common.base.Predicate;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
 
 /**
  * Unit tests for the {@link org.apache.gobblin.util.retry.RetryerFactory} class.
  */
 public class RetryerFactoryTest {
-  private static final String EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY = "EXCEPTION_LIST_FOR_RETRY";
 
   @Test
   public void testGetRetryPredicateFromConfigOrDefault_withEmptyConfig() {
-    Config config = Mockito.mock(Config.class);
-    Mockito.when(config.hasPath(EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY)).thenReturn(false);
+    Config config = ConfigFactory.empty();
     Predicate<Throwable> result = RetryerFactory.getRetryPredicateFromConfigOrDefault(config);
 
     Assert.assertEquals(RetryerFactory.RETRY_EXCEPTION_PREDICATE_DEFAULT, result);
@@ -42,10 +43,9 @@ public class RetryerFactoryTest {
 
   @Test
   public void testGetRetryPredicateFromConfigOrDefault_withValidException() {
-    Config config = Mockito.mock(Config.class);
-    Mockito.when(config.hasPath(EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY)).thenReturn(true);
-    Mockito.when(config.getStringList(EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY))
-        .thenReturn(Arrays.asList("java.lang.RuntimeException"));
+    Config config = ConfigFactory.empty()
+        .withValue(ConfigurationKeys.EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY,
+            ConfigValueFactory.fromAnyRef(Arrays.asList("java.lang.RuntimeException")));
 
     Predicate<Throwable> result = RetryerFactory.getRetryPredicateFromConfigOrDefault(config);
 
@@ -55,10 +55,9 @@ public class RetryerFactoryTest {
 
   @Test
   public void testGetRetryPredicateFromConfigOrDefault_withInvalidException() {
-    Config config = Mockito.mock(Config.class);
-    Mockito.when(config.hasPath(EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY)).thenReturn(true);
-    Mockito.when(config.getStringList(EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY))
-        .thenReturn(Arrays.asList("non.existent.Exception"));
+    Config config = ConfigFactory.empty()
+        .withValue(ConfigurationKeys.EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY,
+            ConfigValueFactory.fromAnyRef(Arrays.asList("non.existent.Exception")));
 
     Predicate<Throwable> result = RetryerFactory.getRetryPredicateFromConfigOrDefault(config);
 
@@ -67,10 +66,9 @@ public class RetryerFactoryTest {
 
   @Test
   public void testGetRetryPredicateFromConfigOrDefault_withMixedExceptions() {
-    Config config = Mockito.mock(Config.class);
-    Mockito.when(config.hasPath(EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY)).thenReturn(true);
-    Mockito.when(config.getStringList(EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY))
-        .thenReturn(Arrays.asList("java.lang.RuntimeException", "non.existent.Exception"));
+    Config config = ConfigFactory.empty()
+        .withValue(ConfigurationKeys.EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY,
+            ConfigValueFactory.fromAnyRef(Arrays.asList("java.lang.RuntimeException", "non.existent.Exception")));
 
     Predicate<Throwable> result = RetryerFactory.getRetryPredicateFromConfigOrDefault(config);
 

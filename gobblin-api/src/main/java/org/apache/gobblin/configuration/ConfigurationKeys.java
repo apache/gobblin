@@ -1061,6 +1061,8 @@ public class ConfigurationKeys {
   // describes a comma separated list of non transient errors that may come in a gobblin job
   // e.g. "invalid_grant,CredentialStoreException"
   public static final String GOBBLIN_NON_TRANSIENT_ERRORS = "gobblin.errorMessages.nonTransientErrors";
+  // Key to store a comma-separated list of exception class names that should be retried
+  public static final String EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY = "EXCEPTION_LIST_FOR_RETRY";
 
   /**
    * Configuration properties related to Flows
