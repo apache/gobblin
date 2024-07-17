@@ -157,6 +157,7 @@ public class JobExecutionInfoServerTest {
     jobExecutionInfo.setJobName("TestJob" + index);
     jobExecutionInfo.setJobId(jobExecutionInfo.getJobName() + "_" + System.currentTimeMillis());
     jobExecutionInfo.setStartTime(System.currentTimeMillis());
+    jobExecutionInfo.setEndTime(System.currentTimeMillis());
     jobExecutionInfo.setState(JobStateEnum.PENDING);
     jobExecutionInfo.setLaunchedTasks(2);
     jobExecutionInfo.setCompletedTasks(0);
@@ -180,6 +181,7 @@ public class JobExecutionInfoServerTest {
     taskExecutionInfo1.setJobId(jobExecutionInfo.getJobId());
     taskExecutionInfo1.setTaskId(jobExecutionInfo.getJobId() + "_0");
     taskExecutionInfo1.setStartTime(System.currentTimeMillis());
+    taskExecutionInfo1.setEndTime(System.currentTimeMillis());
     taskExecutionInfo1.setState(TaskStateEnum.PENDING);
     taskExecutionInfo1.setLowWatermark(0L);
     taskExecutionInfo1.setHighWatermark(1000L);
@@ -205,6 +207,7 @@ public class JobExecutionInfoServerTest {
     taskExecutionInfo2.setJobId(jobExecutionInfo.getJobId());
     taskExecutionInfo2.setTaskId(jobExecutionInfo.getJobId() + "_1");
     taskExecutionInfo2.setStartTime(System.currentTimeMillis());
+    taskExecutionInfo2.setEndTime(System.currentTimeMillis());
     taskExecutionInfo2.setState(TaskStateEnum.PENDING);
     taskExecutionInfo2.setLowWatermark(0L);
     taskExecutionInfo2.setHighWatermark(2000L);

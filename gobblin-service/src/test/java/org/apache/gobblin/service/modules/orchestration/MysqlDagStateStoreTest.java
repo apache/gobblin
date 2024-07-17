@@ -42,6 +42,7 @@ import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -161,7 +162,7 @@ public class MysqlDagStateStoreTest {
    * Only overwrite {@link #createStateStore(Config)} method to directly return a mysqlStateStore
    * backed by mocked db.
    */
-  public class TestMysqlDagStateStore extends MysqlDagStateStore {
+  public static class TestMysqlDagStateStore extends MysqlDagStateStore {
     public TestMysqlDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
       super(config, topologySpecMap);
     }
@@ -170,7 +171,10 @@ public class MysqlDagStateStoreTest {
     protected StateStore<State> createStateStore(Config config) {
       try {
         // Setting up mock DB
-        String jdbcUrl = MysqlDagStateStoreTest.testDb.getJdbcUrl();
+        String jdbcUrl = config.hasPath(ConfigurationKeys.STATE_STORE_DB_URL_KEY)
+            ? config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY)
+            : MysqlDagStateStoreTest.testDb.getJdbcUrl();
+        String tableName = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TEST_DAG_STATE_STORE);
         HikariDataSource dataSource = new HikariDataSource();
 
         dataSource.setDriverClassName(ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER);
@@ -179,7 +183,7 @@ public class MysqlDagStateStoreTest {
         dataSource.setUsername(TEST_USER);
         dataSource.setPassword(TEST_PASSWORD);
 
-        return new MysqlStateStore<>(dataSource, TEST_DAG_STATE_STORE, false, State.class);
+        return new MysqlStateStore<>(dataSource, tableName, false, State.class);
       } catch (Exception e) {
         throw new RuntimeException(e);
       }

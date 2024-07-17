@@ -21,7 +21,9 @@ import java.io.IOException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Optional;
+import java.util.UUID;
 
+import org.apache.gobblin.util.ExponentialBackoff;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -52,14 +54,20 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String flowName = "testFlowName";
   private static final String jobName = "testJobName";
   private static final long flowExecutionId = 12345677L;
+  private static final long eventTimeMillis = 1710451837L; // System.currentTimeMillis();
   // Dag actions with the same flow info but different flow action types are considered unique
   private static DagActionStore.DagAction launchDagAction =
       new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
+  private static DagActionStore.LeaseParams
+      launchLeaseParams = new DagActionStore.LeaseParams(launchDagAction, false, eventTimeMillis);
   private static DagActionStore.DagAction resumeDagAction =
       new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.RESUME);
+  private static DagActionStore.LeaseParams
+      resumeLeaseParams = new DagActionStore.LeaseParams(resumeDagAction, false, eventTimeMillis);
   private static DagActionStore.DagAction launchDagAction2 =
       new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
-  private static final long eventTimeMillis = System.currentTimeMillis();
+  private static DagActionStore.LeaseParams
+      launchLeaseParams2 = new DagActionStore.LeaseParams(launchDagAction2, false, eventTimeMillis);
   private static final Timestamp dummyTimestamp = new Timestamp(99999);
   private ITestMetastoreDatabase testDb;
   private MysqlMultiActiveLeaseArbiter mysqlMultiActiveLeaseArbiter;
@@ -103,21 +111,27 @@ public class MysqlMultiActiveLeaseArbiterTest {
   public void testAcquireLeaseSingleParticipant() throws Exception {
     // Tests CASE 1 of acquire lease for a flow action event not present in DB
     LeaseAttemptStatus firstLaunchStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction, eventTimeMillis, false, true);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams, true);
     Assert.assertTrue(firstLaunchStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
     LeaseAttemptStatus.LeaseObtainedStatus firstObtainedStatus =
         (LeaseAttemptStatus.LeaseObtainedStatus) firstLaunchStatus;
-    Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() <=
-        firstObtainedStatus.getLeaseAcquisitionTimestamp());
+    long consensusEventTimeMillis = firstObtainedStatus.getEventTimeMillis();
+    Assert.assertTrue(consensusEventTimeMillis <= firstObtainedStatus.getLeaseAcquisitionTimestamp());
+    // Make sure consensusEventTimeMillis is set, and it's not 0 or the original event time
+    log.info("consensus event time is {} eventtimeMillis is {}", consensusEventTimeMillis, eventTimeMillis);
+    Assert.assertTrue(consensusEventTimeMillis != eventTimeMillis && consensusEventTimeMillis != 0);
     Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
-        new DagActionStore.DagAction(flowGroup, flowName, firstObtainedStatus.getEventTimeMillis(),
-            jobName, DagActionStore.DagActionType.LAUNCH)));
+        new DagActionStore.DagAction(flowGroup, flowName, consensusEventTimeMillis, jobName,
+            DagActionStore.DagActionType.LAUNCH)));
+    Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), consensusEventTimeMillis);
+    Assert.assertEquals(firstObtainedStatus.getConsensusLeaseParams().isReminder, false);
 
     // Verify that different DagAction types for the same flow can have leases at the same time
     DagActionStore.DagAction killDagAction = new
         DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.KILL);
     LeaseAttemptStatus killStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(killDagAction, eventTimeMillis, false, true);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(
+            new DagActionStore.LeaseParams(killDagAction, false, eventTimeMillis), true);
     Assert.assertTrue(killStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
     LeaseAttemptStatus.LeaseObtainedStatus killObtainedStatus =
         (LeaseAttemptStatus.LeaseObtainedStatus) killStatus;
@@ -128,7 +142,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     // Very little time should have passed if this test directly follows the one above so this call will be considered
     // the same as the previous event
     LeaseAttemptStatus secondLaunchStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction, eventTimeMillis, false, true);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams, true);
     Assert.assertTrue(secondLaunchStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus);
     LeaseAttemptStatus.LeasedToAnotherStatus secondLeasedToAnotherStatus =
         (LeaseAttemptStatus.LeasedToAnotherStatus) secondLaunchStatus;
@@ -140,7 +154,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     // Allow enough time to pass for this trigger to be considered distinct, but not enough time so the lease expires
     Thread.sleep(MORE_THAN_EPSILON);
     LeaseAttemptStatus thirdLaunchStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction, eventTimeMillis, false, true);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams, true);
     Assert.assertTrue(thirdLaunchStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus);
     LeaseAttemptStatus.LeasedToAnotherStatus thirdLeasedToAnotherStatus =
         (LeaseAttemptStatus.LeasedToAnotherStatus) thirdLaunchStatus;
@@ -150,7 +164,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     // Tests CASE 4 of lease out of date
     Thread.sleep(LINGER);
     LeaseAttemptStatus fourthLaunchStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction, eventTimeMillis, false, true);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams, true);
     Assert.assertTrue(fourthLaunchStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
     LeaseAttemptStatus.LeaseObtainedStatus fourthObtainedStatus =
         (LeaseAttemptStatus.LeaseObtainedStatus) fourthLaunchStatus;
@@ -163,14 +177,14 @@ public class MysqlMultiActiveLeaseArbiterTest {
     Assert.assertTrue(mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(fourthObtainedStatus));
     Assert.assertTrue(System.currentTimeMillis() - fourthObtainedStatus.getEventTimeMillis() < EPSILON);
     LeaseAttemptStatus fifthLaunchStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction, eventTimeMillis, false, true);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams, true);
     Assert.assertTrue(fifthLaunchStatus instanceof LeaseAttemptStatus.NoLongerLeasingStatus);
 
     // Tests CASE 6 of no longer leasing a distinct event in DB
     // Wait so this event is considered distinct and a new lease will be acquired
     Thread.sleep(MORE_THAN_EPSILON);
     LeaseAttemptStatus sixthLaunchStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction, eventTimeMillis, false, true);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams, true);
     Assert.assertTrue(sixthLaunchStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
     LeaseAttemptStatus.LeaseObtainedStatus sixthObtainedStatus =
         (LeaseAttemptStatus.LeaseObtainedStatus) sixthLaunchStatus;
@@ -185,22 +199,26 @@ public class MysqlMultiActiveLeaseArbiterTest {
      Note: this isolates and tests CASE 1 in which another participant could have acquired the lease between the time
      the read was done and subsequent write was carried out
   */
-  @Test (dependsOnMethods = "testAcquireLeaseSingleParticipant")
+  @Test
   public void testAcquireLeaseIfNewRow() throws IOException {
     // Inserting the first time should update 1 row
-    Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction), 1);
+    Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction,
+        ExponentialBackoff.builder().maxRetries(MysqlMultiActiveLeaseArbiter.MAX_RETRIES)
+            .initialDelay(MysqlMultiActiveLeaseArbiter.MIN_INITIAL_DELAY_MILLIS).build()), 1);
     // Inserting the second time should not update any rows
-    Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction), 0);
+    Assert.assertEquals(mysqlMultiActiveLeaseArbiter.attemptLeaseIfNewRow(resumeDagAction,
+        ExponentialBackoff.builder().maxRetries(MysqlMultiActiveLeaseArbiter.MAX_RETRIES)
+            .initialDelay(MysqlMultiActiveLeaseArbiter.MIN_INITIAL_DELAY_MILLIS).build()), 0);
   }
 
     /*
     Tests CONDITIONALLY_ACQUIRE_LEASE_IF_MATCHING_ALL_COLS_STATEMENT to ensure insertion is not completed if another
-    participant updated the table between the prior reed and attempted insertion.
+    participant updated the table between the prior read and attempted insertion.
     Note: this isolates and tests CASE 4 in which a flow action event has an out of date lease, so a participant
     attempts a new one given the table the eventTimestamp and leaseAcquisitionTimestamp values are unchanged.
    */
   @Test (dependsOnMethods = "testAcquireLeaseIfNewRow")
-  public void testConditionallyAcquireLeaseIfFMatchingAllColsStatement() throws IOException {
+  public void testConditionallyAcquireLeaseIfMatchingAllColsStatement() throws IOException {
     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
         mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
 
@@ -230,21 +248,13 @@ public class MysqlMultiActiveLeaseArbiterTest {
   Note: This isolates and tests CASE 6 during which current participant saw a distinct flow action event had completed
   its prior lease, encouraging the current participant to acquire a lease for its event.
    */
-  @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfFMatchingAllColsStatement")
+  @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfMatchingAllColsStatement")
   public void testConditionallyAcquireLeaseIfFinishedLeasingStatement()
-      throws IOException, InterruptedException, SQLException {
-    // Mark the resume action lease from above as completed by fabricating a LeaseObtainedStatus
-    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
-        mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
-    DagActionStore.DagAction updatedResumeDagAction = resumeDagAction.updateFlowExecutionId(
-        selectInfoResult.getEventTimeMillis());
-    boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseAttemptStatus.LeaseObtainedStatus(
-        updatedResumeDagAction, selectInfoResult.getEventTimeMillis(),
-        selectInfoResult.getLeaseAcquisitionTimeMillis().get(), LINGER, null));
-    Assert.assertTrue(markedSuccess);
+      throws IOException, SQLException {
+    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult = completeLeaseHelper(resumeLeaseParams);
     // Ensure no NPE results from calling this after a lease has been completed and acquisition timestamp val is NULL
-    mysqlMultiActiveLeaseArbiter.evaluateStatusAfterLeaseAttempt(1, resumeDagAction,
-        Optional.empty(), false, true);
+    mysqlMultiActiveLeaseArbiter.evaluateStatusAfterLeaseAttempt(1, resumeLeaseParams,
+        Optional.empty(), true);
 
     // The following insert will fail since eventTimestamp does not match the expected
     int numRowsUpdated = mysqlMultiActiveLeaseArbiter.attemptLeaseIfExistingRow(
@@ -262,14 +272,18 @@ public class MysqlMultiActiveLeaseArbiterTest {
   /*
   Tests calling `tryAcquireLease` for an older reminder event which should be immediately returned as `NoLongerLeasing`
    */
-  @Test (dependsOnMethods = "testConditionallyAcquireLeaseIfFinishedLeasingStatement")
+  @Test
   public void testOlderReminderEventAcquireLease() throws IOException {
+    DagActionStore.LeaseParams newLaunchLeaseParams = getUniqueLaunchLeaseParams();
+    mysqlMultiActiveLeaseArbiter.tryAcquireLease(newLaunchLeaseParams, false);
     // Read database to obtain existing db eventTimeMillis and use it to construct an older event
     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
-        mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
+        mysqlMultiActiveLeaseArbiter.getRowInfo(newLaunchLeaseParams.getDagAction());
     long olderEventTimestamp = selectInfoResult.getEventTimeMillis() - 1;
+    DagActionStore.LeaseParams updatedLeaseParams =
+        new DagActionStore.LeaseParams(newLaunchLeaseParams.getDagAction(), true, olderEventTimestamp);
     LeaseAttemptStatus attemptStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(resumeDagAction, olderEventTimestamp, true, true);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(updatedLeaseParams, true);
     Assert.assertTrue(attemptStatus instanceof LeaseAttemptStatus.NoLongerLeasingStatus);
   }
 
@@ -278,30 +292,35 @@ public class MysqlMultiActiveLeaseArbiterTest {
   this case to occur because the reminderEvent should be triggered after the lease expires, but ensure it's handled
   correctly anyway.
    */
-  @Test (dependsOnMethods = "testOlderReminderEventAcquireLease")
+  @Test
   public void testReminderEventAcquireLeaseOnValidLease() throws IOException {
-    // Read database to obtain existing db eventTimeMillis and re-use it for the reminder event time
-    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
-        mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
+    DagActionStore.LeaseParams newLaunchLeaseParams = getUniqueLaunchLeaseParams();
+    LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus =
+        (LeaseAttemptStatus.LeaseObtainedStatus) mysqlMultiActiveLeaseArbiter.tryAcquireLease(newLaunchLeaseParams, false);
+    // Use the consensusLeaseParams containing the new eventTimeMillis for the reminder event time
+    DagActionStore.LeaseParams updatedLeaseParams =
+        new DagActionStore.LeaseParams(newLaunchLeaseParams.getDagAction(), true,
+            leaseObtainedStatus.getEventTimeMillis());
     LeaseAttemptStatus attemptStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(resumeDagAction, selectInfoResult.getEventTimeMillis(), true, true);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(updatedLeaseParams, true);
     Assert.assertTrue(attemptStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus);
     LeaseAttemptStatus.LeasedToAnotherStatus leasedToAnotherStatus = (LeaseAttemptStatus.LeasedToAnotherStatus) attemptStatus;
-    Assert.assertEquals(leasedToAnotherStatus.getEventTimeMillis(), selectInfoResult.getEventTimeMillis());
+    Assert.assertEquals(leasedToAnotherStatus.getEventTimeMillis(), leaseObtainedStatus.getEventTimeMillis());
   }
 
   /*
   Tests calling `tryAcquireLease` for a reminder event whose lease has expired in the database and should successfully
   acquire a new lease
    */
-  @Test (dependsOnMethods = "testReminderEventAcquireLeaseOnValidLease")
+  @Test
   public void testReminderEventAcquireLeaseOnInvalidLease() throws IOException, InterruptedException {
-    // Read database to obtain existing db eventTimeMillis and wait enough time for the lease to expire
-    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
-        mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
+    DagActionStore.LeaseParams newLaunchLeaseParams = getUniqueLaunchLeaseParams();
+    mysqlMultiActiveLeaseArbiter.tryAcquireLease(newLaunchLeaseParams, false);
+    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult = mysqlMultiActiveLeaseArbiter.getRowInfo(newLaunchLeaseParams.getDagAction());
+    // Wait enough time for the lease to expire
     Thread.sleep(MORE_THAN_LINGER);
     LeaseAttemptStatus attemptStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(resumeDagAction, selectInfoResult.getEventTimeMillis(), true, true);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(newLaunchLeaseParams, true);
     Assert.assertTrue(attemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
     LeaseAttemptStatus.LeaseObtainedStatus obtainedStatus = (LeaseAttemptStatus.LeaseObtainedStatus) attemptStatus;
     Assert.assertTrue(obtainedStatus.getEventTimeMillis() > selectInfoResult.getEventTimeMillis());
@@ -314,23 +333,22 @@ public class MysqlMultiActiveLeaseArbiterTest {
   Note: that we wait for enough time to pass that the event would have been considered distinct for a non-reminder case
   to ensure that the comparison made for reminder events is against the preserved event time not current time in db
    */
-   @Test (dependsOnMethods = "testReminderEventAcquireLeaseOnInvalidLease")
+   @Test
    public void testReminderEventAcquireLeaseOnCompletedLease() throws IOException, InterruptedException {
-     // Mark the resume action lease from above as completed by fabricating a LeaseObtainedStatus
-     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
-         mysqlMultiActiveLeaseArbiter.getRowInfo(resumeDagAction);
-     DagActionStore.DagAction updatedResumeDagAction = resumeDagAction.updateFlowExecutionId(
-         selectInfoResult.getEventTimeMillis());
-     boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseAttemptStatus.LeaseObtainedStatus(
-         updatedResumeDagAction, selectInfoResult.getEventTimeMillis(),
-         selectInfoResult.getLeaseAcquisitionTimeMillis().get(), LINGER, null));
-     Assert.assertTrue(markedSuccess);
+     // Create a new dag action and complete the lease
+     DagActionStore.LeaseParams newLaunchLeaseParams = getUniqueLaunchLeaseParams();
+     mysqlMultiActiveLeaseArbiter.tryAcquireLease(newLaunchLeaseParams, false);
+     MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult = completeLeaseHelper(newLaunchLeaseParams);
 
      // Sleep enough time for the event to have been considered distinct
      Thread.sleep(MORE_THAN_EPSILON);
      // Now have a reminder event check-in on the completed lease
+     DagActionStore.DagAction updatedDagAction = newLaunchLeaseParams.getDagAction().updateFlowExecutionId(
+         selectInfoResult.getEventTimeMillis());
+     DagActionStore.LeaseParams updatedLeaseParams =
+         new DagActionStore.LeaseParams(updatedDagAction, true, newLaunchLeaseParams.getEventTimeMillis());
      LeaseAttemptStatus attemptStatus =
-         mysqlMultiActiveLeaseArbiter.tryAcquireLease(resumeDagAction, selectInfoResult.getEventTimeMillis(), true, true);
+         mysqlMultiActiveLeaseArbiter.tryAcquireLease(updatedLeaseParams, true);
      Assert.assertTrue(attemptStatus instanceof LeaseAttemptStatus.NoLongerLeasingStatus);
    }
 
@@ -344,7 +362,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
   public void testSkipAdoptingConsensusFlowExecutionId() throws IOException {
     // Obtain a lease for a new action and verify its flowExecutionId is not updated
     LeaseAttemptStatus firstLaunchStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction2, eventTimeMillis, false, false);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams2, false);
     Assert.assertTrue(firstLaunchStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
     LeaseAttemptStatus.LeaseObtainedStatus firstObtainedStatus =
         (LeaseAttemptStatus.LeaseObtainedStatus) firstLaunchStatus;
@@ -352,18 +370,60 @@ public class MysqlMultiActiveLeaseArbiterTest {
     Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() != Long.valueOf(firstObtainedStatus.getConsensusDagAction().getFlowExecutionId()));
     Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
         new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
+    Assert.assertEquals(firstObtainedStatus.getConsensusLeaseParams().isReminder(), false);
 
     // A second attempt to obtain a lease on the same action should return a LeasedToAnotherStatus which also contains
     // the original flowExecutionId and the same event time from the previous LeaseAttemptStatus
     LeaseAttemptStatus secondLaunchStatus =
-        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchDagAction2, eventTimeMillis, false, false);
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams2, false);
     Assert.assertTrue(secondLaunchStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus);
     LeaseAttemptStatus.LeasedToAnotherStatus secondLeasedToAnotherStatus =
         (LeaseAttemptStatus.LeasedToAnotherStatus) secondLaunchStatus;
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), secondLeasedToAnotherStatus.getEventTimeMillis());
     Assert.assertTrue(secondLeasedToAnotherStatus.getConsensusDagAction().equals(
         new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
+    Assert.assertEquals(firstObtainedStatus.getConsensusLeaseParams().isReminder(), false);
 
     Assert.assertTrue(mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(firstObtainedStatus));
+  }
+
+  public static String generateUniqueName() {
+      UUID uuid = UUID.randomUUID();
+      String name = uuid.toString().substring(0, 10);
+      return name;
+  }
+
+  /**
+   * Returns a unique launch type dagAction event by using 'generateUniqueName' as flowName to create a unique event
+   */
+  public DagActionStore.DagAction getUniqueLaunchDagAction() {
+    return new DagActionStore.DagAction(flowGroup, generateUniqueName(), flowExecutionId, jobName,
+        DagActionStore.DagActionType.LAUNCH);
+  }
+
+  /**
+   * Returns a unique launch type {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.LeaseParams}
+   * using #getUniqueLaunchDagAction() to create a unique flowName
+   */
+  public DagActionStore.LeaseParams getUniqueLaunchLeaseParams() {
+    return new DagActionStore.LeaseParams(getUniqueLaunchDagAction(), false, eventTimeMillis);
+  }
+
+  /**
+   * Marks the lease associated with the dagAction as completed by fabricating a LeaseObtainedStatus
+   * @return SelectInfoResult object containing the event information used to complete the lease
+   */
+  public MysqlMultiActiveLeaseArbiter.SelectInfoResult completeLeaseHelper(
+      DagActionStore.LeaseParams previouslyLeasedLeaseParams) throws IOException {
+    MysqlMultiActiveLeaseArbiter.SelectInfoResult selectInfoResult =
+        mysqlMultiActiveLeaseArbiter.getRowInfo(previouslyLeasedLeaseParams.getDagAction());
+    DagActionStore.DagAction updatedDagAction = previouslyLeasedLeaseParams.getDagAction().updateFlowExecutionId(
+        selectInfoResult.getEventTimeMillis());
+    DagActionStore.LeaseParams
+        updatedLeaseParams = new DagActionStore.LeaseParams(updatedDagAction, false, selectInfoResult.getEventTimeMillis());
+    boolean markedSuccess = mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(new LeaseAttemptStatus.LeaseObtainedStatus(
+        updatedLeaseParams, selectInfoResult.getLeaseAcquisitionTimeMillis().get(), LINGER, null));
+    Assert.assertTrue(markedSuccess);
+    return selectInfoResult;
   }
 }

@@ -145,7 +145,7 @@ public interface DagManagementStateStore {
    * Returned list will be empty if the dag is not found in the store.
    * @param dagId DagId of the dag for which all DagNodes are requested
    */
-  List<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
+  Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
 
   /**
    * Deletes the dag node state that was added through {@link DagManagementStateStore#addDagNodeState(Dag.DagNode, DagManager.DagId)}
@@ -207,7 +207,7 @@ public interface DagManagementStateStore {
    * @throws IOException
    */
   boolean existsJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
-      DagActionStore.DagActionType dagActionType) throws IOException, SQLException;
+      DagActionStore.DagActionType dagActionType) throws IOException;
 
   /**
    * Check if an action exists in dagAction store by flow group, flow name, and flow execution id, it assumes jobName is

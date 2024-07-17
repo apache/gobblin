@@ -34,6 +34,14 @@ import lombok.Getter;
  */
 public abstract class LeaseAttemptStatus {
   /**
+   * @return the {@link DagActionStore.LeaseParams}, containing the dagAction, eventTimeMillis of the event, and boolean
+   * indicating if it's a reminder event; {@see MultiActiveLeaseArbiter#tryAcquireLease}
+   */
+  public DagActionStore.LeaseParams getConsensusLeaseParams() {
+    return null;
+  }
+
+  /**
    * @return the {@link DagActionStore.DagAction}, which may now have an updated flowExecutionId that MUST henceforth be
    * used; {@see MultiActiveLeaseArbiter#tryAcquireLease}
    */
@@ -53,23 +61,28 @@ public abstract class LeaseAttemptStatus {
 
   /*
   The participant calling this method acquired the lease for the event in question.
-  The timestamp associated with the lease is stored in `eventTimeMillis` field and the time the caller obtained the
-  lease is stored within the`leaseAcquisitionTimestamp` field. Note that the `Dag action` returned by the lease
-   arbitration attempt will be unchanged for flows that do not adopt the consensus eventTimeMillis as the flow execution
-   id, so a separate field must be maintained to track the eventTimeMillis for lease completion. The
-   `multiActiveLeaseArbiter` reference is used to recordLeaseSuccess for the current LeaseObtainedStatus via the
-   completeLease method from a caller without access to the {@link MultiActiveLeaseArbiter}.
+  The `consensusLeaseObject` returned by the lease arbitration attempt includes an updated value in the
+  `eventTimeMillis` field, which represents the consensus timestamp associated with the lease. For flows that do not
+  adopt the consensus `eventTimeMillis` as the flow execution ID, the `dagAction.flowExecutionId` will remain unchanged.
+  The consensus `eventTimeMillis` must be tracked for lease completion.
+  The time the caller obtained the lease is stored within the`leaseAcquisitionTimestamp` field.
+  The `multiActiveLeaseArbiter` reference is used to recordLeaseSuccess for the current LeaseObtainedStatus via the
+  completeLease method from a caller without access to the {@link MultiActiveLeaseArbiter}.
   */
   @Data
   // avoid - warning: Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object
   @EqualsAndHashCode(callSuper=false)
   public static class LeaseObtainedStatus extends LeaseAttemptStatus {
-    private final DagActionStore.DagAction consensusDagAction;
-    private final long eventTimeMillis;
+    private final DagActionStore.LeaseParams consensusLeaseParams;
     private final long leaseAcquisitionTimestamp;
     private final long minimumLingerDurationMillis;
     @Getter(AccessLevel.NONE)
     private final MultiActiveLeaseArbiter multiActiveLeaseArbiter;
+
+    @Override
+    public DagActionStore.DagAction getConsensusDagAction() {
+      return consensusLeaseParams.getDagAction();
+    }
 
     /**
      * Completes the lease referenced by this status object if it has not expired.
@@ -79,11 +92,15 @@ public abstract class LeaseAttemptStatus {
     public boolean completeLease() throws IOException {
       return multiActiveLeaseArbiter.recordLeaseSuccess(this);
     }
+
+    public long getEventTimeMillis() {
+      return consensusLeaseParams.getEventTimeMillis();
+    }
   }
 
   /*
   This dag action event already has a valid lease owned by another participant.
-  `eventTimeMillis' corresponds to the timestamp of the existing lease associated with this dag action, however the dag
+  See doc for {@link LeaseObtainedStatus} for details about consensusLeaseObject field. Note, that the dag
   action event it corresponds to may be a different and distinct occurrence of the same event.
   `minimumLingerDurationMillis` is the minimum amount of time to wait before this participant should return to check if
   the lease has completed or expired
@@ -92,8 +109,16 @@ public abstract class LeaseAttemptStatus {
   // avoid - warning: Generating equals/hashCode implementation but without a call to superclass, even though this class does not extend java.lang.Object
   @EqualsAndHashCode(callSuper=false)
   public static class LeasedToAnotherStatus extends LeaseAttemptStatus {
-    private final DagActionStore.DagAction consensusDagAction;
-    private final long eventTimeMillis;
+    private final DagActionStore.LeaseParams consensusLeaseParams;
     private final long minimumLingerDurationMillis;
+
+    @Override
+    public DagActionStore.DagAction getConsensusDagAction() {
+      return consensusLeaseParams.getDagAction();
+    }
+
+    public long getEventTimeMillis() {
+      return consensusLeaseParams.getEventTimeMillis();
+    }
   }
 }

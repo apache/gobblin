@@ -45,6 +45,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
@@ -116,8 +117,6 @@ public class DagProcUtils {
       // blocks (by calling Future#get()) until the submission is completed.
       dagManagementStateStore.tryAcquireQuota(Collections.singleton(dagNode));
 
-      sendEnforceJobStartDeadlineDagAction(dagManagementStateStore, dagNode);
-
       Future<?> addSpecFuture = producer.addSpec(jobSpec);
       // todo - we should add future.get() instead of the complete future into the JobExecutionPlan
       dagNode.getValue().setJobFuture(com.google.common.base.Optional.of(addSpecFuture));
@@ -130,6 +129,7 @@ public class DagProcUtils {
       log.info("Orchestrated job: {} on Executor: {}", DagManagerUtils.getFullyQualifiedJobName(dagNode), specExecutorUri);
       dagManagementStateStore.getDagManagerMetrics().incrementJobsSentToExecutor(dagNode);
       dagManagementStateStore.addDagNodeState(dagNode, dagId);
+      sendEnforceJobStartDeadlineDagAction(dagManagementStateStore, dagNode);
     } catch (Exception e) {
       TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
       String message = "Cannot submit job " + DagManagerUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
@@ -160,7 +160,7 @@ public class DagProcUtils {
 
     try {
       if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
-        Future future = dagNodeToCancel.getValue().getJobFuture().get();
+        Future<?> future = dagNodeToCancel.getValue().getJobFuture().get();
         String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
         props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
         sendCancellationEvent(dagNodeToCancel.getValue());
@@ -209,5 +209,37 @@ public class DagProcUtils {
         config, DagManager.JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
     return jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, DagManager.JOB_START_SLA_TIME,
         ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
+  }
+
+  public static boolean isJobLevelStatus(String jobName) {
+    return !jobName.equals(JobStatusRetriever.NA_KEY);
+  }
+
+  public static void removeEnforceJobStartDeadlineDagAction(DagManagementStateStore dagManagementStateStore, String flowGroup,
+      String flowName, long flowExecutionId, String jobName) {
+    DagActionStore.DagAction enforceJobStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
+        flowExecutionId, jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+    log.info("Deleting dag action {}", enforceJobStartDeadlineDagAction);
+    // todo - add metrics
+
+    try {
+      dagManagementStateStore.deleteDagAction(enforceJobStartDeadlineDagAction);
+    } catch (IOException e) {
+      log.warn("Failed to delete dag action {}", enforceJobStartDeadlineDagAction);
+    }
+  }
+
+  public static void removeFlowFinishDeadlineDagAction(DagManagementStateStore dagManagementStateStore, DagManager.DagId dagId) {
+    DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = DagActionStore.DagAction.forFlow(dagId.getFlowGroup(),
+        dagId.getFlowName(), dagId.getFlowExecutionId(),
+        DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+    log.info("Deleting dag action {}", enforceFlowFinishDeadlineDagAction);
+    // todo - add metrics
+
+    try {
+      dagManagementStateStore.deleteDagAction(enforceFlowFinishDeadlineDagAction);
+    } catch (IOException e) {
+      log.warn("Failed to delete dag action {}", enforceFlowFinishDeadlineDagAction);
+    }
   }
 }

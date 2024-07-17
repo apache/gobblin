@@ -18,7 +18,9 @@
 package org.apache.gobblin.service.monitoring;
 
 import java.io.IOException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Duration;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -29,7 +31,6 @@ import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
-import org.quartz.SchedulerException;
 
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.Timer;
@@ -64,10 +65,9 @@ import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.service.modules.core.GobblinServiceManager;
-import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.proc.DagProcUtils;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
@@ -106,7 +106,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final StateStore<org.apache.gobblin.configuration.State> stateStore;
   private final ScheduledExecutorService scheduledExecutorService;
   private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
-      RETRY_TIME_OUT_MS, TimeUnit.HOURS.toMillis(24L), // after a day, presume non-transient and give up
+      // keeping the retry timeout less until we configure retryer to retry only the transient exceptions
+      RETRY_TIME_OUT_MS, TimeUnit.HOURS.toMillis(12L), // after 12 hours, presume non-transient and give up
       RETRY_INTERVAL_MS, TimeUnit.MINUTES.toMillis(1L), // back-off to once/minute
       RETRY_TYPE, RetryType.EXPONENTIAL.name()));
   private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
@@ -122,6 +123,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final GaaSJobObservabilityEventProducer eventProducer;
   private final DagManagementStateStore dagManagementStateStore;
   private final boolean dagProcEngineEnabled;
+  private final List<Class<? extends Exception>> nonRetryableExceptions = Collections.singletonList(SQLIntegrityConstraintViolationException.class);
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
       GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore)
@@ -141,6 +143,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         : ConfigFactory.empty();
     // log exceptions to expose errors we suffer under and/or guide intervention when resolution not readily forthcoming
+    // todo - this retryer retries all the exceptions. we should make it retry only really transient
     this.persistJobStatusRetryer =
         RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
           @Override
@@ -223,17 +226,31 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
           String storeName = jobStatusStoreName(flowGroup, flowName);
           String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
+          String status = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
 
           if (updatedJobStatus.getRight() == NewState.FINISHED) {
             this.eventProducer.emitObservabilityEvent(jobStatus);
           }
 
-          if (this.dagProcEngineEnabled) {
+          if (this.dagProcEngineEnabled && DagProcUtils.isJobLevelStatus(jobName)) {
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
               // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
-              this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
+              try {
+                this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
+              } catch (Exception e) {
+                if (isExceptionInstanceOf(e, nonRetryableExceptions)) {
+                  // todo - add metrics
+                  log.warn("Duplicate REEVALUATE Dag Action is being created. Ignoring... " + e.getMessage());
+                } else {
+                  throw e;
+                }
+              }
             } else if (updatedJobStatus.getRight() == NewState.RUNNING) {
-              removeStartDeadlineTriggerAndDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
+              DagProcUtils.removeEnforceJobStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
+            }
+            // in case, the job is cancelled before it started, we need to clean it's enforceJobStartDeadlineDagAction
+            if (status != null && ExecutionStatus.valueOf(status).equals(ExecutionStatus.CANCELLED)) {
+              DagProcUtils.removeEnforceJobStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
             }
           }
 
@@ -257,21 +274,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       log.warn(msg, informativeException);
       // Throw RuntimeException to avoid advancing kafka offsets without updating state store
       throw new RuntimeException(msg, informativeException);
-    }
-  }
-
-  private void removeStartDeadlineTriggerAndDagAction(DagManagementStateStore dagManagementStateStore, String flowGroup,
-      String flowName, long flowExecutionId, String jobName) {
-    DagActionStore.DagAction enforceStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
-        flowExecutionId, jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
-    log.info("Deleting reminder trigger and dag action {}", enforceStartDeadlineDagAction);
-    // todo - add metrics
-
-    try {
-      GobblinServiceManager.getClass(DagActionReminderScheduler.class).unscheduleReminderJob(enforceStartDeadlineDagAction);
-      dagManagementStateStore.deleteDagAction(enforceStartDeadlineDagAction);
-    } catch (SchedulerException | IOException e) {
-      log.error("Failed to unschedule the reminder for {}", enforceStartDeadlineDagAction);
     }
   }
 
@@ -333,7 +335,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
 
       modifyStateIfRetryRequired(jobStatus);
-      return ImmutablePair.of(jobStatus, newState(jobStatus, states));
+      NewState newState = newState(jobStatus, states);
+      String newStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
+      if (newState == NewState.FINISHED) {
+        log.info("Flow {}:{}:{}:{} reached a terminal state {}", flowGroup, flowName, flowExecutionId, jobName, newStatus);
+      }
+      return ImmutablePair.of(jobStatus, newState);
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
@@ -421,4 +428,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   protected abstract org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event);
 
+  public static boolean isExceptionInstanceOf(Exception exception, List<Class<? extends Exception>> typesList) {
+    return typesList.stream().anyMatch(e -> e.isInstance(exception));
+  }
 }

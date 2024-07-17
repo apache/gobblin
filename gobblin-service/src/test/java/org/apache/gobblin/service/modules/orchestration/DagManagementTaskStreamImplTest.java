@@ -18,9 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.net.URI;
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import org.junit.Assert;
@@ -34,15 +31,14 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
-import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
 
@@ -61,22 +57,14 @@ public class DagManagementTaskStreamImplTest {
     this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     ConfigBuilder configBuilder = ConfigBuilder.create();
-    configBuilder.addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MostlyMySqlDagManagementStateStoreTest.TestMysqlDagStateStore.class.getName())
+    configBuilder.addPrimitive(MostlyMySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreTest.TestMysqlDagStateStore.class.getName())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), this.testMetastoreDatabase.getJdbcUrl())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE);
     Config config = configBuilder.build();
 
-    // Constructing TopologySpecMap.
-    Map<URI, TopologySpec> topologySpecMap = new HashMap<>();
-    String specExecInstance = "mySpecExecutor";
-    TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
-    URI specExecURI = new URI(specExecInstance);
-    topologySpecMap.put(specExecURI, topologySpec);
-    MostlyMySqlDagManagementStateStore dagManagementStateStore = new MostlyMySqlDagManagementStateStore(config,
-        null, null, null, mock(DagActionStore.class));
-    dagManagementStateStore.setTopologySpecMap(topologySpecMap);
+    MostlyMySqlDagManagementStateStore dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
             mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
@@ -105,14 +93,16 @@ public class DagManagementTaskStreamImplTest {
      LeaseObtainedStatus to the taskStream to break its loop and return a newly created dagTask
     */
     DagActionStore.DagAction launchAction = new DagActionStore.DagAction("fg", "fn", 12345L, "jn", DagActionStore.DagActionType.LAUNCH);
-    dagManagementTaskStream.addDagAction(launchAction);
-    dagManagementTaskStream.addDagAction(launchAction);
-    dagManagementTaskStream.addDagAction(launchAction);
+    DagActionStore.LeaseParams
+        dagActionLeaseParams = new DagActionStore.LeaseParams(launchAction, false, System.currentTimeMillis());
+    dagManagementTaskStream.addDagAction(dagActionLeaseParams);
+    dagManagementTaskStream.addDagAction(dagActionLeaseParams);
+    dagManagementTaskStream.addDagAction(dagActionLeaseParams);
     when(dagManagementTaskStream.getDagActionProcessingLeaseArbiter()
-        .tryAcquireLease(any(DagActionStore.DagAction.class), anyLong(), anyBoolean(), anyBoolean()))
+        .tryAcquireLease(any(DagActionStore.LeaseParams.class), anyBoolean()))
         .thenReturn(new LeaseAttemptStatus.NoLongerLeasingStatus(),
-            new LeaseAttemptStatus.LeasedToAnotherStatus(launchAction, 3, 15),
-            new LeaseAttemptStatus.LeaseObtainedStatus(launchAction, 5, 0, 5, null));
+            new LeaseAttemptStatus.LeasedToAnotherStatus(new DagActionStore.LeaseParams(launchAction, true, 1), 15),
+            new LeaseAttemptStatus.LeaseObtainedStatus(new DagActionStore.LeaseParams(launchAction, true, 1), 0, 5, null));
     DagTask dagTask = dagManagementTaskStream.next();
     Assert.assertTrue(dagTask instanceof LaunchDagTask);
     DagProc dagProc = dagTask.host(this.dagProcFactory);

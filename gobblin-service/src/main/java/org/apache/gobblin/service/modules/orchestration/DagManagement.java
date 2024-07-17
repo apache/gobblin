@@ -26,6 +26,8 @@ import java.io.IOException;
  * Consumption of the Dags happen through {@link DagTaskStream}.
  */
 public interface DagManagement {
-
-  void addDagAction(DagActionStore.DagAction dagAction) throws IOException;
+  /**
+   * Used to add {@link DagActionStore.LeaseParams} to the queue
+   */
+  void addDagAction(DagActionStore.LeaseParams leaseParams) throws IOException;
 }

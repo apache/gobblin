@@ -34,8 +34,6 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Options;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.fs.permission.AclEntry;
-import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 
 import com.codahale.metrics.Meter;
@@ -61,7 +59,6 @@ import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.CopyableDatasetMetadata;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
-import org.apache.gobblin.data.management.copy.OwnerAndPermission;
 import org.apache.gobblin.data.management.copy.recovery.RecoveryHelper;
 import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.instrumented.writer.InstrumentedDataWriter;
@@ -69,8 +66,10 @@ import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.FinalState;
 import org.apache.gobblin.util.ForkOperatorUtils;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 import org.apache.gobblin.util.io.StreamCopier;
 import org.apache.gobblin.util.io.StreamThrottler;
 import org.apache.gobblin.util.io.ThrottledInputStream;
@@ -432,13 +431,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     }
 
     return new OwnerAndPermission(ownerAndPermission.getOwner(), ownerAndPermission.getGroup(),
-        addExecutePermissionToOwner(ownerAndPermission.getFsPermission()), ownerAndPermission.getAclEntries());
+        HadoopUtils.addExecutePermissionToOwner(ownerAndPermission.getFsPermission()), ownerAndPermission.getAclEntries());
   }
 
-  static FsPermission addExecutePermissionToOwner(FsPermission fsPermission) {
-    FsAction newOwnerAction = fsPermission.getUserAction().or(FsAction.EXECUTE);
-    return new FsPermission(newOwnerAction, fsPermission.getGroupAction(), fsPermission.getOtherAction(), fsPermission.getStickyBit());
-  }
 
   @Override
   public long recordsWritten() {
@@ -478,9 +473,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
       Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt =
           copyableFile.getAncestorsOwnerAndPermission() == null ? Collections.emptyIterator()
-              : copyableFile.getAncestorsOwnerAndPermission().iterator();
+              : copyableFile.getAncestorsOwnerAndPermission().listIterator();
 
-      ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt);
+      HadoopUtils.ensureDirectoryExists(this.fs, outputFilePath.getParent(), ancestorOwnerAndPermissionIt, false);
       if (copyableFile.getFileStatus().isDirectory() && this.fs.exists(outputFilePath)) {
         log.info(String.format("CopyableFile %s is a directory which already exists at %s - skipping overwrite; if necessary, publisher will sync metadata",
             stagingFilePath, outputFilePath));
@@ -500,52 +495,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
       } catch (IOException ioe) {
         log.error("Failed to delete staging path at " + this.stagingDir);
       }
-    }
-  }
-
-  private void ensureDirectoryExists(FileSystem fs, Path path, Iterator<OwnerAndPermission> ownerAndPermissionIterator)
-      throws IOException {
-
-    if (fs.exists(path)) {
-      return;
-    }
-
-    if (ownerAndPermissionIterator.hasNext()) {
-      OwnerAndPermission ownerAndPermission = ownerAndPermissionIterator.next();
-
-      if (path.getParent() != null) {
-        ensureDirectoryExists(fs, path.getParent(), ownerAndPermissionIterator);
-      }
-
-      if (!fs.mkdirs(path)) {
-        // fs.mkdirs returns false if path already existed. Do not overwrite permissions
-        return;
-      }
-
-      List<AclEntry> aclEntries = ownerAndPermission.getAclEntries();
-      if (!aclEntries.isEmpty()) {
-        // use modify acls instead of setAcl since latter requires all three acl entry types: user, group and others
-        // while overwriting the acls for a given path. If anyone is absent it fails acl transformation validation.
-        fs.modifyAclEntries(path, aclEntries);
-      }
-
-      if (ownerAndPermission.getFsPermission() != null) {
-        log.debug("Applying permissions {} to path {}.", ownerAndPermission.getFsPermission(), path);
-        fs.setPermission(path, addExecutePermissionToOwner(ownerAndPermission.getFsPermission()));
-      }
-
-      String group = ownerAndPermission.getGroup();
-      String owner = ownerAndPermission.getOwner();
-      try {
-        if (group != null || owner != null) {
-          log.debug("Applying owner {} and group {} to path {}.", owner, group, path);
-          fs.setOwner(path, owner, group);
-        }
-      } catch (IOException ioe) {
-        log.warn("Failed to set owner and/or group for path " + path + " to " + owner + ":" + group, ioe);
-      }
-    } else {
-      fs.mkdirs(path);
     }
   }
 

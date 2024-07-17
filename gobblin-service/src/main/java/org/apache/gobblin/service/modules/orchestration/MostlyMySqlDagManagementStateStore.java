@@ -20,8 +20,8 @@ import java.io.IOException;
 import java.net.URI;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
-import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -32,7 +32,6 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
-import com.google.common.collect.Lists;
 import com.google.inject.Inject;
 import com.typesafe.config.Config;
 
@@ -66,7 +65,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 public class MostlyMySqlDagManagementStateStore implements DagManagementStateStore {
   private final Map<DagNodeId, Dag.DagNode<JobExecutionPlan>> dagNodes = new ConcurrentHashMap<>();
   // dagToJobs holds a map of dagId to running jobs of that dag
-  private final Map<DagManager.DagId, LinkedList<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new ConcurrentHashMap<>();
+  private final Map<DagManager.DagId, Set<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new ConcurrentHashMap<>();
   private DagStateStore dagStateStore;
   private DagStateStore failedDagStateStore;
   private JobStatusRetriever jobStatusRetriever;
@@ -74,7 +73,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   private final UserQuotaManager quotaManager;
   Map<URI, TopologySpec> topologySpecMap;
   private final Config config;
-  private static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
+  public static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   public static final String DAG_STATESTORE_CLASS_KEY = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreClass";
   FlowCatalog flowCatalog;
   @Getter
@@ -141,6 +140,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     this.dagStateStore.cleanUp(dag);
     // todo - updated failedDagStateStore iff cleanup returned 1
     this.failedDagStateStore.writeCheckpoint(dag);
+    log.info("Marked dag failed {}", DagManagerUtils.generateDagId(dag));
   }
 
   @Override
@@ -156,6 +156,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   @Override
   public void deleteDag(DagManager.DagId dagId) throws IOException {
     this.dagStateStore.cleanUp(dagId.toString());
+    log.info("Deleted dag {}", dagId);
   }
 
   @Override
@@ -194,13 +195,12 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   @Override
   public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
       throws IOException {
-    Optional<Dag<JobExecutionPlan>> dag = getDag(dagId);
-    if (!dag.isPresent()) {
+    if (!containsDag(dagId)) {
       throw new RuntimeException("Dag " + dagId + " not found");
     }
     this.dagNodes.put(dagNode.getValue().getId(), dagNode);
     if (!this.dagToJobs.containsKey(dagId)) {
-      this.dagToJobs.put(dagId, Lists.newLinkedList());
+      this.dagToJobs.put(dagId, new HashSet<>());
     }
     this.dagToJobs.get(dagId).add(dagNode);
   }
@@ -226,12 +226,12 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   }
 
   @Override
-  public List<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) {
-    List<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagToJobs.get(dagId);
+  public Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) {
+    Set<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagToJobs.get(dagId);
     if (dagNodes != null) {
       return dagNodes;
     } else {
-      return Lists.newLinkedList();
+      return new HashSet<>();
     }
   }
 
@@ -264,6 +264,13 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     }
   }
 
+  /* todo - this method works because when the jobs finish they are deleted from the DMSS -> if no more job is found, means
+   no more running jobs.
+   But DMSS still has dags and which still contains dag nodes. We need to revisit this method's logic when we change
+   DMSS to a fully mysql backed implementation. then we may want to consider this approach
+   return getDagNodes(dagId).stream()
+       .anyMatch(node -> !FlowStatusGenerator.FINISHED_STATUSES.contains(node.getValue().getExecutionStatus().name()));
+  */
   @Override
   public boolean hasRunningJobs(DagManager.DagId dagId) {
     return !getDagNodes(dagId).isEmpty();
@@ -271,7 +278,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
 
   @Override
   public boolean existsJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
-      DagActionStore.DagActionType dagActionType) throws IOException, SQLException {
+      DagActionStore.DagActionType dagActionType) throws IOException {
     return this.dagActionStore.exists(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
   }
 
@@ -284,11 +291,14 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   @Override
   public void addJobDagAction(String flowGroup, String flowName, long flowExecutionId, String jobName,
       DagActionStore.DagActionType dagActionType) throws IOException {
+    log.info("Adding Dag Action for flowGroup {}, flowName {}, flowExecutionId {}, jobName {}, dagActionType {}",
+        flowGroup, flowName, flowExecutionId, jobName, dagActionType);
     this.dagActionStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
   }
 
   @Override
   public boolean deleteDagAction(DagActionStore.DagAction dagAction) throws IOException {
+    log.info("Deleting Dag Action {}", dagAction);
     return this.dagActionStore.deleteDagAction(dagAction);
   }
 

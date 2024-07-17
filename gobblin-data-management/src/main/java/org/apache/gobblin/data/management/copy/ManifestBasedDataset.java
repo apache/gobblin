@@ -17,6 +17,20 @@
 
 package org.apache.gobblin.data.management.copy;
 
+import java.io.IOException;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.Iterator;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+import java.util.TreeMap;
+import java.util.concurrent.TimeUnit;
+
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
 import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
@@ -24,27 +38,18 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.gson.JsonIOException;
 import com.google.gson.JsonSyntaxException;
-import java.io.IOException;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-import java.util.Set;
-import java.util.TreeMap;
-import java.util.concurrent.TimeUnit;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.util.PathUtils;
+import org.apache.gobblin.util.commit.CreateDirectoryWithPermissionsCommitStep;
 import org.apache.gobblin.util.commit.DeleteFileCommitStep;
-import org.apache.gobblin.util.commit.CreateAndSetDirectoryPermissionCommitStep;
-
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
+import org.apache.gobblin.util.commit.SetPermissionCommitStep;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 
 
 /**
@@ -100,9 +105,9 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     List<CopyEntity> copyEntities = Lists.newArrayList();
     List<FileStatus> toDelete = Lists.newArrayList();
     // map of paths and permissions sorted by depth of path, so that permissions can be set in order
-    Map<String, OwnerAndPermission> ancestorOwnerAndPermissions = new TreeMap<>(
-        (o1, o2) -> Long.compare(o2.chars().filter(ch -> ch == '/').count(), o1.chars().filter(ch -> ch == '/').count()));
-
+    Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissions = new HashMap<>();
+    TreeMap<String, OwnerAndPermission> flattenedAncestorPermissions = new TreeMap<>(
+        (o1, o2) -> Long.compare(o1.chars().filter(ch -> ch == '/').count(), o2.chars().filter(ch -> ch == '/').count()));
     try {
       long startTime = System.currentTimeMillis();
       manifests = CopyManifest.getReadIterator(this.manifestReadFs, this.manifestPath);
@@ -135,10 +140,9 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             // {@link CopyDataPublisher#preserveFileAttrInPublisher} will be setting the permission for the empty child dir
             Path fromPath = fileToCopy.getParent();
             // Avoid duplicate calculation for the same ancestor
-            if (fromPath != null && !ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString())) {
-              ancestorOwnerAndPermissions.putAll(
-                  CopyableFile.resolveReplicatedAncestorOwnerAndPermissionsRecursively(srcFs, fromPath,
-                      new Path(commonFilesParent), configuration));
+            if (fromPath != null && !ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString()) && !targetFs.exists(fromPath)) {
+              ancestorOwnerAndPermissions.put(fromPath.toString(), copyableFile.getAncestorsOwnerAndPermission());
+              flattenedAncestorPermissions.putAll(CopyableFile.resolveReplicatedAncestorOwnerAndPermissionsRecursively(srcFs, fromPath, new Path(commonFilesParent), configuration));
             }
 
             if (existOnTarget && srcFile.isFile()) {
@@ -151,19 +155,11 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
           toDelete.add(targetFs.getFileStatus(fileToCopy));
         }
       }
-
-      // Only set permission for newly created folders on target
-      // To change permissions for existing dirs, expectation is to add the folder to the manifest
-      Set<String> parentFolders = new HashSet<>(ancestorOwnerAndPermissions.keySet());
-      for (String folder : parentFolders) {
-        if (targetFs.exists(new Path(folder))) {
-          ancestorOwnerAndPermissions.remove(folder);
-        }
-      }
-      Properties props = new Properties();
-      props.setProperty(CreateAndSetDirectoryPermissionCommitStep.STOP_ON_ERROR_KEY, "true");
-      CommitStep setPermissionCommitStep = new CreateAndSetDirectoryPermissionCommitStep(targetFs, ancestorOwnerAndPermissions, props);
-      copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
+      // We need both precommit step to create the directories copying to, and a postcommit step to ensure that the execute bit needed for recursive rename is reset
+      CommitStep createDirectoryWithPermissionsCommitStep = new CreateDirectoryWithPermissionsCommitStep(targetFs, ancestorOwnerAndPermissions, this.properties);
+      CommitStep setPermissionCommitStep = new SetPermissionCommitStep(targetFs, flattenedAncestorPermissions, this.properties);
+      copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), createDirectoryWithPermissionsCommitStep, 1));
+      copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
 
       if (!toDelete.isEmpty()) {
         //todo: add support sync for empty dir

@@ -22,10 +22,9 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
-import java.util.concurrent.ExecutionException;
 
+import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
-import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -42,14 +41,16 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
+import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
@@ -75,9 +76,7 @@ public class LaunchDagProcTest {
   public void setUp() throws Exception {
     this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
     this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
-    doReturn(FlowSpec.builder().build()).when(this.dagManagementStateStore).getFlowSpec(any());
-    doNothing().when(this.dagManagementStateStore).tryAcquireQuota(any());
-    doNothing().when(this.dagManagementStateStore).addDagNodeState(any(), any());
+    mockDMSSCommonBehavior(this.dagManagementStateStore);
   }
 
   @AfterClass(alwaysRun = true)
@@ -87,17 +86,18 @@ public class LaunchDagProcTest {
   }
 
   @Test
-  public void launchDag() throws IOException, InterruptedException, URISyntaxException, ExecutionException {
+  public void launchDag() throws IOException, InterruptedException, URISyntaxException {
     String flowGroup = "fg";
     String flowName = "fn";
     long flowExecutionId = 12345L;
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId,
         DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), 5, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName)));
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+            MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
-    SpecProducer<Spec> specProducer = DagManagerUtils.getSpecProducer(dag.getNodes().get(0));
     List<SpecProducer<Spec>> specProducers = ReevaluateDagProcTest.getDagSpecProducers(dag);
     LaunchDagProc launchDagProc = new LaunchDagProc(
         new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
@@ -107,15 +107,10 @@ public class LaunchDagProcTest {
     launchDagProc.process(this.dagManagementStateStore);
 
     int numOfLaunchedJobs = 1; // = number of start nodes
-    long addSpecCount = specProducers.stream()
-        .mapToLong(p -> Mockito.mockingDetails(p)
-            .getInvocations()
-            .stream()
-            .filter(a -> a.getMethod().getName().equals("addSpec"))
-            .count())
-        .sum();
-    Mockito.verify(specProducer, Mockito.times(numOfLaunchedJobs)).addSpec(any());
-    Assert.assertEquals(numOfLaunchedJobs, addSpecCount);
+    Mockito.verify(specProducers.get(0), Mockito.times(1)).addSpec(any());
+
+    specProducers.stream().skip(numOfLaunchedJobs) // separately verified `specProducers.get(0)`
+        .forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
 
     Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
         .addFlowDagAction(any(), any(), anyLong(), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
@@ -124,12 +119,14 @@ public class LaunchDagProcTest {
   @Test
   public void launchDagWithMultipleParallelJobs() throws IOException, InterruptedException, URISyntaxException {
     String flowGroup = "fg";
-    String flowName = "fn";
+    String flowName = "fn2";
     long flowExecutionId = 12345L;
     Dag<JobExecutionPlan> dag = buildDagWithMultipleNodesAtDifferentLevels("1", flowExecutionId,
         DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),"user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY,  ConfigValueFactory.fromAnyRef(flowName)));
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY,  ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     LaunchDagProc launchDagProc = new LaunchDagProc(
@@ -179,5 +176,24 @@ public class LaunchDagProcTest {
       jobExecutionPlans.add(jobExecutionPlan);
     }
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
+  }
+
+  public static void mockDMSSCommonBehavior(DagManagementStateStore dagManagementStateStore) throws IOException, SpecNotFoundException {
+    doReturn(FlowSpec.builder().build()).when(dagManagementStateStore).getFlowSpec(any());
+    doNothing().when(dagManagementStateStore).tryAcquireQuota(any());
+    doReturn(true).when(dagManagementStateStore).releaseQuota(any());
+  }
+
+  public static TopologySpec buildNaiveTopologySpec(String specUriInString) {
+    Config specExecConfig = MockedSpecExecutor.makeDummyConfigsForSpecExecutor(specUriInString);
+    SpecExecutor specExecutorInstanceProducer = new MockedSpecExecutor(specExecConfig);
+    TopologySpec.Builder topologySpecBuilder = TopologySpec
+        .builder(new Path(specExecConfig.getString("specStore.fs.dir")).toUri())
+        .withConfig(specExecConfig)
+        .withDescription("test")
+        .withVersion("1")
+        .withSpecExecutor(specExecutorInstanceProducer);
+
+    return topologySpecBuilder.build();
   }
 }

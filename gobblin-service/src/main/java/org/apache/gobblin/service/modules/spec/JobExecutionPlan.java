@@ -59,7 +59,7 @@ import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLAT
  * where the {@link JobSpec} will be executed.
  */
 @Data
-@EqualsAndHashCode(exclude = {"executionStatus", "currentAttempts", "jobFuture", "flowStartTime"})
+@EqualsAndHashCode(of = "id")
 public class JobExecutionPlan {
   public static final String JOB_MAX_ATTEMPTS = "job.maxAttempts";
   public static final String JOB_PROPS_KEY = "job.props";

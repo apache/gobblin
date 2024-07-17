@@ -28,19 +28,33 @@ import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 
 
+/**
+ * GaaS store for pending {@link DagAction}s on a flow or job.
+ * See javadoc for {@link DagAction}
+ */
 public interface DagActionStore {
   public static final String NO_JOB_NAME_DEFAULT = "";
   enum DagActionType {
-    CANCEL, // Invoked through DagManager if flow has been stuck in Orchestrated state for a while
     ENFORCE_JOB_START_DEADLINE, // Enforce job start deadline
     ENFORCE_FLOW_FINISH_DEADLINE, // Enforce flow finish deadline
     KILL, // Kill invoked through API call
     LAUNCH, // Launch new flow execution invoked adhoc or through scheduled trigger
     REEVALUATE, // Re-evaluate what needs to be done upon receipt of a final job status
     RESUME, // Resume flow invoked through API call
-    RETRY, // Invoked through DagManager for flows configured to allow retries
   }
 
+  /**
+   * A DagAction uniquely identifies a particular flow (or job level) execution and the action to be performed on it,
+   * denoted by the `dagActionType` field.
+   * These are created and stored either by a REST client request or generated within GaaS. The Flow Management layer
+   * retrieves and executes {@link DagAction}s to progress a flow's execution or enforce execution deadlines.
+   *
+   * Flow group, name, and executionId are sufficient to define a flow level action (used with
+   * {@link DagActionStore#NO_JOB_NAME_DEFAULT}). When `jobName` is provided, it can be used to identify the specific
+   * job on which the action is to be performed. The schema of this class matches exactly that of the
+   * {@link DagActionStore}.
+   *
+   */
   @Data
   @RequiredArgsConstructor
   class DagAction {
@@ -49,11 +63,6 @@ public interface DagActionStore {
     final long flowExecutionId;
     final String jobName;
     final DagActionType dagActionType;
-    final boolean isReminder;
-
-    public DagAction(String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionType dagActionType) {
-      this(flowGroup, flowName, flowExecutionId, jobName, dagActionType, false);
-    }
 
     public static DagAction forFlow(String flowGroup, String flowName, long flowExecutionId, DagActionType dagActionType) {
       return new DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, dagActionType);
@@ -85,6 +94,39 @@ public interface DagActionStore {
     }
   }
 
+  /**
+   * This object is used locally (in-memory) by the {@link MultiActiveLeaseArbiter} to identify a particular
+   * {@link DagAction} along with the time it was requested, denoted by the `eventTimeMillis` field. It also tracks
+   * whether it has been previously passed to the {@link MultiActiveLeaseArbiter} to attempt ownership over the flow
+   * event, indicated by the 'isReminder' field (true when it has been previously attempted).
+   */
+  @Data
+  @RequiredArgsConstructor
+  class LeaseParams {
+    final DagAction dagAction;
+    final boolean isReminder;
+    final long eventTimeMillis;
+
+    /**
+     * Creates a lease object for a dagAction and eventTimeMillis representing an original event (isReminder is False)
+     */
+    public LeaseParams(DagAction dagAction, long eventTimeMillis) {
+      this(dagAction, false, eventTimeMillis);
+    }
+
+    public LeaseParams(DagAction dagAction) {
+      this(dagAction, System.currentTimeMillis());
+    }
+
+    /**
+     * Replace flow execution id in dagAction with agreed upon event time to easily track the flow
+     */
+    public DagAction updateDagActionFlowExecutionId(long flowExecutionId) {
+      return this.dagAction.updateFlowExecutionId(flowExecutionId);
+    }
+  }
+
+
 
   /**
    * Check if an action exists in dagAction store by flow group, flow name, flow execution id, and job name.
@@ -95,7 +137,7 @@ public interface DagActionStore {
    * @param dagActionType the value of the dag action
    * @throws IOException
    */
-  boolean exists(String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionType dagActionType) throws IOException, SQLException;
+  boolean exists(String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionType dagActionType) throws IOException;
 
   /**
    * Check if an action exists in dagAction store by flow group, flow name, and flow execution id, it assumes jobName is

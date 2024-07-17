@@ -23,15 +23,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopyEntity;
-import org.apache.gobblin.data.management.copy.ManifestBasedDataset;
-import org.apache.gobblin.data.management.copy.ManifestBasedDatasetFinder;
-import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
-import org.apache.gobblin.data.management.partition.FileSet;
-import org.apache.gobblin.util.commit.CreateAndSetDirectoryPermissionCommitStep;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -44,7 +37,20 @@ import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
 
-import static org.mockito.Mockito.*;
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
+import org.apache.gobblin.data.management.copy.CopyEntity;
+import org.apache.gobblin.data.management.copy.ManifestBasedDataset;
+import org.apache.gobblin.data.management.copy.ManifestBasedDatasetFinder;
+import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.data.management.partition.FileSet;
+import org.apache.gobblin.util.commit.CreateDirectoryWithPermissionsCommitStep;
+import org.apache.gobblin.util.commit.SetPermissionCommitStep;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
+
+import static org.mockito.Mockito.any;
 
 
 public class ManifestBasedDatasetFinderTest {
@@ -91,10 +97,12 @@ public class ManifestBasedDatasetFinderTest {
               CopyConfiguration.builder(destFs, props).build());
       Assert.assertTrue(fileSets.hasNext());
       FileSet<CopyEntity> fileSet = fileSets.next();
-      Assert.assertEquals(fileSet.getFiles().size(), 3);  // 2 files to copy + 1 post publish step
-      Assert.assertTrue(((PrePublishStep) fileSet.getFiles().get(2)).getStep() instanceof CreateAndSetDirectoryPermissionCommitStep);
-      CreateAndSetDirectoryPermissionCommitStep
-          step = (CreateAndSetDirectoryPermissionCommitStep) ((PrePublishStep) fileSet.getFiles().get(2)).getStep();
+      Assert.assertEquals(fileSet.getFiles().size(), 4);  // 2 files to copy + 1 pre publish step + 1 post publish step
+      Assert.assertTrue(((PrePublishStep) fileSet.getFiles().get(2)).getStep() instanceof CreateDirectoryWithPermissionsCommitStep);
+      Assert.assertTrue(((PostPublishStep) fileSet.getFiles().get(3)).getStep() instanceof SetPermissionCommitStep);
+
+      CreateDirectoryWithPermissionsCommitStep
+          step = (CreateDirectoryWithPermissionsCommitStep) ((PrePublishStep) fileSet.getFiles().get(2)).getStep();
 
       Assert.assertEquals(step.getPathAndPermissions().keySet().size(), 1); // SetPermissionCommitStep only applies to ancestors
       Mockito.verify(manifestReadFs, Mockito.times(1)).exists(manifestPath);
@@ -136,8 +144,19 @@ public class ManifestBasedDatasetFinderTest {
           new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs, CopyConfiguration.builder(destFs, props).build());
       Assert.assertTrue(fileSets.hasNext());
       FileSet<CopyEntity> fileSet = fileSets.next();
-      Assert.assertEquals(fileSet.getFiles().size(), 3);  // 2 files to copy + 1 post publish step
-      Assert.assertTrue(((PrePublishStep)fileSet.getFiles().get(2)).getStep() instanceof CreateAndSetDirectoryPermissionCommitStep);
+      Assert.assertEquals(fileSet.getFiles().size(), 4);  // 2 files to copy + 1 pre publish step + 1 post publish step
+      CommitStep createDirectoryStep = ((PrePublishStep) fileSet.getFiles().get(2)).getStep();
+      Assert.assertTrue(createDirectoryStep instanceof CreateDirectoryWithPermissionsCommitStep);
+      Map<String, List<OwnerAndPermission>> pathAndPermissions = ((CreateDirectoryWithPermissionsCommitStep) createDirectoryStep).getPathAndPermissions();
+      Assert.assertEquals(pathAndPermissions.size(), 1);
+      Assert.assertTrue(pathAndPermissions.containsKey("/tmp/dataset"));
+
+      CommitStep setPermissionStep = ((PostPublishStep) fileSet.getFiles().get(3)).getStep();
+      Assert.assertTrue(setPermissionStep instanceof SetPermissionCommitStep);
+      Map<String, OwnerAndPermission> ownerAndPermissionMap = ((SetPermissionCommitStep) setPermissionStep).getPathAndPermissions();
+      Assert.assertEquals(ownerAndPermissionMap.size(), 2);
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset"));
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp"));
 
     }
   }
@@ -171,7 +190,7 @@ public class ManifestBasedDatasetFinderTest {
           new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs, CopyConfiguration.builder(destFs, props).build());
       Assert.assertTrue(fileSets.hasNext());
       FileSet<CopyEntity> fileSet = fileSets.next();
-      Assert.assertEquals(fileSet.getFiles().size(), 1); // Post publish step
+      Assert.assertEquals(fileSet.getFiles().size(), 2); // Pre and Post publish step
     }
   }
 
@@ -196,8 +215,10 @@ public class ManifestBasedDatasetFinderTest {
         CopyConfiguration.builder(destFs, props).build());
     Assert.assertTrue(fileSets.hasNext());
     FileSet<CopyEntity> fileSet = fileSets.next();
-    Assert.assertEquals(fileSet.getFiles().size(), 2);  // 1 files to copy + 1 post publish step
-    Assert.assertTrue(((PrePublishStep) fileSet.getFiles().get(1)).getStep() instanceof CreateAndSetDirectoryPermissionCommitStep);
+    Assert.assertEquals(fileSet.getFiles().size(), 3);  // 1 files to copy + 1 pre publish step + 1 post publish step
+    Assert.assertTrue(((PrePublishStep) fileSet.getFiles().get(1)).getStep() instanceof CreateDirectoryWithPermissionsCommitStep);
+    Assert.assertTrue(((PostPublishStep) fileSet.getFiles().get(2)).getStep() instanceof SetPermissionCommitStep);
+
   }
 
   private void setSourceAndDestFsMocks(FileSystem sourceFs, FileSystem destFs, Path manifestPath, FileSystem manifestReadFs) throws IOException, URISyntaxException {

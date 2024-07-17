@@ -48,19 +48,17 @@ public interface MultiActiveLeaseArbiter {
    * acquisition timestamp of the entry for that dag action event (it could have pre-existed in the table or been newly
    * added by the previous write). Based on the transaction results, it will return {@link LeaseAttemptStatus} to
    * determine the next action.
-   * @param dagAction uniquely identifies the flow and the present action upon it
-   * @param eventTimeMillis is the time this dag action was triggered
-   * @param isReminderEvent true if the dag action event we're checking on is a reminder event
+   *
+   * @param leaseParams                   uniquely identifies the flow, the present action upon it, the time the action
+   *                                      was triggered, and if the dag action event we're checking on is a reminder event
    * @param adoptConsensusFlowExecutionId if true then replaces the dagAction flowExecutionId returned in
    *                                      LeaseAttemptStatuses with the consensus eventTime, accessed via
    *                                      {@link LeaseAttemptStatus#getConsensusDagAction()}
-   *
    * @return {@link LeaseAttemptStatus}, containing, when `adoptConsensusFlowExecutionId`, a universally-agreed-upon
    * {@link DagActionStore.DagAction} with a possibly updated ("laundered") flow execution id that MUST be used thereafter
    * @throws IOException
    */
-  LeaseAttemptStatus tryAcquireLease(DagActionStore.DagAction dagAction, long eventTimeMillis, boolean isReminderEvent,
-      boolean adoptConsensusFlowExecutionId)
+  LeaseAttemptStatus tryAcquireLease(DagActionStore.LeaseParams leaseParams, boolean adoptConsensusFlowExecutionId)
       throws IOException;
 
   /**
