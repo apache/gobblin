@@ -68,7 +68,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, getDagId().getFlowExecutionId());
       Optional<Dag<JobExecutionPlan>> dag = this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
       if (dag.isPresent()) {
-        dagManagementStateStore.checkpointDag(dag.get());
+        dagManagementStateStore.addDag(dag.get());
       }
       return dag;
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException | IOException e) {
@@ -84,8 +84,6 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       // todo - add metrics
     } else {
       DagProcUtils.submitNextNodes(dagManagementStateStore, dag.get(), getDagId());
-      // Checkpoint the dag state, it should have an updated value of dag nodes
-      dagManagementStateStore.checkpointDag(dag.get());
       DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
       orchestrationDelayCounter.set(System.currentTimeMillis() - DagManagerUtils.getFlowExecId(dag.get()));
     }

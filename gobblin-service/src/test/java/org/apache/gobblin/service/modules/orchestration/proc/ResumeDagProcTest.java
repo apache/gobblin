@@ -85,7 +85,7 @@ public class ResumeDagProcTest {
     dag.getNodes().get(1).getValue().setExecutionStatus(ExecutionStatus.FAILED);
     dag.getNodes().get(2).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
     dag.getNodes().get(4).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
-    this.dagManagementStateStore.checkpointDag(dag);
+    this.dagManagementStateStore.addDag(dag);
     // simulate it as a failed dag
     this.dagManagementStateStore.markDagFailed(dagId);
 

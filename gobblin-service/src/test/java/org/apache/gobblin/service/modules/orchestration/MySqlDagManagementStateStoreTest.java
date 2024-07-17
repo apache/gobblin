@@ -62,7 +62,6 @@ public class MySqlDagManagementStateStoreTest {
   private MySqlDagManagementStateStore dagManagementStateStore;
   private static final String TEST_USER = "testUser";
   public static final String TEST_PASSWORD = "testPassword";
-  private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
   private static final String TEST_TABLE = "table";
   public static String TEST_SPEC_EXECUTOR_URI = "mySpecExecutor";
 
@@ -104,8 +103,8 @@ public class MySqlDagManagementStateStoreTest {
     DagManager.DagId dagId2 = DagManagerUtils.generateDagId(dag2);
     DagNodeId dagNodeId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
 
-    this.dagManagementStateStore.checkpointDag(dag);
-    this.dagManagementStateStore.checkpointDag(dag2);
+    this.dagManagementStateStore.addDag(dag);
+    this.dagManagementStateStore.addDag(dag2);
     this.dagManagementStateStore.addDagNodeState(dagNode, dagId);
     this.dagManagementStateStore.addDagNodeState(dagNode2, dagId);
     this.dagManagementStateStore.addDagNodeState(dagNode3, dagId2);
@@ -118,13 +117,7 @@ public class MySqlDagManagementStateStoreTest {
     Assert.assertTrue(dagNodes.contains(dagNode));
     Assert.assertTrue(dagNodes.contains(dagNode2));
 
-    this.dagManagementStateStore.deleteDagNodeState(dagId, dagNode);
-    Assert.assertFalse(this.dagManagementStateStore.getDagNodes(dagId).contains(dagNode));
-    Assert.assertTrue(this.dagManagementStateStore.getDagNodes(dagId).contains(dagNode2));
-    Assert.assertTrue(this.dagManagementStateStore.getDagNodes(dagId2).contains(dagNode3));
-
     // test to verify that adding a new dag node with the same dag node id (defined by the jobSpec) replaces the existing one
-    Assert.assertEquals(this.dagManagementStateStore.getDagNodes(dagId).size(), 1);
     JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(dagNode2.getValue().getJobSpec(),
         DagTestUtils.buildNaiveTopologySpec("mySpecExecutor").getSpecExecutor());
     jobExecutionPlan.setExecutionStatus(ExecutionStatus.RUNNING);
@@ -134,12 +127,12 @@ public class MySqlDagManagementStateStoreTest {
 
     Dag.DagNode<JobExecutionPlan> duplicateDagNode = new Dag.DagNode<>(jobExecutionPlan);
     this.dagManagementStateStore.addDagNodeState(duplicateDagNode, dagId);
-    Assert.assertEquals(this.dagManagementStateStore.getDagNodes(dagId).size(), 1);
+    Assert.assertEquals(this.dagManagementStateStore.getDagNodes(dagId).size(), 2);
   }
 
   public static MySqlDagManagementStateStore getDummyDMSS(ITestMetastoreDatabase testMetastoreDatabase) throws Exception {
     ConfigBuilder configBuilder = ConfigBuilder.create();
-    configBuilder.addPrimitive(MySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreV2.class.getName())
+    configBuilder.addPrimitive(MySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreWithDagNodes.class.getName())
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, testMetastoreDatabase.getJdbcUrl())
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, "dag" + 1)
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER)

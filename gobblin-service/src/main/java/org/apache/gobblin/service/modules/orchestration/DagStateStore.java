@@ -56,13 +56,13 @@ public interface DagStateStore {
    * Delete the {@link Dag} from the backing store, typically upon completion of execution.
    * @param dagId The ID of the dag to clean up.
    */
-  // todo - change it to return boolean
   @Deprecated
   void cleanUp(String dagId) throws IOException;
 
   /**
    * Load all currently running {@link Dag}s from the underlying store. Typically, invoked when a new {@link DagManager}
    * takes over or on restart of service.
+   * @deprecated because {@link DagProcessingEngine} that will replace {@link DagManager} does not need this API
    * @return a {@link List} of currently running {@link Dag}s.
    */
   @Deprecated

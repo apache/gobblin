@@ -43,6 +43,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
@@ -60,8 +61,9 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Slf4j
 @Singleton
 public class MySqlDagManagementStateStore implements DagManagementStateStore {
-  private DagNodeStateStore dagStateStore;
-  private DagNodeStateStore failedDagStateStore;
+  // todo - these two stores should merge
+  private DagStateStoreWithDagNodes dagStateStore;
+  private DagStateStoreWithDagNodes failedDagStateStore;
   private final JobStatusRetriever jobStatusRetriever;
   private boolean dagStoresInitialized = false;
   private final UserQuotaManager quotaManager;
@@ -110,22 +112,22 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
     this.flowCatalog.remove(uri, headers, triggerListener);
   }
 
-  public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) throws IOException {
+  public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) {
     this.topologySpecMap = topologySpecMap;
     start();
   }
 
-  private DagNodeStateStore createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
+  private DagStateStoreWithDagNodes createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
     try {
-      Class<?> dagStateStoreClass = Class.forName(ConfigUtils.getString(config, DAG_STATESTORE_CLASS_KEY, MysqlDagStateStore.class.getName()));
-      return (DagNodeStateStore) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config, topologySpecMap);
+      Class<?> dagStateStoreClass = Class.forName(ConfigUtils.getString(config, DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreWithDagNodes.class.getName()));
+      return (DagStateStoreWithDagNodes) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config, topologySpecMap);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }
   }
 
   @Override
-  public void checkpointDag(Dag<JobExecutionPlan> dag) throws IOException {
+  public void addDag(Dag<JobExecutionPlan> dag) throws IOException {
     this.dagStateStore.writeCheckpoint(dag);
   }
 
@@ -148,6 +150,7 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   @Override
   public void deleteFailedDag(DagManager.DagId dagId) throws IOException {
     this.failedDagStateStore.cleanUp(dagId);
+    log.info("Deleted failed dag {}", dagId);
   }
 
   @Override
@@ -156,17 +159,9 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   }
 
   @Override
-  // todo - updating different maps here and in addDagNodeState can result in inconsistency between the maps
-  public synchronized void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode)
-      throws IOException {
-    this.dagStateStore.deleteDagNodeState(dagId, dagNode);
-  }
-
-  // todo - updating different mapps here and in deleteDagNodeState can result in inconsistency between the maps
-  @Override
   public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
       throws IOException {
-    this.dagStateStore.addDagNodeState(dagNode, dagId);
+    this.dagStateStore.updateDagNode(dagId, dagNode);
   }
 
   @Override
@@ -189,11 +184,6 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   @Override
   public Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException {
     return this.dagStateStore.getDagNodes(dagId);
-  }
-
-  public void initQuota(Collection<Dag<JobExecutionPlan>> dags) {
-    // This implementation does not need to update quota usage when the service restarts or when its leadership status changes
-    // because quota usage are persisted in mysql table
   }
 
   @Override
@@ -220,19 +210,11 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
     }
   }
 
-  /* todo - this method works because when the jobs finish they are deleted from the DMSS -> if no more job is found, means
-   no more running jobs.
-   But DMSS still has dags and which still contains dag nodes. We need to revisit this method's logic when we change
-   DMSS to a fully mysql backed implementation. then we may want to consider this approach
-   return getDagNodes(dagId).stream()
-       .anyMatch(node -> !FlowStatusGenerator.FINISHED_STATUSES.contains(node.getValue().getExecutionStatus().name()));
-       todo - we should stop deleting dag nodes when job finishes. rather set their status and move on.
-       then update this method to check status.
-       dag nodes should be cleaned all together when the entire dag is cleaned
-  */
+
   @Override
   public boolean hasRunningJobs(DagManager.DagId dagId) throws IOException {
-    return !getDagNodes(dagId).isEmpty();
+    return getDagNodes(dagId).stream()
+        .anyMatch(node -> !FlowStatusGenerator.FINISHED_STATUSES.contains(node.getValue().getExecutionStatus().name()));
   }
 
   @Override

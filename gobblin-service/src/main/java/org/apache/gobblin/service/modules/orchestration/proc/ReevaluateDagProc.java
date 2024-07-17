@@ -27,7 +27,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
@@ -76,11 +75,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       return;
     }
 
-    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
     JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
     ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
-    // pass dag, so that dag is updated too, updated information will be required in onJobFinish in finding next jobs to submit
-    setStatus(dagManagementStateStore, dag, getDagNodeId(), executionStatus);
+    updateDagNodeStatus(dagManagementStateStore, dagNode, executionStatus);
 
     if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
       log.warn("Job status for dagNode {} is {}. Re-evaluate dag action should have been created only for finished status - {}",
@@ -91,7 +88,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
           dagNodeId, executionStatus, FlowStatusGenerator.FINISHED_STATUSES));
     }
 
-    onJobFinish(dagManagementStateStore, dagNode, executionStatus, dag);
+    // get the dag after updating dag node status
+    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
+    onJobFinish(dagManagementStateStore, dagNode, dag);
 
     if (jobStatus.isShouldRetry()) {
       log.info("Retrying job: {}, current attempts: {}, max attempts: {}",
@@ -125,17 +124,10 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
    * Sets status of a dag node inside the given Dag.
    * todo - DMSS should support this functionality like an atomic get-and-set operation.
    */
-  private void setStatus(DagManagementStateStore dagManagementStateStore,
-      Dag<JobExecutionPlan> dag, DagNodeId dagNodeId, ExecutionStatus executionStatus) throws IOException {
-    for (Dag.DagNode<JobExecutionPlan> node : dag.getNodes()) {
-      if (node.getValue().getId().equals(dagNodeId)) {
-        node.getValue().setExecutionStatus(executionStatus);
-        dagManagementStateStore.addDagNodeState(node, getDagId());
-        dagManagementStateStore.checkpointDag(dag);
-        return;
-      }
-    }
-    log.error("DagNode with id {} not found in Dag {}", dagNodeId, getDagId());
+  private void updateDagNodeStatus(DagManagementStateStore dagManagementStateStore,
+      Dag.DagNode<JobExecutionPlan> dagNode, ExecutionStatus executionStatus) throws IOException {
+    dagNode.getValue().setExecutionStatus(executionStatus);
+    dagManagementStateStore.addDagNodeState(dagNode, getDagId());
   }
 
   /**
@@ -143,8 +135,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
    * This method updates the state of the dag and performs clean up actions as necessary.
    */
   private void onJobFinish(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode,
-      ExecutionStatus executionStatus, Dag<JobExecutionPlan> dag) throws IOException {
+      Dag<JobExecutionPlan> dag) throws IOException {
     String jobName = DagManagerUtils.getFullyQualifiedJobName(dagNode);
+    ExecutionStatus executionStatus = dagNode.getValue().getExecutionStatus();
     log.info("Job {} of Dag {} has finished with status {}", jobName, getDagId(), executionStatus.name());
     // Only decrement counters and quota for jobs that actually ran on the executor, not from a GaaS side failure/skip event
     if (dagManagementStateStore.releaseQuota(dagNode)) {
@@ -167,9 +160,5 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       default:
         log.warn("It should not reach here. Job status {} is unexpected.", executionStatus);
     }
-
-    // Checkpoint the dag state, it should have an updated value of dag fields
-    dagManagementStateStore.checkpointDag(dag);
-    dagManagementStateStore.deleteDagNodeState(getDagId(), dagNode);
   }
 }

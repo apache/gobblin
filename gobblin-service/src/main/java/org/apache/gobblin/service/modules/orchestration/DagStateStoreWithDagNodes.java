@@ -28,11 +28,12 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 /**
  * An interface for storing and retrieving currently running {@link Dag.DagNode<JobExecutionPlan>}s.
+ * Callers should use {@link DagStateStore#writeCheckpoint} to store dags. After that, to update individual
+ * {@link Dag.DagNode}s, {@link DagStateStoreWithDagNodes#updateDagNode} should be used.
+ * {@link DagStateStore#cleanUp(DagManager.DagId)} should be used to delete all the {@link Dag.DagNode}s for a {@link Dag}.
  */
-public interface DagNodeStateStore extends DagStateStore {
-  int addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId) throws IOException;
-
-  boolean deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
+public interface DagStateStoreWithDagNodes extends DagStateStore {
+  int updateDagNode(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
   Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
 

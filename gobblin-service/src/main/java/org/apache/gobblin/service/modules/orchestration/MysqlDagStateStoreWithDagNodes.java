@@ -62,17 +62,16 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.DBStatementExecutor;
 
-import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
 import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.generateDagId;
 
 
 /**
- * An implementation of {@link DagNodeStateStore} using MySQL as a backup.
+ * An implementation of {@link DagStateStoreWithDagNodes} using MySQL as a backup.
  */
 @Slf4j
-public class MysqlDagStateStoreV2 implements DagNodeStateStore {
+public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes {
 
-  public static final String CONFIG_PREFIX = GOBBLIN_SERVICE_PREFIX + "mysqlDagStateStore";
+  public static final String CONFIG_PREFIX = MysqlDagStateStore.CONFIG_PREFIX;
   protected final DBStatementExecutor dbStatementExecutor;
   protected final String tableName;
   protected final GsonSerDe<List<JobExecutionPlan>> serDe;
@@ -82,19 +81,20 @@ public class MysqlDagStateStoreV2 implements DagNodeStateStore {
   protected static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
       + "dag_node_id VARCHAR(" + ServiceConfigKeys.MAX_DAG_NODE_ID_LENGTH + ") CHARACTER SET latin1 COLLATE latin1_bin NOT NULL, "
       + "parent_dag_id VARCHAR(" + ServiceConfigKeys.MAX_DAG_ID_LENGTH + ") NOT NULL, "
-      + "dag_node JSON, "
+      + "dag_node JSON NOT NULL, "
       + "modified_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
-      + "PRIMARY KEY (dag_node_id))";
+      + "PRIMARY KEY (dag_node_id), "
+      + "UNIQUE INDEX dag_node_index (dag_node_id), "
+      + "INDEX dag_index (parent_dag_id))";
 
   protected static final String INSERT_STATEMENT = "INSERT INTO %s (dag_node_id, parent_dag_id, dag_node) "
       + "VALUES (?, ?, ?) AS new ON DUPLICATE KEY UPDATE dag_node = new.dag_node";
-  protected static final String GET_DAG_STATEMENT = "SELECT dag_node FROM %s WHERE parent_dag_id = ?";
+  protected static final String GET_DAG_NODES_STATEMENT = "SELECT dag_node FROM %s WHERE parent_dag_id = ?";
   protected static final String GET_DAG_NODE_STATEMENT = "SELECT dag_node FROM %s WHERE dag_node_id = ?";
   protected static final String DELETE_DAG_STATEMENT = "DELETE FROM %s WHERE parent_dag_id = ?";
-  protected static final String DELETE_DAG_NODE_STATEMENT = "DELETE FROM %s WHERE dag_node_id = ?";
   private final ContextAwareCounter totalDagCount;
 
-  public MysqlDagStateStoreV2(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
+  public MysqlDagStateStoreWithDagNodes(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
     if (config.hasPath(CONFIG_PREFIX)) {
       config = config.getConfig(CONFIG_PREFIX).withFallback(config);
     }
@@ -122,7 +122,7 @@ public class MysqlDagStateStoreV2 implements DagNodeStateStore {
     MetricContext metricContext =
         Instrumented.getMetricContext(new State(ConfigUtils.configToProperties(config)), this.getClass());
     this.totalDagCount = metricContext.contextAwareCounter(ServiceMetricNames.DAG_COUNT_MYSQL_DAG_STATE_COUNT);
-
+    log.info("Instantiated {}", getClass().getSimpleName());
   }
 
   @Override
@@ -131,7 +131,7 @@ public class MysqlDagStateStoreV2 implements DagNodeStateStore {
     DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
     boolean newDag = false;
     for (Dag.DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
-      if (addDagNodeState(dagNode, dagId) == 1) {
+      if (updateDagNode(dagId, dagNode) == 1) {
         newDag = true;
       }
     }
@@ -142,7 +142,7 @@ public class MysqlDagStateStoreV2 implements DagNodeStateStore {
 
   @Override
   public void cleanUp(Dag<JobExecutionPlan> dag) throws IOException {
-    cleanUp(generateDagId(dag).toString());
+    cleanUp(generateDagId(dag));
   }
 
   @Override
@@ -160,13 +160,14 @@ public class MysqlDagStateStoreV2 implements DagNodeStateStore {
 
   @Override
   public void cleanUp(String dagId) throws IOException {
-    throw new NotSupportedException(getClass().getSimpleName() + " does not need this API");
+    throw new NotSupportedException(getClass().getSimpleName() + " does not need this legacy API that originated with "
+        + "the DagManager that is replaced by DagProcessingEngine");
   }
 
   @Override
   public List<Dag<JobExecutionPlan>> getDags() throws IOException {
-    throw new NotSupportedException(getClass().getSimpleName() + " does not need this API");
-  }
+    throw new NotSupportedException(getClass().getSimpleName() + " does not need this legacy API that originated with "
+        + "the DagManager that is replaced by DagProcessingEngine");  }
 
   @Override
   public Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException {
@@ -194,7 +195,7 @@ public class MysqlDagStateStoreV2 implements DagNodeStateStore {
   }
 
   @Override
-  public int addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId parentDagId) throws IOException {
+  public int updateDagNode(DagManager.DagId parentDagId, Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
     String dagNodeId = dagNode.getValue().getId().toString();
     return dbStatementExecutor.withPreparedStatement(String.format(INSERT_STATEMENT, tableName), insertStatement -> {
       try {
@@ -208,20 +209,8 @@ public class MysqlDagStateStoreV2 implements DagNodeStateStore {
   }
 
   @Override
-  public boolean deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
-    String dagNodeId = dagNode.getValue().getId().toString();
-    return dbStatementExecutor.withPreparedStatement(String.format(DELETE_DAG_NODE_STATEMENT, tableName), deleteStatement -> {
-      try {
-        deleteStatement.setString(1, dagNodeId);
-        return deleteStatement.executeUpdate() != 0;
-      } catch (SQLException e) {
-        throw new IOException(String.format("Failure deleting dag node for %s", dagNodeId), e);
-      }}, true);
-  }
-
-  @Override
   public Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId parentDagId) throws IOException {
-    return dbStatementExecutor.withPreparedStatement(String.format(GET_DAG_STATEMENT, tableName), getStatement -> {
+    return dbStatementExecutor.withPreparedStatement(String.format(GET_DAG_NODES_STATEMENT, tableName), getStatement -> {
       getStatement.setString(1, parentDagId.toString());
       HashSet<Dag.DagNode<JobExecutionPlan>> dagNodes = new HashSet<>();
       try (ResultSet rs = getStatement.executeQuery()) {

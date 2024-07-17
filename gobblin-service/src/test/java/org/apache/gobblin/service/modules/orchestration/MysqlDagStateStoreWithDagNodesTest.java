@@ -41,7 +41,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 /**
  * Mainly testing functionalities related to DagStateStore but not Mysql-related components.
  */
-public class MysqlDagStateStoreV2Test {
+public class MysqlDagStateStoreWithDagNodesTest {
 
   private DagStateStore dagStateStore;
 
@@ -62,7 +62,7 @@ public class MysqlDagStateStoreV2Test {
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
-    this.dagStateStore = new MysqlDagStateStoreV2(configBuilder.build(), topologySpecMap);
+    this.dagStateStore = new MysqlDagStateStoreWithDagNodes(configBuilder.build(), topologySpecMap);
   }
 
   @AfterClass(alwaysRun = true)
@@ -74,19 +74,19 @@ public class MysqlDagStateStoreV2Test {
   }
 
   @Test
-  public void testWriteGetAndDeleteDag() throws Exception{
-    Dag<JobExecutionPlan> dag_0 = DagTestUtils.buildDag("random_0", 123L);
-    Dag<JobExecutionPlan> dag_1 = DagTestUtils.buildDag("random_1", 456L);
-    DagManager.DagId dagId0 = DagManagerUtils.generateDagId(dag_0);
-    DagManager.DagId dagId1 = DagManagerUtils.generateDagId(dag_1);
-    this.dagStateStore.writeCheckpoint(dag_0);
-    this.dagStateStore.writeCheckpoint(dag_1);
+  public void testAddGetAndDeleteDag() throws Exception{
+    Dag<JobExecutionPlan> dag0Orig = DagTestUtils.buildDag("random_0", 123L);
+    Dag<JobExecutionPlan> dag1Orig = DagTestUtils.buildDag("random_1", 456L);
+    DagManager.DagId dagId0 = DagManagerUtils.generateDagId(dag0Orig);
+    DagManager.DagId dagId1 = DagManagerUtils.generateDagId(dag1Orig);
+    this.dagStateStore.writeCheckpoint(dag0Orig);
+    this.dagStateStore.writeCheckpoint(dag1Orig);
 
     // Verify get one dag
     Dag<JobExecutionPlan> dag0 = this.dagStateStore.getDag(dagId0);
     Dag<JobExecutionPlan> dag1 = this.dagStateStore.getDag(dagId1);
-    Assert.assertTrue(MySqlDagManagementStateStoreTest.compareLists(dag0.getNodes(), dag_0.getNodes()));
-    Assert.assertTrue(MySqlDagManagementStateStoreTest.compareLists(dag1.getNodes(), dag_1.getNodes()));
+    Assert.assertTrue(MySqlDagManagementStateStoreTest.compareLists(dag0.getNodes(), dag0Orig.getNodes()));
+    Assert.assertTrue(MySqlDagManagementStateStoreTest.compareLists(dag1.getNodes(), dag1Orig.getNodes()));
 
     // Verify dag contents
     Dag<JobExecutionPlan> dagDeserialized = dag0;
