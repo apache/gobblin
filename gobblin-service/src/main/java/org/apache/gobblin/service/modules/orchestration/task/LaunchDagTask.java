@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.orchestration.task;
 
 import java.net.URISyntaxException;
 import lombok.extern.slf4j.Slf4j;
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -53,7 +52,6 @@ public class LaunchDagTask extends DagTask {
             this.dagAction.getFlowName(), this.dagAction.getFlowExecutionId());
         FlowSpec flowSpec =
             this.dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(dagId.getFlowId()));
-        flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagId.getFlowExecutionId());
         if (!flowSpec.isScheduled()) {
           dagManagementStateStore.removeFlowSpec(flowSpec);
         }
@@ -62,6 +60,7 @@ public class LaunchDagTask extends DagTask {
     } catch (SpecNotFoundException | URISyntaxException e) {
       log.error("Unable to retrieve flowSpec to delete from flowCatalog if adhoc.");
       throw new RuntimeException(e);
-    } return false;
+    }
+    return false;
   }
 }
