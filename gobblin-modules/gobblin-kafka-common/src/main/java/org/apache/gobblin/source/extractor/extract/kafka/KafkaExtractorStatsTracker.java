@@ -79,6 +79,8 @@ public class KafkaExtractorStatsTracker {
   private static final String FETCH_MESSAGE_BUFFER_TIME = "fetchMessageBufferTime";
   private static final String LAST_RECORD_HEADER_TIMESTAMP = "lastRecordHeaderTimestamp";
   private static final String OBSERVED_LATENCY_HISTOGRAM = "observedLatencyHistogram";
+  private static final String SLA_CREATION_TS_DURATION = "slaCreationTimeDuration";
+  private static final String SLA_APPEND_TS_DURATION = "slaAppendTimeDuration";
 
   @Getter
   private final Map<KafkaPartition, ExtractorStats> statsMap;
@@ -183,6 +185,8 @@ public class KafkaExtractorStatsTracker {
     private long minLogAppendTime = -1L;
     private long maxLogAppendTime = -1L;
     private long minRecordCreationTime = -1L;
+    private long slaCreationTimeDuration = -1L;
+    private long slaAppendTimeDuration = -1L;
   }
 
   /**
@@ -305,6 +309,13 @@ public class KafkaExtractorStatsTracker {
         }
         if (logAppendTimestamp > 0 && (System.currentTimeMillis() - logAppendTimestamp > recordLevelSlaMillis)) {
           v.slaMissedRecordCount++;
+        }
+        // See context in GOBBLIN-2114
+        if (logAppendTimestamp > 0) {
+          v.slaAppendTimeDuration = System.currentTimeMillis() - logAppendTimestamp;        
+        }
+        if (recordCreationTimestamp > 0) {
+          v.slaCreationTimeDuration = System.currentTimeMillis() - recordCreationTimestamp;        
         }
       }
       return v;
@@ -456,6 +467,8 @@ public class KafkaExtractorStatsTracker {
     tagsForPartition.put(UNDECODABLE_MESSAGE_COUNT, Long.toString(stats.getDecodingErrorCount()));
     tagsForPartition.put(NULL_RECORD_COUNT, Long.toString(stats.getNullRecordCount()));
     tagsForPartition.put(LAST_RECORD_HEADER_TIMESTAMP, Long.toString(stats.getLastSuccessfulRecordHeaderTimestamp()));
+    tagsForPartition.put(SLA_APPEND_TS_DURATION, Long.toString(stats.getSlaAppendTimeDuration()));
+    tagsForPartition.put(SLA_CREATION_TS_DURATION, Long.toString(stats.getSlaCreationTimeDuration()));
 
     // Commit avg time to pull a record for each partition
     double avgMillis = stats.getAvgMillisPerRecord();
