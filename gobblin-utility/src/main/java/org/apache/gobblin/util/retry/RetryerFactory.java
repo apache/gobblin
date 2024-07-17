@@ -16,12 +16,16 @@
  */
 package org.apache.gobblin.util.retry;
 
+import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.apache.commons.collections.CollectionUtils;
+
 
 import com.github.rholder.retry.Retryer;
 import com.github.rholder.retry.RetryerBuilder;
@@ -32,8 +36,13 @@ import com.google.common.base.Predicate;
 import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.google.common.annotations.VisibleForTesting;
 
 import org.apache.gobblin.exception.NonTransientException;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+
+
 
 /**
  * Factory class that builds Retryer.
@@ -52,11 +61,12 @@ public class RetryerFactory<T> {
   public static final String RETRY_TYPE = "retry_type";
   // value large or equal to 1
   public static final String RETRY_TIMES = "retry_times";
+  public static final Predicate<Throwable> RETRY_EXCEPTION_PREDICATE_DEFAULT;
 
-  private static final Predicate<Throwable> RETRY_EXCEPTION_PREDICATE;
   private static final Config DEFAULTS;
+
   static {
-    RETRY_EXCEPTION_PREDICATE = t -> !(t instanceof NonTransientException);
+    RETRY_EXCEPTION_PREDICATE_DEFAULT = t -> !(t instanceof NonTransientException);
 
     Map<String, Object> configMap = ImmutableMap.<String, Object>builder()
                                                 .put(RETRY_TIME_OUT_MS, TimeUnit.MINUTES.toMillis(5L))
@@ -87,6 +97,7 @@ public class RetryerFactory<T> {
     RetryType type = RetryType.valueOf(config.getString(RETRY_TYPE).toUpperCase());
 
     RetryerBuilder<T> builder;
+
     switch (type) {
       case EXPONENTIAL:
         builder = newExponentialRetryerBuilder(config);
@@ -105,6 +116,44 @@ public class RetryerFactory<T> {
   }
 
   /**
+   Retrieves a retry predicate based on the configuration provided. If the configuration
+   does not specify any exceptions, a default retry predicate is returned.
+   *
+   @param config the configuration object containing the list of exception class names
+   @return a Predicate that evaluates to true if the throwable should be retried, false otherwise
+   */
+  @VisibleForTesting
+  public static Predicate<Throwable> getRetryPredicateFromConfigOrDefault(Config config) {
+    // Retrieve the list of exception class names from the configuration
+    List<String> exceptionList = ConfigUtils.getStringList(config, ConfigurationKeys.EXCEPTION_LIST_FOR_RETRY_CONFIG_KEY);
+
+    // If the exception list is null or empty, return the default retry predicate
+    if (CollectionUtils.isEmpty(exceptionList)) {
+      return RETRY_EXCEPTION_PREDICATE_DEFAULT;
+    }
+
+    // Create a retry predicate by mapping each exception class name to a Predicate
+    return exceptionList.stream().map(exceptionClassName -> {
+          try {
+            Class<?> clazz = Class.forName(exceptionClassName);
+            if (Exception.class.isAssignableFrom(clazz)) {
+              // Return a Predicate that checks if a Throwable is an instance of the class
+              return (Predicate<Throwable>) clazz::isInstance;
+            } else {
+              LOG.error("{} is not an exception,ignoring", exceptionClassName);
+            }
+          } catch (ClassNotFoundException ignored) {
+            LOG.error("Class not found for the given exception className {},ignoring it", exceptionClassName, ignored);
+          } catch (Exception ignored) {
+            LOG.error("Failed to instantiate exception {},ignoring it", exceptionClassName, ignored);
+          }
+          return null;
+        }).filter(Objects::nonNull) // Filter out any null values
+        .reduce(com.google.common.base.Predicates::or) // Combine all predicates using logical OR
+        .orElse(RETRY_EXCEPTION_PREDICATE_DEFAULT); // Default to retryExceptionPredicate if no valid predicates are found
+  }
+
+  /**
    * Creates new instance of retryer based on the config and having no {@link RetryListener}
    */
   public static <T> Retryer<T> newInstance(Config config) {
@@ -112,24 +161,24 @@ public class RetryerFactory<T> {
   }
 
   private static <T> RetryerBuilder<T> newFixedRetryerBuilder(Config config) {
-    return RetryerBuilder.<T> newBuilder()
-        .retryIfException(RETRY_EXCEPTION_PREDICATE)
+    return RetryerBuilder.<T>newBuilder()
+        .retryIfException(getRetryPredicateFromConfigOrDefault(config))
         .withWaitStrategy(WaitStrategies.fixedWait(config.getLong(RETRY_INTERVAL_MS), TimeUnit.MILLISECONDS))
         .withStopStrategy(StopStrategies.stopAfterDelay(config.getLong(RETRY_TIME_OUT_MS), TimeUnit.MILLISECONDS));
   }
 
   private static <T> RetryerBuilder<T> newExponentialRetryerBuilder(Config config) {
-    return RetryerBuilder.<T> newBuilder()
-        .retryIfException(RETRY_EXCEPTION_PREDICATE)
-        .withWaitStrategy(WaitStrategies.exponentialWait(config.getLong(RETRY_MULTIPLIER),
-                                                         config.getLong(RETRY_INTERVAL_MS),
-                                                         TimeUnit.MILLISECONDS))
+    return RetryerBuilder.<T>newBuilder()
+        .retryIfException(getRetryPredicateFromConfigOrDefault(config))
+        .withWaitStrategy(
+            WaitStrategies.exponentialWait(config.getLong(RETRY_MULTIPLIER), config.getLong(RETRY_INTERVAL_MS),
+                TimeUnit.MILLISECONDS))
         .withStopStrategy(StopStrategies.stopAfterDelay(config.getLong(RETRY_TIME_OUT_MS), TimeUnit.MILLISECONDS));
   }
 
   private static <T> RetryerBuilder<T> newFixedAttemptBoundRetryerBuilder(Config config) {
-    return RetryerBuilder.<T> newBuilder()
-        .retryIfException(RETRY_EXCEPTION_PREDICATE)
+    return RetryerBuilder.<T>newBuilder()
+        .retryIfException(getRetryPredicateFromConfigOrDefault(config))
         .withWaitStrategy(WaitStrategies.fixedWait(config.getLong(RETRY_INTERVAL_MS), TimeUnit.MILLISECONDS))
         .withStopStrategy(StopStrategies.stopAfterAttempt(config.getInt(RETRY_TIMES)));
   }
