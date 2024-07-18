@@ -38,7 +38,6 @@ import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.DBStatementExecutor;
-import org.apache.gobblin.util.ExponentialBackoff;
 
 
 @Slf4j
@@ -49,14 +48,11 @@ public class MysqlDagActionStore implements DagActionStore {
   protected final DataSource dataSource;
   private final DBStatementExecutor dbStatementExecutor;
   private final String tableName;
-  private final long retentionPeriodSeconds;
-  private String thisTableRetentionStatement;
   private static final String EXISTS_STATEMENT = "SELECT EXISTS(SELECT * FROM %s WHERE flow_group = ? AND flow_name = ? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?)";
 
   protected static final String INSERT_STATEMENT = "INSERT INTO %s (flow_group, flow_name, flow_execution_id, job_name, dag_action) "
       + "VALUES (?, ?, ?, ?, ?)";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?";
-  private static final String GET_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, job_name, dag_action FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?";
   private static final String GET_ALL_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, job_name, dag_action FROM %s";
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (" +
   "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, "
@@ -64,10 +60,9 @@ public class MysqlDagActionStore implements DagActionStore {
       + "job_name varchar(" + ServiceConfigKeys.MAX_JOB_NAME_LENGTH + ") NOT NULL, "
       + "dag_action varchar(50) NOT NULL, modified_time TIMESTAMP DEFAULT CURRENT_TIMESTAMP  on update CURRENT_TIMESTAMP NOT NULL, "
       + "PRIMARY KEY (flow_group,flow_name,flow_execution_id,job_name,dag_action))";
+
   // Deletes rows older than retention time period (in seconds) to prevent this table from growing unbounded.
   private static final String RETENTION_STATEMENT = "DELETE FROM %s WHERE modified_time < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL %s SECOND)";
-
-  private final int getDagActionMaxRetries;
 
   @Inject
   public MysqlDagActionStore(Config config) throws IOException {
@@ -78,9 +73,9 @@ public class MysqlDagActionStore implements DagActionStore {
     }
     this.tableName = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_DB_TABLE_KEY,
         ConfigurationKeys.DEFAULT_STATE_STORE_DB_TABLE);
-    this.getDagActionMaxRetries = ConfigUtils.getInt(config, ConfigurationKeys.MYSQL_GET_MAX_RETRIES, ConfigurationKeys.DEFAULT_MYSQL_GET_MAX_RETRIES);
-    this.retentionPeriodSeconds = ConfigUtils.getLong(config, ConfigurationKeys.MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SECONDS_KEY,
-        ConfigurationKeys.DEFAULT_MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SEC_KEY);
+    long retentionPeriodSeconds =
+        ConfigUtils.getLong(config, ConfigurationKeys.MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SECONDS_KEY,
+            ConfigurationKeys.DEFAULT_MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SEC_KEY);
     this.dataSource = MysqlDataSourceFactory.get(config,
         SharedResourcesBrokerFactory.getImplicitBroker());
     try (Connection connection = dataSource.getConnection();
@@ -91,9 +86,9 @@ public class MysqlDagActionStore implements DagActionStore {
       throw new IOException("Failure creation table " + tableName, e);
     }
     this.dbStatementExecutor = new DBStatementExecutor(this.dataSource, log);
-    this.thisTableRetentionStatement = String.format(RETENTION_STATEMENT, this.tableName, retentionPeriodSeconds);
+    String thisTableRetentionStatement = String.format(RETENTION_STATEMENT, this.tableName, retentionPeriodSeconds);
     // Periodically deletes all rows in the table last_modified before the retention period defined by config.
-    dbStatementExecutor.repeatSqlCommandExecutionAtInterval(thisTableRetentionStatement, 6, TimeUnit.HOURS);
+    dbStatementExecutor.repeatSqlCommandExecutionAtInterval(thisTableRetentionStatement, 6L, TimeUnit.HOURS);
   }
 
   @Override
@@ -139,32 +134,6 @@ public class MysqlDagActionStore implements DagActionStore {
       throw new IOException(String.format("Failure deleting action for DagAction: %s in table %s", dagAction,
           tableName), e);
     }}, true);
-  }
-
-  // TODO: later change this to getDagActions relating to a particular flow execution if it makes sense
-  private DagAction getDagActionWithRetry(String flowGroup, String flowName, long flowExecutionId, String jobName, DagActionType dagActionType, ExponentialBackoff exponentialBackoff)
-      throws IOException, SQLException {
-    return dbStatementExecutor.withPreparedStatement(String.format(GET_STATEMENT, tableName), getStatement -> {
-      int i = 0;
-      getStatement.setString(++i, flowGroup);
-      getStatement.setString(++i, flowName);
-      getStatement.setString(++i, String.valueOf(flowExecutionId));
-      getStatement.setString(++i, dagActionType.toString());
-      try (ResultSet rs = getStatement.executeQuery()) {
-        if (rs.next()) {
-          return new DagAction(rs.getString(1), rs.getString(2), rs.getLong(3), rs.getString(4), DagActionType.valueOf(rs.getString(5)));
-        } else if (exponentialBackoff.awaitNextRetryIfAvailable()) {
-          return getDagActionWithRetry(flowGroup, flowName, flowExecutionId, jobName, dagActionType, exponentialBackoff);
-        } else {
-          log.warn(String.format("Can not find dag action: %s with flowGroup: %s, flowName: %s, flowExecutionId: %s",
-              dagActionType, flowGroup, flowName, flowExecutionId));
-          return null;
-        }
-      } catch (SQLException | InterruptedException e) {
-        throw new IOException(String.format("Failure get %s from table %s",
-            new DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType), tableName), e);
-      }
-    }, true);
   }
 
   @Override

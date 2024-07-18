@@ -163,6 +163,10 @@ public class ServiceConfigKeys {
   public static final int MAX_FLOW_EXECUTION_ID_LENGTH = 13; // length of flowExecutionId which is epoch timestamp
   public static final int MAX_JOB_NAME_LENGTH = 374;
   public static final int MAX_JOB_GROUP_LENGTH = 374;
+  public static final int MAX_DAG_NODE_ID_LENGTH = MAX_FLOW_NAME_LENGTH + MAX_FLOW_GROUP_LENGTH + MAX_FLOW_EXECUTION_ID_LENGTH +
+      MAX_JOB_NAME_LENGTH + MAX_JOB_GROUP_LENGTH + 4; // 4 to account for delimiters' length
+  public static final int MAX_DAG_ID_LENGTH = MAX_FLOW_NAME_LENGTH + MAX_FLOW_GROUP_LENGTH + MAX_FLOW_EXECUTION_ID_LENGTH
+      + 2; // 2 to account for delimiters' length
   public static final String STATE_STORE_TABLE_SUFFIX = "gst";
   public static final String STATE_STORE_KEY_SEPARATION_CHARACTER = ".";
   public static final String DAG_STORE_KEY_SEPARATION_CHARACTER = "_";

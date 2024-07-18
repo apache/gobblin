@@ -30,7 +30,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 
@@ -48,7 +47,7 @@ public class JobExecutionPlanDagFactory {
     Map<String, Dag.DagNode<JobExecutionPlan>> jobExecutionPlanMap =
         Maps.newHashMapWithExpectedSize(jobExecutionPlans.size());
     List<Dag.DagNode<JobExecutionPlan>> dagNodeList = new ArrayList<>(jobExecutionPlans.size());
-    /**
+    /*
      * Create a {@link Dag.DagNode<JobExecutionPlan>} for every {@link JobSpec} in the flow. Add this node
      * to a HashMap.
      */
@@ -61,12 +60,10 @@ public class JobExecutionPlanDagFactory {
       }
     }
 
-    /**
+    /*
      * Iterate over each {@link JobSpec} to get the dependencies of each {@link JobSpec}.
      * For each {@link JobSpec}, get the corresponding {@link Dag.DagNode} and
      * set the {@link Dag.DagNode}s corresponding to its dependencies as its parent nodes.
-     *
-     * TODO: we likely do not need 2 for loops and we can do this in 1 pass.
      */
     List<String> jobNames = new ArrayList<>();
     for (JobExecutionPlan jobExecutionPlan : jobExecutionPlans) {

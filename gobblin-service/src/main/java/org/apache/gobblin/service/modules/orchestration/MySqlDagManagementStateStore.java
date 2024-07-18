@@ -20,14 +20,11 @@ import java.io.IOException;
 import java.net.URI;
 import java.sql.SQLException;
 import java.util.Collection;
-import java.util.HashSet;
 import java.util.Iterator;
-import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
@@ -46,6 +43,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
@@ -62,13 +60,11 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 @Singleton
-public class MostlyMySqlDagManagementStateStore implements DagManagementStateStore {
-  private final Map<DagNodeId, Dag.DagNode<JobExecutionPlan>> dagNodes = new ConcurrentHashMap<>();
-  // dagToJobs holds a map of dagId to running jobs of that dag
-  private final Map<DagManager.DagId, Set<Dag.DagNode<JobExecutionPlan>>> dagToJobs = new ConcurrentHashMap<>();
-  private DagStateStore dagStateStore;
-  private DagStateStore failedDagStateStore;
-  private JobStatusRetriever jobStatusRetriever;
+public class MySqlDagManagementStateStore implements DagManagementStateStore {
+  // todo - these two stores should merge
+  private DagStateStoreWithDagNodes dagStateStore;
+  private DagStateStoreWithDagNodes failedDagStateStore;
+  private final JobStatusRetriever jobStatusRetriever;
   private boolean dagStoresInitialized = false;
   private final UserQuotaManager quotaManager;
   Map<URI, TopologySpec> topologySpecMap;
@@ -81,7 +77,7 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   private final DagActionStore dagActionStore;
 
   @Inject
-  public MostlyMySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog, UserQuotaManager userQuotaManager,
+  public MySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog, UserQuotaManager userQuotaManager,
       JobStatusRetriever jobStatusRetriever, DagActionStore dagActionStore) {
     this.quotaManager = userQuotaManager;
     this.config = config;
@@ -116,109 +112,69 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     this.flowCatalog.remove(uri, headers, triggerListener);
   }
 
-  public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) throws IOException {
+  public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) {
     this.topologySpecMap = topologySpecMap;
     start();
   }
 
-  private DagStateStore createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
+  private DagStateStoreWithDagNodes createDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
     try {
-      Class<?> dagStateStoreClass = Class.forName(ConfigUtils.getString(config, DAG_STATESTORE_CLASS_KEY, MysqlDagStateStore.class.getName()));
-      return (DagStateStore) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config, topologySpecMap);
+      Class<?> dagStateStoreClass = Class.forName(ConfigUtils.getString(config, DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreWithDagNodes.class.getName()));
+      return (DagStateStoreWithDagNodes) GobblinConstructorUtils.invokeLongestConstructor(dagStateStoreClass, config, topologySpecMap);
     } catch (ReflectiveOperationException e) {
       throw new RuntimeException(e);
     }
   }
 
   @Override
-  public void checkpointDag(Dag<JobExecutionPlan> dag) throws IOException {
+  public void addDag(Dag<JobExecutionPlan> dag) throws IOException {
     this.dagStateStore.writeCheckpoint(dag);
   }
 
   @Override
-  public void markDagFailed(Dag<JobExecutionPlan> dag) throws IOException {
-    this.dagStateStore.cleanUp(dag);
-    // todo - updated failedDagStateStore iff cleanup returned 1
+  public void markDagFailed(DagManager.DagId dagId) throws IOException {
+    Dag<JobExecutionPlan> dag = this.dagStateStore.getDag(dagId);
     this.failedDagStateStore.writeCheckpoint(dag);
-    log.info("Marked dag failed {}", DagManagerUtils.generateDagId(dag));
-  }
-
-  @Override
-  public void deleteDag(Dag<JobExecutionPlan> dag) throws IOException {
-    this.dagStateStore.cleanUp(dag);
-  }
-
-  @Override
-  public void deleteFailedDag(Dag<JobExecutionPlan> dag) throws IOException {
-    this.failedDagStateStore.cleanUp(dag);
+    this.dagStateStore.cleanUp(dagId);
+    // todo - updated failedDagStateStore iff cleanup returned 1
+    // or merge dagStateStore and failedDagStateStore and change the flag that marks a dag `failed`
+    log.info("Marked dag failed {}", dagId);
   }
 
   @Override
   public void deleteDag(DagManager.DagId dagId) throws IOException {
-    this.dagStateStore.cleanUp(dagId.toString());
+    this.dagStateStore.cleanUp(dagId);
     log.info("Deleted dag {}", dagId);
   }
 
   @Override
   public void deleteFailedDag(DagManager.DagId dagId) throws IOException {
-    this.failedDagStateStore.cleanUp(dagId.toString());
-  }
-
-  @Override
-  public List<Dag<JobExecutionPlan>> getDags() throws IOException {
-    return this.dagStateStore.getDags();
+    this.failedDagStateStore.cleanUp(dagId);
+    log.info("Deleted failed dag {}", dagId);
   }
 
   @Override
   public Optional<Dag<JobExecutionPlan>> getFailedDag(DagManager.DagId dagId) throws IOException {
-    return Optional.of(this.failedDagStateStore.getDag(dagId.toString()));
+    return Optional.of(this.failedDagStateStore.getDag(dagId));
   }
 
-  @Override
-  public Set<String> getFailedDagIds() throws IOException {
-    return this.failedDagStateStore.getDagIds();
-  }
-
-  @Override
-  // todo - updating different maps here and in addDagNodeState can result in inconsistency between the maps
-  public synchronized void deleteDagNodeState(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) {
-    this.dagNodes.remove(dagNode.getValue().getId());
-    if (this.dagToJobs.containsKey(dagId)) {
-      this.dagToJobs.get(dagId).remove(dagNode);
-      if (this.dagToJobs.get(dagId).isEmpty()) {
-        this.dagToJobs.remove(dagId);
-      }
-    }
-  }
-
-  // todo - updating different mapps here and in deleteDagNodeState can result in inconsistency between the maps
   @Override
   public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
       throws IOException {
-    if (!containsDag(dagId)) {
-      throw new RuntimeException("Dag " + dagId + " not found");
-    }
-    this.dagNodes.put(dagNode.getValue().getId(), dagNode);
-    if (!this.dagToJobs.containsKey(dagId)) {
-      this.dagToJobs.put(dagId, new HashSet<>());
-    }
-    this.dagToJobs.get(dagId).add(dagNode);
+    this.dagStateStore.updateDagNode(dagId, dagNode);
   }
 
   @Override
   public Optional<Dag<JobExecutionPlan>> getDag(DagManager.DagId dagId) throws IOException {
-    return Optional.ofNullable(this.dagStateStore.getDag(dagId.toString()));
+    return Optional.ofNullable(this.dagStateStore.getDag(dagId));
   }
 
   @Override
-  public boolean containsDag(DagManager.DagId dagId) throws IOException {
-    return this.dagStateStore.existsDag(dagId);
-  }
-
-  @Override
-  public Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> getDagNodeWithJobStatus(DagNodeId dagNodeId) {
-    if (this.dagNodes.containsKey(dagNodeId)) {
-      return ImmutablePair.of(Optional.of(this.dagNodes.get(dagNodeId)), getJobStatus(dagNodeId));
+  public Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> getDagNodeWithJobStatus(DagNodeId dagNodeId)
+      throws IOException {
+    Optional<Dag.DagNode<JobExecutionPlan>> dagNode = this.dagStateStore.getDagNode(dagNodeId);
+    if (dagNode.isPresent()) {
+      return ImmutablePair.of(dagNode, getJobStatus(dagNodeId));
     } else {
       // no point of searching for status if the node itself is absent.
       return ImmutablePair.of(Optional.empty(), Optional.empty());
@@ -226,18 +182,8 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
   }
 
   @Override
-  public Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) {
-    Set<Dag.DagNode<JobExecutionPlan>> dagNodes = this.dagToJobs.get(dagId);
-    if (dagNodes != null) {
-      return dagNodes;
-    } else {
-      return new HashSet<>();
-    }
-  }
-
-  public void initQuota(Collection<Dag<JobExecutionPlan>> dags) {
-    // This implementation does not need to update quota usage when the service restarts or when its leadership status changes
-    // because quota usage are persisted in mysql table
+  public Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException {
+    return this.dagStateStore.getDagNodes(dagId);
   }
 
   @Override
@@ -264,16 +210,11 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     }
   }
 
-  /* todo - this method works because when the jobs finish they are deleted from the DMSS -> if no more job is found, means
-   no more running jobs.
-   But DMSS still has dags and which still contains dag nodes. We need to revisit this method's logic when we change
-   DMSS to a fully mysql backed implementation. then we may want to consider this approach
-   return getDagNodes(dagId).stream()
-       .anyMatch(node -> !FlowStatusGenerator.FINISHED_STATUSES.contains(node.getValue().getExecutionStatus().name()));
-  */
+
   @Override
-  public boolean hasRunningJobs(DagManager.DagId dagId) {
-    return !getDagNodes(dagId).isEmpty();
+  public boolean hasRunningJobs(DagManager.DagId dagId) throws IOException {
+    return getDagNodes(dagId).stream()
+        .anyMatch(node -> !FlowStatusGenerator.FINISHED_STATUSES.contains(node.getValue().getExecutionStatus().name()));
   }
 
   @Override
