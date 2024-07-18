@@ -35,19 +35,21 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 public interface DagStateStoreWithDagNodes extends DagStateStore {
 
   /**
-   * updates a dag node identified by the provided {@link org.apache.gobblin.service.modules.orchestration.DagManager.DagId}
-   * with the given {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}
+   * Updates a dag node identified by the provided {@link DagManager.DagId}
+   * with the given {@link Dag.DagNode}.
+   * Returns 1 if the dag node is inserted as a new one, 2 if is updated, and 0 if new dag node is same as the existing one
+   * <a href="https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html">Refer</a>
    */
   int updateDagNode(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
   /**
-   * returns all the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}s for the given
+   * Returns all the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}s for the given
    * {@link org.apache.gobblin.service.modules.orchestration.DagManager.DagId}
    */
   Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
 
   /**
-   * return the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} for the given {@link DagNodeId} or empty
+   * Return the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} for the given {@link DagNodeId} or empty
    * optional if it is not present
    */
   Optional<Dag.DagNode<JobExecutionPlan>> getDagNode(DagNodeId dagNodeId) throws IOException;
