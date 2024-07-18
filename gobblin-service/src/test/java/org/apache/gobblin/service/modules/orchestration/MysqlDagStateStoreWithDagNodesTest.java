@@ -75,21 +75,21 @@ public class MysqlDagStateStoreWithDagNodesTest {
 
   @Test
   public void testAddGetAndDeleteDag() throws Exception{
-    Dag<JobExecutionPlan> dag0Orig = DagTestUtils.buildDag("random_0", 123L);
-    Dag<JobExecutionPlan> dag1Orig = DagTestUtils.buildDag("random_1", 456L);
-    DagManager.DagId dagId0 = DagManagerUtils.generateDagId(dag0Orig);
-    DagManager.DagId dagId1 = DagManagerUtils.generateDagId(dag1Orig);
-    this.dagStateStore.writeCheckpoint(dag0Orig);
-    this.dagStateStore.writeCheckpoint(dag1Orig);
+    Dag<JobExecutionPlan> originalDag1 = DagTestUtils.buildDag("random_1", 123L);
+    Dag<JobExecutionPlan> originalDag2 = DagTestUtils.buildDag("random_2", 456L);
+    DagManager.DagId dagId1 = DagManagerUtils.generateDagId(originalDag1);
+    DagManager.DagId dagId2 = DagManagerUtils.generateDagId(originalDag2);
+    this.dagStateStore.writeCheckpoint(originalDag1);
+    this.dagStateStore.writeCheckpoint(originalDag2);
 
     // Verify get one dag
-    Dag<JobExecutionPlan> dag0 = this.dagStateStore.getDag(dagId0);
     Dag<JobExecutionPlan> dag1 = this.dagStateStore.getDag(dagId1);
-    Assert.assertTrue(MySqlDagManagementStateStoreTest.compareLists(dag0.getNodes(), dag0Orig.getNodes()));
-    Assert.assertTrue(MySqlDagManagementStateStoreTest.compareLists(dag1.getNodes(), dag1Orig.getNodes()));
+    Dag<JobExecutionPlan> dag2 = this.dagStateStore.getDag(dagId2);
+    Assert.assertTrue(MySqlDagManagementStateStoreTest.compareLists(dag1.getNodes(), originalDag1.getNodes()));
+    Assert.assertTrue(MySqlDagManagementStateStoreTest.compareLists(dag2.getNodes(), originalDag2.getNodes()));
 
     // Verify dag contents
-    Dag<JobExecutionPlan> dagDeserialized = dag0;
+    Dag<JobExecutionPlan> dagDeserialized = dag1;
     Assert.assertEquals(dagDeserialized.getNodes().size(), 2);
     Assert.assertEquals(dagDeserialized.getStartNodes().size(), 1);
     Assert.assertEquals(dagDeserialized.getEndNodes().size(), 1);
@@ -101,15 +101,15 @@ public class MysqlDagStateStoreWithDagNodesTest {
     for (int i = 0; i < 2; i++) {
       JobExecutionPlan plan = dagDeserialized.getNodes().get(i).getValue();
       Config jobConfig = plan.getJobSpec().getConfig();
-      Assert.assertEquals(jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY), "group" + "random_0");
-      Assert.assertEquals(jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY), "flow" + "random_0");
+      Assert.assertEquals(jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY), "group" + "random_1");
+      Assert.assertEquals(jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY), "flow" + "random_1");
       Assert.assertEquals(jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY), 123L);
       Assert.assertEquals(plan.getExecutionStatus(), ExecutionStatus.RUNNING);
       Assert.assertTrue(Boolean.parseBoolean(plan.getJobFuture().get().get().toString()));
       Assert.assertTrue(Boolean.parseBoolean(plan.getJobFuture().get().get().toString()));
     }
 
-    dagDeserialized = dag1;
+    dagDeserialized = dag2;
     Assert.assertEquals(dagDeserialized.getNodes().size(), 2);
     Assert.assertEquals(dagDeserialized.getStartNodes().size(), 1);
     Assert.assertEquals(dagDeserialized.getEndNodes().size(), 1);
@@ -121,16 +121,16 @@ public class MysqlDagStateStoreWithDagNodesTest {
     for (int i = 0; i < 2; i++) {
       JobExecutionPlan plan = dagDeserialized.getNodes().get(i).getValue();
       Config jobConfig = plan.getJobSpec().getConfig();
-      Assert.assertEquals(jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY), "group" + "random_1");
-      Assert.assertEquals(jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY), "flow" + "random_1");
+      Assert.assertEquals(jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY), "group" + "random_2");
+      Assert.assertEquals(jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY), "flow" + "random_2");
       Assert.assertEquals(jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY), 456L);
       Assert.assertEquals(plan.getExecutionStatus(), ExecutionStatus.RUNNING);
     }
 
-    dagStateStore.cleanUp(dagId0);
     dagStateStore.cleanUp(dagId1);
+    dagStateStore.cleanUp(dagId2);
 
-    Assert.assertNull(this.dagStateStore.getDag(dagId0));
     Assert.assertNull(this.dagStateStore.getDag(dagId1));
+    Assert.assertNull(this.dagStateStore.getDag(dagId2));
   }
 }

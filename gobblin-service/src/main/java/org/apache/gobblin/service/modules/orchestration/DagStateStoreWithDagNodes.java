@@ -33,9 +33,22 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  * {@link DagStateStore#cleanUp(DagManager.DagId)} should be used to delete all the {@link Dag.DagNode}s for a {@link Dag}.
  */
 public interface DagStateStoreWithDagNodes extends DagStateStore {
+
+  /**
+   * updates a dag node identified by the provided {@link org.apache.gobblin.service.modules.orchestration.DagManager.DagId}
+   * with the given {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}
+   */
   int updateDagNode(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
+  /**
+   * returns all the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}s for the given
+   * {@link org.apache.gobblin.service.modules.orchestration.DagManager.DagId}
+   */
   Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
 
+  /**
+   * return the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} for the given {@link DagNodeId} or empty
+   * optional if it is not present
+   */
   Optional<Dag.DagNode<JobExecutionPlan>> getDagNode(DagNodeId dagNodeId) throws IOException;
 }

@@ -143,7 +143,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         : ConfigFactory.empty();
     // log exceptions to expose errors we suffer under and/or guide intervention when resolution not readily forthcoming
-    // todo - this retryer retries all the exceptions. we should make it retry only really transient
     this.persistJobStatusRetryer =
         RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
           @Override
@@ -234,7 +233,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
           if (this.dagProcEngineEnabled && DagProcUtils.isJobLevelStatus(jobName)) {
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
-              // todo - retried/resumed jobs *may* not be handled here, we may want to create their dag action elsewhere
               try {
                 this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
               } catch (Exception e) {

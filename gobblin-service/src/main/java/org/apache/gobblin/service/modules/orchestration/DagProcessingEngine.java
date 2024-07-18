@@ -131,7 +131,6 @@ public class DagProcessingEngine extends AbstractIdleService {
         }
         DagProc<?> dagProc = dagTask.host(dagProcFactory);
         try {
-          // todo - add retries
           dagProc.process(dagManagementStateStore);
           dagTask.conclude();
         } catch (Exception e) {
