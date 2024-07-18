@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration.task;
 
 import java.net.URISyntaxException;
+import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
@@ -46,14 +47,14 @@ public class LaunchDagTask extends DagTask {
   @Override
   public final boolean conclude() {
     try {
-      // Delete adhoc flowSpecs from catalog if the dag was concluded properly
+      // Remove adhoc flow specs after the adhoc job is launched and marked as completed
       if (super.conclude()) {
         DagManager.DagId dagId = DagManagerUtils.generateDagId(this.dagAction.getFlowGroup(),
             this.dagAction.getFlowName(), this.dagAction.getFlowExecutionId());
         FlowSpec flowSpec =
             this.dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(dagId.getFlowId()));
         if (!flowSpec.isScheduled()) {
-          dagManagementStateStore.removeFlowSpec(flowSpec);
+          dagManagementStateStore.removeFlowSpec(flowSpec.getUri(), new Properties(), false);
         }
         return true;
       }

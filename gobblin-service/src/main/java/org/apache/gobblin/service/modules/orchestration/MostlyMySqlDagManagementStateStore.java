@@ -116,11 +116,6 @@ public class MostlyMySqlDagManagementStateStore implements DagManagementStateSto
     this.flowCatalog.remove(uri, headers, triggerListener);
   }
 
-  @Override
-  public void removeFlowSpec(FlowSpec flowSpec) {
-    removeFlowSpec(flowSpec.getUri(), new Properties(), false);
-  }
-
   public synchronized void setTopologySpecMap(Map<URI, TopologySpec> topologySpecMap) throws IOException {
     this.topologySpecMap = topologySpecMap;
     start();

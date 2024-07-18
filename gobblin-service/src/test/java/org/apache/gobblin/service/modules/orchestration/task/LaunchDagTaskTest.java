@@ -24,7 +24,6 @@ import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.GobblinServiceManagerTest;
 import org.apache.gobblin.service.modules.orchestration.MultiActiveLeaseArbiter;
-import org.mockito.Mock;
 import org.testng.annotations.BeforeClass;
 
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -69,6 +68,6 @@ public class LaunchDagTaskTest {
     LaunchDagTask dagTask = new LaunchDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
     dagTask.conclude();
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(any());
-    Mockito.verify(dagManagementStateStore, Mockito.times(1)).removeFlowSpec(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).removeFlowSpec(any(), any(), any());
   }
 }

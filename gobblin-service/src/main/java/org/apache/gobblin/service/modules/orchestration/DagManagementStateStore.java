@@ -56,11 +56,6 @@ public interface DagManagementStateStore {
    */
   void removeFlowSpec(URI uri, Properties headers, boolean triggerListener);
 
-  /*
-  Deletes spec from flowCatalog with a default of empty Properties headers and 'triggerListener' set to false
-   */
-  void removeFlowSpec(FlowSpec flowSpec);
-
   /**
    * Checkpoints any changes in {@link Dag} or in its {@link Dag.DagNode}s.
    * e.g. on adding a failed dag in store to retry later, on submitting a dag node to spec producer because that changes
