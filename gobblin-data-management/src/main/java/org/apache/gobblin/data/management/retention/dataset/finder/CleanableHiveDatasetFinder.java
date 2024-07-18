@@ -28,6 +28,7 @@ import org.apache.gobblin.config.client.ConfigClient;
 import org.apache.gobblin.data.management.copy.hive.HiveDatasetFinder;
 import org.apache.gobblin.data.management.retention.dataset.CleanableHiveDataset;
 import org.apache.gobblin.data.management.retention.dataset.ConfigurableCleanableDataset;
+import org.apache.gobblin.data.management.retention.dataset.FsCleanableHelper;
 
 
 public class CleanableHiveDatasetFinder extends HiveDatasetFinder {
@@ -41,7 +42,10 @@ public class CleanableHiveDatasetFinder extends HiveDatasetFinder {
   }
 
   protected CleanableHiveDataset createHiveDataset(Table table, Config datasetConfig) throws IOException {
-    return new CleanableHiveDataset(super.fs, super.clientPool, new org.apache.hadoop.hive.ql.metadata.Table(table), super.properties, datasetConfig);
+    Properties datasetProperties = new Properties();
+    datasetProperties.putAll(this.properties);
+    datasetProperties.put(FsCleanableHelper.RETENTION_DATASET_ROOT, table.getSd().getLocation());
+    return new CleanableHiveDataset(super.fs, super.clientPool, new org.apache.hadoop.hive.ql.metadata.Table(table), datasetProperties, datasetConfig);
   }
 
   private static Properties setConfigPrefix(Properties props) {
