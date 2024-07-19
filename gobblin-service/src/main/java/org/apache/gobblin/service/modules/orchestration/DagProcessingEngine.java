@@ -36,6 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -61,13 +62,15 @@ public class DagProcessingEngine extends AbstractIdleService {
   private final Config config;
   private final Optional<DagProcFactory> dagProcFactory;
   private ScheduledExecutorService scheduledExecutorPool;
+  private final DagProcessingEngineMetrics dagProcEngineMetrics;
   private static final Integer TERMINATION_TIMEOUT = 30;
   public static final String DEFAULT_JOB_START_DEADLINE_TIME_MS = "defaultJobStartDeadlineTimeMillis";
   @Getter static long defaultJobStartSlaTimeMillis;
 
   @Inject
   public DagProcessingEngine(Config config, Optional<DagTaskStream> dagTaskStream, Optional<DagProcFactory> dagProcFactory,
-      Optional<DagManagementStateStore> dagManagementStateStore, @Named(DEFAULT_JOB_START_DEADLINE_TIME_MS) long deadlineTimeMs) {
+      Optional<DagManagementStateStore> dagManagementStateStore,
+      @Named(DEFAULT_JOB_START_DEADLINE_TIME_MS) long deadlineTimeMs, DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = config;
     this.dagProcFactory = dagProcFactory;
     this.dagTaskStream = dagTaskStream;
@@ -79,6 +82,7 @@ public class DagProcessingEngine extends AbstractIdleService {
           this.dagProcFactory.isPresent() ? "present" : "MISSING",
           this.dagManagementStateStore.isPresent() ? "present" : "MISSING"));
     }
+    this.dagProcEngineMetrics = dagProcEngineMetrics;
     log.info("DagProcessingEngine initialized.");
     setDefaultJobStartDeadlineTimeMs(deadlineTimeMs);
   }
@@ -98,7 +102,7 @@ public class DagProcessingEngine extends AbstractIdleService {
     for (int i=0; i < numThreads; i++) {
       // todo - set metrics for count of active DagProcEngineThread
       DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream.get(), dagProcFactory.get(),
-          dagManagementStateStore.get(), i);
+          dagManagementStateStore.get(), dagProcEngineMetrics, i);
       this.scheduledExecutorPool.submit(dagProcEngineThread);
     }
   }
@@ -114,9 +118,10 @@ public class DagProcessingEngine extends AbstractIdleService {
   @AllArgsConstructor
   @VisibleForTesting
   static class DagProcEngineThread implements Runnable {
-    private DagTaskStream dagTaskStream;
-    private DagProcFactory dagProcFactory;
-    private DagManagementStateStore dagManagementStateStore;
+    private final DagTaskStream dagTaskStream;
+    private final DagProcFactory dagProcFactory;
+    private final DagManagementStateStore dagManagementStateStore;
+    private final DagProcessingEngineMetrics dagProcEngineMetrics;
     private final int threadID;
 
     @Override
@@ -131,7 +136,7 @@ public class DagProcessingEngine extends AbstractIdleService {
         }
         DagProc<?> dagProc = dagTask.host(dagProcFactory);
         try {
-          dagProc.process(dagManagementStateStore);
+          dagProc.process(dagManagementStateStore, dagProcEngineMetrics);
           dagTask.conclude();
         } catch (Exception e) {
           log.error("DagProcEngineThread encountered exception while processing dag " + dagProc.getDagId(), e);

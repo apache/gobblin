@@ -82,6 +82,7 @@ import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProcUtils;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandler;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
@@ -186,6 +187,8 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandler.class);
       binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandler.class);
     }
+
+    binder.bind(DagProcessingEngineMetrics.class);
 
     /* Note that two instances of the same class can only be differentiated with an `annotatedWith` marker provided at
     binding time (optionally bound classes cannot have names associated with them), so both arbiters need to be

@@ -65,7 +65,8 @@ public class LaunchDagTaskTest {
    */
   @Test
   public void concludeRemovesAdhocFlowSpec() throws IOException {
-    LaunchDagTask dagTask = new LaunchDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
+    LaunchDagTask dagTask = new LaunchDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore,
+        Mockito.mock(DagProcessingEngineMetrics.class));
     dagTask.conclude();
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(any());
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).removeFlowSpec(any(), any(), anyBoolean());

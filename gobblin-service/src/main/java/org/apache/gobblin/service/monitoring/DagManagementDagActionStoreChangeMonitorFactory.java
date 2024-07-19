@@ -33,6 +33,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -50,12 +51,13 @@ public class DagManagementDagActionStoreChangeMonitorFactory implements Provider
   private final boolean isMultiActiveSchedulerEnabled;
   private final DagManagement dagManagement;
   private final DagActionReminderScheduler dagActionReminderScheduler;
+  private final DagProcessingEngineMetrics dagProcEngineMetrics;
 
   @Inject
   public DagManagementDagActionStoreChangeMonitorFactory(Config config, DagManager dagManager, FlowCatalog flowCatalog,
       Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore, DagManagement dagManagement,
       @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled,
-      DagActionReminderScheduler dagActionReminderScheduler) {
+      DagActionReminderScheduler dagActionReminderScheduler, DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = Objects.requireNonNull(config);
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
@@ -63,6 +65,7 @@ public class DagManagementDagActionStoreChangeMonitorFactory implements Provider
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     this.dagManagement = dagManagement;
     this.dagActionReminderScheduler = dagActionReminderScheduler;
+    this.dagProcEngineMetrics = dagProcEngineMetrics;
   }
 
   private DagManagementDagActionStoreChangeMonitor createDagActionStoreMonitor() {
@@ -73,7 +76,7 @@ public class DagManagementDagActionStoreChangeMonitorFactory implements Provider
 
     return new DagManagementDagActionStoreChangeMonitor(dagActionStoreChangeConfig,
         numThreads, flowCatalog, orchestrator, dagManagementStateStore, isMultiActiveSchedulerEnabled, this.dagManagement,
-        this.dagActionReminderScheduler);
+        this.dagActionReminderScheduler, dagProcEngineMetrics);
   }
 
   @Override

@@ -26,6 +26,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -46,16 +47,16 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   @Override
   protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
       throws IOException {
-   return dagManagementStateStore.getDag(getDagId());
+      return dagManagementStateStore.getDag(getDagId());
   }
 
   @Override
-  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag)
-      throws IOException {
+  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     log.info("Request to kill dag {} (node: {})", getDagId(), shouldKillSpecificJob ? getDagNodeId() : "<<all>>");
 
     if (!dag.isPresent()) {
-      // todo - add a metric here
+      dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       log.error("Did not find Dag with id {}, it might be already cancelled/finished and thus cleaned up from the store.", getDagId());
       return;
     }
@@ -68,11 +69,12 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       if (dagNodeToCancel.isPresent()) {
         DagProcUtils.cancelDagNode(dagNodeToCancel.get(), dagManagementStateStore);
       } else {
-        // todo - add a metric here
+        dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
         log.error("Did not find Dag node with id {}, it might be already cancelled/finished and thus cleaned up from the store.", getDagNodeId());
       }
     } else {
       DagProcUtils.cancelDag(dag.get(), dagManagementStateStore);
     }
+    dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
   }
 }

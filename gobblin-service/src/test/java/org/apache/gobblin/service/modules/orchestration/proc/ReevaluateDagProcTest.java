@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -65,6 +66,7 @@ public class ReevaluateDagProcTest {
   private ITestMetastoreDatabase testMetastoreDatabase;
   private DagManagementStateStore dagManagementStateStore;
   private MockedStatic<GobblinServiceManager> mockedGobblinServiceManager;
+  private DagProcessingEngineMetrics mockedDagProcEngineMetrics;
 
   @BeforeClass
   public void setUpClass() throws Exception {
@@ -76,6 +78,7 @@ public class ReevaluateDagProcTest {
   public void setUp() throws Exception {
     this.dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     LaunchDagProcTest.mockDMSSCommonBehavior(dagManagementStateStore);
+    this.mockedDagProcEngineMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
   }
 
   @AfterClass(alwaysRun = true)
@@ -114,8 +117,9 @@ public class ReevaluateDagProcTest {
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
-    reEvaluateDagProc.process(dagManagementStateStore);
+        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
+        dagManagementStateStore, mockedDagProcEngineMetrics));
+    reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
     // next job is sent to spec producer
     Mockito.verify(specProducers.get(1), Mockito.times(1)).addSpec(any());
     // there are two invocations, one after setting status and other after sending new job to specProducer
@@ -163,8 +167,9 @@ public class ReevaluateDagProcTest {
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
-    reEvaluateDagProc.process(dagManagementStateStore);
+        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
+        dagManagementStateStore, mockedDagProcEngineMetrics));
+    reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     // no new job to launch for this one job flow
     specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
@@ -199,8 +204,8 @@ public class ReevaluateDagProcTest {
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore));
-    reEvaluateDagProc.process(dagManagementStateStore);
+        dagManagementStateStore, mockedDagProcEngineMetrics));
+    reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int numOfLaunchedJobs = 1; // only the current job
     // only the current job should have run
@@ -243,10 +248,11 @@ public class ReevaluateDagProcTest {
 
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        flowExecutionId, "job3", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
+        flowExecutionId, "job3", DagActionStore.DagActionType.REEVALUATE), null,
+        dagManagementStateStore, mockedDagProcEngineMetrics));
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     // process 4th job
-    reEvaluateDagProc.process(dagManagementStateStore);
+    reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int numOfLaunchedJobs = 2; // = number of jobs that should launch when 4th job passes, i.e. 5th and 6th job
     // parallel jobs are launched through reevaluate dag action

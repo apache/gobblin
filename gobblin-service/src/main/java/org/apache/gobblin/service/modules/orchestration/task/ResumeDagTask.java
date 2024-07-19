@@ -28,8 +28,8 @@ import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
  */
 public class ResumeDagTask extends DagTask {
   public ResumeDagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
-      DagManagementStateStore dagManagementStateStore) {
-    super(dagAction, leaseObtainedStatus, dagManagementStateStore);
+      DagManagementStateStore dagManagementStateStore, DagProcessingEngineMetrics dagProcEngineMetrics) {
+    super(dagAction, leaseObtainedStatus, dagManagementStateStore, dagProcEngineMetrics);
   }
 
   public <T> T host(DagTaskVisitor<T> visitor) {

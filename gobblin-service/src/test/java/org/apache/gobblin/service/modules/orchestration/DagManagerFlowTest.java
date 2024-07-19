@@ -26,6 +26,7 @@ import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -89,7 +90,7 @@ public class DagManagerFlowTest {
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
         .build();
 
-    dagActionStore = new MysqlDagActionStore(config);
+    dagActionStore = new MysqlDagActionStore(config, Mockito.mock(DagProcessingEngineMetrics.class));
     dagActionStore.addFlowDagAction(flowGroup, flowName, flowExecutionId, DagActionStore.DagActionType.KILL);
     dagActionStore.addFlowDagAction(flowGroup, flowName, flowExecutionId_2, DagActionStore.DagActionType.RESUME);
     dagManager = new MockedDagManager(ConfigUtils.propertiesToConfig(props));

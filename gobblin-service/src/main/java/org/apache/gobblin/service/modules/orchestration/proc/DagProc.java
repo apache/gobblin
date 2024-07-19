@@ -29,9 +29,11 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 
 
@@ -63,13 +65,26 @@ public abstract class DagProc<T> {
     this.dagNodeId = this.dagTask.getDagAction().getDagNodeId();
   }
 
-  public final void process(DagManagementStateStore dagManagementStateStore) throws IOException {
-    T state = initialize(dagManagementStateStore);
-    act(dagManagementStateStore, state);
+  public final void process(DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
+    T state;
+    try {
+      state = initialize(dagManagementStateStore);
+      dagProcEngineMetrics.markDagActionsInitialize(getDagActionType(), true);
+    } catch (Exception e) {
+      dagProcEngineMetrics.markDagActionsInitialize(getDagActionType(), false);
+      throw e;
+    }
+    act(dagManagementStateStore, state, dagProcEngineMetrics);
     log.info("{} concluded processing for dagId : {}", getClass().getSimpleName(), this.dagId);
   }
 
   protected abstract T initialize(DagManagementStateStore dagManagementStateStore) throws IOException;
 
-  protected abstract void act(DagManagementStateStore dagManagementStateStore, T state) throws IOException;
+  protected abstract void act(DagManagementStateStore dagManagementStateStore, T state,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException;
+
+  public DagActionStore.DagActionType getDagActionType() {
+    return this.dagTask.getDagAction().getDagActionType();
+  }
 }
