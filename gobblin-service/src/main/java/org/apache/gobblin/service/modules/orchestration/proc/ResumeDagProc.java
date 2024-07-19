@@ -31,6 +31,7 @@ import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -52,16 +53,16 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   @Override
   protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
       throws IOException {
-   return dagManagementStateStore.getFailedDag(getDagId());
+      return dagManagementStateStore.getFailedDag(getDagId());
   }
 
   @Override
-  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> failedDag)
-      throws IOException {
+  protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> failedDag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     log.info("Request to resume dag {}", getDagId());
 
     if (!failedDag.isPresent()) {
-      // todo - add a metric here
+      dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       log.error("Dag " + dagId + " was not found in dag state store");
       return;
     }
@@ -95,5 +96,6 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     DagProcUtils.submitNextNodes(dagManagementStateStore, failedDag.get(), getDagId());
 
     DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
+    dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
   }
 }

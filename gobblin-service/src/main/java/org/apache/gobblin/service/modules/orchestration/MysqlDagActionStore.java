@@ -36,6 +36,7 @@ import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.MysqlDataSourceFactory;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.DBStatementExecutor;
 
@@ -63,9 +64,10 @@ public class MysqlDagActionStore implements DagActionStore {
 
   // Deletes rows older than retention time period (in seconds) to prevent this table from growing unbounded.
   private static final String RETENTION_STATEMENT = "DELETE FROM %s WHERE modified_time < DATE_SUB(CURRENT_TIMESTAMP, INTERVAL %s SECOND)";
+  private final DagProcessingEngineMetrics dagProcessingEngineMetrics;
 
   @Inject
-  public MysqlDagActionStore(Config config) throws IOException {
+  public MysqlDagActionStore(Config config, DagProcessingEngineMetrics dagProcessingEngineMetrics) throws IOException {
     if (config.hasPath(CONFIG_PREFIX)) {
       config = config.getConfig(CONFIG_PREFIX).withFallback(config);
     } else {
@@ -89,6 +91,7 @@ public class MysqlDagActionStore implements DagActionStore {
     String thisTableRetentionStatement = String.format(RETENTION_STATEMENT, this.tableName, retentionPeriodSeconds);
     // Periodically deletes all rows in the table last_modified before the retention period defined by config.
     dbStatementExecutor.repeatSqlCommandExecutionAtInterval(thisTableRetentionStatement, 6L, TimeUnit.HOURS);
+    this.dagProcessingEngineMetrics = dagProcessingEngineMetrics;
   }
 
   @Override
@@ -121,6 +124,7 @@ public class MysqlDagActionStore implements DagActionStore {
       throw new IOException(String.format("Failure adding action for DagAction: %s in table %s",
           new DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType), tableName), e);
     }}, true);
+    this.dagProcessingEngineMetrics.markDagActionsStored(dagActionType);
   }
 
   @Override

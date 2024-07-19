@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.util.Collection;
 import java.util.HashSet;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -66,7 +68,7 @@ public class MysqlDagActionStoreTest {
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
         .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
         .build();
-    return new MysqlDagActionStore(config);
+    return new MysqlDagActionStore(config, Mockito.mock(DagProcessingEngineMetrics.class));
   }
 
   @Test

@@ -22,6 +22,7 @@ import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.quartz.SchedulerException;
 
 import com.google.inject.Inject;
@@ -82,13 +83,14 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.LeaseParams> leaseParamsQueue = new LinkedBlockingQueue<>();
   private final DagManagementStateStore dagManagementStateStore;
+  private final DagProcessingEngineMetrics dagProcEngineMetrics;
 
   @Inject
   public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
       @Named(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter,
       Optional<DagActionReminderScheduler> dagActionReminderScheduler,
       @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled,
-      DagManagementStateStore dagManagementStateStore) {
+      DagManagementStateStore dagManagementStateStore, DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = config;
     if (!dagActionStore.isPresent()) {
       /* DagActionStore is optional because there are other configurations that do not require it and it's initialized
@@ -105,6 +107,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
     this.dagManagementStateStore = dagManagementStateStore;
+    this.dagProcEngineMetrics = dagProcEngineMetrics;
   }
 
   public synchronized void addDagAction(DagActionStore.LeaseParams leaseParams) {
@@ -136,6 +139,10 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
           } else { // Handle original non-deadline dagActions as well as reminder events of all types
             LeaseAttemptStatus leaseAttemptStatus = retrieveLeaseStatus(leaseParams);
             if (leaseAttemptStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus) {
+              this.dagProcEngineMetrics.markDagActionsLeasedObtained(leaseParams);
+              if (leaseParams.isReminder()) {
+                this.dagProcEngineMetrics.markDagActionsRemindersProcessed(leaseParams);
+              }
               return createDagTask(dagAction, (LeaseAttemptStatus.LeaseObtainedStatus) leaseAttemptStatus);
             }
           }
@@ -198,6 +205,9 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
         */
     if (!(leaseAttemptStatus instanceof LeaseAttemptStatus.NoLongerLeasingStatus)) {
       scheduleReminderForEvent(leaseAttemptStatus);
+      this.dagProcEngineMetrics.markDagActionsLeaseReminderScheduled(leaseParams);
+    } else {
+      this.dagProcEngineMetrics.markDagActionsNoLongerLeasing(leaseParams);
     }
     return leaseAttemptStatus;
   }
@@ -207,17 +217,17 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
     switch (dagActionType) {
       case ENFORCE_FLOW_FINISH_DEADLINE:
-        return new EnforceFlowFinishDeadlineDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
+        return new EnforceFlowFinishDeadlineDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore, dagProcEngineMetrics);
       case ENFORCE_JOB_START_DEADLINE:
-        return new EnforceJobStartDeadlineDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
+        return new EnforceJobStartDeadlineDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore, dagProcEngineMetrics);
       case KILL:
-        return new KillDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
+        return new KillDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore, dagProcEngineMetrics);
       case LAUNCH:
-        return new LaunchDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
+        return new LaunchDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore, dagProcEngineMetrics);
       case REEVALUATE:
-        return new ReevaluateDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
+        return new ReevaluateDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore, dagProcEngineMetrics);
       case RESUME:
-        return new ResumeDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
+        return new ResumeDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore, dagProcEngineMetrics);
       default:
         throw new UnsupportedOperationException(dagActionType + " not yet implemented");
     }

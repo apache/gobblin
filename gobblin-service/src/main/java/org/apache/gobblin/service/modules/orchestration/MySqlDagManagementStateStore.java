@@ -183,8 +183,7 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
 
   @Override
   public Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException {
-    return this.dagStateStore.getDagNodes(dagId);
-  }
+    return this.dagStateStore.getDagNodes(dagId);}
 
   @Override
   public void tryAcquireQuota(Collection<Dag.DagNode<JobExecutionPlan>> dagNodes) throws IOException {

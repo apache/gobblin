@@ -23,6 +23,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
@@ -70,6 +71,7 @@ import static org.mockito.Mockito.spy;
 public class LaunchDagProcTest {
   private ITestMetastoreDatabase testMetastoreDatabase;
   private MySqlDagManagementStateStore dagManagementStateStore;
+  private DagProcessingEngineMetrics mockedDagProcEngineMetrics;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -83,6 +85,7 @@ public class LaunchDagProcTest {
   public void resetDMSS() throws Exception {
     this.dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     mockDMSSCommonBehavior(this.dagManagementStateStore);
+    this.mockedDagProcEngineMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
   }
 
   @AfterClass(alwaysRun = true)
@@ -107,10 +110,11 @@ public class LaunchDagProcTest {
     List<SpecProducer<Spec>> specProducers = ReevaluateDagProcTest.getDagSpecProducers(dag);
     LaunchDagProc launchDagProc = new LaunchDagProc(
         new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
-            DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore),
+            DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore,
+            this.mockedDagProcEngineMetrics),
         flowCompilationValidationHelper);
 
-    launchDagProc.process(this.dagManagementStateStore);
+    launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int numOfLaunchedJobs = 1; // = number of start nodes
     Mockito.verify(specProducers.get(0), Mockito.times(1)).addSpec(any());
@@ -137,10 +141,11 @@ public class LaunchDagProcTest {
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     LaunchDagProc launchDagProc = new LaunchDagProc(
         new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
-            "jn", DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore),
+            "jn", DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore,
+            this.mockedDagProcEngineMetrics),
         flowCompilationValidationHelper);
 
-    launchDagProc.process(this.dagManagementStateStore);
+    launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
     int numOfLaunchedJobs = 3; // = number of start nodes
     // parallel jobs are launched through reevaluate dag action
     Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
