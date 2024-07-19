@@ -54,6 +54,7 @@ public class DagProcessingEngineTest {
   private DagManagementTaskStreamImpl dagManagementTaskStream;
   private DagTaskStream dagTaskStream;
   private DagProcFactory dagProcFactory;
+  // Field is static because it's used to instantiate every MockedDagTask
   private static MySqlDagManagementStateStore dagManagementStateStore;
   private ITestMetastoreDatabase testMetastoreDatabase;
   static LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
@@ -128,7 +129,7 @@ public class DagProcessingEngineTest {
     private final boolean isBad;
 
     public MockedDagTask(DagActionStore.DagAction dagAction, boolean isBad) {
-      super(dagAction, leaseObtainedStatus, dagManagementStateStore);
+      super(dagAction, leaseObtainedStatus, DagProcessingEngineTest.dagManagementStateStore);
       this.isBad = isBad;
     }
 

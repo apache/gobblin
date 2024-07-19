@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
@@ -59,9 +60,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.util.ConfigUtils;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -75,6 +74,13 @@ public class LaunchDagProcTest {
   @BeforeClass
   public void setUp() throws Exception {
     this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+  }
+
+  /**
+   * Reset DagManagementStateStore between tests so that Mockito asserts are done on a fresh state.
+   */
+  @BeforeMethod
+  public void resetDMSS() throws Exception {
     this.dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     mockDMSSCommonBehavior(this.dagManagementStateStore);
   }
@@ -180,6 +186,7 @@ public class LaunchDagProcTest {
 
   public static void mockDMSSCommonBehavior(DagManagementStateStore dagManagementStateStore) throws IOException, SpecNotFoundException {
     doReturn(FlowSpec.builder().build()).when(dagManagementStateStore).getFlowSpec(any());
+    doNothing().when(dagManagementStateStore).removeFlowSpec(any(), any(), anyBoolean());
     doNothing().when(dagManagementStateStore).tryAcquireQuota(any());
     doReturn(true).when(dagManagementStateStore).releaseQuota(any());
   }

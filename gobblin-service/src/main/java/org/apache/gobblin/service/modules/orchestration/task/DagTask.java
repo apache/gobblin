@@ -40,8 +40,8 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 @Slf4j
 public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
+  protected final DagManagementStateStore dagManagementStateStore;
   private final LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
-  private final DagManagementStateStore dagManagementStateStore;
 
   public DagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
       DagManagementStateStore dagManagementStateStore) {
@@ -57,7 +57,7 @@ public abstract class DagTask {
    * work on this task, is done in this method.
    * Returns true if concluding dag task finished successfully otherwise false.
    */
-  public final boolean conclude() {
+  public boolean conclude() {
     try {
       this.dagManagementStateStore.deleteDagAction(this.dagAction);
       return this.leaseObtainedStatus.completeLease();
