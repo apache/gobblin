@@ -68,6 +68,6 @@ public class LaunchDagTaskTest {
     LaunchDagTask dagTask = new LaunchDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore);
     dagTask.conclude();
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(any());
-    Mockito.verify(dagManagementStateStore, Mockito.times(1)).removeFlowSpec(any(), any(), any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).removeFlowSpec(any(), any(), anyBoolean());
   }
 }

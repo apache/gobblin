@@ -60,9 +60,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.util.ConfigUtils;
 
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -188,7 +186,7 @@ public class LaunchDagProcTest {
 
   public static void mockDMSSCommonBehavior(DagManagementStateStore dagManagementStateStore) throws IOException, SpecNotFoundException {
     doReturn(FlowSpec.builder().build()).when(dagManagementStateStore).getFlowSpec(any());
-    doNothing().when(dagManagementStateStore).removeFlowSpec(any(), any(), any());
+    doNothing().when(dagManagementStateStore).removeFlowSpec(any(), any(), anyBoolean());
     doNothing().when(dagManagementStateStore).tryAcquireQuota(any());
     doReturn(true).when(dagManagementStateStore).releaseQuota(any());
   }
