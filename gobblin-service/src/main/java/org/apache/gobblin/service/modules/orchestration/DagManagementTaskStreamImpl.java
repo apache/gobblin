@@ -140,7 +140,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
             }
           }
         } catch (Exception e) {
-          //TODO: need to handle exceptions gracefully
+          //TODO: add metrics
           log.error("Exception getting DagAction from the queue or creating DagTask. dagAction - {}", dagAction == null ? "<null>" : dagAction, e);
         }
       }

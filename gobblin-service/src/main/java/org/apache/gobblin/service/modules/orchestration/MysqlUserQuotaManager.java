@@ -324,7 +324,8 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
       String createQuotaTable = "CREATE TABLE IF NOT EXISTS " + tableName + " (name VARCHAR(500) CHARACTER SET latin1 NOT NULL, "
           + "user_count INT NOT NULL DEFAULT 0, requester_count INT NOT NULL DEFAULT 0, flowgroup_count INT NOT NULL DEFAULT 0, "
           + "PRIMARY KEY (name), " + "UNIQUE INDEX ind (name))";
-      try (Connection connection = dataSource.getConnection(); PreparedStatement createStatement = connection.prepareStatement(createQuotaTable)) {
+      try (Connection connection = dataSource.getConnection();
+          PreparedStatement createStatement = connection.prepareStatement(createQuotaTable)) {
         createStatement.executeUpdate();
       } catch (SQLException e) {
         // TODO: revisit use of connection test query following verification of successful connection pool migration:

@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashSet;
 
@@ -103,7 +102,7 @@ public class MysqlDagActionStoreTest {
   }
 
   @Test(dependsOnMethods = "testGetActions")
-  public void testDeleteAction() throws IOException, SQLException {
+  public void testDeleteAction() throws IOException {
      this.mysqlDagActionStore.deleteDagAction(
          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.KILL));
      Assert.assertEquals(this.mysqlDagActionStore.getDagActions().size(), 2);

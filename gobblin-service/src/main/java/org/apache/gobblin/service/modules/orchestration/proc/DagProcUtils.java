@@ -70,7 +70,6 @@ public class DagProcUtils {
     if (nextNodes.size() == 1) {
       Dag.DagNode<JobExecutionPlan> dagNode = nextNodes.iterator().next();
       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, dagId);
-      log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), dagId);
     } else {
       for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
         JobExecutionPlan jobExecutionPlan = dagNode.getValue();
@@ -153,6 +152,7 @@ public class DagProcUtils {
   public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, DagManagementStateStore dagManagementStateStore) throws IOException {
     Properties props = new Properties();
     DagManager.DagId dagId = DagManagerUtils.generateDagId(dagNodeToCancel);
+
     if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
       props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
           dagNodeToCancel.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
@@ -169,8 +169,8 @@ public class DagProcUtils {
             dagNodeToCancel.getValue().getJobSpec().getUri());
       }
       DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), props).get();
-      // todo - why was it not being cleaned up in DagManager?
-      dagManagementStateStore.deleteDagNodeState(dagId, dagNodeToCancel);
+      // add back the dag node with updated states in the store
+      dagManagementStateStore.addDagNodeState(dagNodeToCancel, dagId);
     } catch (Exception e) {
       throw new IOException(e);
     }

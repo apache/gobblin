@@ -67,20 +67,6 @@ public class DagManagerUtils {
     return getFlowId(dag.getStartNodes().get(0));
   }
 
-  public static DagActionStore.DagAction createDagActionFromDag(Dag<JobExecutionPlan> dag, DagActionStore.DagActionType dagActionType) {
-    return createDagActionFromDagNode(dag.getStartNodes().get(0), dagActionType);
-  }
-
-  // todo - verify if jobName will always be present or need default and update FlowId, DagId etc to contain jobName
-  public static DagActionStore.DagAction createDagActionFromDagNode(DagNode<JobExecutionPlan> dagNode, DagActionStore.DagActionType dagActionType) {
-    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
-    String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
-    String flowName =  jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
-    long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-    String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
-    return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType);
-  }
-
   static FlowId getFlowId(DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);

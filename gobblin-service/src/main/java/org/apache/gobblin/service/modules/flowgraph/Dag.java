@@ -50,11 +50,14 @@ public class Dag<T> {
   private List<DagNode<T>> nodes;
 
   @Setter
+  @Deprecated // because this field is not persisted in mysql and contains information in very limited cases
   private String message;
   @Setter
+  @Deprecated // because this field is not persisted in mysql and contains information in very limited cases
   private String flowEvent;
   // Keep track of when the final flow status is emitted, in milliseconds to avoid many duplicate events
   @Setter @Getter
+  @Deprecated // because this field is not persisted in mysql and contains information in very limited cases
   private long eventEmittedTimeMillis = -1;
 
   public Dag(List<DagNode<T>> dagNodes) {

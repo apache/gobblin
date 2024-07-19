@@ -64,8 +64,8 @@ public abstract class DagProc<T> {
   }
 
   public final void process(DagManagementStateStore dagManagementStateStore) throws IOException {
-    T state = initialize(dagManagementStateStore);   // todo - retry
-    act(dagManagementStateStore, state);   // todo - retry
+    T state = initialize(dagManagementStateStore);
+    act(dagManagementStateStore, state);
     log.info("{} concluded processing for dagId : {}", getClass().getSimpleName(), this.dagId);
   }
 
