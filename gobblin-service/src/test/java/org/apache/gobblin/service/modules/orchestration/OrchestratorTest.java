@@ -136,8 +136,8 @@ public class OrchestratorTest {
     this.mockDagManager = mock(DagManager.class);
     Mockito.doNothing().when(mockDagManager).setTopologySpecMap(anyMap());
 
-    MostlyMySqlDagManagementStateStore dagManagementStateStore =
-        spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
+    MySqlDagManagementStateStore dagManagementStateStore =
+        spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
 
     SharedFlowMetricsSingleton sharedFlowMetricsSingleton = new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(orchestratorProperties));
 

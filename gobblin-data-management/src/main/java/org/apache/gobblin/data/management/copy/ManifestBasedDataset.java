@@ -17,13 +17,6 @@
 
 package org.apache.gobblin.data.management.copy;
 
-import com.google.common.base.Optional;
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
-import com.google.gson.JsonIOException;
-import com.google.gson.JsonSyntaxException;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
@@ -33,20 +26,30 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
+
+import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+import com.google.common.base.Optional;
+import com.google.common.cache.Cache;
+import com.google.common.cache.CacheBuilder;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
+import com.google.gson.JsonIOException;
+import com.google.gson.JsonSyntaxException;
+
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
 import org.apache.gobblin.data.management.partition.FileSet;
 import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.gobblin.util.commit.CreateDirectoryWithPermissionsCommitStep;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
 import org.apache.gobblin.util.commit.SetPermissionCommitStep;
 import org.apache.gobblin.util.filesystem.OwnerAndPermission;
-
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
 
 
 /**
@@ -139,6 +142,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             // Avoid duplicate calculation for the same ancestor
             if (fromPath != null && !ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString()) && !targetFs.exists(fromPath)) {
               ancestorOwnerAndPermissions.put(fromPath.toString(), copyableFile.getAncestorsOwnerAndPermission());
+              flattenedAncestorPermissions.putAll(CopyableFile.resolveReplicatedAncestorOwnerAndPermissionsRecursively(srcFs, fromPath, new Path(commonFilesParent), configuration));
             }
 
             if (existOnTarget && srcFile.isFile()) {

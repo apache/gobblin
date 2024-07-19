@@ -61,14 +61,15 @@ import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.g
  * It implements interfaces of {@link DagStateStore} but delegating responsibilities to methods provided
  * in {@link MysqlStateStore}.
  * It also implements conversion between {@link Dag<JobExecutionPlan>} to {@link State}.
- *
+ * <p>
  * The schema of this will simply be:
  * | storeName | tableName | State |
  * where storeName represents FlowId, a combination of FlowGroup and FlowName, and tableName represents FlowExecutionId.
  * State is a pocket for serialized {@link Dag} object.
  *
- *
+ * Deprecated in favor of {@link MysqlDagStateStoreWithDagNodes}
  */
+@Deprecated
 public class MysqlDagStateStore implements DagStateStore {
 
   public static final String CONFIG_PREFIX = GOBBLIN_SERVICE_PREFIX + "mysqlDagStateStore";

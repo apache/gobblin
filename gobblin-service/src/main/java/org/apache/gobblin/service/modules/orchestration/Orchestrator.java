@@ -125,7 +125,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
     this.dagManager.setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
     if (dagManagementStateStore.isPresent()) {
-      ((MostlyMySqlDagManagementStateStore) dagManagementStateStore.get()).setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
+      ((MySqlDagManagementStateStore) dagManagementStateStore.get()).setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
     }
 
     this.metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
@@ -290,6 +290,9 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
         _log.warn("Flow: {} submitted to dagManager failed to compile and produce a job execution plan dag", flowSpec);
         Instrumented.markMeter(this.flowOrchestrationFailedMeter);
       }
+    } catch (IOException | InterruptedException e) {
+      Instrumented.markMeter(this.flowOrchestrationFailedMeter);
+      throw e;
     } finally {
       this.dagManager.removeFlowSpecIfAdhoc(flowSpec);
     }

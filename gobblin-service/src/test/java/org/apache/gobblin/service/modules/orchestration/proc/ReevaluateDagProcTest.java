@@ -47,7 +47,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
-import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStoreTest;
+import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
@@ -74,7 +74,7 @@ public class ReevaluateDagProcTest {
 
   @BeforeMethod
   public void setUp() throws Exception {
-    this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
+    this.dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     LaunchDagProcTest.mockDMSSCommonBehavior(dagManagementStateStore);
   }
 
@@ -95,13 +95,13 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
     );
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup).jobName("job0")
         .flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.COMPLETE.name())
         .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
-    dagManagementStateStore.checkpointDag(dag);
+    dagManagementStateStore.addDag(dag);
 
     /*
     We cannot check the spec producers if addSpec is called on them because spec producer object changes in writing/reading
@@ -116,33 +116,33 @@ public class ReevaluateDagProcTest {
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null, dagManagementStateStore));
     reEvaluateDagProc.process(dagManagementStateStore);
-
     // next job is sent to spec producer
     Mockito.verify(specProducers.get(1), Mockito.times(1)).addSpec(any());
     // there are two invocations, one after setting status and other after sending new job to specProducer
     Mockito.verify(this.dagManagementStateStore, Mockito.times(2)).addDagNodeState(any(), any());
 
-    // current job's state is deleted
-    Assert.assertEquals(Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()
-        .filter(a -> a.getMethod().getName().equals("deleteDagNodeState")).count(), 1);
+    // assert that the first job is completed
+    Assert.assertEquals(ExecutionStatus.COMPLETE,
+        this.dagManagementStateStore.getDag(dagId).get().getStartNodes().get(0).getValue().getExecutionStatus());
   }
 
   // test when there does not exist a next job in the dag when the current job's reevaluate dag action is processed
   @Test
   public void testNoNextJobToRun() throws Exception {
     String flowName = "fn2";
+    DagManager.DagId dagId = new DagManager.DagId(flowGroup, flowName, flowExecutionId);
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("2", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
     );
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup).jobName("job0")
         .flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.COMPLETE.name())
         .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
-    dagManagementStateStore.checkpointDag(dag);
+    dagManagementStateStore.addDag(dag);
 
     Dag<JobExecutionPlan> mockedDag = DagManagerTest.buildDag("2", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user5", ConfigFactory.empty()
@@ -150,12 +150,14 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
     );
     // mock getDagNodeWithJobStatus() to return a dagNode with status completed
     mockedDag.getNodes().get(0).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
     doReturn(new ImmutablePair<>(Optional.of(mockedDag.getNodes().get(0)), Optional.of(jobStatus)))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+
+    Assert.assertTrue(dagManagementStateStore.hasRunningJobs(dagId));
 
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
 
@@ -167,31 +169,30 @@ public class ReevaluateDagProcTest {
     // no new job to launch for this one job flow
     specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
 
-    // current job's state is deleted
-    Assert.assertEquals(Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()
-        .filter(a -> a.getMethod().getName().equals("deleteDagNodeState")).count(), 1);
-
     // dag is deleted because the only job in the dag is completed
     Assert.assertEquals(Mockito.mockingDetails(dagManagementStateStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDag")).count(), 1);
 
     Assert.assertEquals(Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDagAction")).count(), 1);
+
+    Assert.assertFalse(dagManagementStateStore.hasRunningJobs(dagId));
   }
 
   @Test
   public void testCurrentJobToRun() throws Exception {
     String flowName = "fn3";
+    DagManager.DagId dagId = new DagManager.DagId(flowGroup, flowName, flowExecutionId);
     Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
         2, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
     );
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
-    dagManagementStateStore.checkpointDag(dag);
+    dagManagementStateStore.addDag(dag);
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.empty()))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
 
@@ -208,8 +209,6 @@ public class ReevaluateDagProcTest {
     specProducers.stream().skip(numOfLaunchedJobs) // separately verified `specProducers.get(0)`
         .forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
 
-    // no job's state is deleted because that happens when the job finishes triggered the reevaluate dag proc
-    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagNodeState(any(), any());
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(any());
     Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
         eq(DagActionStore.DagActionType.REEVALUATE));
@@ -224,12 +223,12 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
     );
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
         .jobName("job3").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.COMPLETE.name())
         .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
-    dagManagementStateStore.checkpointDag(dag);
+    dagManagementStateStore.addDag(dag);
 
     doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus)))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());

@@ -45,8 +45,8 @@ import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
-import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.MostlyMySqlDagManagementStateStoreTest;
+import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
@@ -61,13 +61,13 @@ import static org.mockito.Mockito.spy;
 
 
 public class KillDagProcTest {
-  private MostlyMySqlDagManagementStateStore dagManagementStateStore;
+  private MySqlDagManagementStateStore dagManagementStateStore;
   private ITestMetastoreDatabase testDb;
 
   @BeforeClass
   public void setUp() throws Exception {
     this.testDb = TestMetastoreDatabaseFactory.get();
-    this.dagManagementStateStore = spy(MostlyMySqlDagManagementStateStoreTest.getDummyDMSS(this.testDb));
+    this.dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testDb));
     LaunchDagProcTest.mockDMSSCommonBehavior(this.dagManagementStateStore);
   }
 
@@ -86,7 +86,7 @@ public class KillDagProcTest {
         5, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg"))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
@@ -127,7 +127,7 @@ public class KillDagProcTest {
         5, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg"))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MostlyMySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     JobStatus
         jobStatus = JobStatus.builder().flowName("job0").flowGroup("fg").jobGroup("fg").jobName("job0").flowExecutionId(flowExecutionId).

@@ -20,17 +20,14 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Optional;
-import java.util.concurrent.atomic.AtomicLong;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
@@ -42,14 +39,6 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 @Slf4j
 public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
-  // todo - this is not orchestration delay and should be renamed. keeping it the same because DagManager is also using
-  // the same name
-  private static final AtomicLong orchestrationDelayCounter = new AtomicLong(0);
-
-  static {
-    metricContext.register(
-        metricContext.newContextAwareGauge(ServiceMetricNames.FLOW_ORCHESTRATION_DELAY, orchestrationDelayCounter::get));
-  }
 
   public LaunchDagProc(LaunchDagTask launchDagTask, FlowCompilationValidationHelper flowCompilationValidationHelper) {
     super(launchDagTask);
@@ -68,7 +57,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, getDagId().getFlowExecutionId());
       Optional<Dag<JobExecutionPlan>> dag = this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
       if (dag.isPresent()) {
-        dagManagementStateStore.checkpointDag(dag.get());
+        dagManagementStateStore.addDag(dag.get());
       }
       return dag;
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException | IOException e) {
@@ -84,10 +73,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       // todo - add metrics
     } else {
       DagProcUtils.submitNextNodes(dagManagementStateStore, dag.get(), getDagId());
-      // Checkpoint the dag state, it should have an updated value of dag nodes
-      dagManagementStateStore.checkpointDag(dag.get());
       DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
-      orchestrationDelayCounter.set(System.currentTimeMillis() - DagManagerUtils.getFlowExecId(dag.get()));
     }
   }
 }

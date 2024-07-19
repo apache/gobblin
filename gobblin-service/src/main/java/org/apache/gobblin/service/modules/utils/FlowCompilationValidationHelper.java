@@ -112,20 +112,27 @@ public class FlowCompilationValidationHelper {
 
     TimingEvent flowCompilationTimer = new TimingEvent(this.eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILED);
     Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(flowSpec);
-    Optional<Dag<JobExecutionPlan>> jobExecutionPlanDagOptional =
-        validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup, flowName, flowMetadata);
 
-    if (!jobExecutionPlanDagOptional.isPresent()) {
-      return Optional.absent();
+    try {
+      Optional<Dag<JobExecutionPlan>> jobExecutionPlanDagOptional =
+          validateAndHandleConcurrentExecution(flowConfig, flowSpec, flowGroup, flowName, flowMetadata);
+
+      if (!jobExecutionPlanDagOptional.isPresent()) {
+        return Optional.absent();
+      }
+
+      if (jobExecutionPlanDagOptional.get().isEmpty()) {
+        populateFlowCompilationFailedEventMessage(eventSubmitter, flowSpec, flowMetadata);
+        return Optional.absent();
+      }
+
+      flowCompilationTimer.stop(flowMetadata);
+      return jobExecutionPlanDagOptional;
+    } catch (IOException e) {
+      log.error("Encountered exception when attempting to compile and perform checks for flowGroup: {} flowName: {}",
+          flowGroup, flowName);
+      throw e;
     }
-
-    if (jobExecutionPlanDagOptional.get().isEmpty()) {
-      populateFlowCompilationFailedEventMessage(eventSubmitter, flowSpec, flowMetadata);
-      return Optional.absent();
-    }
-
-    flowCompilationTimer.stop(flowMetadata);
-    return jobExecutionPlanDagOptional;
   }
 
   /**
