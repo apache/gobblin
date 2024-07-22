@@ -75,6 +75,7 @@ public class DagProcessingEngineMetrics {
     List<Tag<?>> tags = new ArrayList<>();
     tags.add(new Tag<>(MetricTagNames.METRIC_BACKEND_REPRESENTATION, GobblinMetrics.MetricType.COUNTER));
     this.metricContext = Instrumented.getMetricContext(new State(), this.getClass(), tags);
+    registerAllMetrics();
   }
 
   public void registerAllMetrics() {
