@@ -17,9 +17,8 @@
 
 package org.apache.gobblin.service.modules.orchestration.task;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
-import java.util.List;
 
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
@@ -72,11 +71,9 @@ public class DagProcessingEngineMetrics {
 
   @Inject
   public DagProcessingEngineMetrics() {
-    // Create a new metric context for the DagProcessingEngineMetrics tagged appropriately
-    List<Tag<?>> tags = new ArrayList<>();
-    tags.add(new Tag<>(MetricTagNames.METRIC_BACKEND_REPRESENTATION, GobblinMetrics.MetricType.COUNTER));
-    this.metricContext = Instrumented.getMetricContext(new State(), this.getClass(), tags);
-    registerAllMetrics();
+    this(Instrumented.getMetricContext(new State(),
+        DagProcessingEngineMetrics.class,
+        Collections.singleton(new Tag<>(MetricTagNames.METRIC_BACKEND_REPRESENTATION, GobblinMetrics.MetricType.COUNTER))));
   }
 
   public void registerAllMetrics() {
