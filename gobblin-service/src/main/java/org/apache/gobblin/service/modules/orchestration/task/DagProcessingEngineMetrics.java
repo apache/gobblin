@@ -59,7 +59,6 @@ public class DagProcessingEngineMetrics {
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsActSucceededMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeFailedMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeSucceededMeterByDagActionType =  new HashMap<>();
-  // TODO: mark these metrics
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsDeleteFailedMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsDeleteSucceededMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsAverageProcessingDelayMillisMeterByDagActionType =  new HashMap<>();
@@ -163,8 +162,7 @@ public class DagProcessingEngineMetrics {
       updateMetricForDagActionType(this.dagActionsConcludeFailedMeterByDagActionType, dagActionType);
     }
   }
-
-  // TODO: mark this metric when deleted
+  
   public void markDagActionsDeleted(DagActionStore.DagActionType dagActionType, boolean succeeded) {
     if (succeeded) {
       updateMetricForDagActionType(this.dagActionsDeleteSucceededMeterByDagActionType, dagActionType);
