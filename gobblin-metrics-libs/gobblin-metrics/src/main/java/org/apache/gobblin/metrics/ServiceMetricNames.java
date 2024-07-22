@@ -101,6 +101,5 @@ public class ServiceMetricNames {
   public static final String DAG_ACTIONS_CONCLUDE_SUCCEEDED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsConcludeSucceeded.";
   public static final String DAG_ACTIONS_DELETE_SUCCEEDED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsDeleteSucceeded.";
   public static final String DAG_ACTIONS_DELETE_FAILED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsDeleteFailed.";
-  // TODO: implement this one
   public static final String DAG_ACTIONS_AVERAGE_PROCESSING_DELAY_MILLIS = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsAvgProcessingDelayMillis.";
 }

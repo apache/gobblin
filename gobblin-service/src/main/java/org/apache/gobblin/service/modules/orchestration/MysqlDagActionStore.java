@@ -133,8 +133,10 @@ public class MysqlDagActionStore implements DagActionStore {
     try {
       fillPreparedStatement(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(),
           dagAction.getJobName(), dagAction.getDagActionType(), deleteStatement);
+      this.dagProcessingEngineMetrics.markDagActionsDeleted(dagAction.getDagActionType(), true);
       return deleteStatement.executeUpdate() != 0;
     } catch (SQLException e) {
+      this.dagProcessingEngineMetrics.markDagActionsDeleted(dagAction.getDagActionType(), false);
       throw new IOException(String.format("Failure deleting action for DagAction: %s in table %s", dagAction,
           tableName), e);
     }}, true);
