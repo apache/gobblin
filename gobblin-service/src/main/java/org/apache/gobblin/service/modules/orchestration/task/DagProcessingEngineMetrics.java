@@ -47,22 +47,23 @@ public class DagProcessingEngineMetrics {
    handle concurrent mark requests correctly. ConcurrentMap is not needed since no updates are made to the mappings,
    only get calls.
   */
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsStoredMeterByDagActionType = new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsObservedMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsLeasesObtainedMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsNoLongerLeasingMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsLeaseReminderScheduledMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsReminderProcessedMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsExceededMaxRetryMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsInitializeFailedMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsInitializeSucceededMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsActFailedMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsActSucceededMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeFailedMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeSucceededMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsRemovedFromStoreMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsFailingRemovalMeterByDagActionType =  new HashMap();
-  private HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionAverageProcessingDelayMillisMeterByDagActionType =  new HashMap();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsStoredMeterByDagActionType = new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsObservedMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsLeasesObtainedMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsNoLongerLeasingMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsLeaseReminderScheduledMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsReminderProcessedMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsExceededMaxRetryMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsInitializeFailedMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsInitializeSucceededMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsActFailedMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsActSucceededMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeFailedMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeSucceededMeterByDagActionType =  new HashMap<>();
+  // TODO: mark these metrics
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsDeleteFailedMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsDeleteSucceededMeterByDagActionType =  new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsAverageProcessingDelayMillisMeterByDagActionType =  new HashMap<>();
 
   public DagProcessingEngineMetrics(MetricContext metricContext) {
     this.metricContext = metricContext;
@@ -92,6 +93,9 @@ public class DagProcessingEngineMetrics {
     registerMetricForEachDagActionType(this.dagActionsActSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_ACT_SUCCEEDED);
     registerMetricForEachDagActionType(this.dagActionsConcludeFailedMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_FAILED);
     registerMetricForEachDagActionType(this.dagActionsConcludeSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_SUCCEEDED);
+    registerMetricForEachDagActionType(this.dagActionsDeleteFailedMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_DELETE_FAILED);
+    registerMetricForEachDagActionType(this.dagActionsDeleteSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_DELETE_SUCCEEDED);
+    registerMetricForEachDagActionType(this.dagActionsAverageProcessingDelayMillisMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_AVERAGE_PROCESSING_DELAY_MILLIS);
   }
 
   /**
@@ -163,6 +167,19 @@ public class DagProcessingEngineMetrics {
     }
   }
 
+  // TODO: mark this metric when deleted
+  public void markDagActionsDeleted(DagActionStore.DagActionType dagActionType, boolean succeeded) {
+    if (succeeded) {
+      updateMetricForDagActionType(this.dagActionsDeleteSucceededMeterByDagActionType, dagActionType);
+    } else {
+      updateMetricForDagActionType(this.dagActionsDeleteFailedMeterByDagActionType, dagActionType);
+    }
+  }
+
+  // TODO: measure processing time
+  public void mark(DagActionStore.DagActionType dagActionType) {
+    updateMetricForDagActionType(this.dagActionsAverageProcessingDelayMillisMeterByDagActionType, dagActionType);
+  }
 
   /**
    * Generic helper used to increment a metric corresponding to the dagActionType in the provided map. It assumes the
