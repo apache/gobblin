@@ -82,12 +82,11 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     updateDagNodeStatus(dagManagementStateStore, dagNode, executionStatus);
 
     if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
-      log.warn("Job status for dagNode {} is {}. Re-evaluate dag action should have been created only for finished status - {}",
-          dagNodeId, executionStatus, FlowStatusGenerator.FINISHED_STATUSES);
-      // this may happen if adding job status in the store failed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
-      throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action are created for"
-              + " new jobs with no job status when there are multiple of them to run next; or when a job finishes with status - %s",
-          dagNodeId, executionStatus, FlowStatusGenerator.FINISHED_STATUSES));
+      // this may happen if adding job status in the store failed/delayed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
+      throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action should have been "
+              + "created only for finished status - %s. This may happen if reevaluate dag action launched reevaluate dag "
+              + "proc before job status is updated in the store in KafkaJobStatusMonitor", dagNodeId, executionStatus,
+          FlowStatusGenerator.FINISHED_STATUSES));
     }
 
     // get the dag after updating dag node status
