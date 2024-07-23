@@ -201,6 +201,7 @@ public class DagProcUtils {
       dagManagementStateStore.addDagAction(dagAction);
     } catch (IOException e) {
       if (e.getCause() != null && e.getCause() instanceof SQLIntegrityConstraintViolationException) {
+        // delete old dag action and have a new deadline dag proc with the new deadline time
         dagManagementStateStore.deleteDagAction(dagAction);
         log.warn("Duplicate ENFORCE_JOB_START_DEADLINE Dag Action is being created. Ignoring... " + e.getMessage());
         dagManagementStateStore.addDagAction(dagAction);
