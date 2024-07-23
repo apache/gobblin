@@ -72,6 +72,24 @@ public class KafkaSourceTest {
   }
 
   @Test
+  public void testGetWorkunitsFromKafkaInSingleCall() {
+    TestKafkaClient testKafkaClient = new TestKafkaClient();
+    testKafkaClient.testTopics = testTopics;
+    SourceState state = new SourceState();
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, "TestPath");
+    state.setProp(KafkaWorkUnitPacker.KAFKA_WORKUNIT_PACKER_TYPE, KafkaWorkUnitPacker.PackerType.CUSTOM);
+    state.setProp(KafkaWorkUnitPacker.KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE, "org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaTopicGroupingWorkUnitPacker");
+    state.setProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS, "MockTestKafkaConsumerClientFactory");
+    List<KafkaTopic> kafkaTopicList = toKafkaTopicList(testTopics);
+    TestKafkaSource testKafkaSource = new TestKafkaSource(testKafkaClient);
+    for (KafkaTopic topic : kafkaTopicList) {
+      List<WorkUnit> workUnits = testKafkaSource.getWorkUnitsForTopic(topic, state, Optional.absent(),
+          Optional.absent());
+      validatePartitionNumWithinWorkUnits(workUnits, 48);
+    }
+  }
+
+  @Test
   public void testGetWorkunitsForFilteredPartitions() {
     TestKafkaClient testKafkaClient = new TestKafkaClient();
     List<String> allTopics = testTopics;

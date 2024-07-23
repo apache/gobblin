@@ -440,7 +440,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   /*
    * This function need to be thread safe since it is called in the Runnable
    */
-  private List<WorkUnit> getWorkUnitsForTopic(KafkaTopic topic, SourceState state,
+  public List<WorkUnit> getWorkUnitsForTopic(KafkaTopic topic, SourceState state,
       Optional<State> topicSpecificState, Optional<Set<Integer>> filteredPartitions) {
     Timer.Context context = this.metricContext.timer("isTopicQualifiedTimer").time();
     boolean topicQualified = isTopicQualified(topic);
@@ -496,7 +496,6 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       for (KafkaPartition partition : partitions) {
         Offsets offsets = new Offsets();
         offsets.setOffsetFetchEpochTime(System.currentTimeMillis());
-        // TODO : Need to find a way to determine
         if (earliestOffsetMap.containsKey(partition) && latestOffsetMap.containsKey(partition)) {
           offsets.setEarliestOffset(earliestOffsetMap.get(partition));
           offsets.setLatestOffset(latestOffsetMap.get(partition));
