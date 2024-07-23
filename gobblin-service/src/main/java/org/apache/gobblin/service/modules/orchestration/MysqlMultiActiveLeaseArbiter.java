@@ -260,7 +260,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
             leaseParams);
         int numRowsUpdated = attemptLeaseIfNewRow(leaseParams.getDagAction(),
             ExponentialBackoff.builder().maxRetries(MAX_RETRIES)
-                .initialDelay(MIN_INITIAL_DELAY_MILLIS + (long) Math.random() * DELAY_FOR_RETRY_RANGE_MILLIS)
+                .initialDelay(MIN_INITIAL_DELAY_MILLIS + (long) (Math.random() * DELAY_FOR_RETRY_RANGE_MILLIS))
                 .build());
        return evaluateStatusAfterLeaseAttempt(numRowsUpdated, leaseParams, Optional.empty(),
            adoptConsensusFlowExecutionId);
