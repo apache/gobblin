@@ -448,21 +448,25 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
     List<WorkUnit> workUnits = Lists.newArrayList();
     List<KafkaPartition> topicPartitions = topic.getPartitions();
-    for (KafkaPartition partition : topicPartitions) {
-      if(filteredPartitions.isPresent() && !filteredPartitions.get().contains(partition.getId())) {
-        continue;
-      }
-      WorkUnit workUnit = getWorkUnitForTopicPartition(partition, state, topicSpecificState);
-      if (workUnit != null) {
-        // For disqualified topics, for each of its workunits set the high watermark to be the same
-        // as the low watermark, so that it will be skipped.
-        if (!topicQualified) {
-          skipWorkUnit(workUnit);
-        }
-        workUnit.setProp(NUM_TOPIC_PARTITIONS, topicPartitions.size());
-        workUnits.add(workUnit);
-      }
+    Map<KafkaPartition, WorkUnit> workUnitMap = Maps.newHashMap();
+
+    if(filteredPartitions.isPresent()) {
+      List<KafkaPartition> partitionsToBeProcessed =
+          topicPartitions.stream().filter(partition -> filteredPartitions.get().contains(partition.getId()))
+          .collect(Collectors.toList());
+      workUnitMap = getWorkUnits(partitionsToBeProcessed, state, topicSpecificState);
+    } else {
+      workUnitMap = getWorkUnits(topicPartitions, state, topicSpecificState);
     }
+
+    for(WorkUnit workUnit : workUnitMap.values()) {
+      if (!topicQualified) {
+        skipWorkUnit(workUnit);
+      }
+      workUnit.setProp(NUM_TOPIC_PARTITIONS, topicPartitions.size());
+      workUnits.add(workUnit);
+    }
+
     this.partitionsToBeProcessed.addAll(topic.getPartitions());
     return workUnits;
   }
@@ -482,20 +486,43 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     workUnit.setProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY, workUnit.getLowWaterMark());
   }
 
-  private WorkUnit getWorkUnitForTopicPartition(KafkaPartition partition, SourceState state,
+  private Map<KafkaPartition, WorkUnit> getWorkUnits(Collection<KafkaPartition> partitions, SourceState state,
       Optional<State> topicSpecificState) {
-    Offsets offsets = new Offsets();
-
-    boolean failedToGetKafkaOffsets = false;
-
+    Map<KafkaPartition, Offsets> partitionOffsetMap = Maps.newHashMap();
+    Map<KafkaPartition, Boolean> kafkaOffsetsFetchFailureMap = Maps.newConcurrentMap();
     try (Timer.Context context = this.metricContext.timer(OFFSET_FETCH_TIMER).time()) {
-      offsets.setOffsetFetchEpochTime(System.currentTimeMillis());
-      offsets.setEarliestOffset(this.kafkaConsumerClient.get().getEarliestOffset(partition));
-      offsets.setLatestOffset(this.kafkaConsumerClient.get().getLatestOffset(partition));
-    } catch (Throwable t) {
-      failedToGetKafkaOffsets = true;
-      LOG.error("Caught error in creating work unit for {}", partition, t);
+      Map<KafkaPartition, Long> earliestOffsetMap = this.kafkaConsumerClient.get().getEarliestOffsets(partitions);
+      Map<KafkaPartition, Long> latestOffsetMap = this.kafkaConsumerClient.get().getLatestOffsets(partitions);
+      for (KafkaPartition partition : partitions) {
+        Offsets offsets = new Offsets();
+        offsets.setOffsetFetchEpochTime(System.currentTimeMillis());
+        // TODO : Need to find a way to determine
+        if (earliestOffsetMap.containsKey(partition) && latestOffsetMap.containsKey(partition)) {
+          offsets.setEarliestOffset(earliestOffsetMap.get(partition));
+          offsets.setLatestOffset(latestOffsetMap.get(partition));
+          offsets.setOffsetFetchEpochTime(System.currentTimeMillis());
+          partitionOffsetMap.put(partition, offsets);
+        } else {
+          kafkaOffsetsFetchFailureMap.put(partition, true);
+        }
+      }
+    } catch (KafkaOffsetRetrievalFailureException e) {
+      for (KafkaPartition partition : partitions) {
+        kafkaOffsetsFetchFailureMap.put(partition, true);
+      }
+      LOG.error("Caught error in creating work unit for {}", partitions, e);
     }
+    Map<KafkaPartition, WorkUnit> workUnitMap = Maps.newHashMap();
+    for (Map.Entry<KafkaPartition, Offsets> partitionOffset : partitionOffsetMap.entrySet()) {
+      workUnitMap.put(partitionOffset.getKey(),
+          getWorkUnitForTopicPartition(partitionOffset.getKey(), state, topicSpecificState, partitionOffset.getValue(),
+              kafkaOffsetsFetchFailureMap.getOrDefault(partitionOffset.getKey(), false)));
+    }
+    return workUnitMap;
+  }
+
+  private WorkUnit getWorkUnitForTopicPartition(KafkaPartition partition, SourceState state,
+      Optional<State> topicSpecificState,  Offsets offsets, boolean failedToGetKafkaOffsets) {
 
     long previousOffset = 0;
     long previousOffsetFetchEpochTime = 0;

@@ -67,6 +67,25 @@ public interface GobblinKafkaConsumerClient extends Closeable {
   public long getEarliestOffset(KafkaPartition partition) throws KafkaOffsetRetrievalFailureException;
 
   /**
+   * Get the earliest available offset for a {@link Collection} of {@link KafkaPartition}s. NOTE: The default implementation
+   * is not efficient i.e. it will make a getEarliest() call for every {@link KafkaPartition}. Individual implementations
+   * of {@link GobblinKafkaConsumerClient} should override this method to use more advanced APIs of the underlying KafkaConsumer
+   * to retrieve the latest offsets for a collection of partitions.
+   *
+   * @param partitions for which earliest offset is retrieved
+   *
+   * @throws KafkaOffsetRetrievalFailureException - If the underlying kafka-client does not support getting the earliest offset
+   */
+  public default Map<KafkaPartition, Long> getEarliestOffsets(Collection<KafkaPartition> partitions)
+      throws KafkaOffsetRetrievalFailureException {
+    Map<KafkaPartition, Long> offsetMap = Maps.newHashMap();
+    for (KafkaPartition partition : partitions) {
+      offsetMap.put(partition, getEarliestOffset(partition));
+    }
+    return offsetMap;
+  }
+
+  /**
    * Get the latest available offset for a <code>partition</code>
    *
    * @param partition for which latest offset is retrieved
