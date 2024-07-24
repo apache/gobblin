@@ -48,14 +48,14 @@ abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<Jo
   @Override
   protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag,
       DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
-    if (validate(dag, dagManagementStateStore)) {
+    if (isDagStillPresent(dag, dagManagementStateStore)) {
       enforceDeadline(dagManagementStateStore, dag.get(), dagProcEngineMetrics);
     } else {
     dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
   }
   }
 
-  protected boolean validate(Optional<Dag<JobExecutionPlan>> dag, DagManagementStateStore dagManagementStateStore)
+  protected boolean isDagStillPresent(Optional<Dag<JobExecutionPlan>> dag, DagManagementStateStore dagManagementStateStore)
       throws IOException {
     log.info("Request to enforce deadlines for dag {}", getDagId());
     DagActionStore.DagAction dagAction = getDagTask().getDagAction();
