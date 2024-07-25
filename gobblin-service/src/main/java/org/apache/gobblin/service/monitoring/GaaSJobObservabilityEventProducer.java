@@ -71,7 +71,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
   public static final String GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX = "GaaSJobObservabilityEventProducer.";
   public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
   public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSJobObservabilityEventProducer.class.getName();
-  public static final String EMIT_FLOW_OBSERVABILITY_EVENT = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "emitFlowObservabilityEvent";
+  public static final String EMIT_FLOW_OBSERVABILITY_EVENT = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "emitFlowLevelEvent";
   public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
   public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
   public static final String GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME = "jobSucceeded";
@@ -128,7 +128,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
 
   public void emitObservabilityEvent(final State jobState) {
     GaaSJobObservabilityEvent event = createGaaSObservabilityEvent(jobState);
-    if (jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD).equals(JobStatusRetriever.NA_KEY)) {
+    if (jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD).equals(JobStatusRetriever.NA_KEY) && this.emitFlowObservabilityEvent) {
       sendFlowLevelEvent(convertJobEventToFlowEvent(event));
     } else {
       sendJobLevelEvent(event);

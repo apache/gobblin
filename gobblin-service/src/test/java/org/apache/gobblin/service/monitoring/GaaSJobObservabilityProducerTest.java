@@ -207,6 +207,8 @@ public class GaaSJobObservabilityProducerTest {
         TroubleshooterUtils.getContextIdForJob(flowGroup, flowName, flowExecutionId, jobName),
         createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
     );
+    State producerState = new State();
+    producerState.setProp(GaaSJobObservabilityEventProducer.EMIT_FLOW_OBSERVABILITY_EVENT, "true");
     MockGaaSJobObservabilityEventProducer
         producer = new MockGaaSJobObservabilityEventProducer(new State(), this.issueRepository, false);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
