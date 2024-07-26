@@ -59,6 +59,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphHelper;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.spec.SerializationConstants;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -129,7 +130,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
   public void emitObservabilityEvent(final State jobState) {
     GaaSJobObservabilityEvent event = createGaaSObservabilityEvent(jobState);
     if (jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD).equals(JobStatusRetriever.NA_KEY) && this.emitFlowObservabilityEvent) {
-      sendFlowLevelEvent(convertJobEventToFlowEvent(event));
+      sendFlowLevelEvent(convertJobEventToFlowEvent(event, jobState));
     } else {
       sendJobLevelEvent(event);
     }
@@ -255,7 +256,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
         )).collect(Collectors.toList());
   }
 
-  private GaaSFlowObservabilityEvent convertJobEventToFlowEvent(GaaSJobObservabilityEvent jobEvent) {
+  private GaaSFlowObservabilityEvent convertJobEventToFlowEvent(GaaSJobObservabilityEvent jobEvent, State jobState) {
     GaaSFlowObservabilityEvent.Builder builder = GaaSFlowObservabilityEvent.newBuilder();
     builder.setEventTimestamp(jobEvent.getEventTimestamp())
         .setGaasId(jobEvent.getGaasId())
@@ -266,7 +267,9 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
         .setSourceNode(jobEvent.getSourceNode())
         .setDestinationNode(jobEvent.getDestinationNode())
         .setEffectiveUserUrn(jobEvent.getEffectiveUserUrn())
-        .setFlowStatus(FlowStatus.valueOf(jobEvent.getJobStatus().toString()));
+        .setFlowStatus(FlowStatus.valueOf(jobEvent.getJobStatus().toString()))
+        .setFlowStartTimestamp(jobState.getPropAsLong(SerializationConstants.FLOW_START_TIME_KEY))
+        .setFlowEndTimestamp(jobEvent.getJobEndTimestamp());
     return builder.build();
   }
 
