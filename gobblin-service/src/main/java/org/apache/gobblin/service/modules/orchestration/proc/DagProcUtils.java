@@ -45,6 +45,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.spec.SerializationConstants;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -124,6 +125,7 @@ public class DagProcUtils {
       jobMetadata.put(TimingEvent.METADATA_MESSAGE, producer.getExecutionLink(addSpecFuture, specExecutorUri));
       // Add serialized job properties as part of the orchestrated job event metadata
       jobMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, PropertiesUtils.serialize(jobSpec.getConfigAsProperties()));
+      jobMetadata.put(SerializationConstants.FLOW_START_TIME_KEY, String.valueOf(dagNode.getValue().getFlowStartTime()));
       jobOrchestrationTimer.stop(jobMetadata);
       log.info("Orchestrated job: {} on Executor: {}", DagManagerUtils.getFullyQualifiedJobName(dagNode), specExecutorUri);
       dagManagementStateStore.getDagManagerMetrics().incrementJobsSentToExecutor(dagNode);
