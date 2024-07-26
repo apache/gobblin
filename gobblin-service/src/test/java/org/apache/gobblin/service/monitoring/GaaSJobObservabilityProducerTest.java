@@ -57,6 +57,7 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.spec.SerializationConstants;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -210,7 +211,7 @@ public class GaaSJobObservabilityProducerTest {
     State producerState = new State();
     producerState.setProp(GaaSJobObservabilityEventProducer.EMIT_FLOW_OBSERVABILITY_EVENT, "true");
     MockGaaSJobObservabilityEventProducer
-        producer = new MockGaaSJobObservabilityEventProducer(new State(), this.issueRepository, false);
+        producer = new MockGaaSJobObservabilityEventProducer(producerState, this.issueRepository, false);
     Map<String, String> gteEventMetadata = Maps.newHashMap();
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
@@ -219,6 +220,7 @@ public class GaaSJobObservabilityProducerTest {
     gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
     gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
     gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
+    gteEventMetadata.put(SerializationConstants.FLOW_START_TIME_KEY, "1");
 
     Properties jobStatusProps = new Properties();
     jobStatusProps.putAll(gteEventMetadata);
@@ -233,7 +235,8 @@ public class GaaSJobObservabilityProducerTest {
     Assert.assertEquals(event.getFlowName(), flowName);
     Assert.assertEquals(event.getFlowExecutionId(), Long.valueOf(flowExecutionId));
     Assert.assertEquals(event.getFlowStatus(), FlowStatus.SUCCEEDED);
-    Assert.assertEquals(event.getEffectiveUserUrn(), null);
+    Assert.assertNull(event.getEffectiveUserUrn());
+    Assert.assertEquals(event.getFlowStartTimestamp(), Long.valueOf(1));
 
     AvroSerializer<GaaSFlowObservabilityEvent> serializer = new AvroBinarySerializer<>(
         GaaSFlowObservabilityEvent.SCHEMA$, new NoopSchemaVersionWriter()

@@ -734,7 +734,9 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
     MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
-    MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(ConfigUtils.configToState(ConfigFactory.empty()),
+    State producerState = new State();
+    producerState.setProp(GaaSJobObservabilityEventProducer.EMIT_FLOW_OBSERVABILITY_EVENT, "true");
+    MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(producerState,
         issueRepository, false);
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
         mockEventProducer, mock(DagManagementStateStore.class));
@@ -767,6 +769,66 @@ public class KafkaAvroJobStatusMonitorTest {
     Iterator<GaaSFlowObservabilityEvent> flowIterator = emittedFlowEvents.iterator();
     GaaSFlowObservabilityEvent flowEvent = flowIterator.next();
     Assert.assertEquals(flowEvent.getFlowStatus(), FlowStatus.SUCCEEDED);
+    Assert.assertEquals(flowEvent.getFlowName(), this.flowName);
+    Assert.assertEquals(flowEvent.getFlowGroup(), this.flowGroup);
+
+    jobStatusMonitor.shutDown();
+  }
+
+  @Test (dependsOnMethods = "testObservabilityEventFlowLevel")
+  public void testObservabilityEventFlowFailed() throws IOException, ReflectiveOperationException {
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic7");
+
+    //Submit GobblinTrackingEvents to Kafka
+    ImmutableList.of(
+        createFlowCompiledEvent(),
+        createJobFailedEvent(),
+        createFlowFailedEvent()
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
+    try {
+      Thread.sleep(1000);
+    } catch (InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+    MultiContextIssueRepository issueRepository = new InMemoryMultiContextIssueRepository();
+    State producerState = new State();
+    producerState.setProp(GaaSJobObservabilityEventProducer.EMIT_FLOW_OBSERVABILITY_EVENT, "true");
+    MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(producerState,
+        issueRepository, false);
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
+        mockEventProducer, mock(DagManagementStateStore.class));
+    jobStatusMonitor.buildMetricsContextAndMetrics();
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
+        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
+
+    State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
+
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.FAILED.name());
+
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.FAILED.name());
+
+    // Only the COMPLETE event should create a GaaSJobObservabilityEvent
+    List<GaaSJobObservabilityEvent> emittedEvents = mockEventProducer.getTestEmittedJobEvents();
+    Assert.assertEquals(emittedEvents.size(), 1);
+    Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
+    GaaSJobObservabilityEvent event1 = iterator.next();
+    Assert.assertEquals(event1.getJobStatus(), JobStatus.EXECUTION_FAILURE);
+    Assert.assertEquals(event1.getFlowName(), this.flowName);
+    Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);
+
+    // Only the COMPLETE event should create a GaaSFlowObservabilityEvent
+    List<GaaSFlowObservabilityEvent> emittedFlowEvents = mockEventProducer.getTestEmittedFlowEvents();
+    Assert.assertEquals(emittedFlowEvents.size(), 1);
+    Iterator<GaaSFlowObservabilityEvent> flowIterator = emittedFlowEvents.iterator();
+    GaaSFlowObservabilityEvent flowEvent = flowIterator.next();
+    Assert.assertEquals(flowEvent.getFlowStatus(), FlowStatus.EXECUTION_FAILURE);
     Assert.assertEquals(flowEvent.getFlowName(), this.flowName);
     Assert.assertEquals(flowEvent.getFlowGroup(), this.flowGroup);
 
@@ -826,7 +888,14 @@ public class KafkaAvroJobStatusMonitorTest {
     event.getMetadata().remove(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
     event.getMetadata().remove(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
     return event;
+  }
 
+  private GobblinTrackingEvent createFlowFailedEvent() {
+    GobblinTrackingEvent event = createGTE(TimingEvent.FlowTimings.FLOW_FAILED, Maps.newHashMap());
+    // Remove jobname and jobgroup as flow level events should not have them, get populated with "NA"
+    event.getMetadata().remove(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
+    event.getMetadata().remove(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
+    return event;
   }
 
   private GobblinTrackingEvent createJobFailedEvent() {

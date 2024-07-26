@@ -268,7 +268,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
         .setDestinationNode(jobEvent.getDestinationNode())
         .setEffectiveUserUrn(jobEvent.getEffectiveUserUrn())
         .setFlowStatus(FlowStatus.valueOf(jobEvent.getJobStatus().toString()))
-        .setFlowStartTimestamp(jobState.getPropAsLong(SerializationConstants.FLOW_START_TIME_KEY))
+        .setFlowStartTimestamp(jobState.getPropAsLong(SerializationConstants.FLOW_START_TIME_KEY, 0))
         .setFlowEndTimestamp(jobEvent.getJobEndTimestamp());
     return builder.build();
   }
