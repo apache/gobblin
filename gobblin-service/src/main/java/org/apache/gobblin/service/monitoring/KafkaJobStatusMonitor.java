@@ -235,8 +235,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
               try {
                 this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
-              } catch (Exception e) {
-                if (isExceptionInstanceOf(e, nonRetryableExceptions)) {
+              } catch (IOException e) {
+                if (e.getCause() != null && isThrowableInstanceOf(e.getCause(), nonRetryableExceptions)) {
                   // todo - add metrics
                   log.warn("Duplicate REEVALUATE Dag Action is being created. Ignoring... " + e.getMessage());
                 } else {
@@ -426,7 +426,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   protected abstract org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event);
 
-  public static boolean isExceptionInstanceOf(Exception exception, List<Class<? extends Exception>> typesList) {
+  public static boolean isThrowableInstanceOf(Throwable exception, List<Class<? extends Exception>> typesList) {
     return typesList.stream().anyMatch(e -> e.isInstance(exception));
   }
 }

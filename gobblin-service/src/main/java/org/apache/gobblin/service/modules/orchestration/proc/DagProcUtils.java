@@ -18,6 +18,7 @@
 package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
+import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -193,15 +194,34 @@ public class DagProcUtils {
 
   private static void sendEnforceJobStartDeadlineDagAction(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode)
       throws IOException {
-    dagManagementStateStore.addJobDagAction(dagNode.getValue().getFlowGroup(), dagNode.getValue().getFlowName(),
-        dagNode.getValue().getFlowExecutionId(), dagNode.getValue().getJobName(),
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(dagNode.getValue().getFlowGroup(),
+        dagNode.getValue().getFlowName(), dagNode.getValue().getFlowExecutionId(), dagNode.getValue().getJobName(),
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+    try {
+      dagManagementStateStore.addDagAction(dagAction);
+    } catch (IOException e) {
+      if (e.getCause() != null && e.getCause() instanceof SQLIntegrityConstraintViolationException) {
+        // delete old dag action and have a new deadline dag proc with the new deadline time
+        dagManagementStateStore.deleteDagAction(dagAction);
+        log.warn("Duplicate ENFORCE_JOB_START_DEADLINE Dag Action is being created. Ignoring... " + e.getMessage());
+        dagManagementStateStore.addDagAction(dagAction);
+      }
+    }
   }
 
   public static void sendEnforceFlowFinishDeadlineDagAction(DagManagementStateStore dagManagementStateStore, DagActionStore.DagAction launchDagAction)
       throws IOException {
-    dagManagementStateStore.addFlowDagAction(launchDagAction.getFlowGroup(), launchDagAction.getFlowName(),
+    DagActionStore.DagAction dagAction = DagActionStore.DagAction.forFlow(launchDagAction.getFlowGroup(), launchDagAction.getFlowName(),
         launchDagAction.getFlowExecutionId(), DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
+    try {
+      dagManagementStateStore.addDagAction(dagAction);
+    } catch (IOException e) {
+      if (e.getCause() != null && e.getCause() instanceof SQLIntegrityConstraintViolationException) {
+        dagManagementStateStore.deleteDagAction(dagAction);
+        log.warn("Duplicate ENFORCE_FLOW_FINISH_DEADLINE Dag Action is being created. Ignoring... " + e.getMessage());
+        dagManagementStateStore.addDagAction(dagAction);
+      }
+    }
   }
 
   public static long getDefaultJobStartDeadline(Config config) {

@@ -22,6 +22,7 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -54,7 +55,9 @@ public class DagProcessingEngineTest {
   private DagManagementTaskStreamImpl dagManagementTaskStream;
   private DagTaskStream dagTaskStream;
   private DagProcFactory dagProcFactory;
+  // Field is static because it's used to instantiate every MockedDagTask
   private static MySqlDagManagementStateStore dagManagementStateStore;
+  private static DagProcessingEngineMetrics mockedDagProcEngineMetrics;
   private ITestMetastoreDatabase testMetastoreDatabase;
   static LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
 
@@ -80,18 +83,19 @@ public class DagProcessingEngineTest {
     doReturn(true).when(dagActionStore).deleteDagAction(any());
     dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
-            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)), false,
-            dagManagementStateStore);
+            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
+            false, dagManagementStateStore, Mockito.mock(DagProcessingEngineMetrics.class));
     this.dagProcFactory = new DagProcFactory(null);
 
     DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
         new DagProcessingEngine.DagProcEngineThread(dagManagementTaskStream, this.dagProcFactory,
-            dagManagementStateStore, 0);
+            dagManagementStateStore, mock(DagProcessingEngineMetrics.class), 0);
     this.dagTaskStream = spy(new MockedDagTaskStream());
     DagProcessingEngine dagProcessingEngine =
         new DagProcessingEngine(config, Optional.ofNullable(dagTaskStream), Optional.ofNullable(this.dagProcFactory),
-            Optional.ofNullable(dagManagementStateStore), 100000L);
+            Optional.ofNullable(dagManagementStateStore), 100000L, mock(DagProcessingEngineMetrics.class));
     dagProcessingEngine.startAsync();
+    this.mockedDagProcEngineMetrics = mock(DagProcessingEngineMetrics.class);
   }
 
   @AfterClass(alwaysRun = true)
@@ -128,7 +132,7 @@ public class DagProcessingEngineTest {
     private final boolean isBad;
 
     public MockedDagTask(DagActionStore.DagAction dagAction, boolean isBad) {
-      super(dagAction, leaseObtainedStatus, dagManagementStateStore);
+      super(dagAction, leaseObtainedStatus, DagProcessingEngineTest.dagManagementStateStore, mockedDagProcEngineMetrics);
       this.isBad = isBad;
     }
 
@@ -157,7 +161,8 @@ public class DagProcessingEngineTest {
     }
 
     @Override
-    protected void act(DagManagementStateStore dagManagementStateStore, Void state) {
+    protected void act(DagManagementStateStore dagManagementStateStore, Void state,
+        DagProcessingEngineMetrics dagProcEngineMetrics) {
       if (this.isBad) {
         throw new RuntimeException("Simulating an exception!");
       }

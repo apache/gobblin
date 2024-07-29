@@ -19,6 +19,7 @@ package org.apache.gobblin.runtime;
 
 import java.net.URI;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -90,7 +91,7 @@ public class DagActionStoreChangeMonitorTest {
     public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads, boolean isMultiActiveSchedulerEnabled,
         DagManagementStateStore dagManagementStateStore, DagManager dagManager, FlowCatalog flowCatalog, Orchestrator orchestrator) {
       super(topic, config, dagManager, numThreads, flowCatalog, orchestrator,
-          dagManagementStateStore, isMultiActiveSchedulerEnabled);
+          dagManagementStateStore, isMultiActiveSchedulerEnabled, mock(DagProcessingEngineMetrics.class));
     }
 
     protected void processMessageForTest(DecodeableKafkaRecord record) {

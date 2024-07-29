@@ -30,6 +30,7 @@ import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -48,13 +49,13 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
     super(enforceJobStartDeadlineDagTask);
   }
 
-  protected void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag)
-      throws IOException {
+  protected void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
+      DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<org.apache.gobblin.service.monitoring.JobStatus>>
         dagNodeToCheckDeadline = dagManagementStateStore.getDagNodeWithJobStatus(getDagNodeId());
     if (!dagNodeToCheckDeadline.getLeft().isPresent()) {
       // this should never happen; a job for which DEADLINE_ENFORCEMENT dag action is created must have a dag node in store
-      // todo - add metrics
+      dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       log.error("Dag node {} not found for EnforceJobStartDeadlineDagProc", getDagNodeId());
       return;
     }
@@ -63,6 +64,7 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
     long timeOutForJobStart = DagManagerUtils.getJobStartSla(dagNode, DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
     Optional<org.apache.gobblin.service.monitoring.JobStatus> jobStatus = dagNodeToCheckDeadline.getRight();
     if (!jobStatus.isPresent()) {
+      dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       log.error("Some job status should be present for dag node {} that this EnforceJobStartDeadlineDagProc belongs.", getDagNodeId());
       return;
     }
@@ -78,5 +80,6 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
       dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
       dag.setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
     }
+    dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
   }
 }

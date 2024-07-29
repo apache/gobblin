@@ -40,14 +40,16 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 @Slf4j
 public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
+  protected final DagManagementStateStore dagManagementStateStore;
   private final LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
-  private final DagManagementStateStore dagManagementStateStore;
+  private final DagProcessingEngineMetrics dagProcEngineMetrics;
 
   public DagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
-      DagManagementStateStore dagManagementStateStore) {
+      DagManagementStateStore dagManagementStateStore, DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.dagAction = dagAction;
     this.leaseObtainedStatus = leaseObtainedStatus;
     this.dagManagementStateStore = dagManagementStateStore;
+    this.dagProcEngineMetrics = dagProcEngineMetrics;
   }
 
   public abstract <T> T host(DagTaskVisitor<T> visitor);
@@ -57,11 +59,18 @@ public abstract class DagTask {
    * work on this task, is done in this method.
    * Returns true if concluding dag task finished successfully otherwise false.
    */
-  public final boolean conclude() {
+  public boolean conclude() {
     try {
       this.dagManagementStateStore.deleteDagAction(this.dagAction);
-      return this.leaseObtainedStatus.completeLease();
+      boolean completedLease = this.leaseObtainedStatus.completeLease();
+      if (completedLease) {
+        this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), true);
+      } else {
+        this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), false);
+      }
+      return completedLease;
     } catch (IOException e) {
+      this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), false);
       // TODO: Decide appropriate exception to throw and add to the commit method's signature
       throw new RuntimeException(e);
     }

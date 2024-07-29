@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.quartz.SchedulerException;
 import org.testng.annotations.BeforeClass;
@@ -75,7 +76,8 @@ public class DagManagementDagActionStoreChangeMonitorTest {
 
     public MockDagManagementDagActionStoreChangeMonitor(Config config, int numThreads, boolean isMultiActiveSchedulerEnabled) {
       super(config, numThreads, mock(FlowCatalog.class), mock(Orchestrator.class), mock(DagManagementStateStore.class),
-          isMultiActiveSchedulerEnabled, mock(DagManagement.class), dagActionReminderScheduler);
+          isMultiActiveSchedulerEnabled, mock(DagManagement.class), dagActionReminderScheduler,
+          mock(DagProcessingEngineMetrics.class));
     }
     protected void processMessageForTest(DecodeableKafkaRecord<String, DagActionStoreChangeEvent> record) {
       super.processMessage(record);

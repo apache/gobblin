@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
@@ -53,6 +54,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
@@ -60,6 +62,7 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doNothing;
@@ -71,12 +74,21 @@ import static org.mockito.Mockito.spy;
 public class LaunchDagProcTest {
   private ITestMetastoreDatabase testMetastoreDatabase;
   private MySqlDagManagementStateStore dagManagementStateStore;
+  private DagProcessingEngineMetrics mockedDagProcEngineMetrics;
 
   @BeforeClass
   public void setUp() throws Exception {
     this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+  }
+
+  /**
+   * Reset DagManagementStateStore between tests so that Mockito asserts are done on a fresh state.
+   */
+  @BeforeMethod
+  public void resetDMSS() throws Exception {
     this.dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     mockDMSSCommonBehavior(this.dagManagementStateStore);
+    this.mockedDagProcEngineMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
   }
 
   @AfterClass(alwaysRun = true)
@@ -101,10 +113,11 @@ public class LaunchDagProcTest {
     List<SpecProducer<Spec>> specProducers = ReevaluateDagProcTest.getDagSpecProducers(dag);
     LaunchDagProc launchDagProc = new LaunchDagProc(
         new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
-            DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore),
+            DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore,
+            this.mockedDagProcEngineMetrics),
         flowCompilationValidationHelper);
 
-    launchDagProc.process(this.dagManagementStateStore);
+    launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int numOfLaunchedJobs = 1; // = number of start nodes
     Mockito.verify(specProducers.get(0), Mockito.times(1)).addSpec(any());
@@ -113,7 +126,7 @@ public class LaunchDagProcTest {
         .forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
 
     Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
-        .addFlowDagAction(any(), any(), anyLong(), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
+        .addJobDagAction(any(), any(), anyLong(), eq(DagActionStore.NO_JOB_NAME_DEFAULT), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
   }
 
   @Test
@@ -131,10 +144,11 @@ public class LaunchDagProcTest {
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     LaunchDagProc launchDagProc = new LaunchDagProc(
         new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
-            "jn", DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore),
+            "jn", DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore,
+            this.mockedDagProcEngineMetrics),
         flowCompilationValidationHelper);
 
-    launchDagProc.process(this.dagManagementStateStore);
+    launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
     int numOfLaunchedJobs = 3; // = number of start nodes
     // parallel jobs are launched through reevaluate dag action
     Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
@@ -180,6 +194,7 @@ public class LaunchDagProcTest {
 
   public static void mockDMSSCommonBehavior(DagManagementStateStore dagManagementStateStore) throws IOException, SpecNotFoundException {
     doReturn(FlowSpec.builder().build()).when(dagManagementStateStore).getFlowSpec(any());
+    doNothing().when(dagManagementStateStore).removeFlowSpec(any(), any(), anyBoolean());
     doNothing().when(dagManagementStateStore).tryAcquireQuota(any());
     doReturn(true).when(dagManagementStateStore).releaseQuota(any());
   }

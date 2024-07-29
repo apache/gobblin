@@ -29,6 +29,7 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
@@ -48,19 +49,19 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
   }
 
   @Override
-  protected Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(DagManagementStateStore dagManagementStateStore)
-      throws IOException {
-    return dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId);
+  protected Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(
+      DagManagementStateStore dagManagementStateStore) throws IOException {
+      return dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId);
   }
 
   @Override
   protected void act(DagManagementStateStore dagManagementStateStore, Pair<Optional<Dag.DagNode<JobExecutionPlan>>,
-      Optional<JobStatus>> dagNodeWithJobStatus) throws IOException {
+      Optional<JobStatus>> dagNodeWithJobStatus, DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     if (!dagNodeWithJobStatus.getLeft().isPresent()) {
       // one of the reason this could arise is when the MALA leasing doesn't work cleanly and another DagProc::process
       // has cleaned up the Dag, yet did not complete the lease before this current one acquired its own
       log.error("DagNode or its job status not found for a Reevaluate DagAction with dag node id {}", this.dagNodeId);
-      // todo - add metrics to count such occurrences
+      dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       return;
     }
 
@@ -72,6 +73,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // dag actions for each of those parallel job and in this scenario there is no job status available.
       // If the job status is not present, this job was never launched, submit it now.
       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
+      dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
       return;
     }
 
@@ -80,12 +82,11 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     updateDagNodeStatus(dagManagementStateStore, dagNode, executionStatus);
 
     if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
-      log.warn("Job status for dagNode {} is {}. Re-evaluate dag action should have been created only for finished status - {}",
-          dagNodeId, executionStatus, FlowStatusGenerator.FINISHED_STATUSES);
-      // this may happen if adding job status in the store failed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
-      throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action are created for"
-              + " new jobs with no job status when there are multiple of them to run next; or when a job finishes with status - %s",
-          dagNodeId, executionStatus, FlowStatusGenerator.FINISHED_STATUSES));
+      // this may happen if adding job status in the store failed/delayed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
+      throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action should have been "
+              + "created only for finished status - %s. This may happen if reevaluate dag action launched reevaluate dag "
+              + "proc before job status is updated in the store in KafkaJobStatusMonitor", dagNodeId, executionStatus,
+          FlowStatusGenerator.FINISHED_STATUSES));
     }
 
     // get the dag after updating dag node status
@@ -118,6 +119,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
 
       DagProcUtils.removeFlowFinishDeadlineDagAction(dagManagementStateStore, getDagId());
     }
+    dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
   }
 
   /**

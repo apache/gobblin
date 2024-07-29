@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.util.Optional;
 
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -68,10 +69,10 @@ public class DagManagementTaskStreamImplTest {
     this.dagManagementTaskStream =
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
             mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
-            false, mock(DagManagementStateStore.class));
+            false, mock(DagManagementStateStore.class), mock(DagProcessingEngineMetrics.class));
     this.dagProcFactory = new DagProcFactory(null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
-        this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore, 0);
+        this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore, mock(DagProcessingEngineMetrics.class), 0);
   }
 
   @AfterClass(alwaysRun = true)
