@@ -814,7 +814,7 @@ public class KafkaAvroJobStatusMonitorTest {
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.FAILED.name());
 
-    // Only the COMPLETE event should create a GaaSJobObservabilityEvent
+    // Only the FAILED event should create a GaaSJobObservabilityEvent
     List<GaaSJobObservabilityEvent> emittedEvents = mockEventProducer.getTestEmittedJobEvents();
     Assert.assertEquals(emittedEvents.size(), 1);
     Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
