@@ -113,7 +113,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   private static final String CREATE_LEASE_ARBITER_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
       + "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar("
       + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, " + "job_name varchar("
-      + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, dag_action varchar(100) NOT NULL, "
+      + ServiceConfigKeys.MAX_JOB_NAME_LENGTH + ") NOT NULL, dag_action varchar(100) NOT NULL, "
       + "event_timestamp TIMESTAMP(3) NOT NULL, "
       + "lease_acquisition_timestamp TIMESTAMP(3) NULL, "
       + "PRIMARY KEY (flow_group,flow_name,job_name,dag_action))";
