@@ -33,7 +33,7 @@ import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
  * See javadoc for {@link DagAction}
  */
 public interface DagActionStore {
-  public static final String NO_JOB_NAME_DEFAULT = "";
+  String NO_JOB_NAME_DEFAULT = "";
   enum DagActionType {
     ENFORCE_JOB_START_DEADLINE, // Enforce job start deadline
     ENFORCE_FLOW_FINISH_DEADLINE, // Enforce flow finish deadline

@@ -68,6 +68,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -85,6 +86,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final SpecCompiler specCompiler;
   protected final TopologyCatalog topologyCatalog;
   protected final DagManager dagManager;
+  private final JobStatusRetriever jobStatusRetriever;
 
   protected final MetricContext metricContext;
 
@@ -112,7 +114,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       Optional<Logger> log, FlowStatusGenerator flowStatusGenerator, Optional<FlowLaunchHandler> flowLaunchHandler,
       SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<FlowCatalog> flowCatalog,
       Optional<DagManagementStateStore> dagManagementStateStore,
-      FlowCompilationValidationHelper flowCompilationValidationHelper) throws IOException {
+      FlowCompilationValidationHelper flowCompilationValidationHelper, JobStatusRetriever jobStatusRetriever) throws IOException {
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.topologyCatalog = topologyCatalog;
     this.dagManager = dagManager;
@@ -120,6 +122,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     this.flowLaunchHandler = flowLaunchHandler;
     this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
     this.flowCatalog = flowCatalog;
+    this.jobStatusRetriever = jobStatusRetriever;
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
     this.specCompiler = flowCompilationValidationHelper.getSpecCompiler();
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManager.
@@ -319,14 +322,30 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   public void remove(Spec spec, Properties headers) throws IOException {
+    URI uri = spec.getUri();
     // TODO: Evolve logic to cache and reuse previously compiled JobSpecs
     // .. this will work for Identity compiler but not always for multi-hop.
     // Note: Current logic assumes compilation is consistent between all executions
     if (spec instanceof FlowSpec) {
-      //Send the dag to the DagManager to stop it.
-      //Also send it to the SpecProducer to do any cleanup tasks on SpecExecutor.
-      _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
-      this.dagManager.stopDag(spec.getUri());
+      String flowGroup = FlowSpec.Utils.getFlowGroup(uri);
+      String flowName = FlowSpec.Utils.getFlowName(uri);
+      if (this.flowLaunchHandler.isPresent()) {
+        List<Long> flowExecutionIds = this.jobStatusRetriever.getLatestExecutionIdsForFlow(flowName, flowGroup, 10);
+        _log.info("Found {} flows to cancel.", flowExecutionIds.size());
+
+        for (long flowExecutionId : flowExecutionIds) {
+        DagActionStore.DagAction killDagAction = DagActionStore.DagAction.forFlow(flowGroup, flowName, flowExecutionId,
+            DagActionStore.DagActionType.KILL);
+        DagActionStore.LeaseParams leaseObject = new DagActionStore.LeaseParams(killDagAction, false,
+            System.currentTimeMillis());
+        flowLaunchHandler.get().handleFlowKillTriggerEvent(new Properties(), leaseObject);
+        }
+      } else {
+        //Send the dag to the DagManager to stop it.
+        //Also send it to the SpecProducer to do any cleanup tasks on SpecExecutor.
+        _log.info("Forwarding cancel request for flow URI {} to DagManager.", spec.getUri());
+        this.dagManager.stopDag(uri);
+      }
       // We need to recompile the flow to find the spec producer,
       // If compilation result is different, its remove request can go to some different spec producer
       deleteFromExecutor(spec, headers);

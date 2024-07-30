@@ -426,7 +426,15 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   protected abstract org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event);
 
-  public static boolean isThrowableInstanceOf(Throwable exception, List<Class<? extends Exception>> typesList) {
-    return typesList.stream().anyMatch(e -> e.isInstance(exception));
+  public static boolean isThrowableInstanceOf(Throwable exception, List<Class<? extends Exception>> exceptionsList) {
+    while (exception != null) {
+      Throwable finalException = exception;
+      if (exceptionsList.stream().anyMatch(e -> e.isInstance(finalException))) {
+        return true;
+      } else {
+        exception = exception.getCause();
+      }
+    }
+    return false;
   }
 }

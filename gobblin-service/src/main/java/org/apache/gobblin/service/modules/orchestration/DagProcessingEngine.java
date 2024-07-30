@@ -17,10 +17,12 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.util.concurrent.AbstractIdleService;
@@ -38,6 +40,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
+import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 
@@ -48,7 +51,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
  * Each {@link DagTask} returned from the {@link DagTaskStream} comes with a time-limited lease conferring the exclusive
  * right to perform the work of the task.
  * The {@link DagProcFactory} transforms each {@link DagTask} into a specific, concrete {@link DagProc}, which
- * encapsulates all processing inside {@link DagProc#process(DagManagementStateStore)}
+ * encapsulates all processing inside {@link DagProc#process(DagManagementStateStore, DagProcessingEngineMetrics)}
  */
 
 @AllArgsConstructor
@@ -66,6 +69,7 @@ public class DagProcessingEngine extends AbstractIdleService {
   private static final Integer TERMINATION_TIMEOUT = 30;
   public static final String DEFAULT_JOB_START_DEADLINE_TIME_MS = "defaultJobStartDeadlineTimeMillis";
   @Getter static long defaultJobStartSlaTimeMillis;
+  private final List<Class<? extends Exception>> nonRetryableExceptions;
 
   @Inject
   public DagProcessingEngine(Config config, Optional<DagTaskStream> dagTaskStream, Optional<DagProcFactory> dagProcFactory,
@@ -84,6 +88,14 @@ public class DagProcessingEngine extends AbstractIdleService {
     }
     this.dagProcEngineMetrics = dagProcEngineMetrics;
     log.info("DagProcessingEngine initialized.");
+    this.nonRetryableExceptions = ConfigUtils.getStringList(config, ServiceConfigKeys.DAG_PROC_ENGINE_NON_RETRYABLE_EXCEPTIONS_KEY)
+        .stream().map(className -> {
+      try {
+        return (Class<? extends Exception>) Class.forName(className);
+      } catch (ClassNotFoundException e) {
+        throw new RuntimeException(e);
+      }
+    }).collect(Collectors.toList());
     setDefaultJobStartDeadlineTimeMs(deadlineTimeMs);
   }
 
@@ -102,7 +114,7 @@ public class DagProcessingEngine extends AbstractIdleService {
     for (int i=0; i < numThreads; i++) {
       // todo - set metrics for count of active DagProcEngineThread
       DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream.get(), dagProcFactory.get(),
-          dagManagementStateStore.get(), dagProcEngineMetrics, i);
+          dagManagementStateStore.get(), dagProcEngineMetrics, this.nonRetryableExceptions, i);
       this.scheduledExecutorPool.submit(dagProcEngineThread);
     }
   }
@@ -122,6 +134,7 @@ public class DagProcessingEngine extends AbstractIdleService {
     private final DagProcFactory dagProcFactory;
     private final DagManagementStateStore dagManagementStateStore;
     private final DagProcessingEngineMetrics dagProcEngineMetrics;
+    private final List<Class<? extends Exception>> nonRetryableExceptions;
     private final int threadID;
 
     @Override
@@ -140,6 +153,11 @@ public class DagProcessingEngine extends AbstractIdleService {
           dagTask.conclude();
         } catch (Exception e) {
           log.error("DagProcEngineThread encountered exception while processing dag " + dagProc.getDagId(), e);
+          if (KafkaJobStatusMonitor.isThrowableInstanceOf(e, this.nonRetryableExceptions)) {
+            // conclude the lease so that it is not retried, if the dag proc fails with non-transient exception
+            dagTask.conclude();
+            dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.mark();
+          }
           dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
         }
       }

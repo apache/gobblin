@@ -162,7 +162,7 @@ public class DagProcessingEngineMetrics {
       updateMetricForDagActionType(this.dagActionsConcludeFailedMeterByDagActionType, dagActionType);
     }
   }
-  
+
   public void markDagActionsDeleted(DagActionStore.DagActionType dagActionType, boolean succeeded) {
     if (succeeded) {
       updateMetricForDagActionType(this.dagActionsDeleteSucceededMeterByDagActionType, dagActionType);

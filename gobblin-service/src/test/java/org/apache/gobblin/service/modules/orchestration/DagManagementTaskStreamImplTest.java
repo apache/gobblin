@@ -20,7 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.util.Optional;
 
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
+import org.assertj.core.util.Lists;
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -33,6 +33,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 
@@ -72,7 +73,8 @@ public class DagManagementTaskStreamImplTest {
             false, mock(DagManagementStateStore.class), mock(DagProcessingEngineMetrics.class));
     this.dagProcFactory = new DagProcFactory(null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
-        this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore, mock(DagProcessingEngineMetrics.class), 0);
+        this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore, mock(DagProcessingEngineMetrics.class),
+        Lists.emptyList(), 0);
   }
 
   @AfterClass(alwaysRun = true)
@@ -106,7 +108,7 @@ public class DagManagementTaskStreamImplTest {
             new LeaseAttemptStatus.LeaseObtainedStatus(new DagActionStore.LeaseParams(launchAction, true, 1), 0, 5, null));
     DagTask dagTask = dagManagementTaskStream.next();
     Assert.assertTrue(dagTask instanceof LaunchDagTask);
-    DagProc dagProc = dagTask.host(this.dagProcFactory);
+    DagProc<?> dagProc = dagTask.host(this.dagProcFactory);
     Assert.assertNotNull(dagProc);
   }
 }

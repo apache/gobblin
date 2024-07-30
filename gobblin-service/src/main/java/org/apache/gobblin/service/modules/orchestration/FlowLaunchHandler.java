@@ -120,6 +120,24 @@ public class FlowLaunchHandler {
     }
   }
 
+  /**
+   * This method is used in the multi-active scheduler case for one or more hosts to respond to a kill dag action
+   * event triggered by the Orchestrator by attempting a lease for the kill event and processing the result depending on
+   * the status of the attempt.
+   */
+  public void handleFlowKillTriggerEvent(Properties jobProps, DagActionStore.LeaseParams leaseParams) throws IOException {
+    long previousEventTimeMillis = leaseParams.getEventTimeMillis();
+    LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(leaseParams, false);
+    if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus
+        && persistLaunchDagAction((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt)) {
+      log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseAttempt.getConsensusDagAction(),
+          previousEventTimeMillis);
+    } else { // when NOT successfully `persistDagAction`, set a reminder to re-attempt handling (unless leasing finished)
+      calcLeasedToAnotherStatusForReminder(leaseAttempt).ifPresent(leasedToAnother ->
+          scheduleReminderForEvent(jobProps, leasedToAnother, previousEventTimeMillis));
+    }
+  }
+
   /** @return {@link Optional} status for reminding, unless {@link LeaseAttemptStatus.NoLongerLeasingStatus} (hence nothing to do) */
   private Optional<LeaseAttemptStatus.LeasedToAnotherStatus> calcLeasedToAnotherStatusForReminder(LeaseAttemptStatus leaseAttempt) {
     if (leaseAttempt instanceof LeaseAttemptStatus.NoLongerLeasingStatus) { // all done: nothing to remind about

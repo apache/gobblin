@@ -22,7 +22,6 @@ import java.util.NoSuchElementException;
 import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -35,10 +34,12 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.exception.NonTransientException;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
@@ -52,9 +53,7 @@ public class DagProcessingEngineTest {
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_TABLE = "quotas";
-  private DagManagementTaskStreamImpl dagManagementTaskStream;
   private DagTaskStream dagTaskStream;
-  private DagProcFactory dagProcFactory;
   // Field is static because it's used to instantiate every MockedDagTask
   private static MySqlDagManagementStateStore dagManagementStateStore;
   private static DagProcessingEngineMetrics mockedDagProcEngineMetrics;
@@ -76,26 +75,21 @@ public class DagProcessingEngineTest {
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_URL_KEY), testMetastoreDatabase.getJdbcUrl())
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_USER_KEY), TEST_USER)
         .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY), TEST_PASSWORD)
-        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE);
+        .addPrimitive(MysqlUserQuotaManager.qualify(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY), TEST_TABLE)
+        .addPrimitive(ServiceConfigKeys.DAG_PROC_ENGINE_NON_RETRYABLE_EXCEPTIONS_KEY, NonTransientException.class.getName());
+
     config = configBuilder.build();
 
     dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(testMetastoreDatabase));
     doReturn(true).when(dagActionStore).deleteDagAction(any());
-    dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
-            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
-            false, dagManagementStateStore, Mockito.mock(DagProcessingEngineMetrics.class));
-    this.dagProcFactory = new DagProcFactory(null);
+    DagProcFactory dagProcFactory = new DagProcFactory(null);
 
-    DagProcessingEngine.DagProcEngineThread dagProcEngineThread =
-        new DagProcessingEngine.DagProcEngineThread(dagManagementTaskStream, this.dagProcFactory,
-            dagManagementStateStore, mock(DagProcessingEngineMetrics.class), 0);
     this.dagTaskStream = spy(new MockedDagTaskStream());
     DagProcessingEngine dagProcessingEngine =
-        new DagProcessingEngine(config, Optional.ofNullable(dagTaskStream), Optional.ofNullable(this.dagProcFactory),
+        new DagProcessingEngine(config, Optional.ofNullable(dagTaskStream), Optional.of(dagProcFactory),
             Optional.ofNullable(dagManagementStateStore), 100000L, mock(DagProcessingEngineMetrics.class));
     dagProcessingEngine.startAsync();
-    this.mockedDagProcEngineMetrics = mock(DagProcessingEngineMetrics.class);
+    mockedDagProcEngineMetrics = mock(DagProcessingEngineMetrics.class);
   }
 
   @AfterClass(alwaysRun = true)
@@ -107,7 +101,9 @@ public class DagProcessingEngineTest {
   static class MockedDagTaskStream implements DagTaskStream {
     public static final int MAX_NUM_OF_TASKS = 1000;
     public static final int FAILING_DAGS_FREQUENCY = 10;
-    volatile int i=0;
+    // this number should be a multiple of FAILING_DAGS_FREQUENCY, so that all non-retryable exceptions should also be exceptions
+    public static final int FAILING_DAGS_WITH_NON_RETRYABLE_EXCEPTIONS_FREQUENCY = 30;
+    volatile int i = 0;
 
     @Override
     public boolean hasNext() {
@@ -115,56 +111,70 @@ public class DagProcessingEngineTest {
     }
 
     @Override
-    public synchronized DagTask next() throws NoSuchElementException {
+    public synchronized DagTask next()
+        throws NoSuchElementException {
       i++;
       if (i > MAX_NUM_OF_TASKS) {
         throw new RuntimeException("Simulating an exception to stop the thread!");
       }
-      if (i % FAILING_DAGS_FREQUENCY == 0 ) {
-        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, (1234L + i), "jn-" + i, DagActionStore.DagActionType.LAUNCH), true);
+      if (i % FAILING_DAGS_WITH_NON_RETRYABLE_EXCEPTIONS_FREQUENCY == 0) {
+        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, (1234L + i), "jn-" + i,
+            DagActionStore.DagActionType.LAUNCH), ExceptionState.NON_RETRYABLE_EXCEPTION);
       } else {
-        return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, (1234L + i), "jn-" + i, DagActionStore.DagActionType.LAUNCH), false);
+        if (i % FAILING_DAGS_FREQUENCY == 0) {
+          return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, (1234L + i), "jn-" + i,
+              DagActionStore.DagActionType.LAUNCH), ExceptionState.RETRYABLE_EXCEPTION);
+        } else {
+          return new MockedDagTask(new DagActionStore.DagAction("fg-" + i, "fn-" + i, (1234L + i), "jn-" + i,
+              DagActionStore.DagActionType.LAUNCH), ExceptionState.NO_EXCEPTION);
+        }
       }
     }
-  }
 
-  static class MockedDagTask extends DagTask {
-    private final boolean isBad;
+    static class MockedDagTask extends DagTask {
+      private final ExceptionState exceptionState;
 
-    public MockedDagTask(DagActionStore.DagAction dagAction, boolean isBad) {
-      super(dagAction, leaseObtainedStatus, DagProcessingEngineTest.dagManagementStateStore, mockedDagProcEngineMetrics);
-      this.isBad = isBad;
+      public MockedDagTask(DagActionStore.DagAction dagAction, ExceptionState exceptionState) {
+        super(dagAction, leaseObtainedStatus, DagProcessingEngineTest.dagManagementStateStore,
+            mockedDagProcEngineMetrics);
+        this.exceptionState = exceptionState;
+      }
+
+      @Override
+      public <T> T host(DagTaskVisitor<T> visitor) {
+        return (T) new MockedDagProc(this, this.exceptionState);
+      }
     }
 
-    @Override
-    public <T> T host(DagTaskVisitor<T> visitor) {
-      return (T) new MockedDagProc(this, this.isBad);
-    }
-  }
+    static class MockedDagProc extends DagProc<Void> {
+      private final ExceptionState exceptionState;
 
-  static class MockedDagProc extends DagProc<Void> {
-    private final boolean isBad;
+      public MockedDagProc(MockedDagTask mockedDagTask, ExceptionState exceptionState) {
+        super(mockedDagTask);
+        this.exceptionState = exceptionState;
+      }
 
-    public MockedDagProc(MockedDagTask mockedDagTask, boolean isBad) {
-      super(mockedDagTask);
-      this.isBad = isBad;
-    }
+      @Override
+      public DagManager.DagId getDagId() {
+        return new DagManager.DagId("fg", "fn", 12345L);
+      }
 
-    @Override
-    public DagManager.DagId getDagId() {
-      return new DagManager.DagId("fg", "fn", 12345L);
-    }
+      @Override
+      protected Void initialize(DagManagementStateStore dagManagementStateStore) {
+        return null;
+      }
 
-    @Override
-    protected Void initialize(DagManagementStateStore dagManagementStateStore) {
-      return null;
-    }
+      @Override
+      protected void act(DagManagementStateStore dagManagementStateStore, Void state,
+          DagProcessingEngineMetrics dagProcEngineMetrics) {
 
-    @Override
-    protected void act(DagManagementStateStore dagManagementStateStore, Void state,
-        DagProcessingEngineMetrics dagProcEngineMetrics) {
-      if (this.isBad) {
-        throw new RuntimeException("Simulating an exception!");
+        switch (this.exceptionState) {
+          case NON_RETRYABLE_EXCEPTION:
+            throw new NonTransientException("Simulating a non retryable exception!");
+          case RETRYABLE_EXCEPTION:
+            throw new RuntimeException("Simulating an exception!");
+          default:
+        }
       }
     }
   }
@@ -172,13 +182,14 @@ public class DagProcessingEngineTest {
   // This tests verifies that all the dag tasks entered to the dag task stream are retrieved by dag proc engine threads
   @Test
   public void dagProcessingTest()
-      throws InterruptedException, TimeoutException, IOException {
+      throws InterruptedException, TimeoutException {
 
     // there are MAX_NUM_OF_TASKS dag tasks returned and then each thread additionally call (infinitely) once to wait
     // in this unit tests, it does not infinitely wait though, because the mocked task stream throws an exception on
     // (MAX_NUM_OF_TASKS + 1) th call
     int expectedNumOfInvocations = MockedDagTaskStream.MAX_NUM_OF_TASKS + ServiceConfigKeys.DEFAULT_NUM_DAG_PROC_THREADS;
     int expectedExceptions = MockedDagTaskStream.MAX_NUM_OF_TASKS / MockedDagTaskStream.FAILING_DAGS_FREQUENCY;
+    int expectedNonRetryableExceptions = MockedDagTaskStream.MAX_NUM_OF_TASKS / MockedDagTaskStream.FAILING_DAGS_WITH_NON_RETRYABLE_EXCEPTIONS_FREQUENCY;
 
     AssertWithBackoff.assertTrue(input -> Mockito.mockingDetails(this.dagTaskStream).getInvocations().size() == expectedNumOfInvocations,
         10000L, "dagTaskStream was not called " + expectedNumOfInvocations + " number of times. "
@@ -186,5 +197,12 @@ public class DagProcessingEngineTest {
         log, 1, 1000L);
 
     Assert.assertEquals(dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
+    Assert.assertEquals(dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.getCount(),  expectedNonRetryableExceptions);
+  }
+
+  private enum ExceptionState {
+    NO_EXCEPTION,
+    RETRYABLE_EXCEPTION,
+    NON_RETRYABLE_EXCEPTION
   }
 }
