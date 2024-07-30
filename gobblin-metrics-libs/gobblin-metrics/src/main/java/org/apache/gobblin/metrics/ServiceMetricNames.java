@@ -80,6 +80,7 @@ public class ServiceMetricNames {
   public static final String DAG_COUNT_FS_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "FsDagStateStore" + ".totalDagCount";
 
   public static final String DAG_PROCESSING_EXCEPTION_METER = "DagProcessingException";
+  public static final String DAG_PROCESSING_NON_RETRYABLE_EXCEPTION_METER = "DagProcessingNonRetryableException";
   /* DagProcessingEngine & Multi-active Execution Related Metrics
   * Note: metrics ending with the delimiter '.' will be suffixed by the specific {@link DagActionType} type for finer
   * grained monitoring of each dagAction type in addition to the aggregation of all types.

@@ -20,6 +20,8 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.util.Optional;
 
+import com.typesafe.config.Config;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -39,8 +41,8 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   private final boolean shouldKillSpecificJob;
 
-  public KillDagProc(KillDagTask killDagTask) {
-    super(killDagTask);
+  public KillDagProc(KillDagTask killDagTask, Config config) {
+    super(killDagTask, config);
     this.shouldKillSpecificJob = !getDagNodeId().getJobName().equals(DagActionStore.NO_JOB_NAME_DEFAULT);
   }
 

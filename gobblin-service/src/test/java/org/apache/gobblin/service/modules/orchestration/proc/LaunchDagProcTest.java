@@ -115,7 +115,7 @@ public class LaunchDagProcTest {
         new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
             DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore,
             this.mockedDagProcEngineMetrics),
-        flowCompilationValidationHelper);
+        flowCompilationValidationHelper, ConfigFactory.empty());
 
     launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
 
@@ -146,7 +146,7 @@ public class LaunchDagProcTest {
         new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
             "jn", DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore,
             this.mockedDagProcEngineMetrics),
-        flowCompilationValidationHelper);
+        flowCompilationValidationHelper, ConfigFactory.empty());
 
     launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
     int numOfLaunchedJobs = 3; // = number of start nodes

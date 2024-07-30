@@ -20,7 +20,6 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -41,6 +40,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -94,7 +94,7 @@ public class ResumeDagProcTest {
 
     ResumeDagProc resumeDagProc = new ResumeDagProc(new ResumeDagTask(new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.RESUME),
-        null, this.dagManagementStateStore, mockedDagProcEngineMetrics));
+        null, this.dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     resumeDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int expectedNumOfResumedJobs = 1; // = number of resumed nodes

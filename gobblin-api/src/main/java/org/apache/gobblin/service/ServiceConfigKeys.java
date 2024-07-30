@@ -207,6 +207,8 @@ public class ServiceConfigKeys {
   public static final String GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "dagProcessingEngine.";
   public static final String DAG_PROCESSING_ENGINE_ENABLED = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "enabled";
   public static final String NUM_DAG_PROC_THREADS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "numThreads";
+  public static final String DAG_PROC_ENGINE_NON_RETRYABLE_EXCEPTIONS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "nonRetryableExceptions";
+
   public static final Integer DEFAULT_NUM_DAG_PROC_THREADS = 3;
   public static final String GOBBLIN_SERVICE_MULTI_ACTIVE_EXECUTION_ENABLED = GOBBLIN_SERVICE_PREFIX + "multiActiveExecutionEnabled";
 }

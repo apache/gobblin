@@ -22,7 +22,6 @@ import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.tuple.Pair;
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
@@ -45,6 +44,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -107,7 +107,7 @@ public class EnforceDeadlineDagProcsTest {
     EnforceJobStartDeadlineDagProc enforceJobStartDeadlineDagProc = new EnforceJobStartDeadlineDagProc(
         new EnforceJobStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
             "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null,
-            dagManagementStateStore, mockedDagProcEngineMetrics));
+            dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     enforceJobStartDeadlineDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int expectedNumOfDeleteDagNodeStates = 1; // the one dag node corresponding to the EnforceStartDeadlineDagProc
@@ -150,7 +150,7 @@ public class EnforceDeadlineDagProcsTest {
     EnforceJobStartDeadlineDagProc enforceJobStartDeadlineDagProc = new EnforceJobStartDeadlineDagProc(
         new EnforceJobStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
             "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null,
-            dagManagementStateStore, mockedDagProcEngineMetrics));
+            dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     enforceJobStartDeadlineDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     // no job cancelled because we simulated (by not adding) missing dag action
@@ -192,7 +192,7 @@ public class EnforceDeadlineDagProcsTest {
     EnforceFlowFinishDeadlineDagProc enforceFlowFinishDeadlineDagProc = new EnforceFlowFinishDeadlineDagProc(
         new EnforceFlowFinishDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
             "job0", DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE), null,
-            dagManagementStateStore, mockedDagProcEngineMetrics));
+            dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     enforceFlowFinishDeadlineDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     specProducers.forEach(sp -> Mockito.verify(sp, Mockito.times(1)).cancelJob(any(), any()));

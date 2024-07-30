@@ -22,6 +22,7 @@ import java.util.Map;
 import java.util.Optional;
 
 import com.google.common.collect.Maps;
+import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -46,8 +47,8 @@ import static org.apache.gobblin.service.ExecutionStatus.PENDING_RESUME;
 @Slf4j
 public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
 
-  public ResumeDagProc(ResumeDagTask resumeDagTask) {
-    super(resumeDagTask);
+  public ResumeDagProc(ResumeDagTask resumeDagTask, Config config) {
+    super(resumeDagTask, config);
   }
 
   @Override
