@@ -77,22 +77,16 @@ import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.scheduler.BaseGobblinJob;
 import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.FlowLaunchHandler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
-import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
-import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
@@ -210,19 +204,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       metricContext.register(this.totalAddSpecTimeNanos);
       metricContext.register(this.numJobsScheduledDuringStartup);
     }
-  }
-
-  public GobblinServiceJobScheduler(String serviceName, Config config, FlowStatusGenerator flowStatusGenerator,
-      Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog, TopologyCatalog topologyCatalog,
-      DagManager dagManager, Optional<UserQuotaManager> quotaManager, SchedulerService schedulerService,
-      Optional<Logger> log, boolean isWarmStandbyEnabled, Optional <FlowLaunchHandler> flowTriggerDecorator,
-      SharedFlowMetricsSingleton sharedFlowMetricsSingleton, Optional<DagManagementStateStore> dagManagementStateStore,
-      FlowCompilationValidationHelper flowCompilationValidationHelper)
-      throws Exception {
-    this(serviceName, config, helixManager, flowCatalog,
-        new Orchestrator(config, topologyCatalog, dagManager, log, flowStatusGenerator, flowTriggerDecorator,
-            sharedFlowMetricsSingleton, flowCatalog, dagManagementStateStore, flowCompilationValidationHelper),
-        schedulerService, quotaManager, log, isWarmStandbyEnabled, flowTriggerDecorator);
   }
 
   public synchronized void setActive(boolean isActive) {
