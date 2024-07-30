@@ -56,8 +56,12 @@ public class DatasetHiveSchemaContainsNonOptionalUnionTest extends HiveMetastore
   private static File tmpDir;
   private static State state;
   private static String dbUri;
+
+  private static String dbOptionalUri;
+
   private static String testTable = "test_table01";
   private static String datasetUrn = String.format("/data/%s/streaming/test-Table01/hourly/2023/01/01", dbName);
+  private static String optionalDbName = "test_hourly";
 
   @AfterSuite
   public void clean() throws Exception {
@@ -84,8 +88,21 @@ public class DatasetHiveSchemaContainsNonOptionalUnionTest extends HiveMetastore
     final String avroSchema = "{\"type\": \"record\", \"name\": \"TestEvent\",\"namespace\": \"test.namespace\", \"fields\": "
         + "[{\"name\":\"fieldName\", \"type\": %s}]}";
     serdeProps.setProp("avro.schema.literal", String.format(avroSchema, "[\"string\", \"int\"]"));
-    HiveTable testTable = createTestHiveTable_Avro(serdeProps);
+    // Create table in main database
+    HiveTable testTable = createTestHiveTable_Avro(dbName, serdeProps);
     metastoreClient.createTable(HiveMetaStoreUtils.getTable(testTable));
+
+    // Create optional database
+    dbOptionalUri = String.format("%s/%s/%s", tmpDir.getAbsolutePath(),"metastore", optionalDbName);
+    try {
+      metastoreClient.getDatabase(optionalDbName);
+    } catch (NoSuchObjectException e) {
+      metastoreClient.createDatabase(
+          new Database(optionalDbName, "optional database", dbOptionalUri, Collections.emptyMap()));
+    }
+    // Create table in optional database
+    HiveTable optionalTestTable = createTestHiveTable_Avro(optionalDbName, serdeProps);
+    metastoreClient.createTable(HiveMetaStoreUtils.getTable(optionalTestTable));
 
     state = ConfigUtils.configToState(ConfigUtils.propertiesToConfig(hiveConf.getAllProperties()));
     state.setProp(DatasetHiveSchemaContainsNonOptionalUnion.PATTERN, "/data/(\\w+)/.*/([\\w\\d_-]+)/hourly.*");
@@ -99,13 +116,35 @@ public class DatasetHiveSchemaContainsNonOptionalUnionTest extends HiveMetastore
     Assert.assertTrue(predicate.test(dataset));
   }
 
-  private HiveTable createTestHiveTable_Avro(State props) {
+  @Test
+  public void testContainsNonOptionalUnionWithOptionalDbName() throws Exception {
+    state.setProp(DatasetHiveSchemaContainsNonOptionalUnion.OPTIONAL_DB_NAME, "test_hourly");
+    DatasetHiveSchemaContainsNonOptionalUnion predicate = new DatasetHiveSchemaContainsNonOptionalUnion(state.getProperties());
+    Dataset dataset = new SimpleDatasetForTesting(datasetUrn);
+    try {
+    Assert.assertTrue(predicate.test(dataset));
+    } finally {
+      // Clean up the property
+      state.removeProp(DatasetHiveSchemaContainsNonOptionalUnion.OPTIONAL_DB_NAME);
+    }
+  }
+
+
+  @Test
+  public void testContainsNonOptionalUnionWithoutOptionalDbName() throws Exception {
+    // Ensure OPTIONAL_DB_NAME is not set
+    state.removeProp(DatasetHiveSchemaContainsNonOptionalUnion.OPTIONAL_DB_NAME);
+    DatasetHiveSchemaContainsNonOptionalUnion predicate = new DatasetHiveSchemaContainsNonOptionalUnion(state.getProperties());
+    Dataset dataset = new SimpleDatasetForTesting(datasetUrn);
+    Assert.assertTrue(predicate.test(dataset));
+  }
+
+  private HiveTable createTestHiveTable_Avro(String dbName, State props) {
     HiveTable.Builder builder = new HiveTable.Builder();
     HiveTable hiveTable = builder.withDbName(dbName).withTableName(testTable).withProps(props).build();
     hiveTable.setInputFormat(AvroContainerInputFormat.class.getName());
     hiveTable.setOutputFormat(AvroContainerOutputFormat.class.getName());
     hiveTable.setSerDeType(AvroSerDe.class.getName());
-
     // Serialize then deserialize as a way to quickly setup table object
     Table table = HiveMetaStoreUtils.getTable(hiveTable);
     return HiveMetaStoreUtils.getHiveTable(table);

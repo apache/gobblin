@@ -42,16 +42,20 @@ import org.apache.gobblin.util.function.CheckedExceptionPredicate;
 public class DatasetHiveSchemaContainsNonOptionalUnion<T extends Dataset> implements CheckedExceptionPredicate<T, IOException> {
   private final HiveRegister hiveRegister;
   private final Pattern pattern;
+  private final Optional<String> optionalDbName;
+
 
   public static final String PREFIX = DatasetHiveSchemaContainsNonOptionalUnion.class.getName();
   /**
    * 1st match group is assumed to be the DB and the 2nd match group the Table for the pattern
    */
   public static final String PATTERN = PREFIX + ".db.table.pattern";
+  public static final String OPTIONAL_DB_NAME = PREFIX + ".db.optionalDbName";
 
   public DatasetHiveSchemaContainsNonOptionalUnion(Properties properties) {
     this.hiveRegister = getHiveRegister(new State(properties));
     this.pattern = Pattern.compile(properties.getProperty(PATTERN));
+    this.optionalDbName = Optional.fromNullable(properties.getProperty(OPTIONAL_DB_NAME));
   }
 
   @Override
@@ -67,7 +71,15 @@ public class DatasetHiveSchemaContainsNonOptionalUnion<T extends Dataset> implem
 
   private Optional<HiveTable> getTable(T dataset) throws IOException {
     DbAndTable dbAndTable = getDbAndTable(dataset);
-    return this.hiveRegister.getTable(dbAndTable.getDb(), dbAndTable.getTable());
+    log.info("Checking for table in DB: {} and Table: {}", dbAndTable.getDb(), dbAndTable.getTable());
+    Optional<HiveTable> hiveTable = this.hiveRegister.getTable(dbAndTable.getDb(), dbAndTable.getTable());
+
+    if (hiveTable.isPresent()) {
+      log.info("Table found in DB: {} and Table: {}. Exiting execution.", dbAndTable.getDb(), dbAndTable.getTable());
+    } else {
+      log.info("No table found in DB: {} and Table: {}.", dbAndTable.getDb(), dbAndTable.getTable());
+    }
+    return hiveTable;
   }
 
   private DbAndTable getDbAndTable(T dataset) {
@@ -77,7 +89,13 @@ public class DatasetHiveSchemaContainsNonOptionalUnion<T extends Dataset> implem
       "Expected pattern = %s", dataset.getUrn(), pattern.pattern()));
     }
 
-    return new DbAndTable(m.group(1), HiveMetaStoreUtils.getHiveTableName(m.group(2)));
+    String db = optionalDbName.or(m.group(1));
+    if (optionalDbName.isPresent()) {
+      log.info("DB name from pattern: {}. Replacing with provided DB name: {}", m.group(1), optionalDbName.get());
+    }
+
+    String table = HiveMetaStoreUtils.getHiveTableName(m.group(2));
+    return new DbAndTable(db, table);
   }
 
   boolean containsNonOptionalUnion(HiveTable table) {
