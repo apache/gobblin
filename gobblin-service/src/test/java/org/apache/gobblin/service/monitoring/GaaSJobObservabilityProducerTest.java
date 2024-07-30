@@ -38,6 +38,8 @@ import io.opentelemetry.sdk.metrics.data.MetricData;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.FlowStatus;
+import org.apache.gobblin.metrics.GaaSFlowObservabilityEvent;
 import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.metrics.JobStatus;
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -55,6 +57,7 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.spec.SerializationConstants;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -107,7 +110,7 @@ public class GaaSJobObservabilityProducerTest {
     jobStatusProps.putAll(gteEventMetadata);
     producer.emitObservabilityEvent(new State(jobStatusProps));
 
-    List<GaaSJobObservabilityEvent> emittedEvents = producer.getTestEmittedEvents();
+    List<GaaSJobObservabilityEvent> emittedEvents = producer.getTestEmittedJobEvents();
 
     Assert.assertEquals(emittedEvents.size(), 1);
     Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
@@ -171,7 +174,7 @@ public class GaaSJobObservabilityProducerTest {
     jobStatusProps.putAll(gteEventMetadata);
     producer.emitObservabilityEvent(new State(jobStatusProps));
 
-    List<GaaSJobObservabilityEvent> emittedEvents = producer.getTestEmittedEvents();
+    List<GaaSJobObservabilityEvent> emittedEvents = producer.getTestEmittedJobEvents();
 
     Assert.assertEquals(emittedEvents.size(), 1);
     Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
@@ -191,6 +194,52 @@ public class GaaSJobObservabilityProducerTest {
 
     AvroSerializer<GaaSJobObservabilityEvent> serializer = new AvroBinarySerializer<>(
         GaaSJobObservabilityEvent.SCHEMA$, new NoopSchemaVersionWriter()
+    );
+    serializer.serializeRecord(event);
+  }
+
+  @Test
+  public void testCreateGaaSObservabilityFlowEvent() throws Exception {
+    String flowGroup = "testFlowGroup3";
+    String flowName = "testFlowName3";
+    String jobName = JobStatusRetriever.NA_KEY;
+    String flowExecutionId = "1";
+    this.issueRepository.put(
+        TroubleshooterUtils.getContextIdForJob(flowGroup, flowName, flowExecutionId, jobName),
+        createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
+    );
+    State producerState = new State();
+    producerState.setProp(GaaSJobObservabilityEventProducer.EMIT_FLOW_OBSERVABILITY_EVENT, "true");
+    MockGaaSJobObservabilityEventProducer
+        producer = new MockGaaSJobObservabilityEventProducer(producerState, this.issueRepository, false);
+    Map<String, String> gteEventMetadata = Maps.newHashMap();
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
+    gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
+    gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
+    gteEventMetadata.put(SerializationConstants.FLOW_START_TIME_KEY, "1");
+
+    Properties jobStatusProps = new Properties();
+    jobStatusProps.putAll(gteEventMetadata);
+    producer.emitObservabilityEvent(new State(jobStatusProps));
+
+    List<GaaSFlowObservabilityEvent> emittedEvents = producer.getTestEmittedFlowEvents();
+
+    Assert.assertEquals(emittedEvents.size(), 1);
+    Iterator<GaaSFlowObservabilityEvent> iterator = emittedEvents.iterator();
+    GaaSFlowObservabilityEvent event = iterator.next();
+    Assert.assertEquals(event.getFlowGroup(), flowGroup);
+    Assert.assertEquals(event.getFlowName(), flowName);
+    Assert.assertEquals(event.getFlowExecutionId(), Long.valueOf(flowExecutionId));
+    Assert.assertEquals(event.getFlowStatus(), FlowStatus.SUCCEEDED);
+    Assert.assertNull(event.getEffectiveUserUrn());
+    Assert.assertEquals(event.getFlowStartTimestamp(), Long.valueOf(1));
+
+    AvroSerializer<GaaSFlowObservabilityEvent> serializer = new AvroBinarySerializer<>(
+        GaaSFlowObservabilityEvent.SCHEMA$, new NoopSchemaVersionWriter()
     );
     serializer.serializeRecord(event);
   }

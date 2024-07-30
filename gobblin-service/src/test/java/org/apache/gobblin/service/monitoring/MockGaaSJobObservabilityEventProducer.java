@@ -22,6 +22,7 @@ import java.util.Collections;
 import java.util.List;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.metrics.GaaSFlowObservabilityEvent;
 import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.metrics.InMemoryOpenTelemetryMetrics;
 import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
@@ -33,7 +34,9 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
  * Tests can use a getter to fetch a read-only version of the events that were emitted
  */
 public class MockGaaSJobObservabilityEventProducer extends GaaSJobObservabilityEventProducer {
-  private List<GaaSJobObservabilityEvent> emittedEvents = new ArrayList<>();
+  private List<GaaSJobObservabilityEvent> emittedJobEvents = new ArrayList<>();
+
+  private List<GaaSFlowObservabilityEvent> emittedFlowEvents = new ArrayList<>();
 
   public MockGaaSJobObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
     super(state, issueRepository, instrumentationEnabled);
@@ -44,18 +47,33 @@ public class MockGaaSJobObservabilityEventProducer extends GaaSJobObservabilityE
     return InMemoryOpenTelemetryMetrics.getInstance(state);
   }
   @Override
-  protected void sendUnderlyingEvent(GaaSJobObservabilityEvent event) {
-    emittedEvents.add(event);
+  protected void sendJobLevelEvent(GaaSJobObservabilityEvent event) {
+    emittedJobEvents.add(event);
+  }
+
+  @Override
+  protected void sendFlowLevelEvent(GaaSFlowObservabilityEvent event) {
+    emittedFlowEvents.add(event);
   }
 
   /**
-   * Returns the events that the mock producer has written
-   * This should only be used as a read-only object for emitted GaaSObservabilityEvents
+   * Returns the job level events that the mock producer has written
+   * This should only be used as a read-only object for emitted GaaSJobObservabilityEvents
    * @return list of events that would have been emitted
    */
-  public List<GaaSJobObservabilityEvent> getTestEmittedEvents() {
-    return Collections.unmodifiableList(this.emittedEvents);
+  public List<GaaSJobObservabilityEvent> getTestEmittedJobEvents() {
+    return Collections.unmodifiableList(this.emittedJobEvents);
   }
+
+  /**
+   * Returns the flow level events that the mock producer has written
+   * This should only be used as a read-only object for emitted GaaSFlowObservabilityEvents
+   * @return list of events that would have been emitted
+   */
+  public List<GaaSFlowObservabilityEvent> getTestEmittedFlowEvents() {
+    return Collections.unmodifiableList(this.emittedFlowEvents);
+  }
+
 
   public InMemoryOpenTelemetryMetrics getOpentelemetryMetrics() {
     return (InMemoryOpenTelemetryMetrics) this.opentelemetryMetrics;

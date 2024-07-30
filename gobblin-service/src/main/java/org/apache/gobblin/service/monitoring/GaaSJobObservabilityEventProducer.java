@@ -38,6 +38,8 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.DatasetMetric;
+import org.apache.gobblin.metrics.FlowStatus;
+import org.apache.gobblin.metrics.GaaSFlowObservabilityEvent;
 import org.apache.gobblin.metrics.GaaSJobObservabilityEvent;
 import org.apache.gobblin.metrics.Issue;
 import org.apache.gobblin.metrics.IssueSeverity;
@@ -57,6 +59,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.BaseFlowGraphHelper;
 import org.apache.gobblin.service.modules.orchestration.AzkabanProjectConfig;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.modules.spec.SerializationConstants;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -69,6 +72,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
   public static final String GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX = "GaaSJobObservabilityEventProducer.";
   public static final String GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "class.name";
   public static final String DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS = NoopGaaSJobObservabilityEventProducer.class.getName();
+  public static final String EMIT_FLOW_OBSERVABILITY_EVENT = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "emitFlowLevelEvent";
   public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
   public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
   public static final String GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME = "jobSucceeded";
@@ -81,12 +85,14 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
   protected ObservableLongMeasurement jobStatusMetric;
   protected MultiContextIssueRepository issueRepository;
   protected boolean instrumentationEnabled;
+  protected boolean emitFlowObservabilityEvent;
   ContextAwareMeter getIssuesFailedMeter;
 
   public GaaSJobObservabilityEventProducer(State state, MultiContextIssueRepository issueRepository, boolean instrumentationEnabled) {
     this.state = state;
     this.issueRepository = issueRepository;
     this.instrumentationEnabled = instrumentationEnabled;
+    this.emitFlowObservabilityEvent = this.state.getPropAsBoolean(EMIT_FLOW_OBSERVABILITY_EVENT, false);
     if (this.instrumentationEnabled) {
       this.metricContext = Instrumented.getMetricContext(state, getClass());
       this.getIssuesFailedMeter = this.metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
@@ -123,7 +129,11 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
 
   public void emitObservabilityEvent(final State jobState) {
     GaaSJobObservabilityEvent event = createGaaSObservabilityEvent(jobState);
-    sendUnderlyingEvent(event);
+    if (jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD).equals(JobStatusRetriever.NA_KEY) && this.emitFlowObservabilityEvent) {
+      sendFlowLevelEvent(convertJobEventToFlowEvent(event, jobState));
+    } else {
+      sendJobLevelEvent(event);
+    }
     this.eventCollector.add(event);
   }
 
@@ -142,7 +152,9 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
    * Emits the GaaSJobObservabilityEvent with the mechanism that the child class is built upon e.g. Kafka
    * @param event
    */
-  abstract protected void sendUnderlyingEvent(GaaSJobObservabilityEvent event);
+  abstract protected void sendJobLevelEvent(GaaSJobObservabilityEvent event);
+
+  abstract protected void sendFlowLevelEvent(GaaSFlowObservabilityEvent event);
 
   /**
    * Creates a GaaSJobObservabilityEvent which is derived from a final GaaS job pipeline state, which is combination of GTE job states in an ordered fashion
@@ -242,6 +254,23 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
             issue.getDetails(),
             issue.getProperties()
         )).collect(Collectors.toList());
+  }
+
+  private GaaSFlowObservabilityEvent convertJobEventToFlowEvent(GaaSJobObservabilityEvent jobEvent, State jobState) {
+    GaaSFlowObservabilityEvent.Builder builder = GaaSFlowObservabilityEvent.newBuilder();
+    builder.setEventTimestamp(jobEvent.getEventTimestamp())
+        .setGaasId(jobEvent.getGaasId())
+        .setFlowName(jobEvent.getFlowName())
+        .setFlowGroup(jobEvent.getFlowGroup())
+        .setFlowExecutionId(jobEvent.getFlowExecutionId())
+        .setLastFlowModificationTimestamp(jobEvent.getLastFlowModificationTimestamp())
+        .setSourceNode(jobEvent.getSourceNode())
+        .setDestinationNode(jobEvent.getDestinationNode())
+        .setEffectiveUserUrn(jobEvent.getEffectiveUserUrn())
+        .setFlowStatus(FlowStatus.valueOf(jobEvent.getJobStatus().toString()))
+        .setFlowStartTimestamp(jobState.getPropAsLong(SerializationConstants.FLOW_START_TIME_KEY, 0))
+        .setFlowEndTimestamp(jobEvent.getJobEndTimestamp());
+    return builder.build();
   }
 
   @Override
