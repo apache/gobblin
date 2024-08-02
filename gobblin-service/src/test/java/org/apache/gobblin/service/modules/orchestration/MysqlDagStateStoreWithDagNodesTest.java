@@ -79,6 +79,8 @@ public class MysqlDagStateStoreWithDagNodesTest {
     Dag<JobExecutionPlan> originalDag2 = DagTestUtils.buildDag("random_2", 456L);
     DagManager.DagId dagId1 = DagManagerUtils.generateDagId(originalDag1);
     DagManager.DagId dagId2 = DagManagerUtils.generateDagId(originalDag2);
+    originalDag1.getStartNodes().get(0).getValue().setCurrentGeneration(2);
+    originalDag1.getStartNodes().get(0).getValue().setCurrentAttempts(3);
     this.dagStateStore.writeCheckpoint(originalDag1);
     this.dagStateStore.writeCheckpoint(originalDag2);
 
@@ -97,6 +99,8 @@ public class MysqlDagStateStoreWithDagNodesTest {
     Dag.DagNode<JobExecutionPlan> parent = dagDeserialized.getStartNodes().get(0);
     Assert.assertEquals(dagDeserialized.getParentChildMap().size(), 1);
     Assert.assertTrue(dagDeserialized.getParentChildMap().get(parent).contains(child));
+    Assert.assertEquals(dagDeserialized.getStartNodes().get(0).getValue().getCurrentGeneration(), 2);
+    Assert.assertEquals(dagDeserialized.getStartNodes().get(0).getValue().getCurrentAttempts(), 3);
 
     for (int i = 0; i < 2; i++) {
       JobExecutionPlan plan = dagDeserialized.getNodes().get(i).getValue();
