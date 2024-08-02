@@ -44,7 +44,7 @@ import org.apache.gobblin.util.CompletedFuture;
 public class InMemorySpecExecutor extends AbstractSpecExecutor {
   // Communication mechanism components.
   // Not specifying final for further extension based on this implementation.
-  private SpecProducer<Spec> inMemorySpecProducer;
+  private final SpecProducer<Spec> inMemorySpecProducer;
 
   public InMemorySpecExecutor(Config config){
     this(config, Optional.absent());
