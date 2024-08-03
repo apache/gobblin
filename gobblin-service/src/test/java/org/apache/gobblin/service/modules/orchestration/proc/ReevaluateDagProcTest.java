@@ -289,7 +289,7 @@ public class ReevaluateDagProcTest {
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int numOfLaunchedJobs = 1; // only the current job
-    // only the current job should have run
+    // only the current job, that was failed, should have been retried by the reevaluate dag proc, because jobStatus has shouldRetry=true
     Mockito.verify(specProducers.get(0), Mockito.times(1)).addSpec(any());
 
     specProducers.stream().skip(numOfLaunchedJobs) // separately verified `specProducers.get(0)`
