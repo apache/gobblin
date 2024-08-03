@@ -262,6 +262,45 @@ public class ReevaluateDagProcTest {
     specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
   }
 
+  @Test
+  public void testRetryCurrentFailedJob() throws Exception {
+    String flowName = "fn5";
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        2, "user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
+    );
+    List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
+    dagManagementStateStore.addDag(dag);
+    // a job status with shouldRetry=true
+    JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
+        .jobName("job0").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.FAILED.name())
+        .startTime(flowExecutionId).shouldRetry(true).orchestratedTime(flowExecutionId).build();
+    doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.of(jobStatus)))
+        .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+
+    ReevaluateDagProc
+        reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
+        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
+        dagManagementStateStore, mockedDagProcEngineMetrics));
+    reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
+
+    int numOfLaunchedJobs = 1; // only the current job
+    // only the current job, that was failed, should have been retried by the reevaluate dag proc, because jobStatus has shouldRetry=true
+    Mockito.verify(specProducers.get(0), Mockito.times(1)).addSpec(any());
+
+    specProducers.stream().skip(numOfLaunchedJobs) // separately verified `specProducers.get(0)`
+        .forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
+
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(any());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDag(any());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
+        eq(DagActionStore.DagActionType.REEVALUATE));
+  }
+
   public static List<SpecProducer<Spec>> getDagSpecProducers(Dag<JobExecutionPlan> dag) {
     return dag.getNodes().stream().map(n -> {
       try {
