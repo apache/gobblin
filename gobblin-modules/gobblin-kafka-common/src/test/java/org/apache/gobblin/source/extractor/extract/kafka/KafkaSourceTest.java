@@ -22,6 +22,7 @@ import com.typesafe.config.Config;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.LinkedList;
@@ -72,20 +73,36 @@ public class KafkaSourceTest {
   }
 
   @Test
-  public void testGetWorkunitsFromKafkaInSingleCall() {
+  public void testGetWorkunitsForTopic() {
     TestKafkaClient testKafkaClient = new TestKafkaClient();
     testKafkaClient.testTopics = testTopics;
     SourceState state = new SourceState();
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, "TestPath");
     state.setProp(KafkaWorkUnitPacker.KAFKA_WORKUNIT_PACKER_TYPE, KafkaWorkUnitPacker.PackerType.CUSTOM);
-    state.setProp(KafkaWorkUnitPacker.KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE, "org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaTopicGroupingWorkUnitPacker");
+    state.setProp(KafkaWorkUnitPacker.KAFKA_WORKUNIT_PACKER_CUSTOMIZED_TYPE,
+        "org.apache.gobblin.source.extractor.extract.kafka.workunit.packer.KafkaTopicGroupingWorkUnitPacker");
     state.setProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS, "MockTestKafkaConsumerClientFactory");
     List<KafkaTopic> kafkaTopicList = toKafkaTopicList(testTopics);
     TestKafkaSource testKafkaSource = new TestKafkaSource(testKafkaClient);
+
+    List<String> allTopics = testTopics;
+    Map<String, List<Integer>> filteredTopicPartitionMap = new HashMap<>();
+    filteredTopicPartitionMap.put(allTopics.get(0), new LinkedList<>());
+    filteredTopicPartitionMap.put(allTopics.get(1), new LinkedList<>());
+    filteredTopicPartitionMap.put(allTopics.get(2), new LinkedList<>());
+    filteredTopicPartitionMap.get(allTopics.get(0)).addAll(Arrays.asList(0, 11));
+    filteredTopicPartitionMap.get(allTopics.get(1)).addAll(Arrays.asList(2, 8, 10));
+    filteredTopicPartitionMap.get(allTopics.get(2)).addAll(Arrays.asList(1, 3, 5, 7));
+    testKafkaSource.getWorkunitsForFilteredPartitions(state, Optional.of(filteredTopicPartitionMap), Optional.of(3));
+
     for (KafkaTopic topic : kafkaTopicList) {
-      List<WorkUnit> workUnits = testKafkaSource.getWorkUnitsForTopic(topic, state, Optional.absent(),
-          Optional.absent());
-      validatePartitionNumWithinWorkUnits(workUnits, 48);
+      List<WorkUnit> rawWorkunitList =
+          testKafkaSource.getWorkUnitsForTopic(topic, state, Optional.absent(), Optional.absent());
+      // verify if the latest offset has been taken via testKafkaClient.getLatestOffsets()
+      for (WorkUnit workUnit : rawWorkunitList) {
+        Assert.assertEquals(
+            Integer.valueOf(workUnit.getProp(ConfigurationKeys.WORK_UNIT_HIGH_WATER_MARK_KEY)).intValue(), 20);
+      }
     }
   }
 
@@ -221,6 +238,16 @@ public class KafkaSourceTest {
     @Override
     public List<KafkaTopic> getFilteredTopics(List<Pattern> blacklist, List<Pattern> whitelist) {
       return toKafkaTopicList(DatasetFilterUtils.filter(testTopics, blacklist, whitelist));
+    }
+
+    @Override
+    public Map<KafkaPartition, Long> getEarliestOffsets(Collection<KafkaPartition> partitions) {
+      return partitions.stream().collect(Collectors.toMap(p -> p, p -> 10L));
+    }
+
+    @Override
+    public Map<KafkaPartition, Long> getLatestOffsets(Collection<KafkaPartition> partitions) {
+      return partitions.stream().collect(Collectors.toMap(p -> p, p -> 20L));
     }
 
     @Override
