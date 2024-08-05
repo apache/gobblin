@@ -103,4 +103,5 @@ public class ServiceMetricNames {
   public static final String DAG_ACTIONS_DELETE_SUCCEEDED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsDeleteSucceeded.";
   public static final String DAG_ACTIONS_DELETE_FAILED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsDeleteFailed.";
   public static final String DAG_ACTIONS_AVERAGE_PROCESSING_DELAY_MILLIS = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsAvgProcessingDelayMillis.";
+  public static final String DAG_ACTIONS_CREATION_EXCEPTIONS_IN_JOB_STATUS_MONITOR = DAG_PROCESSING_ENGINE_PREFIX + "dagActionCreationExceptionsInJobStatusMonitor";
 }

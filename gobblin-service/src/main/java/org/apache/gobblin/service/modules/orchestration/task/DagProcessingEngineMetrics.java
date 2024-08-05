@@ -62,6 +62,7 @@ public class DagProcessingEngineMetrics {
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsDeleteFailedMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsDeleteSucceededMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsAverageProcessingDelayMillisMeterByDagActionType =  new HashMap<>();
+  public ContextAwareMeter dagActionCreationExceptionsInJobStatusMonitor;
 
   public DagProcessingEngineMetrics(MetricContext metricContext) {
     this.metricContext = metricContext;
@@ -92,6 +93,7 @@ public class DagProcessingEngineMetrics {
     registerMetricForEachDagActionType(this.dagActionsDeleteFailedMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_DELETE_FAILED);
     registerMetricForEachDagActionType(this.dagActionsDeleteSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_DELETE_SUCCEEDED);
     registerMetricForEachDagActionType(this.dagActionsAverageProcessingDelayMillisMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_AVERAGE_PROCESSING_DELAY_MILLIS);
+    dagActionCreationExceptionsInJobStatusMonitor = this.metricContext.contextAwareMeter(ServiceMetricNames.DAG_ACTIONS_CREATION_EXCEPTIONS_IN_JOB_STATUS_MONITOR);
   }
 
   /**

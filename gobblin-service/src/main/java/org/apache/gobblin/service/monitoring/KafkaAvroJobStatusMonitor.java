@@ -68,7 +68,7 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   public KafkaAvroJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
       GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore)
       throws IOException, ReflectiveOperationException {
-    super(topic, config, numThreads,  jobIssueEventHandler, observabilityEventProducer, dagManagementStateStore);
+    super(topic, config, numThreads,  jobIssueEventHandler, observabilityEventProducer, dagManagementStateStore, null);
 
     if (ConfigUtils.getBoolean(config, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, false)) {
       KafkaAvroSchemaRegistry schemaRegistry = (KafkaAvroSchemaRegistry) new KafkaAvroSchemaRegistryFactory().
