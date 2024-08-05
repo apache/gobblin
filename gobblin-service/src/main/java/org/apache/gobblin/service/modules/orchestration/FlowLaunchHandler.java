@@ -108,16 +108,7 @@ public class FlowLaunchHandler {
   public void handleFlowLaunchTriggerEvent(Properties jobProps,
       DagActionStore.LeaseParams leaseParams, boolean adoptConsensusFlowExecutionId)
       throws IOException {
-    long previousEventTimeMillis = leaseParams.getEventTimeMillis();
-    LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(leaseParams, adoptConsensusFlowExecutionId);
-    if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus
-        && persistLaunchDagAction((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt)) {
-      log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseAttempt.getConsensusDagAction(),
-          previousEventTimeMillis);
-    } else { // when NOT successfully `persistDagAction`, set a reminder to re-attempt handling (unless leasing finished)
-      calcLeasedToAnotherStatusForReminder(leaseAttempt).ifPresent(leasedToAnother ->
-          scheduleReminderForEvent(jobProps, leasedToAnother, previousEventTimeMillis));
-    }
+    handleFlowTriggerEvent(jobProps, leaseParams, adoptConsensusFlowExecutionId);
   }
 
   /**
@@ -126,8 +117,13 @@ public class FlowLaunchHandler {
    * the status of the attempt.
    */
   public void handleFlowKillTriggerEvent(Properties jobProps, DagActionStore.LeaseParams leaseParams) throws IOException {
+    handleFlowTriggerEvent(jobProps, leaseParams, false);
+  }
+
+  private void handleFlowTriggerEvent(Properties jobProps, DagActionStore.LeaseParams leaseParams, boolean adoptConsensusFlowExecutionId)
+      throws IOException {
     long previousEventTimeMillis = leaseParams.getEventTimeMillis();
-    LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(leaseParams, false);
+    LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(leaseParams, adoptConsensusFlowExecutionId);
     if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus
         && persistLaunchDagAction((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt)) {
       log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseAttempt.getConsensusDagAction(),
