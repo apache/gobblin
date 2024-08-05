@@ -48,16 +48,16 @@ abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<Jo
   @Override
   protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag,
       DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
+    log.info("Request to enforce {} deadline for dag {}", getDagActionType(), getDagId());
     if (isDagStillPresent(dag, dagManagementStateStore)) {
+      // if the job is not already completed and dag action is still present, enforce deadline
       enforceDeadline(dagManagementStateStore, dag.get(), dagProcEngineMetrics);
-    } else {
-    dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
-  }
+    }
+    dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
   }
 
   protected boolean isDagStillPresent(Optional<Dag<JobExecutionPlan>> dag, DagManagementStateStore dagManagementStateStore)
       throws IOException {
-    log.info("Request to enforce deadlines for dag {}", getDagId());
     DagActionStore.DagAction dagAction = getDagTask().getDagAction();
 
     if (!dag.isPresent()) {
@@ -68,7 +68,7 @@ abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<Jo
 
     if (!dagManagementStateStore.existsJobDagAction(dagAction.getFlowGroup(), dagAction.getFlowName(),
         dagAction.getFlowExecutionId(), dagAction.getJobName(), dagAction.getDagActionType())) {
-      log.warn("Dag action {} is cleaned up from DMSS. No further action is required.", dagAction);
+      log.info("Dag action {} is cleaned up from DMSS. No further action is required.", dagAction);
       return false;
     }
 

@@ -26,9 +26,6 @@ import java.util.List;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
-import org.apache.gobblin.service.modules.flow.SpecCompiler;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
 import org.slf4j.Logger;
@@ -63,14 +60,21 @@ import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.GobblinServiceManagerTest;
 import org.apache.gobblin.service.modules.flow.IdentityFlowToJobSpecCompiler;
+import org.apache.gobblin.service.modules.flow.SpecCompiler;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
 import static org.mockito.ArgumentMatchers.*;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.when;
 
 
 public class OrchestratorTest {
@@ -145,7 +149,7 @@ public class OrchestratorTest {
     this.dagMgrNotFlowLaunchHandlerBasedOrchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.topologyCatalog, mockDagManager, Optional.of(logger), mockFlowStatusGenerator,
         Optional.absent(), sharedFlowMetricsSingleton, Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore),
-        flowCompilationValidationHelper);
+        flowCompilationValidationHelper, mock(JobStatusRetriever.class));
 
     /* Initialize a second orchestrator with a mocked flowCompilationValidationHelper to use Mockito to spoof the dag
     returned by a call to compile a flowSpec
@@ -157,7 +161,7 @@ public class OrchestratorTest {
     this.mockedFlowCompValHelperBasedOrchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.topologyCatalog, mockDagManager, Optional.of(logger), mockFlowStatusGenerator,
         Optional.absent(), sharedFlowMetricsSingleton, Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore),
-        this.mockedFlowCompilationValidationHelper);
+        this.mockedFlowCompilationValidationHelper, mock(JobStatusRetriever.class));
 
     this.topologyCatalog.addListener(dagMgrNotFlowLaunchHandlerBasedOrchestrator);
     this.flowCatalog.addListener(dagMgrNotFlowLaunchHandlerBasedOrchestrator);

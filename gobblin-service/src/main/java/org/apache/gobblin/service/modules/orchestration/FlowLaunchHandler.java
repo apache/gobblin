@@ -108,6 +108,20 @@ public class FlowLaunchHandler {
   public void handleFlowLaunchTriggerEvent(Properties jobProps,
       DagActionStore.LeaseParams leaseParams, boolean adoptConsensusFlowExecutionId)
       throws IOException {
+    handleFlowTriggerEvent(jobProps, leaseParams, adoptConsensusFlowExecutionId);
+  }
+
+  /**
+   * This method is used in the multi-active scheduler case for one or more hosts to respond to a kill dag action
+   * event triggered by the Orchestrator by attempting a lease for the kill event and processing the result depending on
+   * the status of the attempt.
+   */
+  public void handleFlowKillTriggerEvent(Properties jobProps, DagActionStore.LeaseParams leaseParams) throws IOException {
+    handleFlowTriggerEvent(jobProps, leaseParams, false);
+  }
+
+  private void handleFlowTriggerEvent(Properties jobProps, DagActionStore.LeaseParams leaseParams, boolean adoptConsensusFlowExecutionId)
+      throws IOException {
     long previousEventTimeMillis = leaseParams.getEventTimeMillis();
     LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(leaseParams, adoptConsensusFlowExecutionId);
     if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus

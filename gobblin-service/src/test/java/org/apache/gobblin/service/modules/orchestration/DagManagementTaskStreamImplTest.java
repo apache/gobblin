@@ -106,7 +106,7 @@ public class DagManagementTaskStreamImplTest {
             new LeaseAttemptStatus.LeaseObtainedStatus(new DagActionStore.LeaseParams(launchAction, true, 1), 0, 5, null));
     DagTask dagTask = dagManagementTaskStream.next();
     Assert.assertTrue(dagTask instanceof LaunchDagTask);
-    DagProc dagProc = dagTask.host(this.dagProcFactory);
+    DagProc<?> dagProc = dagTask.host(this.dagProcFactory);
     Assert.assertNotNull(dagProc);
   }
 }
