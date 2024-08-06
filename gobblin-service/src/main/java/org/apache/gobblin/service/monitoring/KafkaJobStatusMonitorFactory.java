@@ -55,7 +55,6 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
   private final boolean instrumentationEnabled;
   private final DagManagementStateStore dagManagementStateStore;
   private final boolean dagProcEngineEnabled;
-  private final DagProcessingEngineMetrics dagProcessingEngineMetrics;
 
   @Inject
   public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
@@ -73,7 +72,6 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
     this.instrumentationEnabled = instrumentationEnabled;
     this.dagManagementStateStore = dagManagementStateStore;
     this.dagProcEngineEnabled = dagProcEngineEnabled;
-    this.dagProcessingEngineMetrics = dagProcessingEngineMetrics;
   }
 
   private KafkaJobStatusMonitor createJobStatusMonitor()
@@ -109,7 +107,7 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
 
     return (KafkaJobStatusMonitor) GobblinConstructorUtils
         .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, observabilityEventProducer,
-            dagManagementStateStore, dagProcessingEngineMetrics);
+            dagManagementStateStore);
   }
 
   @Override

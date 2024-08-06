@@ -63,8 +63,6 @@ import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.retention.DatasetCleanerTask;
 import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
-import org.apache.gobblin.util.ExceptionUtils;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -72,6 +70,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProcUtils;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExceptionUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
 
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
@@ -125,12 +124,10 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final GaaSJobObservabilityEventProducer eventProducer;
   private final DagManagementStateStore dagManagementStateStore;
   private final boolean dagProcEngineEnabled;
-  private final DagProcessingEngineMetrics dagProcessingEngineMetrics;
   private final List<Class<? extends Exception>> nonRetryableExceptions = Collections.singletonList(SQLIntegrityConstraintViolationException.class);
 
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
-      GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore,
-      DagProcessingEngineMetrics dagProcessingEngineMetrics)
+      GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
@@ -142,7 +139,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     this.jobIssueEventHandler = jobIssueEventHandler;
     this.dagManagementStateStore = dagManagementStateStore;
     this.dagProcEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
-    this.dagProcessingEngineMetrics = dagProcessingEngineMetrics;
 
     Config retryerOverridesConfig = config.hasPath(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
@@ -238,14 +234,13 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
           if (this.dagProcEngineEnabled && DagProcUtils.isJobLevelStatus(jobName)) {
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
-              DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
-                  jobName, DagActionStore.DagActionType.REEVALUATE);
               try {
-                this.dagManagementStateStore.addDagAction(dagAction);
+                this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
               } catch (IOException e) {
                 if (ExceptionUtils.isExceptionInstanceOf(e, nonRetryableExceptions)) {
-                  this.dagProcessingEngineMetrics.dagActionCreationExceptionsInJobStatusMonitor.mark();
-                  log.error("{} could not be added due to {}. Ignoring...", dagAction, e.getMessage());
+                  this.dagManagementStateStore.getDagManagerMetrics().dagActionCreationExceptionsInJobStatusMonitor.mark();
+                  log.error("Could not add REEVALUATE dag action for flow group - {}, flow name - {}, flowExecutionId - {}, "
+                      + "jobName = {} due to {}. Ignoring...", flowGroup, flowName, flowExecutionId, jobName, e.getMessage());
                 } else {
                   throw e;
                 }

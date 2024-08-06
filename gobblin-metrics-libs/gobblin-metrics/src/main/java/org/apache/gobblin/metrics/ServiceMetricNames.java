@@ -80,7 +80,8 @@ public class ServiceMetricNames {
   public static final String DAG_COUNT_FS_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "FsDagStateStore" + ".totalDagCount";
 
   public static final String DAG_PROCESSING_EXCEPTION_METER = "DagProcessingException";
-  public static final String DAG_PROCESSING_NON_RETRYABLE_EXCEPTION_METER = "DagProcessingNonRetryableException";
+  public static final String DAG_ACTIONS_CREATE_EXCEPTIONS_IN_JOB_STATUS_MONITOR = "DagActionsCreateExceptionsInJobStatusMonitor";
+
   /* DagProcessingEngine & Multi-active Execution Related Metrics
   * Note: metrics ending with the delimiter '.' will be suffixed by the specific {@link DagActionType} type for finer
   * grained monitoring of each dagAction type in addition to the aggregation of all types.
@@ -103,5 +104,5 @@ public class ServiceMetricNames {
   public static final String DAG_ACTIONS_DELETE_SUCCEEDED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsDeleteSucceeded.";
   public static final String DAG_ACTIONS_DELETE_FAILED = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsDeleteFailed.";
   public static final String DAG_ACTIONS_AVERAGE_PROCESSING_DELAY_MILLIS = DAG_PROCESSING_ENGINE_PREFIX + "dagActionsAvgProcessingDelayMillis.";
-  public static final String DAG_ACTIONS_CREATION_EXCEPTIONS_IN_JOB_STATUS_MONITOR = DAG_PROCESSING_ENGINE_PREFIX + "dagActionCreationExceptionsInJobStatusMonitor";
+  public static final String DAG_PROCESSING_NON_RETRYABLE_EXCEPTION_METER = "DagProcessingNonRetryableException";
 }
