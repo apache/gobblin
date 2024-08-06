@@ -236,10 +236,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     try {
       Config config = ConfigUtils.propertiesToConfig(state.getProperties());
       GobblinKafkaConsumerClientFactory kafkaConsumerClientFactory =
-          kafkaConsumerClientResolver
-              .resolveClass(
-                  state.getProp(GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
-                      DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance();
+kafkaConsumerClientResolver
+          .resolveClass(state.getProp(
+              GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
+DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance();
 
       this.kafkaConsumerClient.set(kafkaConsumerClientFactory.create(config));
 
@@ -662,7 +662,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           offsets.startAtLatestOffset();
         } else if (offsetOption.equals(EARLIEST_OFFSET) || offsetOption.equals(NEAREST_OFFSET)) {
           LOG.warn(offsetOutOfRangeMsg + "This partition will start from the earliest offset: " + offsets
-                .getEarliestOffset());
+              .getEarliestOffset());
           offsets.startAtEarliestOffset();
         } else {
           LOG.warn(offsetOutOfRangeMsg + "This partition will be skipped.");
@@ -690,8 +690,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       Preconditions.checkArgument(state.contains(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD), "Missing config key: " + KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD);
       workUnit.setProp(KafkaSource.OBSERVED_LATENCY_MEASUREMENT_ENABLED, isobservedLatencyMeasurementEnabled);
       workUnit.setProp(KafkaSource.MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS,
-          state.getPropAsInt(KafkaSource.MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS,
-              DEFAULT_MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS));
+          state.getPropAsInt(KafkaSource.MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS, DEFAULT_MAX_POSSIBLE_OBSERVED_LATENCY_IN_HOURS));
       workUnit.setProp(KafkaSource.OBSERVED_LATENCY_PRECISION,
           state.getPropAsInt(KafkaSource.OBSERVED_LATENCY_PRECISION, KafkaSource.DEFAULT_OBSERVED_LATENCY_PRECISION));
       workUnit.setProp(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD, state.getProp(KafkaSource.RECORD_CREATION_TIMESTAMP_FIELD));
@@ -740,8 +739,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       return this.previousOffsets.get(partition);
     }
     throw new PreviousOffsetNotFoundException(String
-        .format("Previous offset for topic %s, partition %s not found.", partition.getTopicName(),
-            partition.getId()));
+        .format("Previous offset for topic %s, partition %s not found.", partition.getTopicName(), partition.getId()));
   }
 
   private long getPreviousExpectedHighWatermark(KafkaPartition partition, SourceState state)
@@ -786,7 +784,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
     if (!workUnitStatesByDatasetUrns.isEmpty() &&
             !(workUnitStatesByDatasetUrns.size() == 1 && workUnitStatesByDatasetUrns.keySet().iterator().next()
-          .equals(""))) {
+        .equals(""))) {
       this.isDatasetStateEnabled.set(true);
     }
 
