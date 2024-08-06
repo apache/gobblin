@@ -76,10 +76,10 @@ public interface GobblinKafkaConsumerClient extends Closeable {
    *
    * @throws KafkaOffsetRetrievalFailureException - If the underlying kafka-client does not support getting the earliest offset
    */
-  public default Map<KafkaPartition, Long> getEarliestOffsets(Collection<KafkaPartition> partitions)
+  public default Map<KafkaPartition, Long> getEarliestOffsets(final Collection<KafkaPartition> partitions)
       throws KafkaOffsetRetrievalFailureException {
-    Map<KafkaPartition, Long> offsetMap = Maps.newHashMap();
-    for (KafkaPartition partition : partitions) {
+    final Map<KafkaPartition, Long> offsetMap = Maps.newHashMap();
+    for (final KafkaPartition partition : partitions) {
       offsetMap.put(partition, getEarliestOffset(partition));
     }
     return offsetMap;
