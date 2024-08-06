@@ -130,6 +130,7 @@ public class ManifestBasedDatasetFinderTest {
       setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
       Mockito.when(destFs.exists(new Path("/tmp/dataset/test1.txt"))).thenReturn(true);
       Mockito.when(destFs.exists(new Path("/tmp/dataset/test2.txt"))).thenReturn(false);
+      Mockito.when(destFs.exists(new Path("/tmp"))).thenReturn(true);
       Mockito.when(destFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
 
       List<AclEntry> aclEntrySource = AclEntry.parseAclSpec("user::rwx,group::rwx,other::rwx", true);
@@ -154,9 +155,10 @@ public class ManifestBasedDatasetFinderTest {
       CommitStep setPermissionStep = ((PostPublishStep) fileSet.getFiles().get(3)).getStep();
       Assert.assertTrue(setPermissionStep instanceof SetPermissionCommitStep);
       Map<String, OwnerAndPermission> ownerAndPermissionMap = ((SetPermissionCommitStep) setPermissionStep).getPathAndPermissions();
-      Assert.assertEquals(ownerAndPermissionMap.size(), 2);
+      // Ignore /tmp as it already exists on destination
+      Assert.assertEquals(ownerAndPermissionMap.size(), 1);
       Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset"));
-      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp"));
+
 
     }
   }
