@@ -20,10 +20,12 @@ package org.apache.gobblin.data.management.copy;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
@@ -153,6 +155,14 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
           }
         } else if (deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)) {
           toDelete.add(targetFs.getFileStatus(fileToCopy));
+        }
+      }
+      // Only set permission for newly created folders on target
+      // To change permissions for existing dirs, expectation is to add the folder to the manifest
+      Set<String> parentFolders = new HashSet<>(flattenedAncestorPermissions.keySet());
+      for (String folder : parentFolders) {
+        if (targetFs.exists(new Path(folder))) {
+          flattenedAncestorPermissions.remove(folder);
         }
       }
       // We need both precommit step to create the directories copying to, and a postcommit step to ensure that the execute bit needed for recursive rename is reset
