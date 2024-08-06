@@ -159,7 +159,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
   // sharing the kafka consumer may result in contention, so support thread local consumers
   protected final ConcurrentLinkedQueue<GobblinKafkaConsumerClient> kafkaConsumerClientPool = new ConcurrentLinkedQueue();
   protected static final ThreadLocal<GobblinKafkaConsumerClient> kafkaConsumerClient =
-        new ThreadLocal<GobblinKafkaConsumerClient>();
+          new ThreadLocal<GobblinKafkaConsumerClient>();
   private GobblinKafkaConsumerClient sharedKafkaConsumerClient = null;
   private final ClassAliasResolver<GobblinKafkaConsumerClientFactory> kafkaConsumerClientResolver =
       new ClassAliasResolver<>(GobblinKafkaConsumerClientFactory.class);
@@ -235,11 +235,10 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
 
     try {
       Config config = ConfigUtils.propertiesToConfig(state.getProperties());
-      GobblinKafkaConsumerClientFactory kafkaConsumerClientFactory =
-kafkaConsumerClientResolver
+      GobblinKafkaConsumerClientFactory kafkaConsumerClientFactory = kafkaConsumerClientResolver
           .resolveClass(state.getProp(
               GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS,
-DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance();
+              DEFAULT_GOBBLIN_KAFKA_CONSUMER_CLIENT_FACTORY_CLASS)).newInstance();
 
       this.kafkaConsumerClient.set(kafkaConsumerClientFactory.create(config));
 
