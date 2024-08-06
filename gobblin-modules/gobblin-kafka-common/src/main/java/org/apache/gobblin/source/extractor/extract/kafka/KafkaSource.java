@@ -531,9 +531,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     }
     final Map<KafkaPartition, WorkUnit> workUnitMap = Maps.newHashMap();
     for (Map.Entry<KafkaPartition, Offsets> partitionOffset : partitionOffsetMap.entrySet()) {
-      workUnitMap.put(partitionOffset.getKey(),
+      WorkUnit workUnit =
           getWorkUnitForTopicPartition(partitionOffset.getKey(), state, topicSpecificState, partitionOffset.getValue(),
-              failedOffsetsGetList.contains(partitionOffset.getKey())));
+              failedOffsetsGetList.contains(partitionOffset.getKey()));
+      if (workUnit != null) {
+        workUnitMap.put(partitionOffset.getKey(), workUnit);
+      }
     }
     return workUnitMap;
   }
