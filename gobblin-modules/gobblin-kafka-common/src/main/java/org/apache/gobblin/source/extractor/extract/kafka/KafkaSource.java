@@ -446,13 +446,13 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     boolean topicQualified = isTopicQualified(topic);
     context.close();
 
-    List<WorkUnit> workUnits = Lists.newArrayList();
-    List<KafkaPartition> topicPartitions = topic.getPartitions();
+    final List<WorkUnit> workUnits = Lists.newArrayList();
+    final List<KafkaPartition> topicPartitions = topic.getPartitions();
     Map<KafkaPartition, WorkUnit> workUnitMap;
 
     if (filteredPartitions.isPresent()) {
       LOG.info("Filtered partitions for topic {} are {}", topic.getName(), filteredPartitions.get());
-      List<KafkaPartition> filteredPartitionsToBeProcessed = topicPartitions.stream()
+      final List<KafkaPartition> filteredPartitionsToBeProcessed = topicPartitions.stream()
           .filter(partition -> filteredPartitions.get().contains(partition.getId()))
           .collect(Collectors.toList());
       workUnitMap = getWorkUnits(filteredPartitionsToBeProcessed, state, topicSpecificState);
@@ -497,12 +497,12 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
    */
   private Map<KafkaPartition, WorkUnit> getWorkUnits(Collection<KafkaPartition> partitions, SourceState state,
       Optional<State> topicSpecificState) {
-    Map<KafkaPartition, Offsets> partitionOffsetMap = Maps.newHashMap();
-    Set<KafkaPartition> fetchOffsetsFailedPartitions = Sets.newHashSet();
+    final Map<KafkaPartition, Offsets> partitionOffsetMap = Maps.newHashMap();
+    final Set<KafkaPartition> fetchOffsetsFailedPartitions = Sets.newHashSet();
     try (Timer.Context context = this.metricContext.timer(OFFSET_FETCH_TIMER).time()) {
       // Fetch the offsets for all the partitions at once
-      Map<KafkaPartition, Long> earliestOffsetMap = this.kafkaConsumerClient.get().getEarliestOffsets(partitions);
-      Map<KafkaPartition, Long> latestOffsetMap = this.kafkaConsumerClient.get().getLatestOffsets(partitions);
+      final Map<KafkaPartition, Long> earliestOffsetMap = this.kafkaConsumerClient.get().getEarliestOffsets(partitions);
+      final Map<KafkaPartition, Long> latestOffsetMap = this.kafkaConsumerClient.get().getLatestOffsets(partitions);
       for (KafkaPartition partition : partitions) {
         Offsets offsets = new Offsets();
         offsets.setOffsetFetchEpochTime(System.currentTimeMillis());
@@ -524,7 +524,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
     if (!fetchOffsetsFailedPartitions.isEmpty()) {
       LOG.error("Failed to fetch offsets for partitions {}", fetchOffsetsFailedPartitions);
     }
-    Map<KafkaPartition, WorkUnit> workUnitMap = Maps.newHashMap();
+    final Map<KafkaPartition, WorkUnit> workUnitMap = Maps.newHashMap();
     for (Map.Entry<KafkaPartition, Offsets> partitionOffset : partitionOffsetMap.entrySet()) {
       workUnitMap.put(partitionOffset.getKey(),
           getWorkUnitForTopicPartition(partitionOffset.getKey(), state, topicSpecificState, partitionOffset.getValue(),
