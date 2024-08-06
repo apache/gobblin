@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Optional;
 
+import com.typesafe.config.Config;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -41,8 +43,9 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
 
-  public LaunchDagProc(LaunchDagTask launchDagTask, FlowCompilationValidationHelper flowCompilationValidationHelper) {
-    super(launchDagTask);
+  public LaunchDagProc(LaunchDagTask launchDagTask, FlowCompilationValidationHelper flowCompilationValidationHelper,
+      Config config) {
+    super(launchDagTask, config);
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
   }
 

@@ -48,7 +48,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
  * Each {@link DagTask} returned from the {@link DagTaskStream} comes with a time-limited lease conferring the exclusive
  * right to perform the work of the task.
  * The {@link DagProcFactory} transforms each {@link DagTask} into a specific, concrete {@link DagProc}, which
- * encapsulates all processing inside {@link DagProc#process(DagManagementStateStore)}
+ * encapsulates all processing inside {@link DagProc#process(DagManagementStateStore, DagProcessingEngineMetrics)}
  */
 
 @AllArgsConstructor
@@ -138,6 +138,7 @@ public class DagProcessingEngine extends AbstractIdleService {
         try {
           dagProc.process(dagManagementStateStore, dagProcEngineMetrics);
           dagTask.conclude();
+          log.info("Concluded dagTask : {}", dagTask);
         } catch (Exception e) {
           log.error("DagProcEngineThread encountered exception while processing dag " + dagProc.getDagId(), e);
           dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();

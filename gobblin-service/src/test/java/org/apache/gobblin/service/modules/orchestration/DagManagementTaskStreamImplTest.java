@@ -26,6 +26,7 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -70,7 +71,7 @@ public class DagManagementTaskStreamImplTest {
         new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
             mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
             false, mock(DagManagementStateStore.class), mock(DagProcessingEngineMetrics.class));
-    this.dagProcFactory = new DagProcFactory(null);
+    this.dagProcFactory = new DagProcFactory(ConfigFactory.empty(), null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore, mock(DagProcessingEngineMetrics.class), 0);
   }

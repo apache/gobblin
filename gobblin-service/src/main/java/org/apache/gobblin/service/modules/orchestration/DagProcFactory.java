@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
+import com.typesafe.config.Config;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
@@ -37,7 +38,6 @@ import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 
-
 /**
  * {@link DagTaskVisitor} for transforming a specific {@link DagTask} derived class to its companion {@link DagProc} derived class.
  * Each {@link DagTask} needs it own {@link DagProcFactory#meet} method overload to create {@link DagProc} that is
@@ -48,41 +48,43 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 @Singleton
 public class DagProcFactory implements DagTaskVisitor<DagProc<?>> {
 
+  private final Config config;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
 
   @Inject
-  public DagProcFactory(FlowCompilationValidationHelper flowCompilationValidationHelper) {
+  public DagProcFactory(Config config, FlowCompilationValidationHelper flowCompilationValidationHelper) {
+    this.config = config;
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
   }
 
   @Override
   public EnforceFlowFinishDeadlineDagProc meet(EnforceFlowFinishDeadlineDagTask enforceFlowFinishDeadlineDagTask) {
-    return new EnforceFlowFinishDeadlineDagProc(enforceFlowFinishDeadlineDagTask);
+    return new EnforceFlowFinishDeadlineDagProc(enforceFlowFinishDeadlineDagTask, this.config);
   }
 
   @Override
   public EnforceJobStartDeadlineDagProc meet(EnforceJobStartDeadlineDagTask enforceJobStartDeadlineDagTask) {
-    return new EnforceJobStartDeadlineDagProc(enforceJobStartDeadlineDagTask);
+    return new EnforceJobStartDeadlineDagProc(enforceJobStartDeadlineDagTask, this.config);
   }
 
   @Override
   public LaunchDagProc meet(LaunchDagTask launchDagTask) {
-    return new LaunchDagProc(launchDagTask, this.flowCompilationValidationHelper);
+    return new LaunchDagProc(launchDagTask, this.flowCompilationValidationHelper, this.config);
   }
 
   @Override
   public ReevaluateDagProc meet(ReevaluateDagTask reEvaluateDagTask) {
-    return new ReevaluateDagProc(reEvaluateDagTask);
+    return new ReevaluateDagProc(reEvaluateDagTask, this.config);
   }
 
   @Override
   public KillDagProc meet(KillDagTask killDagTask) {
-    return new KillDagProc(killDagTask);
+    return new KillDagProc(killDagTask, this.config);
   }
 
   @Override
   public ResumeDagProc meet(ResumeDagTask resumeDagTask) {
-    return new ResumeDagProc(resumeDagTask);
+    return new ResumeDagProc(resumeDagTask, this.config);
   }
 }
 

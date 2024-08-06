@@ -63,11 +63,7 @@ public abstract class DagTask {
     try {
       this.dagManagementStateStore.deleteDagAction(this.dagAction);
       boolean completedLease = this.leaseObtainedStatus.completeLease();
-      if (completedLease) {
-        this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), true);
-      } else {
-        this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), false);
-      }
+      this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), completedLease);
       return completedLease;
     } catch (IOException e) {
       this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), false);

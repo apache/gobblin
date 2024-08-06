@@ -22,6 +22,8 @@ import java.util.Optional;
 
 import org.apache.commons.lang3.tuple.Pair;
 
+import com.typesafe.config.Config;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -44,8 +46,8 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 @Slf4j
 public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>>> {
 
-  public ReevaluateDagProc(ReevaluateDagTask reEvaluateDagTask) {
-    super(reEvaluateDagTask);
+  public ReevaluateDagProc(ReevaluateDagTask reEvaluateDagTask, Config config) {
+    super(reEvaluateDagTask, config);
   }
 
   @Override

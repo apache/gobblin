@@ -118,7 +118,7 @@ public class ReevaluateDagProcTest {
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore, mockedDagProcEngineMetrics));
+        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
     // next job is sent to spec producer
     Mockito.verify(specProducers.get(1), Mockito.times(1)).addSpec(any());
@@ -168,7 +168,7 @@ public class ReevaluateDagProcTest {
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore, mockedDagProcEngineMetrics));
+        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     // no new job to launch for this one job flow
@@ -203,7 +203,7 @@ public class ReevaluateDagProcTest {
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore, mockedDagProcEngineMetrics));
+        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int numOfLaunchedJobs = 1; // only the current job
@@ -248,7 +248,7 @@ public class ReevaluateDagProcTest {
     ReevaluateDagProc
         reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, "job3", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore, mockedDagProcEngineMetrics));
+        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     // process 4th job
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
@@ -282,10 +282,9 @@ public class ReevaluateDagProcTest {
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.of(jobStatus)))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
 
-    ReevaluateDagProc
-        reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore, mockedDagProcEngineMetrics));
+    ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(
+        flowGroup, flowName, flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
+        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int numOfLaunchedJobs = 1; // only the current job

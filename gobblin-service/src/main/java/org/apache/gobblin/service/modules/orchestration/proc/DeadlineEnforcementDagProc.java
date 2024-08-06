@@ -20,6 +20,8 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.util.Optional;
 
+import com.typesafe.config.Config;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.service.modules.flowgraph.Dag;
@@ -35,8 +37,8 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 @Slf4j
 abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
 
-  public DeadlineEnforcementDagProc(DagTask dagTask) {
-    super(dagTask);
+  public DeadlineEnforcementDagProc(DagTask dagTask, Config config) {
+    super(dagTask, config);
   }
 
   @Override

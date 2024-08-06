@@ -22,6 +22,8 @@ import java.util.Optional;
 
 import org.apache.commons.lang3.tuple.Pair;
 
+import com.typesafe.config.Config;
+
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -45,8 +47,8 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
 @Slf4j
 public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
 
-  public EnforceJobStartDeadlineDagProc(EnforceJobStartDeadlineDagTask enforceJobStartDeadlineDagTask) {
-    super(enforceJobStartDeadlineDagTask);
+  public EnforceJobStartDeadlineDagProc(EnforceJobStartDeadlineDagTask enforceJobStartDeadlineDagTask, Config config) {
+    super(enforceJobStartDeadlineDagTask, config);
   }
 
   protected void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,

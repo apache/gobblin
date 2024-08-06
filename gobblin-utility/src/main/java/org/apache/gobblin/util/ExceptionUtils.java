@@ -15,11 +15,13 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.util;
+package org.apache.gobblin.util;
 
-public final class ExceptionCleanupUtils {
+import java.util.List;
 
-  private ExceptionCleanupUtils() {
+public final class ExceptionUtils {
+
+  private ExceptionUtils() {
   }
 
   /**
@@ -41,5 +43,21 @@ public final class ExceptionCleanupUtils {
     }
 
     return exception;
+  }
+
+  /**
+   * Iterates through the exception chain and returns true if it finds exception that is an instance of any exceptions
+   * in the provided exception list, false otherwise
+   */
+  public static boolean isExceptionInstanceOf(Throwable exception, List<Class<? extends Exception>> exceptionsList) {
+    while (exception != null) {
+      Throwable finalException = exception;
+      if (exceptionsList.stream().anyMatch(e -> e.isInstance(finalException))) {
+        return true;
+      } else {
+        exception = exception.getCause();
+      }
+    }
+    return false;
   }
 }

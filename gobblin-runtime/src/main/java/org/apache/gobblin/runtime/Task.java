@@ -80,7 +80,7 @@ import org.apache.gobblin.runtime.fork.AsynchronousFork;
 import org.apache.gobblin.runtime.fork.Fork;
 import org.apache.gobblin.runtime.fork.SynchronousFork;
 import org.apache.gobblin.runtime.task.TaskIFace;
-import org.apache.gobblin.runtime.util.ExceptionCleanupUtils;
+import org.apache.gobblin.util.ExceptionUtils;
 import org.apache.gobblin.runtime.util.TaskMetrics;
 import org.apache.gobblin.source.extractor.Extractor;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -566,7 +566,7 @@ public class Task implements TaskIFace {
   }
 
   protected void failTask(Throwable t) {
-    Throwable cleanedException = ExceptionCleanupUtils.removeEmptyWrappers(t);
+    Throwable cleanedException = ExceptionUtils.removeEmptyWrappers(t);
 
     LOG.error(String.format("Task %s failed", this.taskId), cleanedException);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
