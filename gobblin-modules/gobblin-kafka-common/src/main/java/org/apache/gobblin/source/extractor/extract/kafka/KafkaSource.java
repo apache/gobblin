@@ -515,7 +515,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
           partitionOffsetMap.put(partition, offsets);
           // If either is not available, put it in the failed offsets list
         } else {
-          failedOffsetsGetList.contains(partition);
+          failedOffsetsGetList.add(partition);
         }
       }
       LOG.info("Time taken to fetch offset for partitions {} is {} ms", partitions,
