@@ -104,6 +104,7 @@ public abstract class JobStatusRetrieverTest {
     State jobStatus = new State(properties);
     Pair<State, KafkaJobStatusMonitor.NewState> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
     jobStatus = updatedJobStatus.getLeft();
+    KafkaJobStatusMonitor.modifyStateIfRetryRequired(jobStatus);
     this.jobStatusRetriever.getStateStore().put(
         KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),
         KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName),
@@ -131,7 +132,7 @@ public abstract class JobStatusRetrieverTest {
       jobStatus = jobStatusIterator.next();
     }
     Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.PENDING_RETRY.name());
-    Assert.assertEquals(jobStatus.isShouldRetry(), true);
+    Assert.assertTrue(jobStatus.isShouldRetry());
     properties = createAttemptsProperties(1, 1, false);
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.RUNNING.name(), JOB_START_TIME, JOB_START_TIME, properties);
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.ORCHESTRATED.name(), JOB_ORCHESTRATED_TIME, JOB_ORCHESTRATED_TIME, properties);
@@ -141,7 +142,7 @@ public abstract class JobStatusRetrieverTest {
       jobStatus = jobStatusIterator.next();
     }
     Assert.assertEquals(jobStatus.getEventName(), ExecutionStatus.RUNNING.name());
-    Assert.assertEquals(jobStatus.isShouldRetry(), false);
+    Assert.assertFalse(jobStatus.isShouldRetry());
     Assert.assertEquals(jobStatus.getCurrentAttempts(), 1);
     Properties properties_new = createAttemptsProperties(2, 0, false);
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_1, ExecutionStatus.PENDING_RESUME.name(), JOB_START_TIME, JOB_START_TIME, properties_new);
@@ -186,7 +187,7 @@ public abstract class JobStatusRetrieverTest {
     Assert.assertEquals(jobStatus.getJobGroup(), jobGroup);
     Assert.assertFalse(jobStatusIterator.hasNext());
     Assert.assertEquals(ExecutionStatus.RUNNING,
-        this.jobStatusRetriever.getFlowStatusFromJobStatuses(this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId)));
+        JobStatusRetriever.getFlowStatusFromJobStatuses(this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId)));
 
     addJobStatusToStateStore(flowExecutionId, MY_JOB_NAME_2, ExecutionStatus.RUNNING.name());
     jobStatusIterator = this.jobStatusRetriever.getJobStatusesForFlowExecution(FLOW_NAME, FLOW_GROUP, flowExecutionId);

@@ -228,7 +228,15 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
           String status = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
 
-          if (updatedJobStatus.getRight() == NewState.FINISHED) {
+          // modify the status to be PENDING_RETRY only after calculating `updatedJobStatus via recalcJobStatus()`
+          // because ObservabilityEventProducer does not and should not understand `PENDING_RETRY` status in convertExecutionStatusTojobState()
+          // which is called inside emitObservabilityEvent()
+          // this can also be addressed by some other new job status like FAILED_PENDING_RETRY which does not alert the user
+          // as much as FAILED does if we chose to emit ObservabilityEvent for FAILED_PENDING_RETRY
+          boolean retryRequired = modifyStateIfRetryRequired(jobStatus);
+
+          if (updatedJobStatus.getRight() == NewState.FINISHED && !retryRequired) {
+            // do not send event if retry is required, because it can alert users to re-submit a job that is already set to be retried by GaaS
             this.eventProducer.emitObservabilityEvent(jobStatus);
           }
 
@@ -334,7 +342,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         }
       }
 
-      modifyStateIfRetryRequired(jobStatus);
       NewState newState = newState(jobStatus, states);
       String newStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       if (newState == NewState.FINISHED) {
@@ -363,19 +370,24 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         && currentStatus.equals(ExecutionStatus.PENDING_RESUME.name());
   }
 
-  private static void modifyStateIfRetryRequired(org.apache.gobblin.configuration.State state) {
+  // if job retry is required, it sets the job status to PENDING_RETRY and returns true
+  @VisibleForTesting
+  static boolean modifyStateIfRetryRequired(org.apache.gobblin.configuration.State state) {
     int maxAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.MAX_ATTEMPTS_FIELD, 1);
     int currentAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
+    boolean retryRequired = false;
     // SHOULD_RETRY_FIELD maybe reset by JOB_COMPLETION_PERCENTAGE event
-    if (state.contains(JobStatusRetriever.EVENT_NAME_FIELD) &&(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())
+    if (state.contains(JobStatusRetriever.EVENT_NAME_FIELD) && (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())
         || state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.PENDING_RETRY.name())
         || (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.CANCELLED.name()) && state.contains(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY))
     ) && currentAttempts < maxAttempts) {
       state.setProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, true);
       state.setProp(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.PENDING_RETRY.name());
       state.removeProp(TimingEvent.JOB_END_TIME);
+      retryRequired = true;
     }
     state.removeProp(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY);
+    return retryRequired;
   }
 
   static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
