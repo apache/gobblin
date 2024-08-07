@@ -228,6 +228,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
           String status = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
 
+          // modify the status to be PENDING_RETRY only after calculating `updatedJobStatus via recalcJobStatus()`
+          // because ObservabilityEventProducer does not and should not understand `PENDING_RETRY` status in convertExecutionStatusTojobState()
+          // which is called inside emitObservabilityEvent()
+          // this can also be addressed by some other new job status like FAILED_PENDING_RETRY which does not alert the user
+          // as much as FAILED does if we chose to emit ObservabilityEvent for FAILED_PENDING_RETRY
           boolean retryRequired = modifyStateIfRetryRequired(jobStatus);
 
           if (updatedJobStatus.getRight() == NewState.FINISHED && !retryRequired) {
@@ -366,12 +371,13 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   // if job retry is required, it sets the job status to PENDING_RETRY and returns true
-  private static boolean modifyStateIfRetryRequired(org.apache.gobblin.configuration.State state) {
+  @VisibleForTesting
+  static boolean modifyStateIfRetryRequired(org.apache.gobblin.configuration.State state) {
     int maxAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.MAX_ATTEMPTS_FIELD, 1);
     int currentAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
     boolean retryRequired = false;
     // SHOULD_RETRY_FIELD maybe reset by JOB_COMPLETION_PERCENTAGE event
-    if (state.contains(JobStatusRetriever.EVENT_NAME_FIELD) &&(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())
+    if (state.contains(JobStatusRetriever.EVENT_NAME_FIELD) && (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())
         || state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.PENDING_RETRY.name())
         || (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.CANCELLED.name()) && state.contains(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY))
     ) && currentAttempts < maxAttempts) {
