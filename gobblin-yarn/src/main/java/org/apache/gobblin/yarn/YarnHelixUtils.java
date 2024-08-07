@@ -20,10 +20,14 @@ package org.apache.gobblin.yarn;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -50,6 +54,8 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -58,6 +64,7 @@ import org.apache.gobblin.util.ConfigUtils;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class YarnHelixUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(YarnHelixUtils.class);
 
@@ -197,6 +204,18 @@ public class YarnHelixUtils {
         StringUtils.EMPTY)){
       yarnConfiguration.setStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, config.getString(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CLASSPATHS));
     }
+  }
+
+  public static Path getJarPathCacheAndCleanIfNeeded(Config config, FileSystem fs) throws IOException {
+    Path jarsCacheDirMonthly = new Path(config.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR));
+    String monthSuffix = new SimpleDateFormat("yyyy-MM").format(config.getLong(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY));
+    // Cleanup old cache if necessary
+    List<FileStatus> jarDirs = Arrays.stream(fs.exists(jarsCacheDirMonthly)
+        ? fs.listStatus(jarsCacheDirMonthly) : new FileStatus[0]).sorted().collect(Collectors.toList());
+    if (jarDirs.size() > 2) {
+      fs.delete(jarDirs.get(0).getPath(), true);
+    }
+    return new Path(jarsCacheDirMonthly, monthSuffix);
   }
 
   public static void addRemoteFilesToLocalResources(String hdfsFileList, Map<String, LocalResource> resourceMap, Configuration yarnConfiguration) throws IOException {

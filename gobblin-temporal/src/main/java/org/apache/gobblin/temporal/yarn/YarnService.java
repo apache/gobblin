@@ -197,6 +197,8 @@ class YarnService extends AbstractIdleService {
 
   private volatile boolean shutdownInProgress = false;
 
+  private final boolean jarCacheEnabled;
+
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus) throws Exception {
     this.applicationName = applicationName;
@@ -270,6 +272,7 @@ class YarnService extends AbstractIdleService {
         GobblinYarnConfigurationKeys.DEFAULT_APP_VIEW_ACL);
     this.containerTimezone = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_TIMEZONE,
         GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_CONTAINER_TIMEZONE);
+    this.jarCacheEnabled = ConfigUtils.getBoolean(this.config, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED_DEFAULT);
   }
 
   @SuppressWarnings("unused")
@@ -484,12 +487,23 @@ class YarnService extends AbstractIdleService {
   protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
       throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, this.applicationId);
+    Path containerJarsUnsharedDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
+    Path jarCacheDir = this.jarCacheEnabled ? YarnHelixUtils.getJarPathCacheAndCleanIfNeeded(this.config, this.fs) : appWorkDir;
+    Path containerJarsCachedDir = new Path(jarCacheDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
+    LOGGER.info("Container cached jars root dir: " + containerJarsCachedDir);
+    LOGGER.info("Container uncached jars root dir: " + containerJarsUnsharedDir);
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
 
-    Map<String, LocalResource> resourceMap = Maps.newHashMap();
 
+    Map<String, LocalResource> resourceMap = Maps.newHashMap();
+    // Always fetch any jars from the appWorkDir for any potential snapshot jars
     addContainerLocalResources(new Path(appWorkDir, GobblinYarnConfigurationKeys.LIB_JARS_DIR_NAME), resourceMap);
-    addContainerLocalResources(new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME), resourceMap);
+    addContainerLocalResources(new Path(containerJarsUnsharedDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME), resourceMap);
+    if (this.jarCacheEnabled) {
+      addContainerLocalResources(new Path(jarCacheDir, GobblinYarnConfigurationKeys.LIB_JARS_DIR_NAME), resourceMap);
+      addContainerLocalResources(new Path(containerJarsCachedDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME), resourceMap);
+    }
+
     addContainerLocalResources(
         new Path(containerWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME), resourceMap);
 
@@ -579,8 +593,6 @@ class YarnService extends AbstractIdleService {
       containerCommand.append(" --").append(GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_OPTION_NAME)
           .append(" ").append(helixInstanceTag);
     }
-
-    LOGGER.info("Building " + containerProcessName);
     return containerCommand.append(" 1>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
             containerProcessName).append(".").append(ApplicationConstants.STDOUT)
         .append(" 2>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
@@ -797,7 +809,6 @@ class YarnService extends AbstractIdleService {
           public void run() {
             try {
               LOGGER.info("Starting container " + containerId);
-
               nmClientAsync.startContainerAsync(container, newContainerLaunchContext(containerInfo));
             } catch (IOException ioe) {
               LOGGER.error("Failed to start container " + containerId, ioe);
