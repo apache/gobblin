@@ -82,8 +82,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
     ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
     updateDagNodeStatus(dagManagementStateStore, dagNode, executionStatus);
+    boolean isRetry = jobStatus.isShouldRetry();
 
-    if (!FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
+    if (!isRetry && !FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
       // this may happen if adding job status in the store failed/delayed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
       throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action should have been "
               + "created only for finished status - %s. This may happen if reevaluate dag action launched reevaluate dag "
