@@ -275,9 +275,9 @@ public class ReevaluateDagProcTest {
     );
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     dagManagementStateStore.addDag(dag);
-    // a job status with shouldRetry=true
+    // a job status with shouldRetry=true, it should have execution status = PENDING_RETRY
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
-        .jobName("job0").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.FAILED.name())
+        .jobName("job0").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.PENDING_RETRY.name())
         .startTime(flowExecutionId).shouldRetry(true).orchestratedTime(flowExecutionId).build();
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.of(jobStatus)))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
