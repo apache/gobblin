@@ -19,13 +19,12 @@ package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-import java.util.Set;
 import java.util.TreeMap;
 import java.util.concurrent.TimeUnit;
 
@@ -65,6 +64,9 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private static final String DELETE_FILE_NOT_EXIST_ON_SOURCE = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".deleteFileNotExistOnSource";
   private static final String COMMON_FILES_PARENT = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".commonFilesParent";
   private static final String PERMISSION_CACHE_TTL_SECONDS = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".permission.cache.ttl.seconds";
+
+  // Enable setting permission post publish to reset permission bits, default is true
+  private static final String ENABLE_SET_PERMISSION_POST_PUBLISH = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".enableSetPermissionPostPublish";
   private static final String DEFAULT_PERMISSION_CACHE_TTL_SECONDS = "30";
   private static final String DEFAULT_COMMON_FILES_PARENT = "/";
   private final FileSystem srcFs;
@@ -75,6 +77,8 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private final String commonFilesParent;
   private final int permissionCacheTTLSeconds;
 
+  private final boolean enableSetPermissionPostPublish;
+
   public ManifestBasedDataset(final FileSystem srcFs, final FileSystem manifestReadFs, final Path manifestPath, final Properties properties) {
     this.srcFs = srcFs;
     this.manifestReadFs = manifestReadFs;
@@ -83,6 +87,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     this.deleteFileThatNotExistOnSource = Boolean.parseBoolean(properties.getProperty(DELETE_FILE_NOT_EXIST_ON_SOURCE, "false"));
     this.commonFilesParent = properties.getProperty(COMMON_FILES_PARENT, DEFAULT_COMMON_FILES_PARENT);
     this.permissionCacheTTLSeconds = Integer.parseInt(properties.getProperty(PERMISSION_CACHE_TTL_SECONDS, DEFAULT_PERMISSION_CACHE_TTL_SECONDS));
+    this.enableSetPermissionPostPublish = Boolean.parseBoolean(properties.getProperty(ENABLE_SET_PERMISSION_POST_PUBLISH, "true"));
   }
 
   @Override
@@ -109,7 +114,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     // map of paths and permissions sorted by depth of path, so that permissions can be set in order
     Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissions = new HashMap<>();
     TreeMap<String, OwnerAndPermission> flattenedAncestorPermissions = new TreeMap<>(
-        (o1, o2) -> Long.compare(o1.chars().filter(ch -> ch == '/').count(), o2.chars().filter(ch -> ch == '/').count()));
+        Comparator.comparingInt((String o) -> o.split("/").length).thenComparing(o -> o));
     try {
       long startTime = System.currentTimeMillis();
       manifests = CopyManifest.getReadIterator(this.manifestReadFs, this.manifestPath);
@@ -144,7 +149,6 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             // Avoid duplicate calculation for the same ancestor
             if (fromPath != null && !ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString()) && !targetFs.exists(fromPath)) {
               ancestorOwnerAndPermissions.put(fromPath.toString(), copyableFile.getAncestorsOwnerAndPermission());
-              flattenedAncestorPermissions.putAll(CopyableFile.resolveReplicatedAncestorOwnerAndPermissionsRecursively(srcFs, fromPath, new Path(commonFilesParent), configuration));
             }
 
             if (existOnTarget && srcFile.isFile()) {
@@ -157,20 +161,24 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
           toDelete.add(targetFs.getFileStatus(fileToCopy));
         }
       }
-      // Only set permission for newly created folders on target
-      // To change permissions for existing dirs, expectation is to add the folder to the manifest
-      Set<String> parentFolders = new HashSet<>(flattenedAncestorPermissions.keySet());
-      for (String folder : parentFolders) {
-        if (targetFs.exists(new Path(folder))) {
-          flattenedAncestorPermissions.remove(folder);
-        }
-      }
-      // We need both precommit step to create the directories copying to, and a postcommit step to ensure that the execute bit needed for recursive rename is reset
-      CommitStep createDirectoryWithPermissionsCommitStep = new CreateDirectoryWithPermissionsCommitStep(targetFs, ancestorOwnerAndPermissions, this.properties);
-      CommitStep setPermissionCommitStep = new SetPermissionCommitStep(targetFs, flattenedAncestorPermissions, this.properties);
-      copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), createDirectoryWithPermissionsCommitStep, 1));
-      copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
 
+      // Precreate the directories to avoid an edge case where recursive rename can create extra directories in the target
+      CommitStep createDirectoryWithPermissionsCommitStep = new CreateDirectoryWithPermissionsCommitStep(targetFs, ancestorOwnerAndPermissions, this.properties);
+      copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), createDirectoryWithPermissionsCommitStep, 1));
+
+      if (this.enableSetPermissionPostPublish) {
+        for (String parent : ancestorOwnerAndPermissions.keySet()) {
+          Path currentPath = new Path(parent);
+          for (OwnerAndPermission ownerAndPermission : ancestorOwnerAndPermissions.get(parent)) {
+            if (!flattenedAncestorPermissions.containsKey(currentPath.toString()) && !targetFs.exists(currentPath)) {
+              flattenedAncestorPermissions.put(currentPath.toString(), ownerAndPermission);
+            }
+            currentPath = currentPath.getParent();
+          }
+        }
+        CommitStep setPermissionCommitStep = new SetPermissionCommitStep(targetFs, flattenedAncestorPermissions, this.properties);
+        copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
+      }
       if (!toDelete.isEmpty()) {
         //todo: add support sync for empty dir
         CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties, Optional.<Path>absent());

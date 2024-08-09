@@ -158,8 +158,6 @@ public class ManifestBasedDatasetFinderTest {
       // Ignore /tmp as it already exists on destination
       Assert.assertEquals(ownerAndPermissionMap.size(), 1);
       Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset"));
-
-
     }
   }
 
@@ -221,6 +219,90 @@ public class ManifestBasedDatasetFinderTest {
     Assert.assertTrue(((PrePublishStep) fileSet.getFiles().get(1)).getStep() instanceof CreateDirectoryWithPermissionsCommitStep);
     Assert.assertTrue(((PostPublishStep) fileSet.getFiles().get(2)).getStep() instanceof SetPermissionCommitStep);
 
+  }
+
+  @Test
+  public void testSetPermissionStepNewFolderTree() throws IOException, URISyntaxException {
+
+    //Get manifest Path
+    Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/longNestedDirectoryTreeManifest.json").getPath());
+    // Test manifestDatasetFinder
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    props.setProperty("gobblin.copy.preserved.attributes", "rbugpvta");
+    try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class)) {
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
+      // Mock that these files exist but still recopy due to different permissions
+      Mockito.when(destFs.exists(new Path("/tmp/dataset/hourly/metadata/test1.txt"))).thenReturn(true);
+      Mockito.when(destFs.exists(new Path("/tmp/dataset/hourly/metadata/test2.txt"))).thenReturn(true);
+      Mockito.when(destFs.exists(new Path("/tmp"))).thenReturn(false);
+
+      Mockito.when(destFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
+
+      List<AclEntry> aclEntrySource = AclEntry.parseAclSpec("user::rwx,group::rwx,other::rwx", true);
+      AclStatus aclStatusSource =
+          new AclStatus.Builder().group("group").owner("owner").addEntries(aclEntrySource).build();
+      Mockito.when(sourceFs.getAclStatus(any(Path.class))).thenReturn(aclStatusSource);
+      // Specify a different acl for the destination file so that it is recopied even though the modification time is the same
+      List<AclEntry> aclEntryDest = AclEntry.parseAclSpec("user::rwx,group::rw-,other::r--", true);
+      AclStatus aclStatusDest =
+          new AclStatus.Builder().group("groupDest").owner("owner").addEntries(aclEntryDest).build();
+      Mockito.when(destFs.getAclStatus(any(Path.class))).thenReturn(aclStatusDest);
+
+      Iterator<FileSet<CopyEntity>> fileSets =
+          new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
+              CopyConfiguration.builder(destFs, props).build());
+      Assert.assertTrue(fileSets.hasNext());
+      FileSet<CopyEntity> fileSet = fileSets.next();
+      Assert.assertEquals(fileSet.getFiles().size(), 6);  // 4 files to copy + 1 pre publish step + 1 post publish step
+      CommitStep createDirectoryStep = ((PrePublishStep) fileSet.getFiles().get(4)).getStep();
+      Assert.assertTrue(createDirectoryStep instanceof CreateDirectoryWithPermissionsCommitStep);
+      Map<String, List<OwnerAndPermission>> pathAndPermissions = ((CreateDirectoryWithPermissionsCommitStep) createDirectoryStep).getPathAndPermissions();
+      Assert.assertEquals(pathAndPermissions.size(), 2);
+      System.out.println(pathAndPermissions);
+      Assert.assertTrue(pathAndPermissions.containsKey("/tmp/dataset/hourly/metadata"));
+      Assert.assertTrue(pathAndPermissions.containsKey("/tmp/dataset2/hourly/metadata"));
+
+      CommitStep setPermissionStep = ((PostPublishStep) fileSet.getFiles().get(5)).getStep();
+      Assert.assertTrue(setPermissionStep instanceof SetPermissionCommitStep);
+      Map<String, OwnerAndPermission> ownerAndPermissionMap = ((SetPermissionCommitStep) setPermissionStep).getPathAndPermissions();
+      System.out.println(ownerAndPermissionMap);
+      // Ignore /tmp as it already exists on destination
+      Assert.assertEquals(ownerAndPermissionMap.size(), 7);
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset/hourly/metadata"));
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset2/hourly/metadata"));
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset/hourly"));
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset2/hourly"));
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset"));
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset2"));
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp"));
+    }
+  }
+
+  @Test
+  public void testDisableSetPermissionStep() throws Exception {
+    //Get manifest Path
+    String manifestLocation = getClass().getClassLoader().getResource("manifestBasedDistcpTest/manifestRootDirEmpty.json").getPath();
+    // Test manifestDatasetFinder
+    Properties props = new Properties();
+    props.setProperty("gobblin.copy.manifestBased.manifest.location", manifestLocation);
+    props.setProperty("gobblin.copy.manifestBased.enableSetPermissionPostPublish", "false");
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    ManifestBasedDatasetFinder finder = new ManifestBasedDatasetFinder(localFs, props);
+    List<ManifestBasedDataset> datasets = finder.findDatasets();
+    Assert.assertEquals(datasets.size(), 1);
+    FileSystem sourceFs = Mockito.mock(FileSystem.class);
+    FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+    FileSystem destFs = Mockito.mock(FileSystem.class);
+    Path manifestPath = new Path(manifestLocation);
+    setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
+    Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
+        CopyConfiguration.builder(destFs, props).build());
+    Assert.assertTrue(fileSets.hasNext());
+    FileSet<CopyEntity> fileSet = fileSets.next();
+    Assert.assertEquals(fileSet.getFiles().size(), 2);  // 1 files to copy + 1 pre publish step
   }
 
   private void setSourceAndDestFsMocks(FileSystem sourceFs, FileSystem destFs, Path manifestPath, FileSystem manifestReadFs) throws IOException, URISyntaxException {
