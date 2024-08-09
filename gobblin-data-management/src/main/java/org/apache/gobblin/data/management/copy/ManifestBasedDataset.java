@@ -170,6 +170,8 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         for (String parent : ancestorOwnerAndPermissions.keySet()) {
           Path currentPath = new Path(parent);
           for (OwnerAndPermission ownerAndPermission : ancestorOwnerAndPermissions.get(parent)) {
+            // Ignore folders that already exist in destination, we assume that the publisher will re-sync those permissions if needed and
+            // those folders should be added in the manifest.
             if (!flattenedAncestorPermissions.containsKey(currentPath.toString()) && !targetFs.exists(currentPath)) {
               flattenedAncestorPermissions.put(currentPath.toString(), ownerAndPermission);
             }
