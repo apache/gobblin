@@ -167,9 +167,9 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
       copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), createDirectoryWithPermissionsCommitStep, 1));
 
       if (this.enableSetPermissionPostPublish) {
-        for (String parent : ancestorOwnerAndPermissions.keySet()) {
-          Path currentPath = new Path(parent);
-          for (OwnerAndPermission ownerAndPermission : ancestorOwnerAndPermissions.get(parent)) {
+        for (Map.Entry<String, List<OwnerAndPermission>> recursiveParentPermissions : ancestorOwnerAndPermissions.entrySet()) {
+          Path currentPath = new Path(recursiveParentPermissions.getKey());
+          for (OwnerAndPermission ownerAndPermission : recursiveParentPermissions.getValue()) {
             // Ignore folders that already exist in destination, we assume that the publisher will re-sync those permissions if needed and
             // those folders should be added in the manifest.
             if (!flattenedAncestorPermissions.containsKey(currentPath.toString()) && !targetFs.exists(currentPath)) {

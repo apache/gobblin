@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -261,23 +262,22 @@ public class ManifestBasedDatasetFinderTest {
       Assert.assertTrue(createDirectoryStep instanceof CreateDirectoryWithPermissionsCommitStep);
       Map<String, List<OwnerAndPermission>> pathAndPermissions = ((CreateDirectoryWithPermissionsCommitStep) createDirectoryStep).getPathAndPermissions();
       Assert.assertEquals(pathAndPermissions.size(), 2);
-      System.out.println(pathAndPermissions);
       Assert.assertTrue(pathAndPermissions.containsKey("/tmp/dataset/hourly/metadata"));
       Assert.assertTrue(pathAndPermissions.containsKey("/tmp/dataset2/hourly/metadata"));
 
       CommitStep setPermissionStep = ((PostPublishStep) fileSet.getFiles().get(5)).getStep();
       Assert.assertTrue(setPermissionStep instanceof SetPermissionCommitStep);
       Map<String, OwnerAndPermission> ownerAndPermissionMap = ((SetPermissionCommitStep) setPermissionStep).getPathAndPermissions();
-      System.out.println(ownerAndPermissionMap);
       // Ignore /tmp as it already exists on destination
       Assert.assertEquals(ownerAndPermissionMap.size(), 7);
-      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset/hourly/metadata"));
-      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset2/hourly/metadata"));
-      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset/hourly"));
-      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset2/hourly"));
-      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset"));
-      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset2"));
-      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp"));
+      List<String> sortedMapKeys = new ArrayList<>(ownerAndPermissionMap.keySet());
+      Assert.assertTrue(sortedMapKeys.get(0).equals("/tmp"));
+      Assert.assertTrue(sortedMapKeys.get(1).equals("/tmp/dataset"));
+      Assert.assertTrue(sortedMapKeys.get(2).equals("/tmp/dataset2"));
+      Assert.assertTrue(sortedMapKeys.get(3).equals("/tmp/dataset/hourly"));
+      Assert.assertTrue(sortedMapKeys.get(4).equals("/tmp/dataset2/hourly"));
+      Assert.assertTrue(sortedMapKeys.get(5).equals("/tmp/dataset/hourly/metadata"));
+      Assert.assertTrue(sortedMapKeys.get(6).equals("/tmp/dataset2/hourly/metadata"));
     }
   }
 
