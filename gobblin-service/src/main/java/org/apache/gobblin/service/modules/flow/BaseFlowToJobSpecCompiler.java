@@ -25,9 +25,6 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +45,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
@@ -58,12 +56,14 @@ import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 // Provide base implementation for constructing multi-hops route.
@@ -95,7 +95,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
 
   private boolean warmStandbyEnabled;
 
-  private Optional<UserQuotaManager> userQuotaManager;
+  private final Optional<UserQuotaManager> userQuotaManager;
 
   public BaseFlowToJobSpecCompiler(Config config){
     this(config,true);
@@ -137,7 +137,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     this.topologySpecMap = Maps.newConcurrentMap();
     this.config = config;
 
-    /***
+    /*
      * ETL-5996
      * For multi-tenancy, the following needs to be added:
      * 1. Change singular templateCatalog to Map<URI, JobCatalogWithTemplates> to support multiple templateCatalogs
@@ -162,24 +162,24 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   @Override
   public void awaitHealthy() throws InterruptedException {
     //Do nothing
-    return;
   }
 
-  private synchronized  AddSpecResponse onAddTopologySpec(TopologySpec spec) {
+  private synchronized  AddSpecResponse<String> onAddTopologySpec(TopologySpec spec) {
     log.info("Loading topology {}", spec.toLongString());
-    for (Map.Entry entry : spec.getConfigAsProperties().entrySet()) {
+    for (Map.Entry<Object, Object> entry : spec.getConfigAsProperties().entrySet()) {
       log.info("topo: {} --> {}", entry.getKey(), entry.getValue());
     }
 
     topologySpecMap.put(spec.getUri(), spec);
-    return new AddSpecResponse(null);
+    return new AddSpecResponse<>(null);
   }
 
-  private  AddSpecResponse onAddFlowSpec(FlowSpec flowSpec) {
+  private  AddSpecResponse<String> onAddFlowSpec(FlowSpec flowSpec) {
     Properties flowSpecProperties = flowSpec.getConfigAsProperties();
     if (topologySpecMap.containsKey(flowSpec.getUri())) {
       log.error("flow spec URI: {} is the same as one of the spec executors uris, ignore the flow", flowSpec.getUri());
-      flowSpec.getCompilationErrors().add(new FlowSpec.CompilationError(0, "invalid flow spec uri " + flowSpec.getUri() + " because it is the same as one of the spec executors uri"));
+      flowSpec.getCompilationErrors().add(new FlowSpec.CompilationError(0, "invalid flow spec uri "
+          + flowSpec.getUri() + " because it is the same as one of the spec executors uri"));
       return null;
     }
     if (flowSpecProperties.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY) && StringUtils.isNotBlank(
@@ -222,7 +222,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     } else if (addedSpec instanceof TopologySpec) {
       return onAddTopologySpec( (TopologySpec) addedSpec);
     }
-    return new AddSpecResponse(null);
+    return new AddSpecResponse<>(null);
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {

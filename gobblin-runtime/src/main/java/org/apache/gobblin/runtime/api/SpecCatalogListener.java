@@ -17,9 +17,10 @@
 
 package org.apache.gobblin.runtime.api;
 
-import com.google.common.base.MoreObjects;
 import java.net.URI;
 import java.util.Properties;
+
+import com.google.common.base.MoreObjects;
 
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.util.callbacks.Callback;
@@ -27,7 +28,7 @@ import org.apache.gobblin.util.callbacks.Callback;
 public interface SpecCatalogListener {
   /** Invoked when a new {@link Spec} is added to the catalog and for all pre-existing specs on registration
    * of the listener.*/
-  AddSpecResponse onAddSpec(Spec addedSpec);
+  AddSpecResponse<String> onAddSpec(Spec addedSpec);
 
   /**
    * Invoked when a {@link Spec} gets removed from the catalog.

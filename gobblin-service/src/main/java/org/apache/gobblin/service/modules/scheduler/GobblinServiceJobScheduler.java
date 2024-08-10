@@ -507,7 +507,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * @return add spec response, which contains <code>null</code> if there is an error
    */
   @Override
-  public AddSpecResponse onAddSpec(Spec addedSpec) {
+  public AddSpecResponse<String> onAddSpec(Spec addedSpec) {
     long startTime = System.nanoTime();
     if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
       // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore

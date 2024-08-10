@@ -23,6 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.text.StringEscapeUtils;
+import org.jetbrains.annotations.NotNull;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -50,7 +51,7 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
  * a connector between the API and execution layers of GaaS.
  */
 @Slf4j
-public class SpecStoreChangeMonitor extends HighLevelConsumer {
+public class SpecStoreChangeMonitor extends HighLevelConsumer<String, GenericStoreChangeEvent> {
   public static final String SPEC_STORE_CHANGE_MONITOR_PREFIX = "specStoreChangeMonitor";
 
   // Metrics
@@ -67,7 +68,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
-    public String load(String key) throws Exception {
+    public String load(@NotNull String key) {
       return key;
     }
   };
@@ -123,7 +124,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   Note that although this class is multi-threaded and will call this message for multiple threads (each having a queue
   associated with it), a given message itself will be partitioned and assigned to only one queue.
    */
-  protected void processMessage(DecodeableKafkaRecord message) {
+  protected void processMessage(DecodeableKafkaRecord<String, GenericStoreChangeEvent> message) {
     // This will also include the heathCheck message so that we can rely on this to monitor the health of this Monitor
     messageProcessedMeter.mark();
     String key = (String) message.getKey();
@@ -160,7 +161,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     // metrics to keep track of failure to process certain SpecStoreChange events
     try {
       // Call respective action for the type of change received
-      AddSpecResponse response;
+      AddSpecResponse<String> response;
       if (operation.equals("INSERT") || operation.equals("UPDATE")) {
         response = scheduler.onAddSpec(spec);
 

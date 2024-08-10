@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
@@ -163,16 +162,18 @@ public class DagProcUtils {
     }
 
     try {
-      if (!dagNodeToCancel.getValue().getJobFuture().isPresent()) {
-        log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getJobSpec().getUri());
+      if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
+        Future<?> future = dagNodeToCancel.getValue().getJobFuture().get();
+        String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
+        props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
+        sendCancellationEvent(dagNodeToCancel.getValue());
+      } else {
+        log.warn("No Job future when canceling DAG node (hence, not sending cancellation event) - {}",
+            dagNodeToCancel.getValue().getJobSpec().getUri());
       }
       DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), props).get();
       // add back the dag node with updated states in the store
       dagManagementStateStore.addDagNodeState(dagNodeToCancel, dagId);
-      // send cancellation event after updating the state, because cancellation event triggers a ReevaluateDagAction
-      // that will delete the dag. Due to race condition between adding dag node and deleting dag, state store may get
-      // into inconsistent state.
-      sendCancellationEvent(dagNodeToCancel, props);
     } catch (Exception e) {
       throw new IOException(e);
     }
@@ -187,12 +188,7 @@ public class DagProcUtils {
     }
   }
 
-  private static void sendCancellationEvent(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, Properties props)
-      throws ExecutionException, InterruptedException {
-    JobExecutionPlan jobExecutionPlan = dagNodeToCancel.getValue();
-    Future<?> future = jobExecutionPlan.getJobFuture().get();
-    String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
-    props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
+  public static void sendCancellationEvent(JobExecutionPlan jobExecutionPlan) {
     Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
     DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_CANCEL).stop(jobMetadata);
     jobExecutionPlan.setExecutionStatus(CANCELLED);

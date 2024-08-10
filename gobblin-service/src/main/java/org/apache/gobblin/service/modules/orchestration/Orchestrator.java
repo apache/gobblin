@@ -152,7 +152,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   /** {@inheritDoc} */
   @Override
-  public AddSpecResponse onAddSpec(Spec addedSpec) {
+  public AddSpecResponse<String> onAddSpec(Spec addedSpec) {
     if (addedSpec instanceof TopologySpec) {
       _log.info("New Spec detected of type TopologySpec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
@@ -160,7 +160,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       _log.info("New Spec detected of type FlowSpec: " + addedSpec);
       return this.specCompiler.onAddSpec(addedSpec);
     }
-    return new AddSpecResponse(null);
+    return new AddSpecResponse<>(null);
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
