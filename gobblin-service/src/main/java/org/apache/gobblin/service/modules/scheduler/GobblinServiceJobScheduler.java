@@ -614,10 +614,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * Remove a flowSpec from schedule
    * Unlike onDeleteSpec, we want to avoid deleting the flowSpec on the executor
    * and we still want to unschedule if we cannot connect to zookeeper as the current node cannot be the master
+   * returns true if unschedule is successful, false otherwise
    * @param specURI
    * @param specVersion
    */
-  private void unscheduleSpec(URI specURI, String specVersion) throws JobException {
+  private boolean unscheduleSpec(URI specURI, String specVersion) throws JobException {
     if (this.scheduledFlowSpecs.containsKey(specURI.toString())) {
       _log.info("Unscheduling flowSpec " + specURI + "/" + specVersion);
       this.scheduledFlowSpecs.remove(specURI.toString());
@@ -630,10 +631,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         } catch (SpecNotFoundException e) {
           _log.warn("Unable to retrieve spec for URI {}", specURI);
         }
+      return true;
     } else {
-      throw new JobException(String.format(
+      _log.info(String.format(
           "Spec with URI: %s was not found in cache. May be it was cleaned, if not please clean it manually",
           specURI));
+      return false;
     }
   }
 
@@ -657,10 +660,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       return;
     }
 
+    Spec deletedSpec = this.scheduledFlowSpecs.get(deletedSpecURI.toString());
     try {
-      Spec deletedSpec = this.scheduledFlowSpecs.get(deletedSpecURI.toString());
-      unscheduleSpec(deletedSpecURI, deletedSpecVersion);
-      this.orchestrator.remove(deletedSpec, headers);
+      if (unscheduleSpec(deletedSpecURI, deletedSpecVersion)) {
+        this.orchestrator.remove(deletedSpec, headers);
+      }
     } catch (JobException | IOException e) {
       _log.warn(String.format("Spec with URI: %s was not unscheduled cleaning", deletedSpecURI), e);
     }

@@ -28,11 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import javax.inject.Named;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.util.ExponentialBackoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -44,9 +40,11 @@ import com.typesafe.config.ConfigException;
 
 import javax.annotation.Nonnull;
 import javax.inject.Inject;
+import javax.inject.Named;
 import javax.inject.Singleton;
 import lombok.Getter;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
@@ -62,9 +60,11 @@ import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
 import org.apache.gobblin.runtime.spec_serde.JavaSpecSerDe;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
+import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExponentialBackoff;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 

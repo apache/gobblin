@@ -175,7 +175,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
           this.failedAddedSpecs.mark();
         }
       } else if (operation.equals("DELETE")) {
-        log.info("Deleting spec {} after receiving spec store change event", specAsUri);
+        log.info("Deleting spec {} from scheduler after receiving spec store change event", specAsUri);
         scheduler.onDeleteSpec(specAsUri, FlowSpec.Builder.DEFAULT_VERSION);
         this.deletedSpecs.mark();
       } else {
@@ -186,7 +186,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
         return;
       }
     } catch (Exception e) {
-      log.warn("Ran into unexpected error processing SpecStore changes. Reexamine scheduler. Error: {}", e);
+      log.warn("Ran into unexpected error processing SpecStore changes. Reexamine scheduler. Error: ", e);
       this.unexpectedErrors.mark();
       return;
     }
