@@ -28,10 +28,12 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.AclStatus;
+import org.apache.hadoop.fs.permission.FsPermission;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -91,7 +93,7 @@ public class ManifestBasedDatasetFinderTest {
     try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
         FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
         FileSystem destFs = Mockito.mock(FileSystem.class);) {
-      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, true);
 
       Iterator<FileSet<CopyEntity>> fileSets =
           new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
@@ -128,7 +130,7 @@ public class ManifestBasedDatasetFinderTest {
         FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
         FileSystem destFs = Mockito.mock(FileSystem.class)
     ) {
-      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, true);
       Mockito.when(destFs.exists(new Path("/tmp/dataset/test1.txt"))).thenReturn(true);
       Mockito.when(destFs.exists(new Path("/tmp/dataset/test2.txt"))).thenReturn(false);
       Mockito.when(destFs.exists(new Path("/tmp"))).thenReturn(true);
@@ -175,7 +177,7 @@ public class ManifestBasedDatasetFinderTest {
         FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
         FileSystem destFs = Mockito.mock(FileSystem.class)
     ) {
-      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, true);
       Mockito.when(destFs.exists(new Path("/tmp/dataset/test1.txt"))).thenReturn(true);
       Mockito.when(destFs.exists(new Path("/tmp/dataset/test2.txt"))).thenReturn(true);
       Mockito.when(destFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
@@ -211,7 +213,7 @@ public class ManifestBasedDatasetFinderTest {
     FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
     FileSystem destFs = Mockito.mock(FileSystem.class);
     Path manifestPath = new Path(manifestLocation);
-    setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
+    setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, true);
     Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
         CopyConfiguration.builder(destFs, props).build());
     Assert.assertTrue(fileSets.hasNext());
@@ -223,7 +225,7 @@ public class ManifestBasedDatasetFinderTest {
   }
 
   @Test
-  public void testSetPermissionStepNewFolderTree() throws IOException, URISyntaxException {
+  public void testSetPermissionNestedTreePermissions() throws IOException, URISyntaxException {
 
     //Get manifest Path
     Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/longNestedDirectoryTreeManifest.json").getPath());
@@ -234,7 +236,7 @@ public class ManifestBasedDatasetFinderTest {
     try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
         FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
         FileSystem destFs = Mockito.mock(FileSystem.class)) {
-      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, false);
       // Mock that these files exist but still recopy due to different permissions
       Mockito.when(destFs.exists(new Path("/tmp/dataset/hourly/metadata/test1.txt"))).thenReturn(true);
       Mockito.when(destFs.exists(new Path("/tmp/dataset/hourly/metadata/test2.txt"))).thenReturn(true);
@@ -242,14 +244,20 @@ public class ManifestBasedDatasetFinderTest {
 
       Mockito.when(destFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
 
-      List<AclEntry> aclEntrySource = AclEntry.parseAclSpec("user::rwx,group::rwx,other::rwx", true);
-      AclStatus aclStatusSource =
-          new AclStatus.Builder().group("group").owner("owner").addEntries(aclEntrySource).build();
-      Mockito.when(sourceFs.getAclStatus(any(Path.class))).thenReturn(aclStatusSource);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset/hourly/metadata/test1.txt", "-rwxrwxrwx", "owner1", "group1", false);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset/hourly/metadata/test2.txt", "-rwxrwxrwx", "owner1", "group1", false);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset2/hourly/metadata/test1.txt", "-rwxrwxrwx", "owner2", "group2", false);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset2/hourly/metadata/test2.txt", "-rwxrwxrwx", "owner2", "group2", false);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset/hourly/metadata", "drwxrw-rw-", "owner1", "group1", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset2/hourly/metadata", "dr-xr-xr-x", "owner2", "group2", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset/hourly", "drwxrw-rw-", "owner1", "group1", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset2/hourly", "dr-xr-xr-x", "owner2", "group2", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset", "drwxr-x---", "owner1", "group1", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset2", "dr-xr-xr-x", "owner2", "group2", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp", "dr--r--r--", "owner3", "group3", true);
+
       // Specify a different acl for the destination file so that it is recopied even though the modification time is the same
-      List<AclEntry> aclEntryDest = AclEntry.parseAclSpec("user::rwx,group::rw-,other::r--", true);
-      AclStatus aclStatusDest =
-          new AclStatus.Builder().group("groupDest").owner("owner").addEntries(aclEntryDest).build();
+      AclStatus aclStatusDest = buildAclStatusWithPermissions("user::r--,group::---,other::---", "group3", "owner3");
       Mockito.when(destFs.getAclStatus(any(Path.class))).thenReturn(aclStatusDest);
 
       Iterator<FileSet<CopyEntity>> fileSets =
@@ -257,7 +265,9 @@ public class ManifestBasedDatasetFinderTest {
               CopyConfiguration.builder(destFs, props).build());
       Assert.assertTrue(fileSets.hasNext());
       FileSet<CopyEntity> fileSet = fileSets.next();
-      Assert.assertEquals(fileSet.getFiles().size(), 6);  // 4 files to copy + 1 pre publish step + 1 post publish step
+      System.out.println(fileSet.getFiles().get(6).toString());
+      // 4 files to copy + 1 pre publish step + 1 post publish step + 1 deleteFileCommitStep for a temporary directory
+      Assert.assertEquals(fileSet.getFiles().size(), 7);
       CommitStep createDirectoryStep = ((PrePublishStep) fileSet.getFiles().get(4)).getStep();
       Assert.assertTrue(createDirectoryStep instanceof CreateDirectoryWithPermissionsCommitStep);
       Map<String, List<OwnerAndPermission>> pathAndPermissions = ((CreateDirectoryWithPermissionsCommitStep) createDirectoryStep).getPathAndPermissions();
@@ -270,14 +280,42 @@ public class ManifestBasedDatasetFinderTest {
       Map<String, OwnerAndPermission> ownerAndPermissionMap = ((SetPermissionCommitStep) setPermissionStep).getPathAndPermissions();
       // Ignore /tmp as it already exists on destination
       Assert.assertEquals(ownerAndPermissionMap.size(), 7);
+      System.out.println(ownerAndPermissionMap);
       List<String> sortedMapKeys = new ArrayList<>(ownerAndPermissionMap.keySet());
-      Assert.assertTrue(sortedMapKeys.get(0).equals("/tmp"));
-      Assert.assertTrue(sortedMapKeys.get(1).equals("/tmp/dataset"));
-      Assert.assertTrue(sortedMapKeys.get(2).equals("/tmp/dataset2"));
-      Assert.assertTrue(sortedMapKeys.get(3).equals("/tmp/dataset/hourly"));
-      Assert.assertTrue(sortedMapKeys.get(4).equals("/tmp/dataset2/hourly"));
-      Assert.assertTrue(sortedMapKeys.get(5).equals("/tmp/dataset/hourly/metadata"));
-      Assert.assertTrue(sortedMapKeys.get(6).equals("/tmp/dataset2/hourly/metadata"));
+      Assert.assertEquals(sortedMapKeys.get(0), "/tmp");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp").getFsPermission(), FsPermission.valueOf("dr--r--r--"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp").getOwner(), "owner3");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp").getGroup(), "group3");
+
+      Assert.assertEquals(sortedMapKeys.get(1), "/tmp/dataset");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getFsPermission(), FsPermission.valueOf("drwxr-x---"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getOwner(), "owner1");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getGroup(), "group1");
+
+      Assert.assertEquals(sortedMapKeys.get(2), "/tmp/dataset2");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset2").getFsPermission(), FsPermission.valueOf("dr-xr-xr-x"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset2").getOwner(), "owner2");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset2").getGroup(), "group2");
+
+      Assert.assertEquals(sortedMapKeys.get(3), "/tmp/dataset/hourly");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset/hourly").getFsPermission(), FsPermission.valueOf("drwxrw-rw-"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset/hourly").getOwner(), "owner1");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset/hourly").getGroup(), "group1");
+
+      Assert.assertEquals(sortedMapKeys.get(4), "/tmp/dataset2/hourly");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset2/hourly").getFsPermission(), FsPermission.valueOf("dr-xr-xr-x"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset2/hourly").getOwner(), "owner2");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset2/hourly").getGroup(), "group2");
+
+      Assert.assertEquals(sortedMapKeys.get(5), "/tmp/dataset/hourly/metadata");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset/hourly/metadata").getFsPermission(), FsPermission.valueOf("drwxrw-rw-"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset/hourly/metadata").getOwner(), "owner1");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset/hourly/metadata").getGroup(), "group1");
+
+      Assert.assertEquals(sortedMapKeys.get(6), "/tmp/dataset2/hourly/metadata");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset2/hourly/metadata").getFsPermission(), FsPermission.valueOf("dr-xr-xr-x"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset2/hourly/metadata").getOwner(), "owner2");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset2/hourly/metadata").getGroup(), "group2");
     }
   }
 
@@ -297,7 +335,7 @@ public class ManifestBasedDatasetFinderTest {
     FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
     FileSystem destFs = Mockito.mock(FileSystem.class);
     Path manifestPath = new Path(manifestLocation);
-    setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs);
+    setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, true);
     Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
         CopyConfiguration.builder(destFs, props).build());
     Assert.assertTrue(fileSets.hasNext());
@@ -305,7 +343,7 @@ public class ManifestBasedDatasetFinderTest {
     Assert.assertEquals(fileSet.getFiles().size(), 2);  // 1 files to copy + 1 pre publish step
   }
 
-  private void setSourceAndDestFsMocks(FileSystem sourceFs, FileSystem destFs, Path manifestPath, FileSystem manifestReadFs) throws IOException, URISyntaxException {
+  private void setSourceAndDestFsMocks(FileSystem sourceFs, FileSystem destFs, Path manifestPath, FileSystem manifestReadFs, boolean setFileStatusMock) throws IOException, URISyntaxException {
     URI SRC_FS_URI = new URI("source", "the.source.org", "/", null);
     URI MANIFEST_READ_FS_URI = new URI("manifest-read", "the.manifest-source.org", "/", null);
     URI DEST_FS_URI = new URI("dest", "the.dest.org", "/", null);
@@ -313,7 +351,9 @@ public class ManifestBasedDatasetFinderTest {
     Mockito.when(manifestReadFs.getUri()).thenReturn(MANIFEST_READ_FS_URI);
     Mockito.when(destFs.getUri()).thenReturn(DEST_FS_URI);
     Mockito.when(destFs.exists(new Path("/tmp"))).thenReturn(true);
-    Mockito.when(sourceFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
+    if (setFileStatusMock) {
+      Mockito.when(sourceFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
+    }
     Mockito.when(sourceFs.exists(any(Path.class))).thenReturn(true);
     Mockito.when(manifestReadFs.exists(any(Path.class))).thenReturn(true);
     Mockito.when(manifestReadFs.getFileStatus(manifestPath)).thenReturn(localFs.getFileStatus(manifestPath));
@@ -324,5 +364,20 @@ public class ManifestBasedDatasetFinderTest {
       Path path = (Path)args[0];
       return localFs.makeQualified(path);
     }).when(sourceFs).makeQualified(any(Path.class));
+  }
+
+  private AclStatus buildAclStatusWithPermissions(String aclSpec, String group, String owner) {
+    List<AclEntry> aclEntries = AclEntry.parseAclSpec(aclSpec, true);
+    return new AclStatus.Builder().group(group).owner(owner).addEntries(aclEntries).build();
+  }
+
+  private FileStatus createFileStatus(String path, boolean isDir, String owner, String group, FsPermission permission) throws IOException {
+    return new FileStatus(1028, isDir, 0, 0, 0, 0, permission, owner, group, null, new Path(path));
+  }
+
+  private void setFsMockPathWithPermissions(FileSystem fs, String path, String permissionStr, String owner, String group, boolean isDir) throws IOException {
+    AclStatus aclStatus = new AclStatus.Builder().owner(owner).group(group).build();
+    Mockito.when(fs.getFileStatus(new Path(path))).thenReturn(createFileStatus(path, isDir, owner, group, FsPermission.valueOf(permissionStr)));
+    Mockito.when(fs.getAclStatus(new Path(path))).thenReturn(aclStatus);
   }
 }
