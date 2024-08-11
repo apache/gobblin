@@ -20,6 +20,7 @@ package org.apache.gobblin.data.management.copy;
 import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.Collection;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -144,7 +145,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     // map of paths and permissions sorted by depth of path, so that permissions can be set in order
     TreeMap<String, OwnerAndPermission> ancestorOwnerAndPermissions = new TreeMap<>(
-        (o1, o2) -> Long.compare(o2.chars().filter(ch -> ch == '/').count(), o1.chars().filter(ch -> ch == '/').count()));
+        Comparator.comparingInt((String o) -> o.split("/").length).thenComparing(o -> o));
 
     for (Path path : toCopy) {
       FileStatus file = filesInSource.get(path);
