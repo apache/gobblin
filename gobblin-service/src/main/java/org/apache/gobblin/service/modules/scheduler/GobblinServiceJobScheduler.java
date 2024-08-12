@@ -115,6 +115,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected final Boolean isWarmStandbyEnabled;
   protected final Optional<UserQuotaManager> quotaManager;
   protected final Optional<FlowLaunchHandler> flowTriggerHandler;
+  // todo - consider using JobScheduler::scheduledJobs in place of scheduledFlowSpecs
   @Getter
   protected final Map<String, FlowSpec> scheduledFlowSpecs;
   @Getter
@@ -617,7 +618,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * @param specURI
    * @param specVersion
    */
-  private void unscheduleSpec(URI specURI, String specVersion) throws JobException {
+  private boolean unscheduleSpec(URI specURI, String specVersion) throws JobException {
     if (this.scheduledFlowSpecs.containsKey(specURI.toString())) {
       _log.info("Unscheduling flowSpec " + specURI + "/" + specVersion);
       this.scheduledFlowSpecs.remove(specURI.toString());
@@ -631,10 +632,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           _log.warn("Unable to retrieve spec for URI {}", specURI);
         }
     } else {
-      throw new JobException(String.format(
-          "Spec with URI: %s was not found in cache. May be it was cleaned, if not please clean it manually",
+      _log.info(String.format(
+          "Spec with URI: %s was not found in cache. Maybe it was cleaned, if not please clean it manually",
           specURI));
     }
+    return false;
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
@@ -659,8 +661,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     try {
       Spec deletedSpec = this.scheduledFlowSpecs.get(deletedSpecURI.toString());
-      unscheduleSpec(deletedSpecURI, deletedSpecVersion);
-      this.orchestrator.remove(deletedSpec, headers);
+      if (unscheduleSpec(deletedSpecURI, deletedSpecVersion)) {
+        this.orchestrator.remove(deletedSpec, headers);
+      }
     } catch (JobException | IOException e) {
       _log.warn(String.format("Spec with URI: %s was not unscheduled cleaning", deletedSpecURI), e);
     }
