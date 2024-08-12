@@ -99,6 +99,9 @@ public class ConfigurationKeys {
   public static final String MYSQL_DAG_ACTION_STORE_PREFIX = "MysqlDagActionStore.";
   public static final String MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SECONDS_KEY = MYSQL_DAG_ACTION_STORE_PREFIX + "retentionPeriodSeconds";
   public static final long DEFAULT_MYSQL_DAG_ACTION_STORE_TABLE_RETENTION_PERIOD_SEC_KEY = 3 * 24 * 60 * 60; // (3 days in seconds)
+  //  Dag Action Store Change Monitor configuration
+  public static final String DAG_ACTION_STORE_MONITOR_EXECUTOR_THREADS="dagActionStoreChangeMonitor.executor.numThreads";
+  public static final String DAG_ACTION_STORE_MONITOR_EXECUTOR_TIMEOUT_SECONDS="dagActionStoreChangeMonitor.executor.timeout.seconds";
   // Scheduler lease determination store configuration
   public static final String SCHEDULER_LEASE_ARBITER_NAME = "SchedulerFlowLaunchLeaseArbiter";
   public static final String PROCESSING_LEASE_ARBITER_NAME = "DagActionProcessingLeaseArbiter";
