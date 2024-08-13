@@ -26,10 +26,13 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagManager;
+import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -77,6 +80,10 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
     } else {
       DagProcUtils.submitNextNodes(dagManagementStateStore, dag.get(), getDagId());
+      dag.get().setFlowEvent(TimingEvent.FlowTimings.FLOW_RUNNING);
+      DagManagerUtils.emitFlowEvent(eventSubmitter, dag.get(), TimingEvent.FlowTimings.FLOW_RUNNING);
+      dagManagementStateStore.getDagManagerMetrics().conditionallyMarkFlowAsState(DagManagerUtils.getFlowId(dag.get()),
+          DagManager.FlowState.RUNNING);
       DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
     }
