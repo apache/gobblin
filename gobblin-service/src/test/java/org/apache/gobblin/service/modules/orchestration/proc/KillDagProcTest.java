@@ -90,6 +90,7 @@ public class KillDagProcTest {
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg"))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
@@ -121,6 +122,10 @@ public class KillDagProcTest {
         .sum();
     // kill dag proc tries to cancel all the dag nodes
     Assert.assertEquals(cancelJobCount, 5);
+
+    Assert.assertEquals(this.dagManagementStateStore.getDag(dagId).get().getNodes().stream()
+        .map(n -> n.getValue().getExecutionStatus())
+        .filter(status -> status.equals(ExecutionStatus.CANCELLED)).count(), 5);
   }
 
   @Test
@@ -131,13 +136,14 @@ public class KillDagProcTest {
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg"))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     JobStatus
         jobStatus = JobStatus.builder().flowName("job0").flowGroup("fg").jobGroup("fg").jobName("job0").flowExecutionId(flowExecutionId).
         message("Test message").eventName(ExecutionStatus.COMPLETE.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
 
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
-    doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+    doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(2)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
 
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow2",
@@ -166,6 +172,12 @@ public class KillDagProcTest {
             .filter(a -> a.getMethod().getName().equals("cancelJob"))
             .count())
         .sum();
+
+    // we cancelled job that has id=2; there is one more job that has dependency on it, so total of two jobs
+    // will be cancelled.
+    Assert.assertEquals(this.dagManagementStateStore.getDag(dagId).get().getNodes().stream()
+        .map(n -> n.getValue().getExecutionStatus())
+        .filter(status -> status.equals(ExecutionStatus.CANCELLED)).count(), 2);
     // kill dag proc tries to cancel only the exact dag node that was provided
     Assert.assertEquals(cancelJobCount, 1);
   }

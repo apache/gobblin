@@ -156,6 +156,7 @@ public class DagProcUtils {
   public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, DagManagementStateStore dagManagementStateStore) throws IOException {
     Properties props = new Properties();
     DagManager.DagId dagId = DagManagerUtils.generateDagId(dagNodeToCancel);
+    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(dagId).get();
 
     if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
       props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
@@ -171,9 +172,9 @@ public class DagProcUtils {
         log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getJobSpec().getUri());
       }
       DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), props).get();
-      // add back the dag node with updated states in the store
-      dagNodeToCancel.getValue().setExecutionStatus(CANCELLED);
-      dagManagementStateStore.addDagNodeState(dagNodeToCancel, dagId);
+
+      traverseAndSetCanceledStatus(dag, dagNodeToCancel, dagManagementStateStore);
+
       // send cancellation event after updating the state, because cancellation event triggers a ReevaluateDagAction
       // that will delete the dag. Due to race condition between adding dag node and deleting dag, state store may get
       // into inconsistent state.
@@ -183,6 +184,18 @@ public class DagProcUtils {
     } catch (Exception e) {
       throw new IOException(e);
     }
+  }
+
+  private static void traverseAndSetCanceledStatus(Dag<JobExecutionPlan> dag, Dag.DagNode<JobExecutionPlan> node,
+      DagManagementStateStore dagManagementStateStore) {
+    node.getValue().setExecutionStatus(CANCELLED);
+    try {
+      dagManagementStateStore.addDagNodeState(node, DagManagerUtils.generateDagId(dag));
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    dag.getChildren(node).forEach(child -> traverseAndSetCanceledStatus(dag, child, dagManagementStateStore));
   }
 
   public static void cancelDag(Dag<JobExecutionPlan> dag, DagManagementStateStore dagManagementStateStore) throws IOException {
