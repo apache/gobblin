@@ -43,13 +43,6 @@ public class GobblinServiceConfiguration {
   private final boolean isTopologySpecFactoryEnabled;
   private final boolean isGitConfigMonitorEnabled;
   private final boolean isJobStatusMonitorEnabled;
-
-  @Getter
-  private final boolean isHelixManagerEnabled;
-
-  @Getter
-  private final boolean flowCatalogLocalCommit;
-  private final boolean onlyAnnounceLeader;
   private final Config innerConfig;
 
   @Nullable
@@ -66,17 +59,12 @@ public class GobblinServiceConfiguration {
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_ENABLED_KEY, true);
 
     if (isFlowCatalogEnabled) {
-      flowCatalogLocalCommit =
-          ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT,
-              ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT);
       isGitConfigMonitorEnabled =
           ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY, false);
     } else {
-      flowCatalogLocalCommit = false;
       isGitConfigMonitorEnabled = false;
     }
 
-    this.isHelixManagerEnabled = config.hasPath(ServiceConfigKeys.ZK_CONNECTION_STRING_KEY);
     this.isJobStatusMonitorEnabled =
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, true);
     this.isSchedulerEnabled =
@@ -85,6 +73,5 @@ public class GobblinServiceConfiguration {
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_RESTLI_SERVER_ENABLED_KEY, true);
     this.isTopologySpecFactoryEnabled =
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_TOPOLOGY_SPEC_FACTORY_ENABLED_KEY, true);
-    this.onlyAnnounceLeader = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_D2_ONLY_ANNOUNCE_LEADER, false);
   }
 }

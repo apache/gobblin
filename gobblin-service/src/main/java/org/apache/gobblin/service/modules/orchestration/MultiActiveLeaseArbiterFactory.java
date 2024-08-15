@@ -42,7 +42,7 @@ public abstract class MultiActiveLeaseArbiterFactory implements Provider<MultiAc
         throw new RuntimeException(String.format("Unable to initialize multiActiveLeaseArbiter due to missing "
             + "configurations that should be prefixed by %s.", configPrefix));
       }
-      this.leaseArbiterConfig = config.getConfig(configPrefix);
+      this.leaseArbiterConfig = config.getConfig(configPrefix).withFallback(config);
       log.info("Lease arbiter will be initialized with config {}", leaseArbiterConfig);
     }
 

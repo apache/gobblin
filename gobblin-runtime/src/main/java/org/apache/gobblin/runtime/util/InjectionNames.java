@@ -23,6 +23,4 @@ package org.apache.gobblin.runtime.util;
  * */
 public final class InjectionNames {
   public static final String SERVICE_NAME = "serviceName";
-  public static final String FORCE_LEADER = "forceLeader";
-  public static final String FLOW_CATALOG_LOCAL_COMMIT = "flowCatalogLocalCommit";
 }

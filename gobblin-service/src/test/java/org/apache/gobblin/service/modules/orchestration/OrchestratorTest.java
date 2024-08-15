@@ -83,10 +83,8 @@ public class OrchestratorTest {
   private ServiceBasedAppLauncher serviceLauncher;
   private TopologyCatalog topologyCatalog;
   private TopologySpec topologySpec;
-
   private FlowCatalog flowCatalog;
   private FlowSpec flowSpec;
-
   private ITestMetastoreDatabase testMetastoreDatabase;
   private Orchestrator dagMgrNotFlowLaunchHandlerBasedOrchestrator;
 
@@ -119,7 +117,6 @@ public class OrchestratorTest {
     this.flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(flowProperties), Optional.of(logger), Optional.absent(), true);
 
     this.serviceLauncher.addService(flowCatalog);
-    FlowStatusGenerator mockFlowStatusGenerator = mock(FlowStatusGenerator.class);
 
     MySqlDagManagementStateStore dagManagementStateStore =
         spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
@@ -127,7 +124,7 @@ public class OrchestratorTest {
     SharedFlowMetricsSingleton sharedFlowMetricsSingleton = new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(orchestratorProperties));
 
     FlowCompilationValidationHelper flowCompilationValidationHelper = new FlowCompilationValidationHelper(ConfigFactory.empty(),
-        sharedFlowMetricsSingleton, mock(UserQuotaManager.class), mockFlowStatusGenerator);
+        sharedFlowMetricsSingleton, mock(UserQuotaManager.class), mock(FlowStatusGenerator.class));
     this.dagMgrNotFlowLaunchHandlerBasedOrchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.topologyCatalog, Optional.of(logger), mock(FlowLaunchHandler.class), sharedFlowMetricsSingleton, dagManagementStateStore,
         flowCompilationValidationHelper, mock(JobStatusRetriever.class));

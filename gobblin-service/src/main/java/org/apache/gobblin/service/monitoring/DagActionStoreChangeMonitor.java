@@ -114,7 +114,6 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
   protected void assignTopicPartitions() {
     // Expects underlying consumer to handle initializing partitions and offset for the topic -
     // subscribe to all partitions from latest offset
-    return;
   }
 
   /**
@@ -161,7 +160,7 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
   protected void startUp() {}
 
   /*
-   This method should be called once by the {@link GobblinServiceManager} only after the DagManager, FlowGraph and
+   This method should be called once by the {@link GobblinServiceManager} only after the FlowGraph and
    SpecCompiler are initialized and running.
    */
   public synchronized void setActive() {
@@ -233,8 +232,7 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
       String flowName, long flowExecutionId, DagActionStore.DagActionType dagActionType);
 
   /**
-   * For a given dagAction, calls the appropriate method in the DagManager to carry out the desired action.
-   * @param isStartup true if called for dagAction loaded directly from store upon startup, false otherwise
+   * This implementation passes on the {@link DagActionStore.DagAction} to {@link DagManagement}.
    */
   protected abstract void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup);
 
