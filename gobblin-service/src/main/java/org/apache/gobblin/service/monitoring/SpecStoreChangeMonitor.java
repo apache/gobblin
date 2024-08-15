@@ -185,7 +185,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
         return;
       }
     } catch (Exception e) {
-      log.warn("Ran into unexpected error processing specUri {} changes. Reexamine scheduler. "
+      log.warn("Unexpected error processing specUri {} changes. Reexamine scheduler. "
           + "tid: {} operation: {} delay: {}, Error: ", key, tid, operation, produceToConsumeDelayValue, e);
       this.unexpectedErrors.mark();
       return;

@@ -44,8 +44,8 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
  * If there are multiple start jobs for the flow, {@link ReevaluateDagProc} is created for each of them and that
  * launches those start jobs.
  * In a life cycle of a flow, {@link LaunchDagProc} runs only one time, unless it fails and is
- * retried by the retry-reminders. {@link ReevaluateDagProc} runs multiple times depending upon the number of jobs and
- * number of parallel jobs.
+ * retried by the retry-reminders. Post-launch, a subsequent {@link ReevaluateDagProc} runs after each job of the DAG
+ * completes. That then may launch further jobs or conclude execution of the overall DAG (flow).
  */
 @Slf4j
 public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {

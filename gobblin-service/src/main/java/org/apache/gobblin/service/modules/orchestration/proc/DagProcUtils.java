@@ -175,7 +175,7 @@ public class DagProcUtils {
         log.info("Cancelled dag node {}, spec_producer_future {}", dagNodeToCancel.getValue().getId(),
             props.get(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE));
       } else {
-        log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getJobSpec().getUri());
+        log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getId());
       }
     } catch (Exception e) {
       throw new IOException(e);
@@ -202,6 +202,10 @@ public class DagProcUtils {
     jobExecutionPlan.setExecutionStatus(CANCELLED);
   }
 
+  /**
+   * Sets {@link Dag#flowEvent} and emits a {@link org.apache.gobblin.metrics.GobblinTrackingEvent} of the provided
+   * flow event type.
+   */
   public static void setAndEmitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
     if (!dag.isEmpty()) {
       // Every dag node will contain the same flow metadata
