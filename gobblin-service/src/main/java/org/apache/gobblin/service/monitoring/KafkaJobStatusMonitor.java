@@ -345,7 +345,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       NewState newState = newState(jobStatus, states);
       String newStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       if (newState == NewState.FINISHED) {
-        log.info("Flow {}:{}:{}:{} reached a terminal state {}", flowGroup, flowName, flowExecutionId, jobName, newStatus);
+        log.info("Job {}:{}:{}:{} reached a terminal state {}", flowGroup, flowName, flowExecutionId, jobName, newStatus);
       }
       return ImmutablePair.of(jobStatus, newState);
     } catch (Exception e) {
