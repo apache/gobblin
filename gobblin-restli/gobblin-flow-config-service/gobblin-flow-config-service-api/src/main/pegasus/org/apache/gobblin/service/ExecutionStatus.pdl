@@ -49,4 +49,9 @@ enum ExecutionStatus {
    * Flow cancelled.
    */
   CANCELLED
+
+  /**
+  * Flow or job is skipped
+  */
+  SKIPPED
 }

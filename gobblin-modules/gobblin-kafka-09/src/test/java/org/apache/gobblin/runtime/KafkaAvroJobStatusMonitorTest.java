@@ -308,7 +308,7 @@ public class KafkaAvroJobStatusMonitorTest {
     ImmutableList.of(
         createFlowCompiledEvent(),
         createJobOrchestratedEvent(1, 2),
-        createJobSkippedEvent()
+        createJobSkippedTimeEvent()
         ).forEach(event -> {
       context.submitEvent(event);
       kafkaReporter.report();
@@ -836,6 +836,40 @@ public class KafkaAvroJobStatusMonitorTest {
     jobStatusMonitor.shutDown();
   }
 
+  @Test// (dependsOnMethods = "testObservabilityEventFlowFailed")
+  public void testProcessMessageForSkippedEvent() throws IOException, ReflectiveOperationException {
+    DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic8");
+
+    //Submit GobblinTrackingEvents to Kafka
+    ImmutableList.of(
+        createJobSkippedEvent()
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
+
+    try {
+      Thread.sleep(1000);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
+        ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
+    jobStatusMonitor.buildMetricsContextAndMetrics();
+    Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
+        this.kafkaTestHelper.getIteratorForTopic(TOPIC),
+        this::convertMessageAndMetadataToDecodableKafkaRecord);
+
+    State state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.SKIPPED.name());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(
+        any(), any(), anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+
+    jobStatusMonitor.shutDown();
+  }
+
   private State getNextJobStatusState(MockKafkaAvroJobStatusMonitor jobStatusMonitor, Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator,
       String jobGroup, String jobName) throws IOException {
     jobStatusMonitor.processMessage(recordIterator.next());
@@ -871,11 +905,15 @@ public class KafkaAvroJobStatusMonitorTest {
     return createGTE(TimingEvent.LauncherTimings.JOB_ORCHESTRATED, metadata);
   }
 
+  private GobblinTrackingEvent createJobSkippedEvent() {
+    return createGTE(TimingEvent.LauncherTimings.JOB_SKIPPED, Maps.newHashMap());
+  }
+
   private GobblinTrackingEvent createJobStartEvent() {
     return createGTE(TimingEvent.LauncherTimings.JOB_START, Maps.newHashMap());
   }
 
-  private GobblinTrackingEvent createJobSkippedEvent() {
+  private GobblinTrackingEvent createJobSkippedTimeEvent() {
     return createGTE(TimingEvent.JOB_SKIPPED_TIME, Maps.newHashMap());
   }
 

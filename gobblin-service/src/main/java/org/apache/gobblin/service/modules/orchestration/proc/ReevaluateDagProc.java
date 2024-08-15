@@ -117,7 +117,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     } else if (DagProcUtils.isDagFinished(dag)) {
       String flowEvent = DagProcUtils.calcFlowStatus(dag);
       dag.setFlowEvent(flowEvent);
-      DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag, flowEvent);
+      DagProcUtils.setAndEmitFlowEvent(dag, flowEvent);
       if (flowEvent.equals(TimingEvent.FlowTimings.FLOW_SUCCEEDED)) {
         // todo - verify if work from PR#3641 is required
         dagManagementStateStore.deleteDag(getDagId());
@@ -159,9 +159,12 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dag.setMessage("Flow failed because job " + jobName + " failed");
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_FAILED);
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorFailed(dagNode);
+        DagProcUtils.sendSkippedEventForDependentJobs(dag, dagNode, dagManagementStateStore);
         break;
       case CANCELLED:
+      case SKIPPED:
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
+        DagProcUtils.sendSkippedEventForDependentJobs(dag, dagNode, dagManagementStateStore);
         break;
       case COMPLETE:
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorSuccess(dagNode);

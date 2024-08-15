@@ -37,7 +37,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -183,6 +182,19 @@ public class DagProcUtils {
     }
   }
 
+  /**
+   * Emits JOB_SKIPPED GTE for each of the dependent job.
+   */
+  public static void sendSkippedEventForDependentJobs(Dag<JobExecutionPlan> dag, Dag.DagNode<JobExecutionPlan> node,
+      DagManagementStateStore dagManagementStateStore) throws IOException {
+    for (Dag.DagNode<JobExecutionPlan> child : dag.getChildren(node)) {
+      child.getValue().setExecutionStatus(SKIPPED);
+      dagManagementStateStore.updateDagNode(child);
+      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), child.getValue());
+      DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_SKIPPED).stop(jobMetadata);
+    }
+  }
+
   public static void cancelDag(Dag<JobExecutionPlan> dag, DagManagementStateStore dagManagementStateStore) throws IOException {
     List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = dag.getNodes();
     log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), DagUtils.generateDagId(dag));
@@ -202,7 +214,7 @@ public class DagProcUtils {
    * Sets {@link Dag#flowEvent} and emits a {@link GobblinTrackingEvent} of the provided
    * flow event type.
    */
-  public static void setAndEmitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
+  public static void setAndEmitFlowEvent(Dag<JobExecutionPlan> dag, String flowEvent) {
     if (!dag.isEmpty()) {
       // Every dag node will contain the same flow metadata
       Config config = DagUtils.getDagJobConfig(dag);
@@ -213,7 +225,7 @@ public class DagProcUtils {
         flowMetadata.put(TimingEvent.METADATA_MESSAGE, dag.getMessage());
       }
 
-      eventSubmitter.getTimingEvent(flowEvent).stop(flowMetadata);
+      DagProc.eventSubmitter.getTimingEvent(flowEvent).stop(flowMetadata);
     }
   }
 
