@@ -25,10 +25,15 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.junit.runner.RunWith;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.typesafe.config.ConfigFactory;
@@ -37,6 +42,9 @@ import com.typesafe.config.ConfigValueFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
@@ -56,15 +64,23 @@ import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.mockStatic;
 import static org.mockito.Mockito.spy;
+import static org.powermock.reflect.Whitebox.setInternalState;
 
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(EventSubmitter.class)
 public class KillDagProcTest {
   private MySqlDagManagementStateStore dagManagementStateStore;
   private ITestMetastoreDatabase testDb;
   private DagProcessingEngineMetrics mockedDagProcEngineMetrics;
+  private MockedStatic<DagProc> dagProc;
+  private EventSubmitter mockedEventSubmitter;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -72,6 +88,13 @@ public class KillDagProcTest {
     this.dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testDb));
     LaunchDagProcTest.mockDMSSCommonBehavior(this.dagManagementStateStore);
     this.mockedDagProcEngineMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
+    this.dagProc = mockStatic(DagProc.class);
+  }
+
+  @BeforeMethod
+  public void resetMocks() {
+    this.mockedEventSubmitter = spy(new EventSubmitter.Builder(RootMetricContext.get(), "org.apache.gobblin.service").build());
+    setInternalState(DagProc.class, "eventSubmitter", this.mockedEventSubmitter);
   }
 
   @AfterClass(alwaysRun = true)
@@ -80,6 +103,7 @@ public class KillDagProcTest {
       // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
       this.testDb.close();
     }
+    this.dagProc.close();
   }
 
   @Test
@@ -112,6 +136,8 @@ public class KillDagProcTest {
         null, this.dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     killDagProc.process(this.dagManagementStateStore, this.mockedDagProcEngineMetrics);
 
+    int numOfCancelledJobs = 5; // all jobs in the dag
+    int numOfCancelledFlows = 1;
     long cancelJobCount = specProducers.stream()
         .mapToLong(p -> Mockito.mockingDetails(p)
             .getInvocations()
@@ -120,7 +146,12 @@ public class KillDagProcTest {
             .count())
         .sum();
     // kill dag proc tries to cancel all the dag nodes
-    Assert.assertEquals(cancelJobCount, 5);
+    Assert.assertEquals(cancelJobCount, numOfCancelledJobs);
+
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(numOfCancelledJobs))
+        .submit(eq(TimingEvent.LauncherTimings.JOB_CANCEL), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(numOfCancelledFlows))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_CANCELLED), anyMap());
   }
 
   @Test
@@ -159,6 +190,8 @@ public class KillDagProcTest {
         null, this.dagManagementStateStore, this.mockedDagProcEngineMetrics), ConfigFactory.empty());
     killDagProc.process(this.dagManagementStateStore, this.mockedDagProcEngineMetrics);
 
+    int numOfCancelledJobs = 1; // the only job that was cancelled
+    int numOfCancelledFlows = 1;
     long cancelJobCount = specProducers.stream()
         .mapToLong(p -> Mockito.mockingDetails(p)
             .getInvocations()
@@ -167,6 +200,11 @@ public class KillDagProcTest {
             .count())
         .sum();
     // kill dag proc tries to cancel only the exact dag node that was provided
-    Assert.assertEquals(cancelJobCount, 1);
+    Assert.assertEquals(cancelJobCount, numOfCancelledJobs);
+
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(numOfCancelledJobs))
+        .submit(eq(TimingEvent.LauncherTimings.JOB_CANCEL), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(numOfCancelledFlows))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_CANCELLED), anyMap());
   }
 }

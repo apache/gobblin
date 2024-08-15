@@ -27,12 +27,14 @@ import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
+import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.JobSpec;
@@ -63,7 +65,7 @@ public class DagProcUtils {
 
   /**
    * If there is a single job to run next, it runs it. If there are multiple jobs to run, it creates a
-   * {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.DagActionType#REEVALUATE} dag action for
+   * {@link DagActionStore.DagActionType#REEVALUATE} dag action for
    * each of them and those jobs will be launched in respective {@link ReevaluateDagProc}.
    */
   public static void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
@@ -84,7 +86,7 @@ public class DagProcUtils {
 
   /**
    * - submits a {@link JobSpec} to a {@link SpecExecutor}
-   * - emits a {@link TimingEvent.LauncherTimings#JOB_ORCHESTRATED} {@link org.apache.gobblin.metrics.GobblinTrackingEvent}
+   * - emits a {@link TimingEvent.LauncherTimings#JOB_ORCHESTRATED} {@link GobblinTrackingEvent}
    * that measures the time needed to submit the job to {@link SpecExecutor}
    * - increment running jobs counter for the {@link Dag}, the proxy user that submitted the job and the {@link SpecExecutor} job was sent to
    * - add updated dag node state to dagManagementStateStore
@@ -121,7 +123,7 @@ public class DagProcUtils {
 
       Future<?> addSpecFuture = producer.addSpec(jobSpec);
       // todo - we should add future.get() instead of the complete future into the JobExecutionPlan
-      dagNode.getValue().setJobFuture(com.google.common.base.Optional.of(addSpecFuture));
+      dagNode.getValue().setJobFuture(Optional.of(addSpecFuture));
       addSpecFuture.get();
       jobExecutionPlan.setExecutionStatus(ExecutionStatus.ORCHESTRATED);
       jobMetadata.put(TimingEvent.METADATA_MESSAGE, producer.getExecutionLink(addSpecFuture, specExecutorUri));
@@ -154,23 +156,24 @@ public class DagProcUtils {
   }
 
   public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, DagManagementStateStore dagManagementStateStore) throws IOException {
-    Properties props = new Properties();
+    Properties cancelJobArgs = new Properties();
     DagManager.DagId dagId = DagManagerUtils.generateDagId(dagNodeToCancel);
+    String serializedFuture = null;
 
     if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-      props.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
+      cancelJobArgs.setProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
           dagNodeToCancel.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_EXECUTION_ID_KEY));
     }
 
     try {
       if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
         Future<?> future = dagNodeToCancel.getValue().getJobFuture().get();
-        String serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
-        props.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
+        serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
+        cancelJobArgs.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
       } else {
-        log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getJobSpec().getUri());
+        log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getId());
       }
-      DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), props).get();
+      DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), cancelJobArgs).get();
       // add back the dag node with updated states in the store
       dagNodeToCancel.getValue().setExecutionStatus(CANCELLED);
       dagManagementStateStore.addDagNodeState(dagNodeToCancel, dagId);
@@ -178,8 +181,7 @@ public class DagProcUtils {
       // that will delete the dag. Due to race condition between adding dag node and deleting dag, state store may get
       // into inconsistent state.
       sendCancellationEvent(dagNodeToCancel);
-      log.info("Cancelled dag node {}, spec_producer_future {}", dagNodeToCancel.getValue().getId(),
-          props.get(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE));
+      log.info("Cancelled dag node {}, spec_producer_future {}", dagNodeToCancel.getValue().getId(), serializedFuture);
     } catch (Exception e) {
       throw new IOException(e);
     }
@@ -201,7 +203,7 @@ public class DagProcUtils {
   }
 
   /**
-   * Sets {@link Dag#flowEvent} and emits a {@link org.apache.gobblin.metrics.GobblinTrackingEvent} of the provided
+   * Sets {@link Dag#flowEvent} and emits a {@link GobblinTrackingEvent} of the provided
    * flow event type.
    */
   public static void setAndEmitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {

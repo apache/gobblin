@@ -91,6 +91,8 @@ dependencies {
   testCompile externalDependency.hamcrest
   testCompile externalDependency.jhyde
   testCompile externalDependency.mockitoInline
+  testCompile externalDependency.powerMockApi
+  testCompile externalDependency.powerMockModule
   testCompile externalDependency.testContainers
   testCompile externalDependency.testContainersMysql
 }

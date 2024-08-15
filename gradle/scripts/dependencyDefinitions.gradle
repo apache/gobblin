@@ -204,6 +204,8 @@ ext.externalDependency = [
     'parquetAvro': 'org.apache.parquet:parquet-avro:1.11.0',
     'parquetProto': 'org.apache.parquet:parquet-protobuf:1.11.0',
     'parquetHadoop': 'org.apache.parquet:parquet-hadoop-bundle:1.11.0',
+    'powerMockApi' : 'org.powermock:powermock-api-mockito2:2.0.9',
+    'powerMockModule' : 'org.powermock:powermock-module-junit4:2.0.9',
     'reactivex': 'io.reactivex.rxjava2:rxjava:2.1.0',
     "slf4j": [
         "org.slf4j:slf4j-api:" + slf4jVersion,
