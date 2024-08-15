@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -47,6 +48,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -65,6 +67,7 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
@@ -106,6 +109,8 @@ public class KillDagProcTest {
     this.dagProc.close();
   }
 
+  // launches the flow, submits first job, and then kills the dag.
+  // all the jobs are killed and first job that was already launched is killed with the job future object.
   @Test
   public void killDag() throws IOException, URISyntaxException, InterruptedException {
     long flowExecutionId = System.currentTimeMillis();
@@ -136,17 +141,30 @@ public class KillDagProcTest {
         null, this.dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     killDagProc.process(this.dagManagementStateStore, this.mockedDagProcEngineMetrics);
 
+    int numOfLaunchedJobs = 1;
     int numOfCancelledJobs = 5; // all jobs in the dag
     int numOfCancelledFlows = 1;
-    long cancelJobCount = specProducers.stream()
+    int numOfCancelledJobsWithJobFuture = numOfLaunchedJobs;
+    long actualCancelJobCount = specProducers.stream()
         .mapToLong(p -> Mockito.mockingDetails(p)
             .getInvocations()
             .stream()
             .filter(a -> a.getMethod().getName().equals("cancelJob"))
             .count())
         .sum();
+
+    // kill dag procs kill only the launched jobs with parameters containing jobFuture
+    Mockito.verify(specProducers.get(0), Mockito.times(numOfCancelledJobsWithJobFuture)).cancelJob(any(), argThat(props ->
+        props.getProperty(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, "ABSENT").equals(MockedSpecExecutor.dummySerializedFuture)));
+
+    // job future object is not available for rest of the jobs cancel parameters
+    specProducers.stream()
+        .skip(numOfCancelledJobsWithJobFuture)  // separately verified `specProducers.get(0)` above
+        .forEach(sp -> Mockito.verify(sp, Mockito.never()).cancelJob(any(), argThat(props ->
+            props.getProperty(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, "ABSENT").equals(MockedSpecExecutor.dummySerializedFuture))));
+
     // kill dag proc tries to cancel all the dag nodes
-    Assert.assertEquals(cancelJobCount, numOfCancelledJobs);
+    Assert.assertEquals(actualCancelJobCount, numOfCancelledJobs);
 
     Mockito.verify(this.mockedEventSubmitter, Mockito.times(numOfCancelledJobs))
         .submit(eq(TimingEvent.LauncherTimings.JOB_CANCEL), anyMap());
@@ -197,6 +215,8 @@ public class KillDagProcTest {
             .getInvocations()
             .stream()
             .filter(a -> a.getMethod().getName().equals("cancelJob"))
+            .filter(a -> ((Properties) a.getArgument(1))
+                .getProperty(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE).equals(MockedSpecExecutor.dummySerializedFuture))
             .count())
         .sum();
     // kill dag proc tries to cancel only the exact dag node that was provided
