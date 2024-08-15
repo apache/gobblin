@@ -41,7 +41,7 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 /**
  * A {@link DagProc} to launch any subsequent (dependent) job(s) once all pre-requisite job(s) in the Dag have succeeded.
  * When there are no more jobs to run and no more running, it cleans up the Dag.
- * (In future), if there are multiple new jobs to be launched, separate launch dag actions are created for each of them.
+ * If there are multiple new jobs to be launched, separate launch dag actions are created for each of them.
  */
 @Slf4j
 public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>>> {
@@ -112,7 +112,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_SUCCEEDED);
       }
       String flowEvent = dag.getFlowEvent();
-      DagManagerUtils.emitFlowEvent(eventSubmitter, dag, flowEvent);
+      DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag, flowEvent);
       if (flowEvent.equals(TimingEvent.FlowTimings.FLOW_SUCCEEDED)) {
         // todo - verify if work from PR#3641 is required
         dagManagementStateStore.deleteDag(getDagId());

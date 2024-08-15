@@ -154,14 +154,13 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
       return;
     }
 
-    spec = (!operation.equals("DELETE")) ? this.flowCatalog.getSpecWrapper(specAsUri) : null;
-
     // The monitor should continue to process messages regardless of failures with individual messages, instead we use
     // metrics to keep track of failure to process certain SpecStoreChange events
     try {
       // Call respective action for the type of change received
       AddSpecResponse response;
       if (operation.equals("INSERT") || operation.equals("UPDATE")) {
+        spec = this.flowCatalog.getSpecWrapper(specAsUri);
         response = scheduler.onAddSpec(spec);
 
         // Null response means the dag failed to compile
@@ -186,7 +185,8 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
         return;
       }
     } catch (Exception e) {
-      log.warn("Ran into unexpected error processing SpecStore changes. Reexamine scheduler. Error: {}", e);
+      log.warn("Unexpected error processing specUri {} changes. Reexamine scheduler. "
+          + "tid: {} operation: {} delay: {}, Error: ", key, tid, operation, produceToConsumeDelayValue, e);
       this.unexpectedErrors.mark();
       return;
     }

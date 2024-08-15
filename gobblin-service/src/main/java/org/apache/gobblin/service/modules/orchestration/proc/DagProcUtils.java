@@ -34,6 +34,7 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -171,8 +172,10 @@ public class DagProcUtils {
       // into inconsistent state.
       if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
         sendCancellationEvent(dagNodeToCancel, props);
+        log.info("Cancelled dag node {}, spec_producer_future {}", dagNodeToCancel.getValue().getId(),
+            props.get(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE));
       } else {
-        log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getJobSpec().getUri());
+        log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getId());
       }
     } catch (Exception e) {
       throw new IOException(e);
@@ -197,6 +200,25 @@ public class DagProcUtils {
     Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
     DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_CANCEL).stop(jobMetadata);
     jobExecutionPlan.setExecutionStatus(CANCELLED);
+  }
+
+  /**
+   * Sets {@link Dag#flowEvent} and emits a {@link org.apache.gobblin.metrics.GobblinTrackingEvent} of the provided
+   * flow event type.
+   */
+  public static void setAndEmitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
+    if (!dag.isEmpty()) {
+      // Every dag node will contain the same flow metadata
+      Config config = DagManagerUtils.getDagJobConfig(dag);
+      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(config);
+      dag.setFlowEvent(flowEvent);
+
+      if (dag.getMessage() != null) {
+        flowMetadata.put(TimingEvent.METADATA_MESSAGE, dag.getMessage());
+      }
+
+      eventSubmitter.getTimingEvent(flowEvent).stop(flowMetadata);
+    }
   }
 
   private static void sendEnforceJobStartDeadlineDagAction(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode)

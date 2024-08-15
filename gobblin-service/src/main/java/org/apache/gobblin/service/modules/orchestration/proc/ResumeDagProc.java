@@ -71,7 +71,7 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     long flowResumeTime = System.currentTimeMillis();
 
     // Set the flow and its failed or cancelled nodes to PENDING_RESUME so that the flow will be resumed from the point before it failed
-    DagManagerUtils.emitFlowEvent(eventSubmitter, failedDag.get(), TimingEvent.FlowTimings.FLOW_PENDING_RESUME);
+    DagProcUtils.setAndEmitFlowEvent(eventSubmitter, failedDag.get(), TimingEvent.FlowTimings.FLOW_PENDING_RESUME);
 
     for (Dag.DagNode<JobExecutionPlan> node : failedDag.get().getNodes()) {
       ExecutionStatus executionStatus = node.getValue().getExecutionStatus();

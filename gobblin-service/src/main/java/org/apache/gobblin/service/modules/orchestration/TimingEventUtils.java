@@ -17,11 +17,11 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.util.Map;
+import java.util.Optional;
 
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import java.util.Optional;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
@@ -36,7 +36,7 @@ public class TimingEventUtils {
     return getFlowMetadata(flowSpec.getConfig());
   }
 
-  static Map<String, String> getFlowMetadata(Config flowConfig) {
+  public static Map<String, String> getFlowMetadata(Config flowConfig) {
     Map<String, String> metadata = Maps.newHashMap();
 
     metadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY));

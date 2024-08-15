@@ -316,7 +316,7 @@ public class DagManagerUtils {
     return (int) (flowExecutionId % numThreads);
   }
 
-  static Config getDagJobConfig(Dag<JobExecutionPlan> dag) {
+  public static Config getDagJobConfig(Dag<JobExecutionPlan> dag) {
     // Every dag should have at least one node, and the job configurations are cloned among each node
     return dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
   }
