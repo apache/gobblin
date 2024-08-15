@@ -63,8 +63,8 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       return;
     }
 
-    dag.get().setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
     dag.get().setMessage("Flow killed by request");
+    DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag.get(), TimingEvent.FlowTimings.FLOW_CANCELLED);
 
     if (this.shouldKillSpecificJob) {
       Optional<Dag.DagNode<JobExecutionPlan>> dagNodeToCancel = dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId).getLeft();
