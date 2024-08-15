@@ -99,7 +99,6 @@ public interface DagManagementStateStore {
    * {@link DagManagementStateStore#addDag}. This call is just an additional identifier which may be used
    * for DagNode level operations. In the future, it may be merged with checkpointDag.
    * @param dagNode dag node to be added
-   * @param dagId dag id of the dag this dag node belongs to
    */
   void updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 

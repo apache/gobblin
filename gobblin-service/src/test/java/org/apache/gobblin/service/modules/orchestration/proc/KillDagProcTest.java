@@ -19,9 +19,9 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -187,7 +187,8 @@ public class KillDagProcTest {
         message("Test message").eventName(ExecutionStatus.COMPLETE.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
 
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
-    doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+    // third node (job2) will be queried for by the KillDagProc because we are killing that node
+    doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(2)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
 
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow2",
@@ -216,8 +217,6 @@ public class KillDagProcTest {
             .getInvocations()
             .stream()
             .filter(a -> a.getMethod().getName().equals("cancelJob"))
-            .filter(a -> ((Properties) a.getArgument(1))
-                .getProperty(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE).equals(MockedSpecExecutor.dummySerializedFuture))
             .count())
         .sum();
     // kill dag proc tries to cancel only the exact dag node that was provided
@@ -227,5 +226,20 @@ public class KillDagProcTest {
         .submit(eq(TimingEvent.LauncherTimings.JOB_CANCEL), anyMap());
     Mockito.verify(this.mockedEventSubmitter, Mockito.times(numOfCancelledFlows))
         .submit(eq(TimingEvent.FlowTimings.FLOW_CANCELLED), anyMap());
+
+    Assert.assertEquals(dag.getNodes().get(0).getValue().getExecutionStatus(), ExecutionStatus.ORCHESTRATED); // because this was a mocked dag and we launched this job
+    Assert.assertEquals(dag.getNodes().get(1).getValue().getExecutionStatus(), ExecutionStatus.PENDING); // because this was a mocked dag and we did not launch the job
+    Assert.assertEquals(dag.getNodes().get(2).getValue().getExecutionStatus(), ExecutionStatus.CANCELLED); // because we cancelled this job
+    Assert.assertEquals(dag.getNodes().get(3).getValue().getExecutionStatus(), ExecutionStatus.PENDING); // because this was a mocked dag and we did not launch the job
+    Assert.assertEquals(dag.getNodes().get(4).getValue().getExecutionStatus(), ExecutionStatus.SKIPPED); // because its parent job was cancelled
+
+    Assert.assertTrue(dagManagementStateStore.hasRunningJobs(dagId));
+
+    dag.getNodes().get(0).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
+    dag.getNodes().get(1).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
+    dag.getNodes().get(3).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
+
+    doReturn(new HashSet<>(dag.getNodes())).when(dagManagementStateStore).getDagNodes(any());
+    Assert.assertFalse(dagManagementStateStore.hasRunningJobs(dagId));
   }
 }
