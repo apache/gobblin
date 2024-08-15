@@ -42,13 +42,14 @@ import static org.mockito.Mockito.when;
 public class MockedSpecExecutor extends InMemorySpecExecutor {
   private final SpecProducer<Spec> mockedSpecProducer;
   private final Config config;
+  public static final String dummySerializedFuture = "12345";
 
   public MockedSpecExecutor(Config config) {
     super(config);
     this.config = config;
     this.mockedSpecProducer = Mockito.mock(SpecProducer.class);
     when(mockedSpecProducer.addSpec(any())).thenReturn(new CompletedFuture(Boolean.TRUE, null));
-    when(mockedSpecProducer.serializeAddSpecResponse(any())).thenReturn("");
+    when(mockedSpecProducer.serializeAddSpecResponse(any())).thenReturn(dummySerializedFuture);
     when(mockedSpecProducer.deserializeAddSpecResponse(any())).thenReturn(new CompletedFuture(Boolean.TRUE, null));
     when(mockedSpecProducer.cancelJob(any(), any())).thenReturn(new CompletedFuture(Boolean.TRUE, null));
     }

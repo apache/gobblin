@@ -24,7 +24,11 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.hadoop.fs.Path;
+import org.junit.runner.RunWith;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.powermock.core.classloader.annotations.PrepareForTest;
+import org.powermock.modules.junit4.PowerMockRunner;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
@@ -38,6 +42,9 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
@@ -65,20 +72,23 @@ import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
-import static org.mockito.Mockito.doNothing;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.*;
+import static org.powermock.reflect.Whitebox.setInternalState;
 
 
+@RunWith(PowerMockRunner.class)
+@PrepareForTest(EventSubmitter.class)
 public class LaunchDagProcTest {
   private ITestMetastoreDatabase testMetastoreDatabase;
   private MySqlDagManagementStateStore dagManagementStateStore;
   private DagProcessingEngineMetrics mockedDagProcEngineMetrics;
+  private MockedStatic<DagProc> dagProc;
+  private EventSubmitter mockedEventSubmitter;
 
   @BeforeClass
   public void setUp() throws Exception {
     this.testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
+    this.dagProc = mockStatic(DagProc.class);
   }
 
   /**
@@ -89,12 +99,15 @@ public class LaunchDagProcTest {
     this.dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     mockDMSSCommonBehavior(this.dagManagementStateStore);
     this.mockedDagProcEngineMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
+    this.mockedEventSubmitter = spy(new EventSubmitter.Builder(RootMetricContext.get(), "org.apache.gobblin.service").build());
+    setInternalState(DagProc.class, "eventSubmitter", this.mockedEventSubmitter);
   }
 
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
     // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
     this.testMetastoreDatabase.close();
+    this.dagProc.close();
   }
 
   @Test
@@ -127,6 +140,10 @@ public class LaunchDagProcTest {
 
     Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
         .addJobDagAction(any(), any(), anyLong(), eq(DagActionStore.NO_JOB_NAME_DEFAULT), eq(DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
+
+    // FLOW_RUNNING is emitted exactly once per flow during the execution of LaunchDagProc
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(1))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_RUNNING), anyMap());
   }
 
   @Test
@@ -153,6 +170,10 @@ public class LaunchDagProcTest {
     // parallel jobs are launched through reevaluate dag action
     Mockito.verify(this.dagManagementStateStore, Mockito.times(numOfLaunchedJobs))
         .addJobDagAction(eq(flowGroup), eq(flowName), eq(flowExecutionId), any(), eq(DagActionStore.DagActionType.REEVALUATE));
+
+    // FLOW_RUNNING is emitted exactly once per flow during the execution of LaunchDagProc
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(1))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_RUNNING), anyMap());
   }
 
   // This creates a dag like this
