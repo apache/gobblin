@@ -27,13 +27,19 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
+import lombok.EqualsAndHashCode;
 import lombok.Getter;
 import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+
+import static org.apache.gobblin.service.modules.orchestration.DagActionStore.NO_JOB_NAME_DEFAULT;
 
 
 /**
@@ -46,8 +52,8 @@ public class Dag<T> {
   private List<DagNode<T>> startNodes;
   private List<DagNode<T>> endNodes;
   // Map to maintain parent to children mapping.
-  private Map<DagNode, List<DagNode<T>>> parentChildMap;
-  private List<DagNode<T>> nodes;
+  private Map<DagNode<T>, List<DagNode<T>>> parentChildMap;
+  private final List<DagNode<T>> nodes;
 
   @Setter
   @Deprecated // because this field is not persisted in mysql and contains information in very limited cases
@@ -73,13 +79,13 @@ public class Dag<T> {
     this.startNodes = new ArrayList<>();
     this.endNodes = new ArrayList<>();
     this.parentChildMap = new HashMap<>();
-    for (DagNode node : this.nodes) {
+    for (DagNode<T> node : this.nodes) {
       //If a Node has no parent Node, add it to the list of start Nodes
       if (node.getParentNodes() == null) {
         this.startNodes.add(node);
       } else {
-        List<DagNode> parentNodeList = node.getParentNodes();
-        for (DagNode parentNode : parentNodeList) {
+        List<DagNode<T>> parentNodeList = node.getParentNodes();
+        for (DagNode<T> parentNode : parentNodeList) {
           if (parentChildMap.containsKey(parentNode)) {
             parentChildMap.get(parentNode).add(node);
           } else {
@@ -89,19 +95,19 @@ public class Dag<T> {
       }
     }
     //Iterate over all the Nodes and add a Node to the list of endNodes if it is not present in the parentChildMap
-    for (DagNode node : this.nodes) {
+    for (DagNode<T> node : this.nodes) {
       if (!parentChildMap.containsKey(node)) {
         this.endNodes.add(node);
       }
     }
   }
 
-  public List<DagNode<T>> getChildren(DagNode node) {
-    return parentChildMap.getOrDefault(node, Collections.EMPTY_LIST);
+  public List<DagNode<T>> getChildren(DagNode<T> node) {
+    return parentChildMap.getOrDefault(node, Collections.emptyList());
   }
 
-  public List<DagNode<T>> getParents(DagNode node) {
-    return (node.parentNodes != null) ? node.parentNodes : Collections.EMPTY_LIST;
+  public List<DagNode<T>> getParents(DagNode<T> node) {
+    return (node.parentNodes != null) ? node.parentNodes : Collections.emptyList();
   }
 
   /**
@@ -200,11 +206,11 @@ public class Dag<T> {
       return other;
     }
 
-    for (DagNode node : getDependencyNodes(forkNodes)) {
+    for (DagNode<T> node : getDependencyNodes(forkNodes)) {
       if (!this.parentChildMap.containsKey(node)) {
         this.parentChildMap.put(node, Lists.newArrayList());
       }
-      for (DagNode otherNode : other.startNodes) {
+      for (DagNode<T> otherNode : other.startNodes) {
         this.parentChildMap.get(node).add(otherNode);
         otherNode.addParentNode(node);
       }
@@ -241,9 +247,7 @@ public class Dag<T> {
       return other;
     }
     //Append all the entries from the other dag's parentChildMap to this dag's parentChildMap
-    for (Map.Entry<DagNode, List<DagNode<T>>> entry : other.parentChildMap.entrySet()) {
-      this.parentChildMap.put(entry.getKey(), entry.getValue());
-    }
+    this.parentChildMap.putAll(other.parentChildMap);
     //Append the startNodes, endNodes and nodes from the other dag to this dag.
     this.startNodes.addAll(other.startNodes);
     this.endNodes.addAll(other.endNodes);
@@ -256,7 +260,7 @@ public class Dag<T> {
    */
   @Getter
   public static class DagNode<T> {
-    private T value;
+    private final T value;
     //List of parent Nodes that are dependencies of this Node.
     private List<DagNode<T>> parentNodes;
 
@@ -298,5 +302,44 @@ public class Dag<T> {
   @Override
   public String toString() {
     return this.getNodes().stream().map(node -> node.getValue().toString()).collect(Collectors.toList()).toString();
+  }
+
+  public enum FlowState {
+    FAILED(-1),
+    RUNNING(0),
+    SUCCESSFUL(1);
+
+    public final int value;
+
+    FlowState(int value) {
+      this.value = value;
+    }
+  }
+
+  @Getter
+  @EqualsAndHashCode
+  public static class DagId {
+    String flowGroup;
+    String flowName;
+    long flowExecutionId;
+
+    public DagId(String flowGroup, String flowName, long flowExecutionId) {
+      this.flowGroup = flowGroup;
+      this.flowName = flowName;
+      this.flowExecutionId = flowExecutionId;
+    }
+
+    @Override
+    public String toString() {
+      return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
+    }
+
+    DagActionStore.DagAction toDagAction(DagActionStore.DagActionType actionType) {
+      return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, actionType);
+    }
+
+    public FlowId getFlowId() {
+      return new FlowId().setFlowGroup(this.flowGroup).setFlowName(this.flowName);
+    }
   }
 }

@@ -27,6 +27,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.config.ConfigBuilder;
@@ -35,6 +36,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -81,7 +83,7 @@ public class DagTestUtils {
           addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId).
           addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).build();
       if (i > 0) {
-        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job" + (i - 1)));
+        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0"));
       }
       JobSpec js = JobSpec.builder("test_job" + suffix).withVersion(suffix).withConfig(jobConfig).
           withTemplate(new URI("job" + suffix)).build();
@@ -91,9 +93,75 @@ public class DagTestUtils {
       jobExecutionPlan.setExecutionStatus(ExecutionStatus.RUNNING);
 
       // Future of type CompletedFuture is used because in tests InMemorySpecProducer is used and that responds with CompletedFuture
-      CompletedFuture future = new CompletedFuture<>(Boolean.TRUE, null);
+      CompletedFuture<Boolean> future = new CompletedFuture<>(Boolean.TRUE, null);
       jobExecutionPlan.setJobFuture(Optional.of(future));
 
+      jobExecutionPlans.add(jobExecutionPlan);
+    }
+    return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);
+  }
+
+
+  /**
+   * Create a list of dags with only one node each
+   * @return a Dag.
+   */
+  static List<Dag<JobExecutionPlan>> buildDagList(int numDags, String proxyUser, Config additionalConfig) throws URISyntaxException{
+    List<Dag<JobExecutionPlan>> dagList = new ArrayList<>();
+    for (int i = 0; i < numDags; i++) {
+      dagList.add(buildDag(Integer.toString(i), System.currentTimeMillis(), DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 1,
+          proxyUser, additionalConfig));
+    }
+    return dagList;
+  }
+
+  /**
+   * Create a {@link Dag <JobExecutionPlan>}.
+   * @return a Dag.
+   */
+  static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, boolean flag)
+      throws URISyntaxException {
+    int numNodes = (flag) ? 3 : 5;
+    return buildDag(id, flowExecutionId, flowFailureOption, numNodes);
+  }
+
+  static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, int numNodes)
+      throws URISyntaxException {
+    return buildDag(id, flowExecutionId, flowFailureOption, numNodes, "testUser", ConfigFactory.empty());
+  }
+
+  public static Dag<JobExecutionPlan> buildDag(String id, Long flowExecutionId, String flowFailureOption, int numNodes, String proxyUser, Config additionalConfig)
+      throws URISyntaxException {
+    if (additionalConfig.hasPath(ConfigurationKeys.JOB_NAME_KEY)) {
+      throw new RuntimeException("Please do not set " + ConfigurationKeys.JOB_NAME_KEY + " because this method is "
+          + "using hard coded job names in setting " + ConfigurationKeys.JOB_DEPENDENCIES);
+    }
+
+    List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
+
+    for (int i = 0; i < numNodes; i++) {
+      String suffix = Integer.toString(i);
+      Config jobConfig = ConfigBuilder.create().
+          addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "group" + id).
+          addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "flow" + id).
+          addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId).
+          addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group" + id).
+          addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).
+          addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, flowFailureOption).
+          addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build();
+      jobConfig = additionalConfig.withFallback(jobConfig);
+      if ((i == 1) || (i == 2)) {
+        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0"));
+      } else if (i == 3) {
+        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job1"));
+      } else if (i == 4) {
+        jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job2"));
+      }
+      JobSpec js = JobSpec.builder("test_job" + suffix).withVersion(suffix).withConfig(jobConfig).
+          withTemplate(new URI("job" + suffix)).build();
+      SpecExecutor specExecutor = MockedSpecExecutor.createDummySpecExecutor(new URI(
+          ConfigUtils.getString(additionalConfig, ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,"job" + i)));
+      JobExecutionPlan jobExecutionPlan = new JobExecutionPlan(js, specExecutor);
       jobExecutionPlans.add(jobExecutionPlan);
     }
     return new JobExecutionPlanDagFactory().createDag(jobExecutionPlans);

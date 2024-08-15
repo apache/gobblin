@@ -25,16 +25,16 @@ import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.UpdateResponse;
 
 
-public interface FlowExecutionResourceHandler {
+public interface FlowExecutionResourceHandlerInterface {
   /**
    * Get {@link FlowExecution}
    */
-  public FlowExecution get(ComplexResourceKey<FlowStatusId, EmptyRecord> key);
+  FlowExecution get(ComplexResourceKey<FlowStatusId, EmptyRecord> key);
 
   /**
    * Get latest {@link FlowExecution}
    */
-  public List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag,
+  List<FlowExecution> getLatestFlowExecution(PagingContext context, FlowId flowId, Integer count, String tag,
       String executionStatus, Boolean includeIssues);
 
   /**
@@ -43,16 +43,16 @@ public interface FlowExecutionResourceHandler {
    * NOTE: `executionStatus` param not provided yet, without justifying use case, due to complexity of interaction with `countPerFlow`
    * and resulting efficiency concern of performing across many flows sharing the single named group.
    */
-  public List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFLow,
+  List<FlowExecution> getLatestFlowGroupExecutions(PagingContext context, String flowGroup, Integer countPerFLow,
       String tag, Boolean includeIssues);
 
   /**
    * Resume a failed {@link FlowExecution} from the point before failure
    */
-  public void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key);
+  void resume(ComplexResourceKey<FlowStatusId, EmptyRecord> key);
 
   /**
    * Kill a running {@link FlowExecution}
    */
-  public UpdateResponse delete(ComplexResourceKey<FlowStatusId, EmptyRecord> key);
+  UpdateResponse delete(ComplexResourceKey<FlowStatusId, EmptyRecord> key);
 }

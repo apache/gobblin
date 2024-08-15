@@ -18,12 +18,12 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.util.Optional;
 import java.util.UUID;
 
-import org.apache.gobblin.util.ExponentialBackoff;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -37,6 +37,7 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.util.ExponentialBackoff;
 
 
 @Slf4j
@@ -54,26 +55,26 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String flowName = "testFlowName";
   private static final String jobName = "testJobName";
   private static final long flowExecutionId = 12345677L;
-  private static final long eventTimeMillis = 1710451837L; // System.currentTimeMillis();
+  private static final long eventTimeMillis = 1710451837L;
   // Dag actions with the same flow info but different flow action types are considered unique
-  private static DagActionStore.DagAction launchDagAction =
+  private static final DagActionStore.DagAction launchDagAction =
       new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
-  private static DagActionStore.LeaseParams
+  private static final DagActionStore.LeaseParams
       launchLeaseParams = new DagActionStore.LeaseParams(launchDagAction, false, eventTimeMillis);
-  private static DagActionStore.DagAction resumeDagAction =
+  private static final DagActionStore.DagAction resumeDagAction =
       new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.RESUME);
-  private static DagActionStore.LeaseParams
+  private static final DagActionStore.LeaseParams
       resumeLeaseParams = new DagActionStore.LeaseParams(resumeDagAction, false, eventTimeMillis);
-  private static DagActionStore.DagAction launchDagAction2 =
+  private static final DagActionStore.DagAction launchDagAction2 =
       new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
-  private static DagActionStore.LeaseParams
+  private static final DagActionStore.LeaseParams
       launchLeaseParams2 = new DagActionStore.LeaseParams(launchDagAction2, false, eventTimeMillis);
   private static final Timestamp dummyTimestamp = new Timestamp(99999);
   private ITestMetastoreDatabase testDb;
   private MysqlMultiActiveLeaseArbiter mysqlMultiActiveLeaseArbiter;
-  private String formattedAcquireLeaseIfMatchingAllStatement =
+  private final String formattedAcquireLeaseIfMatchingAllStatement =
       String.format(MysqlMultiActiveLeaseArbiter.CONDITIONALLY_ACQUIRE_LEASE_IF_MATCHING_ALL_COLS_STATEMENT, TABLE);
-  private String formattedAcquireLeaseIfFinishedStatement =
+  private final String formattedAcquireLeaseIfFinishedStatement =
       String.format(MysqlMultiActiveLeaseArbiter.CONDITIONALLY_ACQUIRE_LEASE_IF_FINISHED_LEASING_STATEMENT, TABLE);
 
   // The setup functionality verifies that the initialization of the tables is done correctly and verifies any SQL
@@ -81,24 +82,25 @@ public class MysqlMultiActiveLeaseArbiterTest {
   @BeforeClass
   public void setUp() throws Exception {
     this.testDb = TestMetastoreDatabaseFactory.get();
-
-    Config config = ConfigBuilder.create()
-        .addPrimitive(ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY, EPSILON)
-        .addPrimitive(ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY, LINGER)
-        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, this.testDb.getJdbcUrl())
-        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
-        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
-        .addPrimitive(ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY, TABLE)
-        .addPrimitive(ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY, CONSTANTS_TABLE)
-        .build();
-
-    this.mysqlMultiActiveLeaseArbiter = new MysqlMultiActiveLeaseArbiter(config);
+    this.mysqlMultiActiveLeaseArbiter = new MysqlMultiActiveLeaseArbiter(getLeaseArbiterTestConfigs(this.testDb));
   }
 
   @AfterClass(alwaysRun = true)
   public void tearDown() throws IOException {
     // `.close()` to avoid (in the aggregate, across multiple suites) - java.sql.SQLNonTransientConnectionException: Too many connections
     this.testDb.close();
+  }
+
+  public static Config getLeaseArbiterTestConfigs(ITestMetastoreDatabase testDb) throws URISyntaxException {
+    return ConfigBuilder.create()
+        .addPrimitive(ConfigurationKeys.SCHEDULER_EVENT_EPSILON_MILLIS_KEY, EPSILON)
+        .addPrimitive(ConfigurationKeys.SCHEDULER_EVENT_LINGER_MILLIS_KEY, LINGER)
+        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
+        .addPrimitive(ConfigurationKeys.MYSQL_LEASE_ARBITER_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
+        .addPrimitive(ConfigurationKeys.LEASE_DETERMINATION_STORE_DB_TABLE_KEY, TABLE)
+        .addPrimitive(ConfigurationKeys.MULTI_ACTIVE_CONSTANTS_DB_TABLE_KEY, CONSTANTS_TABLE)
+        .build();
   }
 
   /*
@@ -120,11 +122,10 @@ public class MysqlMultiActiveLeaseArbiterTest {
     // Make sure consensusEventTimeMillis is set, and it's not 0 or the original event time
     log.info("consensus event time is {} eventtimeMillis is {}", consensusEventTimeMillis, eventTimeMillis);
     Assert.assertTrue(consensusEventTimeMillis != eventTimeMillis && consensusEventTimeMillis != 0);
-    Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
-        new DagActionStore.DagAction(flowGroup, flowName, consensusEventTimeMillis, jobName,
-            DagActionStore.DagActionType.LAUNCH)));
+    Assert.assertEquals(new DagActionStore.DagAction(flowGroup, flowName, consensusEventTimeMillis, jobName,
+        DagActionStore.DagActionType.LAUNCH), firstObtainedStatus.getConsensusDagAction());
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), consensusEventTimeMillis);
-    Assert.assertEquals(firstObtainedStatus.getConsensusLeaseParams().isReminder, false);
+    Assert.assertFalse(firstObtainedStatus.getConsensusLeaseParams().isReminder);
 
     // Verify that different DagAction types for the same flow can have leases at the same time
     DagActionStore.DagAction killDagAction = new
@@ -368,9 +369,9 @@ public class MysqlMultiActiveLeaseArbiterTest {
         (LeaseAttemptStatus.LeaseObtainedStatus) firstLaunchStatus;
     Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() <= firstObtainedStatus.getLeaseAcquisitionTimestamp());
     Assert.assertTrue(firstObtainedStatus.getEventTimeMillis() != Long.valueOf(firstObtainedStatus.getConsensusDagAction().getFlowExecutionId()));
-    Assert.assertTrue(firstObtainedStatus.getConsensusDagAction().equals(
-        new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
-    Assert.assertEquals(firstObtainedStatus.getConsensusLeaseParams().isReminder(), false);
+    Assert.assertEquals(new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName,
+        DagActionStore.DagActionType.LAUNCH), firstObtainedStatus.getConsensusDagAction());
+    Assert.assertFalse(firstObtainedStatus.getConsensusLeaseParams().isReminder());
 
     // A second attempt to obtain a lease on the same action should return a LeasedToAnotherStatus which also contains
     // the original flowExecutionId and the same event time from the previous LeaseAttemptStatus
@@ -380,17 +381,16 @@ public class MysqlMultiActiveLeaseArbiterTest {
     LeaseAttemptStatus.LeasedToAnotherStatus secondLeasedToAnotherStatus =
         (LeaseAttemptStatus.LeasedToAnotherStatus) secondLaunchStatus;
     Assert.assertEquals(firstObtainedStatus.getEventTimeMillis(), secondLeasedToAnotherStatus.getEventTimeMillis());
-    Assert.assertTrue(secondLeasedToAnotherStatus.getConsensusDagAction().equals(
-        new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH)));
-    Assert.assertEquals(firstObtainedStatus.getConsensusLeaseParams().isReminder(), false);
+    Assert.assertEquals(new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName,
+        DagActionStore.DagActionType.LAUNCH), secondLeasedToAnotherStatus.getConsensusDagAction());
+    Assert.assertFalse(firstObtainedStatus.getConsensusLeaseParams().isReminder());
 
     Assert.assertTrue(mysqlMultiActiveLeaseArbiter.recordLeaseSuccess(firstObtainedStatus));
   }
 
   public static String generateUniqueName() {
-      UUID uuid = UUID.randomUUID();
-      String name = uuid.toString().substring(0, 10);
-      return name;
+    UUID uuid = UUID.randomUUID();
+    return uuid.toString().substring(0, 10);
   }
 
   /**

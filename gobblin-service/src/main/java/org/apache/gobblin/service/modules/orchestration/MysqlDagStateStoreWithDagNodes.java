@@ -60,7 +60,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.DBStatementExecutor;
 
-import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.generateDagId;
+import static org.apache.gobblin.service.modules.orchestration.DagUtils.generateDagId;
 
 
 /**
@@ -123,7 +123,7 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
 
   @Override
   public void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException {
-    String dagId = DagManagerUtils.generateDagId(dag).toString();
+    String dagId = DagUtils.generateDagId(dag).toString();
     dbStatementExecutor.withPreparedStatement(String.format(INSERT_DAG_NODE_STATEMENT, tableName), insertStatement -> {
 
       for (Dag.DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
@@ -146,7 +146,7 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   }
 
   @Override
-  public boolean cleanUp(DagManager.DagId dagId) throws IOException {
+  public boolean cleanUp(Dag.DagId dagId) throws IOException {
     return dbStatementExecutor.withPreparedStatement(String.format(DELETE_DAG_STATEMENT, tableName),
         deleteStatement -> {
           try {
@@ -170,7 +170,7 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
         + "the DagManager that is replaced by DagProcessingEngine");  }
 
   @Override
-  public Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException {
+  public Dag<JobExecutionPlan> getDag(Dag.DagId dagId) throws IOException {
     return convertDagNodesIntoDag(getDagNodes(dagId));
   }
 
@@ -208,7 +208,7 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   }
 
   @Override
-  public Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId parentDagId) throws IOException {
+  public Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(Dag.DagId parentDagId) throws IOException {
     return dbStatementExecutor.withPreparedStatement(String.format(GET_DAG_NODES_STATEMENT, tableName), getStatement -> {
       getStatement.setString(1, parentDagId.toString());
       HashSet<Dag.DagNode<JobExecutionPlan>> dagNodes = new HashSet<>();

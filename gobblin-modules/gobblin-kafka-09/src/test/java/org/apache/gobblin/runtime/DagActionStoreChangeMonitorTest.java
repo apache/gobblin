@@ -17,9 +17,9 @@
 
 package org.apache.gobblin.runtime;
 
+import java.io.IOException;
 import java.net.URI;
 
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -38,12 +38,12 @@ import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
-import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
+import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeEvent;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.DagActionValue;
@@ -62,18 +62,12 @@ import static org.mockito.Mockito.*;
 @Slf4j
 public class DagActionStoreChangeMonitorTest {
   public static final String TOPIC = DagActionStoreChangeEvent.class.getSimpleName();
-  private final int PARTITION = 1;
-  private final int OFFSET = 1;
-
-  private static final String USER = "testUser";
-  private static final String PASSWORD = "testPassword";
-  private static final String TABLE = "dag_action_store";
-
   private final String FLOW_GROUP = "flowGroup";
   private final String FLOW_NAME = "flowName";
   private final String FLOW_EXECUTION_ID = "123456789";
   private MockDagActionStoreChangeMonitor mockDagActionStoreChangeMonitor;
   private int txidCounter = 0;
+  private static final DagActionReminderScheduler dagActionReminderScheduler = mock(DagActionReminderScheduler.class);
 
   private ITestMetastoreDatabase testDb;
 
@@ -81,20 +75,18 @@ public class DagActionStoreChangeMonitorTest {
    * Note: The class methods are wrapped in a test specific method because the original methods are package protected
    * and cannot be accessed by this class.
    */
-  class MockDagActionStoreChangeMonitor extends DagActionStoreChangeMonitor {
+  static class MockDagActionStoreChangeMonitor extends DagActionStoreChangeMonitor {
 
-    public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads,
-        boolean isMultiActiveSchedulerEnabled) {
-      this(topic, config, numThreads, isMultiActiveSchedulerEnabled, mock(DagManagementStateStore.class), mock(DagManager.class), mock(FlowCatalog.class), mock(Orchestrator.class));
+    public MockDagActionStoreChangeMonitor(Config config, int numThreads) {
+      this(config, numThreads, mock(DagManagementStateStore.class));
     }
 
-    public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads, boolean isMultiActiveSchedulerEnabled,
-        DagManagementStateStore dagManagementStateStore, DagManager dagManager, FlowCatalog flowCatalog, Orchestrator orchestrator) {
-      super(topic, config, dagManager, numThreads, flowCatalog, orchestrator,
-          dagManagementStateStore, isMultiActiveSchedulerEnabled, mock(DagProcessingEngineMetrics.class));
+    public MockDagActionStoreChangeMonitor(Config config, int numThreads, DagManagementStateStore dagManagementStateStore) {
+      super(config, numThreads, dagManagementStateStore, mock(DagManagement.class),
+          dagActionReminderScheduler, mock(DagProcessingEngineMetrics.class));
     }
 
-    protected void processMessageForTest(DecodeableKafkaRecord record) {
+    protected void processMessageForTest(DecodeableKafkaRecord<String, DagActionStoreChangeEvent> record) {
       super.processMessage(record);
     }
 
@@ -108,7 +100,7 @@ public class DagActionStoreChangeMonitorTest {
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef("/tmp/fakeStateStore"))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
-    return new MockDagActionStoreChangeMonitor("dummyTopic", config, 5, true);
+    return new MockDagActionStoreChangeMonitor(config, 5);
   }
 
   // Called at start of every test so the count of each method being called is reset to 0
@@ -121,6 +113,7 @@ public class DagActionStoreChangeMonitorTest {
   @BeforeClass
   public void setUp() throws Exception {
     this.testDb = TestMetastoreDatabaseFactory.get();
+    doNothing().when(dagActionReminderScheduler).unscheduleReminderJob(any(), anyBoolean());
   }
 
   @AfterClass(alwaysRun = true)
@@ -134,14 +127,12 @@ public class DagActionStoreChangeMonitorTest {
    * filtered out since it's a heartbeat type so no methods are called.
    */
   @Test
-  public void testProcessMessageWithHeartbeatAndNullDagAction() throws SpecNotFoundException {
-    Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
-        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, "", "", "", null);
+  public void testProcessMessageWithHeartbeatAndNullDagAction() throws IOException {
+    Kafka09ConsumerClient.Kafka09ConsumerRecord<String, DagActionStoreChangeEvent> consumerRecord =
+        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, "", "", "",
+            DagActionStore.NO_JOB_NAME_DEFAULT, null);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    // Note: Indirectly verifies submitFlowToDagManagerHelper is called which is not a mocked object so cannot be asserted
-    verify(mockDagActionStoreChangeMonitor.getFlowCatalog(), times(0)).getSpecs(any(URI.class));
+    verify(mockDagActionStoreChangeMonitor.getDagManagement(), times(0)).addDagAction(any());
   }
 
   /**
@@ -149,26 +140,26 @@ public class DagActionStoreChangeMonitorTest {
    * methods are called.
    */
   @Test (dependsOnMethods = "testProcessMessageWithHeartbeatAndNullDagAction")
-  public void testProcessMessageWithHeartbeatAndFlowInfo() throws SpecNotFoundException {
-    Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
-        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, FLOW_GROUP, "", "", DagActionValue.RESUME);
+  public void testProcessMessageWithHeartbeatAndFlowInfo() throws IOException {
+    Kafka09ConsumerClient.Kafka09ConsumerRecord<String, DagActionStoreChangeEvent> consumerRecord =
+        wrapDagActionStoreChangeEvent(OperationType.HEARTBEAT, FLOW_GROUP, "", "",
+            DagActionStore.NO_JOB_NAME_DEFAULT, DagActionValue.RESUME);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getFlowCatalog(), times(0)).getSpecs(any(URI.class));
+    verify(mockDagActionStoreChangeMonitor.getDagManagement(), times(0)).addDagAction(any());
   }
 
   /**
    * Tests process message with an INSERT type message of a `launch` action
    */
   @Test (dependsOnMethods = "testProcessMessageWithHeartbeatAndFlowInfo")
-  public void testProcessMessageWithInsertLaunchType() throws SpecNotFoundException {
-    Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
-        wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.LAUNCH);
+  public void testProcessMessageWithInsertLaunchType() throws IOException {
+    Kafka09ConsumerClient.Kafka09ConsumerRecord<String, DagActionStoreChangeEvent> consumerRecord =
+        wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID,
+            DagActionStore.NO_JOB_NAME_DEFAULT, DagActionValue.LAUNCH);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getFlowCatalog(), times(1)).getSpecs(any(URI.class));
+    verify(mockDagActionStoreChangeMonitor.getDagManagement(), times(1)).addDagAction(any());
+    verify(mockDagActionStoreChangeMonitor.getDagManagement(), times(1))
+        .addDagAction(argThat(leaseParam -> leaseParam.getDagAction().getDagActionType() == DagActionStore.DagActionType.LAUNCH));
   }
 
   /**
@@ -176,26 +167,28 @@ public class DagActionStoreChangeMonitorTest {
    * since it is a different tid used every time it will be considered unique and submit a kill request.
    */
   @Test (dependsOnMethods = "testProcessMessageWithInsertLaunchType")
-  public void testProcessMessageWithInsertResumeType() throws SpecNotFoundException {
-    Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
-        wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.RESUME);
+  public void testProcessMessageWithInsertResumeType() throws IOException {
+    Kafka09ConsumerClient.Kafka09ConsumerRecord<String, DagActionStoreChangeEvent> consumerRecord =
+        wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID,
+            DagActionStore.NO_JOB_NAME_DEFAULT, DagActionValue.RESUME);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(1)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getFlowCatalog(), times(0)).getSpecs(any(URI.class));
+    verify(mockDagActionStoreChangeMonitor.getDagManagement(), times(1)).addDagAction(any());
+    verify(mockDagActionStoreChangeMonitor.getDagManagement(), times(1))
+        .addDagAction(argThat(leaseParam -> leaseParam.getDagAction().getDagActionType() == DagActionStore.DagActionType.RESUME));
   }
 
   /**
    * Tests process message with an INSERT type message of a `kill` action. Similar to `testProcessMessageWithInsertResumeType`.
    */
   @Test (dependsOnMethods = "testProcessMessageWithInsertResumeType")
-  public void testProcessMessageWithInsertKillType() throws SpecNotFoundException {
-    Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
-        wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.KILL);
+  public void testProcessMessageWithInsertKillType() throws IOException {
+    Kafka09ConsumerClient.Kafka09ConsumerRecord<String, DagActionStoreChangeEvent> consumerRecord =
+        wrapDagActionStoreChangeEvent(OperationType.INSERT, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID,
+            DagActionStore.NO_JOB_NAME_DEFAULT,DagActionValue.KILL);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(1)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getFlowCatalog(), times(0)).getSpecs(any(URI.class));
+    verify(mockDagActionStoreChangeMonitor.getDagManagement(), times(1)).addDagAction(any());
+    verify(mockDagActionStoreChangeMonitor.getDagManagement(), times(1))
+        .addDagAction(argThat(leaseParam -> leaseParam.getDagAction().getDagActionType() == DagActionStore.DagActionType.KILL));
   }
 
   /**
@@ -203,26 +196,32 @@ public class DagActionStoreChangeMonitorTest {
    * expect this message type it should handle it gracefully
    */
   @Test (dependsOnMethods = "testProcessMessageWithInsertKillType")
-  public void testProcessMessageWithUpdate() throws SpecNotFoundException {
-    Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
-        wrapDagActionStoreChangeEvent(OperationType.UPDATE, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.LAUNCH);
+  public void testProcessMessageWithUpdate() throws IOException {
+    Kafka09ConsumerClient.Kafka09ConsumerRecord<String, DagActionStoreChangeEvent> consumerRecord =
+        wrapDagActionStoreChangeEvent(OperationType.UPDATE, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID,
+            DagActionStore.NO_JOB_NAME_DEFAULT, DagActionValue.LAUNCH);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getFlowCatalog(), times(0)).getSpecs(any(URI.class));
+    verify(mockDagActionStoreChangeMonitor.getDagManagement(), times(0)).addDagAction(any());
   }
 
   /**
-   * Tests process message with a DELETE type message which should be ignored regardless of the flow information.
+   * Tests process message with a DELETE type message.
    */
   @Test (dependsOnMethods = "testProcessMessageWithUpdate")
-  public void testProcessMessageWithDelete() throws SpecNotFoundException {
-    Kafka09ConsumerClient.Kafka09ConsumerRecord consumerRecord =
-        wrapDagActionStoreChangeEvent(OperationType.DELETE, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, DagActionValue.LAUNCH);
+  public void testProcessMessageWithDelete() {
+    String JOB_NAME = "jobName";
+    Kafka09ConsumerClient.Kafka09ConsumerRecord<String, DagActionStoreChangeEvent> consumerRecord =
+        wrapDagActionStoreChangeEvent(OperationType.DELETE, FLOW_GROUP, FLOW_NAME, FLOW_EXECUTION_ID, JOB_NAME, DagActionValue.ENFORCE_JOB_START_DEADLINE);
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(FLOW_GROUP, FLOW_NAME, Long.parseLong(FLOW_EXECUTION_ID),
+        JOB_NAME,
+        DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
     mockDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleResumeFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getDagManager(), times(0)).handleKillFlowRequest(anyString(), anyString(), anyLong());
-    verify(mockDagActionStoreChangeMonitor.getFlowCatalog(), times(0)).getSpecs(any(URI.class));
+    /* TODO: skip deadline removal for now and let them fire
+    verify(mockDagManagementDagActionStoreChangeMonitor.getDagActionReminderScheduler(), times(1))
+        .unscheduleReminderJob(eq(dagAction), eq(true));
+    verify(mockDagManagementDagActionStoreChangeMonitor.getDagActionReminderScheduler(), times(1))
+        .unscheduleReminderJob(eq(dagAction), eq(false));
+     */
   }
 
   @Test (dependsOnMethods = "testProcessMessageWithDelete")
@@ -233,13 +232,10 @@ public class DagActionStoreChangeMonitorTest {
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef("/tmp/fakeStateStore"))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
-    DagManager mockDagManager = mock(DagManager.class);
     FlowCatalog mockFlowCatalog = mock(FlowCatalog.class);
-    Orchestrator mockOrchestrator = mock(Orchestrator.class);
     // Throw an uncaught exception during startup sequence
     when(mockFlowCatalog.getSpecs(any(URI.class))).thenThrow(new RuntimeException("Uncaught exception"));
-    mockDagActionStoreChangeMonitor =  new MockDagActionStoreChangeMonitor("dummyTopic", monitorConfig, 5,
-        true, dagManagementStateStore, mockDagManager, mockFlowCatalog, mockOrchestrator);
+    mockDagActionStoreChangeMonitor =  new MockDagActionStoreChangeMonitor(monitorConfig, 5, dagManagementStateStore);
     try {
       mockDagActionStoreChangeMonitor.setActive();
     } catch (Exception e) {
@@ -252,13 +248,12 @@ public class DagActionStoreChangeMonitorTest {
    * Util to create a general DagActionStoreChange type event
    */
   private DagActionStoreChangeEvent createDagActionStoreChangeEvent(OperationType operationType,
-      String flowGroup, String flowName, String flowExecutionId, DagActionValue dagAction) {
+      String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionValue dagAction) {
     String key = getKeyForFlow(flowGroup, flowName, flowExecutionId);
     GenericStoreChangeEvent genericStoreChangeEvent =
         new GenericStoreChangeEvent(key, String.valueOf(txidCounter), System.currentTimeMillis(), operationType);
     txidCounter++;
-    return new DagActionStoreChangeEvent(genericStoreChangeEvent, flowGroup, flowName, flowExecutionId,
-        DagActionStore.NO_JOB_NAME_DEFAULT, dagAction);
+    return new DagActionStoreChangeEvent(genericStoreChangeEvent, flowGroup, flowName, flowExecutionId, jobName, dagAction);
   }
 
   /**
@@ -272,18 +267,20 @@ public class DagActionStoreChangeMonitorTest {
   /**
    * Util to create wrapper around DagActionStoreChangeEvent
    */
-  private Kafka09ConsumerClient.Kafka09ConsumerRecord wrapDagActionStoreChangeEvent(OperationType operationType,
-      String flowGroup, String flowName, String flowExecutionId, DagActionValue dagAction) {
+  private Kafka09ConsumerClient.Kafka09ConsumerRecord<String, DagActionStoreChangeEvent> wrapDagActionStoreChangeEvent(OperationType operationType,
+      String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionValue dagAction) {
     DagActionStoreChangeEvent eventToProcess = null;
     try {
       eventToProcess =
-          createDagActionStoreChangeEvent(operationType, flowGroup, flowName, flowExecutionId, dagAction);
+          createDagActionStoreChangeEvent(operationType, flowGroup, flowName, flowExecutionId, jobName, dagAction);
     } catch (Exception e) {
       log.error("Exception while creating event ", e);
     }
     // TODO: handle partition and offset values better
-    ConsumerRecord consumerRecord = new ConsumerRecord<>(TOPIC, PARTITION, OFFSET,
+    int PARTITION = 1;
+    int OFFSET = 1;
+    ConsumerRecord<String, DagActionStoreChangeEvent> consumerRecord = new ConsumerRecord<>(TOPIC, PARTITION, OFFSET,
         getKeyForFlow(flowGroup, flowName, flowExecutionId), eventToProcess);
-    return new Kafka09ConsumerClient.Kafka09ConsumerRecord(consumerRecord);
+    return new Kafka09ConsumerClient.Kafka09ConsumerRecord<>(consumerRecord);
   }
 }

@@ -16,18 +16,21 @@
  */
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.List;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
 public class InMemoryUserQuotaManagerTest {
@@ -45,7 +48,7 @@ public class InMemoryUserQuotaManagerTest {
   // Tests that if exceeding the quota on startup, do not throw an exception and do not decrement the counter
   @Test
   public void testExceedsQuotaOnStartup() throws Exception {
-    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user", ConfigFactory.empty());
+    List<Dag<JobExecutionPlan>> dags = DagTestUtils.buildDagList(2, "user", ConfigFactory.empty());
     // Ensure that the current attempt is 1, normally done by DagManager
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
@@ -56,7 +59,7 @@ public class InMemoryUserQuotaManagerTest {
 
   @Test
   public void testExceedsUserQuotaThrowsException() throws Exception {
-    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user2", ConfigFactory.empty());
+    List<Dag<JobExecutionPlan>> dags = DagTestUtils.buildDagList(2, "user2", ConfigFactory.empty());
 
     // Ensure that the current attempt is 1, normally done by DagManager
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
@@ -71,7 +74,7 @@ public class InMemoryUserQuotaManagerTest {
   @Test
   public void testMultipleRemoveQuotasIdempotent() throws Exception {
     // Test that multiple decrements cannot cause the number to decrease by more than 1
-    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user3", ConfigFactory.empty());
+    List<Dag<JobExecutionPlan>> dags = DagTestUtils.buildDagList(2, "user3", ConfigFactory.empty());
 
     // Ensure that the current attempt is 1, normally done by DagManager
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
@@ -85,7 +88,7 @@ public class InMemoryUserQuotaManagerTest {
   @Test
   public void testExceedsFlowGroupQuotaThrowsException() throws Exception {
     // Test flowgroup quotas
-    List<Dag<JobExecutionPlan>> dags = DagManagerTest.buildDagList(2, "user4", ConfigFactory.empty().withValue(
+    List<Dag<JobExecutionPlan>> dags = DagTestUtils.buildDagList(2, "user4", ConfigFactory.empty().withValue(
         ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group1")));
 
     // Ensure that the current attempt is 1, normally done by DagManager
@@ -102,13 +105,13 @@ public class InMemoryUserQuotaManagerTest {
   @Test
   public void testUserAndFlowGroupQuotaMultipleUsersAdd() throws Exception {
     // Test that user quota and group quotas can both be exceeded, and that decrementing one flow will change both quotas
-    Dag<JobExecutionPlan> dag1 = DagManagerTest.buildDag("1", System.currentTimeMillis(),DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> dag1 = DagTestUtils.buildDag("1", System.currentTimeMillis(), DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group2")));
-    Dag<JobExecutionPlan> dag2 = DagManagerTest.buildDag("2", System.currentTimeMillis(),DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> dag2 = DagTestUtils.buildDag("2", System.currentTimeMillis(), DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user6", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group2")));
-    Dag<JobExecutionPlan> dag3 = DagManagerTest.buildDag("3", System.currentTimeMillis(),DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> dag3 = DagTestUtils.buildDag("3", System.currentTimeMillis(), DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user6", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group3")));
-    Dag<JobExecutionPlan> dag4 = DagManagerTest.buildDag("4", System.currentTimeMillis(),DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> dag4 = DagTestUtils.buildDag("4", System.currentTimeMillis(), DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group2")));
     // Ensure that the current attempt is 1, normally done by DagManager
     dag1.getNodes().get(0).getValue().setCurrentAttempts(1);

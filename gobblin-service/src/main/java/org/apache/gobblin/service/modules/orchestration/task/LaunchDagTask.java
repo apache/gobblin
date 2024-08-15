@@ -22,10 +22,10 @@ import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.DagTaskVisitor;
 import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 
@@ -49,7 +49,7 @@ public class LaunchDagTask extends DagTask {
     try {
       // Remove adhoc flow specs after the adhoc job is launched and marked as completed
       if (super.conclude()) {
-        DagManager.DagId dagId = DagManagerUtils.generateDagId(this.dagAction.getFlowGroup(),
+        Dag.DagId dagId = DagUtils.generateDagId(this.dagAction.getFlowGroup(),
             this.dagAction.getFlowName(), this.dagAction.getFlowExecutionId());
         FlowSpec flowSpec =
             this.dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(dagId.getFlowId()));

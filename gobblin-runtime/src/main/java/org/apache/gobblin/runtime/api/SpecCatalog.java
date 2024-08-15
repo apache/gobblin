@@ -116,9 +116,9 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
           updateGetSpecTime(startTime);
           return size;
       });
-      this.totalAddCalls = metricsContext.newContextAwareGauge(TOTAL_ADD_CALLS, ()->this.totalAddedSpecs.get());
-      this.totalUpdateCalls = metricsContext.newContextAwareGauge(TOTAL_UPDATE_CALLS, ()->this.totalUpdatedSpecs.get());
-      this.totalDeleteCalls = metricsContext.newContextAwareGauge(TOTAL_DELETE_CALLS, ()->this.totalDeletedSpecs.get());
+      this.totalAddCalls = metricsContext.newContextAwareGauge(TOTAL_ADD_CALLS, this.totalAddedSpecs::get);
+      this.totalUpdateCalls = metricsContext.newContextAwareGauge(TOTAL_UPDATE_CALLS, this.totalUpdatedSpecs::get);
+      this.totalDeleteCalls = metricsContext.newContextAwareGauge(TOTAL_DELETE_CALLS, this.totalDeletedSpecs::get);
 
       this.contextAwareMetrics.add(numActiveSpecs);
       this.contextAwareMetrics.add(totalAddCalls);
@@ -135,7 +135,7 @@ public interface SpecCatalog extends SpecCatalogListenersContainer, Instrumentab
     @Override public AddSpecResponse onAddSpec(Spec addedSpec) {
       this.totalAddedSpecs.incrementAndGet();
       submitTrackingEvent(addedSpec, SPEC_ADDED_OPERATION_TYPE);
-      return new AddSpecResponse(null);
+      return new AddSpecResponse<>(null);
     }
 
     private void submitTrackingEvent(Spec spec, String operType) {

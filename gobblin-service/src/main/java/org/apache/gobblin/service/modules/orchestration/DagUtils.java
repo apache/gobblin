@@ -19,48 +19,41 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.util.Collections;
 import java.util.HashSet;
-import java.util.Iterator;
 import java.util.LinkedList;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
-import com.codahale.metrics.Timer;
 import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.RequesterService;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.ServiceRequester;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.Dag.DagNode;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
-import org.apache.gobblin.service.modules.orchestration.DagManager.FailureOption;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine.FailureOption;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.monitoring.JobStatus;
-import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.service.ExecutionStatus.*;
 
 
-public class DagManagerUtils {
-  static long DEFAULT_FLOW_SLA_MILLIS = TimeUnit.HOURS.toMillis(24);
+public class DagUtils {
   static String QUOTA_KEY_SEPERATOR = ",";
 
   public static FlowId getFlowId(Dag<JobExecutionPlan> dag) {
@@ -74,20 +67,8 @@ public class DagManagerUtils {
     return new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
   }
 
-  public static long getFlowExecId(Dag<JobExecutionPlan> dag) {
-    return getFlowExecId(dag.getStartNodes().get(0));
-  }
-
-  static long getFlowExecId(DagNode<JobExecutionPlan> dagNode) {
-    return getFlowExecId(dagNode.getValue().getJobSpec());
-  }
-
   public static long getFlowExecId(JobSpec jobSpec) {
     return jobSpec.getConfig().getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-  }
-
-  static long getFlowExecId(String dagId) {
-    return Long.parseLong(dagId.substring(dagId.lastIndexOf('_') + 1));
   }
 
 
@@ -96,46 +77,24 @@ public class DagManagerUtils {
    * @param dag instance of a {@link Dag}.
    * @return a DagId object associated corresponding to the {@link Dag} instance.
    */
-  public static DagManager.DagId generateDagId(Dag<JobExecutionPlan> dag) {
+  public static Dag.DagId generateDagId(Dag<JobExecutionPlan> dag) {
     return generateDagId(dag.getStartNodes().get(0).getValue().getJobSpec().getConfig());
   }
 
-  private static DagManager.DagId generateDagId(Config jobConfig) {
+  private static Dag.DagId generateDagId(Config jobConfig) {
     String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
     String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
     long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
 
-    return new DagManager.DagId(flowGroup, flowName, flowExecutionId);
+    return new Dag.DagId(flowGroup, flowName, flowExecutionId);
   }
 
-  public static DagManager.DagId generateDagId(DagNode<JobExecutionPlan> dagNode) {
+  public static Dag.DagId generateDagId(DagNode<JobExecutionPlan> dagNode) {
     return generateDagId(dagNode.getValue().getJobSpec().getConfig());
   }
 
-  public static DagManager.DagId generateDagId(String flowGroup, String flowName, long flowExecutionId) {
-    return new DagManager.DagId(flowGroup, flowName, flowExecutionId);
-  }
-
-  /**
-   * Returns a fully-qualified {@link Dag} name that includes: (flowGroup, flowName, flowExecutionId).
-   * @param dag
-   * @return fully qualified name of the underlying {@link Dag}.
-   */
-  public static String getFullyQualifiedDagName(Dag<JobExecutionPlan> dag) {
-    FlowId flowid = getFlowId(dag);
-    long flowExecutionId = getFlowExecId(dag);
-    return "(flowGroup: " + flowid.getFlowGroup() + ", flowName: " + flowid.getFlowName() + ", flowExecutionId: " + flowExecutionId + ")";
-  }
-
-  /**
-   * Returns a fully-qualified {@link Dag} name that includes: (flowGroup, flowName, flowExecutionId).
-   * @param dagNode
-   * @return fully qualified name of the underlying {@link Dag}.
-   */
-  static String getFullyQualifiedDagName(DagNode<JobExecutionPlan> dagNode) {
-    FlowId flowid = getFlowId(dagNode);
-    long flowExecutionId = getFlowExecId(dagNode);
-    return "(flowGroup: " + flowid.getFlowGroup() + ", flowName: " + flowid.getFlowName() + ", flowExecutionId: " + flowExecutionId + ")";
+  public static Dag.DagId generateDagId(String flowGroup, String flowName, long flowExecutionId) {
+    return new Dag.DagId(flowGroup, flowName, flowExecutionId);
   }
 
   public static String getJobName(DagNode<JobExecutionPlan> dagNode) {
@@ -216,7 +175,7 @@ public class DagManagerUtils {
         //Explore the children of COMPLETED node as next candidates for execution.
         nodesToExpand.addAll(dag.getChildren(node));
       } else if ((executionStatus == FAILED) || (executionStatus == CANCELLED)) {
-        switch (failureOption) {
+        switch (Objects.requireNonNull(failureOption)) {
           case FINISH_RUNNING:
             return new HashSet<>();
           // todo - FINISH_ALL_POSSIBLE should probably `continue` not `break`
@@ -235,8 +194,8 @@ public class DagManagerUtils {
     }
     DagNode<JobExecutionPlan> dagNode = dag.getStartNodes().get(0);
     String failureOption = ConfigUtils.getString(getJobConfig(dagNode),
-        ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.DEFAULT_FLOW_FAILURE_OPTION);
-    return FailureOption.valueOf(failureOption);
+        ConfigurationKeys.FLOW_FAILURE_OPTION, DagProcessingEngine.DEFAULT_FLOW_FAILURE_OPTION);
+    return DagProcessingEngine.FailureOption.valueOf(failureOption);
   }
 
   public static String getSpecExecutorUri(DagNode<JobExecutionPlan> dagNode) {
@@ -287,7 +246,7 @@ public class DagManagerUtils {
 
     return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME)
         ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME))
-        : DEFAULT_FLOW_SLA_MILLIS;
+        : ServiceConfigKeys.DEFAULT_FLOW_SLA_MILLIS;
   }
 
   /**
@@ -307,16 +266,6 @@ public class DagManagerUtils {
         : defaultJobStartSla;
   }
 
-
-
-  static int getDagQueueId(Dag<JobExecutionPlan> dag, int numThreads) {
-    return getDagQueueId(DagManagerUtils.getFlowExecId(dag), numThreads);
-  }
-
-  static int getDagQueueId(long flowExecutionId, int numThreads) {
-    return (int) (flowExecutionId % numThreads);
-  }
-
   public static Config getDagJobConfig(Dag<JobExecutionPlan> dag) {
     // Every dag should have at least one node, and the job configurations are cloned among each node
     return dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
@@ -329,23 +278,6 @@ public class DagManagerUtils {
 
   static String getSpecExecutorName(DagNode<JobExecutionPlan> dagNode) {
     return dagNode.getValue().getSpecExecutor().getUri().toString();
-  }
-
-  public static void emitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
-    if (!dag.isEmpty()) {
-      // Every dag node will contain the same flow metadata
-      Config config = getDagJobConfig(dag);
-      Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(config);
-
-      if (dag.getFlowEvent() != null) {
-        flowEvent = dag.getFlowEvent();
-      }
-      if (dag.getMessage() != null) {
-        flowMetadata.put(TimingEvent.METADATA_MESSAGE, dag.getMessage());
-      }
-
-      eventSubmitter.getTimingEvent(flowEvent).stop(flowMetadata);
-    }
   }
 
   static List<String> getDistinctUniqueRequesters(String serializedRequesters) {
@@ -364,74 +296,6 @@ public class DagManagerUtils {
     } catch (IOException e) {
       throw new RuntimeException("Could not process requesters due to ", e);
     }
-  }
-
-  /**
-   * Set the execution status of all the {@link DagNode}s of the provided dag.
-   * Also emits a {@link TimingEvent.LauncherTimings#JOB_PENDING} for each of those dag nodes.
-   * @param dag dag whose status is to change.
-   * @param eventSubmitter event submitter that will send the event.
-   */
-  public static void submitPendingExecStatus(Dag<JobExecutionPlan> dag, EventSubmitter eventSubmitter) {
-    for (DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
-      JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
-      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
-      eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_PENDING).stop(jobMetadata);
-      jobExecutionPlan.setExecutionStatus(PENDING);
-    }
-  }
-
-  /**
-   * Retrieve the {@link JobStatus} from the {@link JobExecutionPlan}.
-   */
-  public static java.util.Optional<JobStatus> pollJobStatus(DagNode<JobExecutionPlan> dagNode, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
-    Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
-    String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
-    String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
-    long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-    String jobGroup = jobConfig.getString(ConfigurationKeys.JOB_GROUP_KEY);
-    String jobName = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
-
-    return pollStatus(flowGroup, flowName, flowExecutionId, jobGroup, jobName, jobStatusRetriever, jobStatusPolledTimer);
-  }
-
-  /**
-   * Retrieve the flow's {@link JobStatus} (i.e. job status with {@link JobStatusRetriever#NA_KEY} as job name/group) from a dag
-   * Returns empty optional if dag is null/empty or job status is not found.
-   */
-  public static java.util.Optional<JobStatus> pollFlowStatus(Dag<JobExecutionPlan> dag, JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
-    if (dag == null || dag.isEmpty()) {
-      return java.util.Optional.empty();
-    }
-    Config jobConfig = dag.getNodes().get(0).getValue().getJobSpec().getConfig();
-    String flowGroup = jobConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
-    String flowName = jobConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
-    long flowExecutionId = jobConfig.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-
-    return pollStatus(flowGroup, flowName, flowExecutionId, JobStatusRetriever.NA_KEY, JobStatusRetriever.NA_KEY, jobStatusRetriever, jobStatusPolledTimer);
-  }
-
-  /**
-   * Retrieve the flow's {@link JobStatus} and update the timer if jobStatusPolledTimer is present.
-   * Returns empty optional if job status is not found.
-   */
-  public static java.util.Optional<JobStatus> pollStatus(String flowGroup, String flowName, long flowExecutionId, String jobGroup, String jobName,
-                                               JobStatusRetriever jobStatusRetriever, Timer jobStatusPolledTimer) {
-    long pollStartTime = System.nanoTime();
-    Iterator<JobStatus> jobStatusIterator =
-        jobStatusRetriever.getJobStatusesForFlowExecution(flowName, flowGroup, flowExecutionId, jobName, jobGroup);
-    Instrumented.updateTimer(jobStatusPolledTimer, System.nanoTime() - pollStartTime, TimeUnit.NANOSECONDS);
-
-    if (jobStatusIterator.hasNext()) {
-      return java.util.Optional.of(jobStatusIterator.next());
-    } else {
-      return java.util.Optional.empty();
-    }
-  }
-
-  public static boolean hasRunningJobs(String dagId, Map<String, LinkedList<DagNode<JobExecutionPlan>>> dagToJobs) {
-    List<DagNode<JobExecutionPlan>> dagNodes = dagToJobs.get(dagId);
-    return dagNodes != null && !dagNodes.isEmpty();
   }
 
   public static DagNodeId calcJobId(Config jobConfig) {

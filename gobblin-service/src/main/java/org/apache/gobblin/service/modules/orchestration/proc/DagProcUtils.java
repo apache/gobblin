@@ -44,11 +44,11 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.SerializationConstants;
@@ -71,8 +71,8 @@ public class DagProcUtils {
    * each of them and those jobs will be launched in respective {@link ReevaluateDagProc}.
    */
   public static void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
-      DagManager.DagId dagId) throws IOException {
-    Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagManagerUtils.getNext(dag);
+      Dag.DagId dagId) throws IOException {
+    Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagUtils.getNext(dag);
 
     if (nextNodes.size() == 1) {
       Dag.DagNode<JobExecutionPlan> dagNode = nextNodes.iterator().next();
@@ -94,18 +94,18 @@ public class DagProcUtils {
    * - add updated dag node state to dagManagementStateStore
    */
   public static void submitJobToExecutor(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode,
-      DagManager.DagId dagId) {
-    DagManagerUtils.incrementJobAttempt(dagNode);
-    JobExecutionPlan jobExecutionPlan = DagManagerUtils.getJobExecutionPlan(dagNode);
-    JobSpec jobSpec = DagManagerUtils.getJobSpec(dagNode);
+      Dag.DagId dagId) {
+    DagUtils.incrementJobAttempt(dagNode);
+    JobExecutionPlan jobExecutionPlan = DagUtils.getJobExecutionPlan(dagNode);
+    JobSpec jobSpec = DagUtils.getJobSpec(dagNode);
     Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
 
-    String specExecutorUri = DagManagerUtils.getSpecExecutorUri(dagNode);
+    String specExecutorUri = DagUtils.getSpecExecutorUri(dagNode);
 
     // Run this spec on selected executor
     SpecProducer<Spec> producer;
     try {
-      producer = DagManagerUtils.getSpecProducer(dagNode);
+      producer = DagUtils.getSpecProducer(dagNode);
       // todo - submits an event with some other name, because it is not really orchestration happening here
       TimingEvent jobOrchestrationTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_ORCHESTRATED);
 
@@ -114,7 +114,7 @@ public class DagProcUtils {
       // Quota release is guaranteed, despite failure, because exception handling within would mark the job FAILED.
       // When the ensuing kafka message spurs DagManager processing, the quota is released and the counts decremented
       // Ensure that we do not double increment for flows that are retried
-      if (DagManagerUtils.getJobExecutionPlan(dagNode).getCurrentAttempts() == 1) {
+      if (DagUtils.getJobExecutionPlan(dagNode).getCurrentAttempts() == 1) {
         dagManagementStateStore.getDagManagerMetrics().incrementRunningJobMetrics(dagNode);
       }
       // Submit the job to the SpecProducer, which in turn performs the actual job submission to the SpecExecutor instance.
@@ -133,13 +133,13 @@ public class DagProcUtils {
       jobMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, PropertiesUtils.serialize(jobSpec.getConfigAsProperties()));
       jobMetadata.put(SerializationConstants.FLOW_START_TIME_KEY, String.valueOf(dagNode.getValue().getFlowStartTime()));
       jobOrchestrationTimer.stop(jobMetadata);
-      log.info("Orchestrated job: {} on Executor: {}", DagManagerUtils.getFullyQualifiedJobName(dagNode), specExecutorUri);
+      log.info("Orchestrated job: {} on Executor: {}", DagUtils.getFullyQualifiedJobName(dagNode), specExecutorUri);
       dagManagementStateStore.getDagManagerMetrics().incrementJobsSentToExecutor(dagNode);
       dagManagementStateStore.updateDagNode(dagNode);
       sendEnforceJobStartDeadlineDagAction(dagManagementStateStore, dagNode);
     } catch (Exception e) {
       TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
-      String message = "Cannot submit job " + DagManagerUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
+      String message = "Cannot submit job " + DagUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
       log.error(message, e);
       jobMetadata.put(TimingEvent.METADATA_MESSAGE, message + " due to " + e.getMessage());
       if (jobFailedTimer != null) {
@@ -154,7 +154,7 @@ public class DagProcUtils {
       throw new RuntimeException(e);
     }
 
-    log.info("Submitted job {} for dagId {}", DagManagerUtils.getJobName(dagNode), dagId);
+    log.info("Submitted job {} for dagId {}", DagUtils.getJobName(dagNode), dagId);
   }
 
   public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, DagManagementStateStore dagManagementStateStore) throws IOException {
@@ -169,12 +169,12 @@ public class DagProcUtils {
     try {
       if (dagNodeToCancel.getValue().getJobFuture().isPresent()) {
         Future<?> future = dagNodeToCancel.getValue().getJobFuture().get();
-        serializedFuture = DagManagerUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
+        serializedFuture = DagUtils.getSpecProducer(dagNodeToCancel).serializeAddSpecResponse(future);
         cancelJobArgs.put(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE, serializedFuture);
       } else {
         log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getId());
       }
-      DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), cancelJobArgs).get();
+      DagUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), cancelJobArgs).get();
       sendJobCancellationEvent(dagNodeToCancel);
       log.info("Cancelled dag node {}, spec_producer_future {}", dagNodeToCancel.getValue().getId(), serializedFuture);
     } catch (Exception e) {
@@ -184,7 +184,7 @@ public class DagProcUtils {
 
   public static void cancelDag(Dag<JobExecutionPlan> dag, DagManagementStateStore dagManagementStateStore) throws IOException {
     List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = dag.getNodes();
-    log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), DagManagerUtils.generateDagId(dag));
+    log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), DagUtils.generateDagId(dag));
 
     for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
       DagProcUtils.cancelDagNode(dagNodeToCancel, dagManagementStateStore);
@@ -204,7 +204,7 @@ public class DagProcUtils {
   public static void setAndEmitFlowEvent(EventSubmitter eventSubmitter, Dag<JobExecutionPlan> dag, String flowEvent) {
     if (!dag.isEmpty()) {
       // Every dag node will contain the same flow metadata
-      Config config = DagManagerUtils.getDagJobConfig(dag);
+      Config config = DagUtils.getDagJobConfig(dag);
       Map<String, String> flowMetadata = TimingEventUtils.getFlowMetadata(config);
       dag.setFlowEvent(flowEvent);
 
@@ -250,8 +250,8 @@ public class DagProcUtils {
 
   public static long getDefaultJobStartDeadline(Config config) {
     TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
-        config, DagManager.JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
-    return jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, DagManager.JOB_START_SLA_TIME,
+        config, ServiceConfigKeys.JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
+    return jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, ServiceConfigKeys.JOB_START_SLA_TIME,
         ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
   }
 
@@ -273,7 +273,7 @@ public class DagProcUtils {
     }
   }
 
-  public static void removeFlowFinishDeadlineDagAction(DagManagementStateStore dagManagementStateStore, DagManager.DagId dagId) {
+  public static void removeFlowFinishDeadlineDagAction(DagManagementStateStore dagManagementStateStore, Dag.DagId dagId) {
     DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = DagActionStore.DagAction.forFlow(dagId.getFlowGroup(),
         dagId.getFlowName(), dagId.getFlowExecutionId(),
         DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);

@@ -25,9 +25,6 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
-import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 import org.quartz.CronExpression;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -48,6 +45,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.JobSpec;
@@ -58,12 +56,14 @@ import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.job_catalog.FSJobCatalog;
 import org.apache.gobblin.runtime.job_spec.ResolvedJobSpec;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
+import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 // Provide base implementation for constructing multi-hops route.
@@ -74,7 +74,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   // to these data structures.
   @Getter
   @Setter
-  protected final Map<URI, TopologySpec> topologySpecMap;
+  protected Map<URI, TopologySpec> topologySpecMap;
 
   protected final Config config;
   protected final Logger log;
@@ -93,9 +93,8 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   @Setter
   protected boolean active;
 
-  private boolean warmStandbyEnabled;
 
-  private Optional<UserQuotaManager> userQuotaManager;
+  private final UserQuotaManager userQuotaManager;
 
   public BaseFlowToJobSpecCompiler(Config config){
     this(config,true);
@@ -126,18 +125,13 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       this.dataAuthorizationTimer = Optional.absent();
     }
 
-    this.warmStandbyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY, false);
-    if (this.warmStandbyEnabled) {
-      userQuotaManager = Optional.of(GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
-          ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER), config));
-    } else {
-      userQuotaManager = Optional.absent();
-    }
+    userQuotaManager = GobblinConstructorUtils.invokeConstructor(UserQuotaManager.class,
+        ConfigUtils.getString(config, ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER), config);
 
     this.topologySpecMap = Maps.newConcurrentMap();
     this.config = config;
 
-    /***
+    /*
      * ETL-5996
      * For multi-tenancy, the following needs to be added:
      * 1. Change singular templateCatalog to Map<URI, JobCatalogWithTemplates> to support multiple templateCatalogs
@@ -167,12 +161,12 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
 
   private synchronized  AddSpecResponse onAddTopologySpec(TopologySpec spec) {
     log.info("Loading topology {}", spec.toLongString());
-    for (Map.Entry entry : spec.getConfigAsProperties().entrySet()) {
+    for (Map.Entry<Object, Object> entry : spec.getConfigAsProperties().entrySet()) {
       log.info("topo: {} --> {}", entry.getKey(), entry.getValue());
     }
 
     topologySpecMap.put(spec.getUri(), spec);
-    return new AddSpecResponse(null);
+    return new AddSpecResponse<>(null);
   }
 
   private  AddSpecResponse onAddFlowSpec(FlowSpec flowSpec) {
@@ -202,11 +196,11 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
       response = dag.toString();
     }
 
-    if (FlowCatalog.isCompileSuccessful(response) && this.userQuotaManager.isPresent() && !flowSpec.isExplain() &&
+    if (FlowCatalog.isCompileSuccessful(response) && !flowSpec.isExplain() &&
         !flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
       try {
         // We only check quota for adhoc flow, since we don't have the execution id for run-immediately flow
-        userQuotaManager.get().checkQuota(dag.getStartNodes());
+        userQuotaManager.checkQuota(dag.getStartNodes());
       } catch (IOException e) {
         throw new RuntimeException(e);
       }
@@ -222,18 +216,12 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
     } else if (addedSpec instanceof TopologySpec) {
       return onAddTopologySpec( (TopologySpec) addedSpec);
     }
-    return new AddSpecResponse(null);
-  }
-
-  public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
-    onDeleteSpec(deletedSpecURI, deletedSpecVersion, new Properties());
+    return new AddSpecResponse<>(null);
   }
 
   @Override
   public synchronized void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
-    if (topologySpecMap.containsKey(deletedSpecURI)) {
-      topologySpecMap.remove(deletedSpecURI);
-    }
+    topologySpecMap.remove(deletedSpecURI);
   }
 
   @Override
@@ -337,16 +325,5 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
    */
   public  URI jobSpecURIGenerator(Object... objects) {
     return ((FlowSpec)objects[0]).getUri();
-  }
-
-  /**
-   * It returns the template uri for job.
-   * This method can be overridden by derived FlowToJobSpecCompiler classes.
-   * @param flowSpec
-   * @return template URI
-   */
-  protected URI jobSpecTemplateURIGenerator(FlowSpec flowSpec) {
-    // For now only first template uri will be honored for Identity
-    return flowSpec.getTemplateURIs().get().iterator().next();
   }
 }

@@ -58,7 +58,7 @@ public class DagTest {
     Assert.assertEquals(dag.getEndNodes().get(1).getValue(), "val5");
 
 
-    DagNode startNode = dag.getStartNodes().get(0);
+    DagNode<String> startNode = dag.getStartNodes().get(0);
     Assert.assertEquals(dag.getChildren(startNode).size(), 2);
     Set<String> childSet = new HashSet<>();
     for (DagNode<String> node: dag.getChildren(startNode)) {

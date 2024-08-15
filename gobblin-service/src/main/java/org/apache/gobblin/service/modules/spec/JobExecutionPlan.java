@@ -47,8 +47,8 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.runtime.AbstractJobLauncher.GOBBLIN_JOB_TEMPLATE_KEY;
@@ -109,7 +109,7 @@ public class JobExecutionPlan {
 
       String flowName = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_NAME_KEY, "");
       String flowGroup = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_GROUP_KEY, "");
-      String flowFailureOption = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.DEFAULT_FLOW_FAILURE_OPTION);
+      String flowFailureOption = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_FAILURE_OPTION, DagProcessingEngine.DEFAULT_FLOW_FAILURE_OPTION);
       String flowInputPath = ConfigUtils.getString(flowConfig, DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX
           + "." + DatasetDescriptorConfigKeys.PATH_KEY, "");
       Long flowModTime = ConfigUtils.getLong(flowConfig, FlowSpec.MODIFICATION_TIME_KEY, 0L);
@@ -240,7 +240,7 @@ public class JobExecutionPlan {
     this.jobSpec = jobSpec;
     this.specExecutor = specExecutor;
     this.maxAttempts = ConfigUtils.getInt(jobSpec.getConfig(), JOB_MAX_ATTEMPTS, 1);
-    this.id = DagManagerUtils.calcJobId(jobSpec.getConfig());
+    this.id = DagUtils.calcJobId(jobSpec.getConfig());
   }
 
   /**
@@ -248,7 +248,7 @@ public class JobExecutionPlan {
    * received. It is set to a non-zero number when it is a resumed flow.
    */
   public long getFlowStartTime() {
-    return this.flowStartTime == 0L ? DagManagerUtils.getFlowExecId(this.getJobSpec()) : flowStartTime;
+    return this.flowStartTime == 0L ? DagUtils.getFlowExecId(this.getJobSpec()) : flowStartTime;
   }
 
   public String getFlowGroup() {

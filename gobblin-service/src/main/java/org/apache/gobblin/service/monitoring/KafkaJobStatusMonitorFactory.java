@@ -24,7 +24,6 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
@@ -34,9 +33,7 @@ import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
-import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
@@ -54,34 +51,24 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
   private final MultiContextIssueRepository issueRepository;
   private final boolean instrumentationEnabled;
   private final DagManagementStateStore dagManagementStateStore;
-  private final boolean dagProcEngineEnabled;
 
   @Inject
   public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
-      GobblinInstanceEnvironment env, DagManagementStateStore dagManagementStateStore,
-      @Named(InjectionNames.DAG_PROC_ENGINE_ENABLED) boolean dagProcEngineEnabled, DagProcessingEngineMetrics dagProcessingEngineMetrics) {
-    this(config, jobIssueEventHandler, issueRepository, env.isInstrumentationEnabled(), dagManagementStateStore,
-        dagProcEngineEnabled, dagProcessingEngineMetrics);
-  }
-
-  public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
-      boolean instrumentationEnabled, DagManagementStateStore dagManagementStateStore, boolean dagProcEngineEnabled, DagProcessingEngineMetrics dagProcessingEngineMetrics) {
+      GobblinInstanceEnvironment env, DagManagementStateStore dagManagementStateStore) {
     this.config = Objects.requireNonNull(config);
     this.jobIssueEventHandler = Objects.requireNonNull(jobIssueEventHandler);
     this.issueRepository = issueRepository;
-    this.instrumentationEnabled = instrumentationEnabled;
+    this.instrumentationEnabled = env.isInstrumentationEnabled();
     this.dagManagementStateStore = dagManagementStateStore;
-    this.dagProcEngineEnabled = dagProcEngineEnabled;
   }
 
   private KafkaJobStatusMonitor createJobStatusMonitor()
       throws ReflectiveOperationException {
     Config jobStatusConfig = config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX);
-    jobStatusConfig = jobStatusConfig.withValue(InjectionNames.DAG_PROC_ENGINE_ENABLED, ConfigValueFactory.fromAnyRef(this.dagProcEngineEnabled));
 
     String topic = jobStatusConfig.getString(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_TOPIC_KEY);
     int numThreads = ConfigUtils.getInt(jobStatusConfig, KafkaJobStatusMonitor.JOB_STATUS_MONITOR_NUM_THREADS_KEY, 5);
-    Class jobStatusMonitorClass = Class.forName(ConfigUtils.getString(jobStatusConfig, KafkaJobStatusMonitor.JOB_STATUS_MONITOR_CLASS_KEY,
+    Class<?> jobStatusMonitorClass = Class.forName(ConfigUtils.getString(jobStatusConfig, KafkaJobStatusMonitor.JOB_STATUS_MONITOR_CLASS_KEY,
         KafkaJobStatusMonitor.DEFAULT_JOB_STATUS_MONITOR_CLASS));
 
     Config kafkaSslConfig = ConfigUtils.getConfigOrEmpty(config, KAFKA_SSL_CONFIG_PREFIX_KEY).
@@ -99,7 +86,7 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
           config.getValue(KafkaSchemaRegistryConfigurationKeys.KAFKA_SCHEMA_REGISTRY_OVERRIDE_NAMESPACE));
     }
     jobStatusConfig = jobStatusConfig.withFallback(kafkaSslConfig).withFallback(schemaRegistryConfig);
-    Class observabilityEventProducerClassName = Class.forName(ConfigUtils.getString(config,
+    Class<?> observabilityEventProducerClassName = Class.forName(ConfigUtils.getString(config,
         GaaSJobObservabilityEventProducer.GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS_KEY,
         GaaSJobObservabilityEventProducer.DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS));
     GaaSJobObservabilityEventProducer observabilityEventProducer = (GaaSJobObservabilityEventProducer) GobblinConstructorUtils.invokeLongestConstructor(

@@ -20,10 +20,6 @@ package org.apache.gobblin.service.modules.scheduler;
 import java.io.IOException;
 import java.net.URI;
 import java.text.ParseException;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.time.ZoneOffset;
-import java.time.ZonedDateTime;
 import java.util.Calendar;
 import java.util.Collection;
 import java.util.Date;
@@ -34,7 +30,6 @@ import java.util.Properties;
 import java.util.TimeZone;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.helix.HelixManager;
 import org.quartz.CronExpression;
 import org.quartz.DisallowConcurrentExecution;
 import org.quartz.InterruptableJob;
@@ -44,7 +39,6 @@ import org.quartz.JobExecutionContext;
 import org.quartz.JobExecutionException;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
-import org.quartz.UnableToInterruptJobException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -64,7 +58,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.metrics.ContextAwareGauge;
 import org.apache.gobblin.metrics.ContextAwareMeter;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
@@ -109,12 +102,10 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
   protected final Logger _log;
 
-  protected final Optional<FlowCatalog> flowCatalog;
-  protected final Optional<HelixManager> helixManager;
+  protected final FlowCatalog flowCatalog;
   protected final Orchestrator orchestrator;
-  protected final Boolean isWarmStandbyEnabled;
-  protected final Optional<UserQuotaManager> quotaManager;
-  protected final Optional<FlowLaunchHandler> flowTriggerHandler;
+  protected final UserQuotaManager quotaManager;
+  protected final FlowLaunchHandler flowTriggerHandler;
   // todo - consider using JobScheduler::scheduledJobs in place of scheduledFlowSpecs
   @Getter
   protected final Map<String, FlowSpec> scheduledFlowSpecs;
@@ -124,7 +115,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   protected int skipSchedulingFlowsAfterNumDays;
   @Getter
   private volatile boolean isActive;
-  private String serviceName;
+  private final String serviceName;
   private volatile Long perSpecGetRateValue = -1L;
   private volatile Long timeToInitializeSchedulerValue = -1L;
   private volatile Long timeToObtainSpecUrisValue = -1L;
@@ -135,17 +126,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   private volatile Long totalGetSpecTimeValue = -1L;
   private volatile Long totalAddSpecTimeValue = -1L;
   private volatile int numJobsScheduledDuringStartupValue = -1;
-  private final ContextAwareGauge getSpecsPerSpecRateNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_GET_SPECS_DURING_STARTUP_PER_SPEC_RATE_NANOS, () -> this.perSpecGetRateValue);
-  private final ContextAwareGauge batchSize = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE, () -> this.loadSpecsBatchSize);
-  private final ContextAwareGauge timeToInitalizeSchedulerNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_NANOS, () -> this.timeToInitializeSchedulerValue);
-  private final ContextAwareGauge timeToObtainSpecUrisNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_OBTAIN_SPEC_URIS_NANOS, () -> timeToObtainSpecUrisValue);
-  private final ContextAwareGauge individualGetSpecSpeedNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_INDIVIDUAL_GET_SPEC_SPEED_NANOS, () -> individualGetSpecSpeedValue);
-  private final ContextAwareGauge eachCompleteAddSpecNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_EACH_COMPLETE_ADD_SPEC_NANOS, () -> eachCompleteAddSpecValue);
-  private final ContextAwareGauge eachSpecCompilationNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_EACH_SPEC_COMPILATION_NANOS, () -> eachSpecCompilationValue);
-  private final ContextAwareGauge eachScheduleJobNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_EACH_SCHEDULE_JOB_NANOS, () -> eachScheduleJobValue);
-  private final ContextAwareGauge totalGetSpecTimeNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TOTAL_GET_SPEC_TIME_NANOS, () -> totalGetSpecTimeValue);
-  private final ContextAwareGauge totalAddSpecTimeNanos = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TOTAL_ADD_SPEC_TIME_NANOS, () -> totalAddSpecTimeValue);
-  private final ContextAwareGauge numJobsScheduledDuringStartup = metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_NUM_JOBS_SCHEDULED_DURING_STARTUP, () -> numJobsScheduledDuringStartupValue);
   private static final MetricContext metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(),
       GobblinServiceJobScheduler.class);
   private static final ContextAwareMeter scheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.SCHEDULED_FLOW_METER);
@@ -158,7 +138,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
    * e.g. There are multi-datacenter deployment of GaaS Cluster. Intra-datacenter fail-over could be handled by
    * leadership change mechanism, while inter-datacenter fail-over would be handled by DR handling mechanism.
    */
-  private boolean isNominatedDRHandler;
+  private final boolean isNominatedDRHandler;
 
   /**
    * Use this to tag all DR-applicable FlowSpec entries in {@link org.apache.gobblin.runtime.api.SpecStore}
@@ -167,18 +147,14 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   public static final String DR_FILTER_TAG = "dr";
 
   @Inject
-  public GobblinServiceJobScheduler(@Named(InjectionNames.SERVICE_NAME) String serviceName,
-      Config config,
-      Optional<HelixManager> helixManager, Optional<FlowCatalog> flowCatalog,
-      Orchestrator orchestrator, SchedulerService schedulerService, Optional<UserQuotaManager> quotaManager, Optional<Logger> log,
-      @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean isWarmStandbyEnabled,
-      Optional<FlowLaunchHandler> flowTriggerHandler) throws Exception {
+  public GobblinServiceJobScheduler(@Named(InjectionNames.SERVICE_NAME) String serviceName, Config config,
+      FlowCatalog flowCatalog, Orchestrator orchestrator, SchedulerService schedulerService, UserQuotaManager quotaManager,
+      Optional<Logger> log, FlowLaunchHandler flowTriggerHandler) throws Exception {
     super(ConfigUtils.configToProperties(config), schedulerService);
 
     _log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.serviceName = serviceName;
     this.flowCatalog = flowCatalog;
-    this.helixManager = helixManager;
     this.orchestrator = orchestrator;
     this.scheduledFlowSpecs = Maps.newHashMap();
     this.lastUpdatedTimeForFlowSpec = Maps.newHashMap();
@@ -186,24 +162,35 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.skipSchedulingFlowsAfterNumDays = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS, String.valueOf(ConfigurationKeys.DEFAULT_NUM_DAYS_TO_SKIP_AFTER)));
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
         && config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED);
-    this.isWarmStandbyEnabled = isWarmStandbyEnabled;
     this.quotaManager = quotaManager;
     this.flowTriggerHandler = flowTriggerHandler;
     // Check that these metrics do not exist before adding, mainly for testing purpose which creates multiple instances
     // of the scheduler. If one metric exists, then the others should as well.
     MetricFilter filter = MetricFilter.contains(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_GET_SPECS_DURING_STARTUP_PER_SPEC_RATE_NANOS);
     if (metricContext.getGauges(filter).isEmpty()) {
-      metricContext.register(this.getSpecsPerSpecRateNanos);
-      metricContext.register(this.batchSize);
-      metricContext.register(this.timeToInitalizeSchedulerNanos);
-      metricContext.register(this.timeToObtainSpecUrisNanos);
-      metricContext.register(this.individualGetSpecSpeedNanos);
-      metricContext.register(this.eachCompleteAddSpecNanos);
-      metricContext.register(this.eachSpecCompilationNanos);
-      metricContext.register(this.eachScheduleJobNanos);
-      metricContext.register(this.totalGetSpecTimeNanos);
-      metricContext.register(this.totalAddSpecTimeNanos);
-      metricContext.register(this.numJobsScheduledDuringStartup);
+      metricContext.register(metricContext.newContextAwareGauge(
+          RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_GET_SPECS_DURING_STARTUP_PER_SPEC_RATE_NANOS,
+          () -> this.perSpecGetRateValue));
+      metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_LOAD_SPECS_BATCH_SIZE,
+          () -> this.loadSpecsBatchSize));
+      metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_INITIALIZE_SCHEDULER_NANOS,
+          () -> this.timeToInitializeSchedulerValue));
+      metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TIME_TO_OBTAIN_SPEC_URIS_NANOS,
+          () -> timeToObtainSpecUrisValue));
+      metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_INDIVIDUAL_GET_SPEC_SPEED_NANOS,
+          () -> individualGetSpecSpeedValue));
+      metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_EACH_COMPLETE_ADD_SPEC_NANOS,
+          () -> eachCompleteAddSpecValue));
+      metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_EACH_SPEC_COMPILATION_NANOS,
+          () -> eachSpecCompilationValue));
+      metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_EACH_SCHEDULE_JOB_NANOS,
+          () -> eachScheduleJobValue));
+      metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TOTAL_GET_SPEC_TIME_NANOS,
+          () -> totalGetSpecTimeValue));
+      metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_TOTAL_ADD_SPEC_TIME_NANOS,
+          () -> totalAddSpecTimeValue));
+      metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_NUM_JOBS_SCHEDULED_DURING_STARTUP,
+          () -> numJobsScheduledDuringStartupValue));
     }
   }
 
@@ -218,29 +205,24 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // Need to set active=true first; otherwise in the onAddSpec(), node will forward specs to active node, which is itself.
       this.isActive = isActive;
 
-      if (this.flowCatalog.isPresent()) {
-        // Load spec asynchronously and make scheduler be aware of that.
-        Thread scheduleSpec = new Thread(new Runnable() {
-          @Override
-          public void run() {
-            // Ensure compiler is healthy before attempting to schedule flows
-            try {
-              GobblinServiceJobScheduler.this.orchestrator.getSpecCompiler().awaitHealthy();
-            } catch (InterruptedException e) {
-              throw new RuntimeException(e);
-            }
-            scheduleSpecsFromCatalog();
-          }
-        });
-        scheduleSpec.start();
-      }
+      // Load spec asynchronously and make scheduler be aware of that.
+      Thread scheduleSpec = new Thread(() -> {
+        // Ensure compiler is healthy before attempting to schedule flows
+        try {
+          GobblinServiceJobScheduler.this.orchestrator.getSpecCompiler().awaitHealthy();
+        } catch (InterruptedException e) {
+          throw new RuntimeException(e);
+        }
+        scheduleSpecsFromCatalog();
+      });
+      scheduleSpec.start();
     } else {
       // Since we are going to change status to isActive=false, unschedule all flows
       try {
         this.scheduledFlowSpecs.clear();
         unscheduleAllJobs();
       } catch (SchedulerException e) {
-        _log.error(String.format("Not all jobs were unscheduled"), e);
+        _log.error("Not all jobs were unscheduled", e);
         // We want to avoid duplicate flow execution, so fail loudly
         throw new RuntimeException(e);
       }
@@ -284,7 +266,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       // If the cron expression is empty return true to capture adhoc flows
       return true;
     }
-    CronExpression cron = null;
+    CronExpression cron;
     Calendar cal = Calendar.getInstance(TimeZone.getTimeZone("UTC"));
     double numMillisInADay = 86400000;
     try {
@@ -313,11 +295,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /**
    * Load all {@link FlowSpec}s from {@link FlowCatalog} as one of the initialization step,
    * and make schedulers be aware of that.
-   *
+   * <p>
    * If it is newly brought up as the DR handler, will load additional FlowSpecs and handle transition properly.
    */
   private void scheduleSpecsFromCatalog() {
-    int numSpecs = this.flowCatalog.get().getSize();
+    int numSpecs = this.flowCatalog.getSize();
     int actualNumFlowsScheduled = 0;
     _log.info("Scheduling specs from catalog: {} flows in the catalog, will skip scheduling flows with next run after "
         + "{} days", numSpecs, this.skipSchedulingFlowsAfterNumDays);
@@ -327,7 +309,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     Iterator<URI> uriIterator;
     HashSet<URI> urisLeftToSchedule = new HashSet<>();
     try {
-      uriIterator = this.flowCatalog.get().getSpecURIs();
+      uriIterator = this.flowCatalog.getSpecURIs();
       while (uriIterator.hasNext()) {
         urisLeftToSchedule.add(uriIterator.next());
       }
@@ -341,7 +323,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       if (isNominatedDRHandler) {
         // Synchronously cleaning the execution state for DR-applicable FlowSpecs
         // before rescheduling the again in nominated DR-Hanlder.
-        Iterator<URI> drUris = this.flowCatalog.get().getSpecURISWithTag(DR_FILTER_TAG);
+        Iterator<URI> drUris = this.flowCatalog.getSpecURISWithTag(DR_FILTER_TAG);
         clearRunningFlowState(drUris);
       }
     } catch (IOException e) {
@@ -354,7 +336,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     while (startOffset < numSpecs) {
       batchGetStartTime  = System.nanoTime();
-      Collection<Spec> batchOfSpecs = this.flowCatalog.get().getSpecsPaginated(startOffset, this.loadSpecsBatchSize);
+      Collection<Spec> batchOfSpecs = this.flowCatalog.getSpecsPaginated(startOffset, this.loadSpecsBatchSize);
       Iterator<Spec> batchOfSpecsIterator = batchOfSpecs.iterator();
       batchGetEndTime = System.nanoTime();
 
@@ -386,7 +368,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         URI uri = urisLeft.next();
         try {
           individualGetSpecStartTime = System.nanoTime();
-          Spec spec = this.flowCatalog.get().getSpecWrapper(uri);
+          Spec spec = this.flowCatalog.getSpecWrapper(uri);
           this.individualGetSpecSpeedValue = System.nanoTime() - individualGetSpecStartTime;
           totalGetTime += this.individualGetSpecSpeedValue;
           if (addSpecHelperMethod(spec)) {
@@ -405,7 +387,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.totalGetSpecTimeValue = totalGetTime;
     this.totalAddSpecTimeValue = totalAddSpecTime;
     this.numJobsScheduledDuringStartupValue = actualNumFlowsScheduled;
-    this.flowCatalog.get().getMetrics().updateGetSpecTime(startTime);
+    this.flowCatalog.getMetrics().updateGetSpecTime(startTime);
     this.timeToInitializeSchedulerValue = System.nanoTime() - startTime;
   }
 
@@ -466,17 +448,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   }
 
   /**
-   * Takes a Date object in system default time zone, converts it to UTC before returning the number of milliseconds
-   * since epoch
-   * @param date
-   */
-  public static long systemDefaultZoneDateAsUTCEpochMillis(Date date) {
-    return ZonedDateTime.of(
-        LocalDateTime.ofInstant(date.toInstant(), ZoneId.systemDefault()),
-        ZoneOffset.UTC).toInstant().toEpochMilli();
-  }
-
-  /**
    * Takes a Date object in UTC and returns the number of milliseconds since epoch
    * @param date
    */
@@ -510,12 +481,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   @Override
   public AddSpecResponse onAddSpec(Spec addedSpec) {
     long startTime = System.nanoTime();
-    if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
-      // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
-      // .. Specs if in cluster mode and Helix is not yet initialized
-      _log.info("System not yet initialized. Skipping Spec Addition: " + addedSpec);
-      return null;
-    }
 
     _log.info("New Flow Spec detected: " + addedSpec);
 
@@ -547,26 +512,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           addedSpec, isExplain, compileSuccess, this.isActive);
       return new AddSpecResponse<>(response);
     }
-    // Check quota limits against adhoc flows before saving the schedule
-    // In warm standby mode, this quota check will happen on restli API layer when we accept the flow
-    if (!this.isWarmStandbyEnabled && !jobConfig.containsKey(ConfigurationKeys.JOB_SCHEDULE_KEY)) {
-      // This block should be reachable only for the execution for the adhoc flows
-      // For flow that has scheduler but run-immediately set to be true, we won't check the quota as we will use a different execution id later
-      if (quotaManager.isPresent()) {
-        // QuotaManager has idempotent checks for a dagNode, so this check won't double add quotas for a flow in the DagManager
-        try {
-          quotaManager.get().checkQuota(dag.getStartNodes());
-        } catch (IOException e) {
-          throw new RuntimeException(e);
-        }
-      }
-    }
 
     // Compare the modification timestamp of the spec being added if the scheduler is being initialized, ideally we
     // don't even want to do the same update twice as it will kill the existing flow and reschedule it unnecessarily
     Long modificationTime = Long.valueOf(flowSpec.getConfigAsProperties().getProperty(FlowSpec.MODIFICATION_TIME_KEY, "0"));
     String uriString = flowSpec.getUri().toString();
-    Boolean isRunImmediately = PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false");
+    boolean isRunImmediately = PropertiesUtils.getPropAsBoolean(jobConfig, ConfigurationKeys.FLOW_RUN_IMMEDIATELY, "false");
     // If the modification time is 0 (which means the original API was used to retrieve spec or warm standby mode is not
     // enabled), spec not in scheduler, or have a modification time associated with it assume it's the most recent
     if (modificationTime != 0L && this.scheduledFlowSpecs.containsKey(uriString)
@@ -577,7 +528,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         _log.warn("Ignoring the spec {} modified at time {} because we have a more updated version from time {}",
             addedSpec, modificationTime,this.lastUpdatedTimeForFlowSpec.get(uriString));
         this.eachCompleteAddSpecValue = System.nanoTime() - startTime;
-        return new AddSpecResponse(response);
+        return new AddSpecResponse<>(response);
       }
     }
 
@@ -625,7 +576,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       this.lastUpdatedTimeForFlowSpec.remove(specURI.toString());
       unscheduleJob(specURI.toString());
       try {
-          FlowSpec spec = this.flowCatalog.get().getSpecs(specURI);
+          FlowSpec spec = this.flowCatalog.getSpecs(specURI);
           Properties properties = spec.getConfigAsProperties();
           _log.info(jobSchedulerTracePrefixBuilder(properties) + "Unscheduled Spec");
         } catch (SpecNotFoundException e) {
@@ -647,12 +598,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /** {@inheritDoc} */
   @Override
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion, Properties headers) {
-    if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
-      // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
-      // .. Specs if in cluster mode and Helix is not yet initialized
-      _log.info("System not yet initialized. Skipping Spec Deletion: " + deletedSpecURI);
-      return;
-    }
     _log.info("Spec deletion detected: " + deletedSpecURI + "/" + deletedSpecVersion);
 
     if (!this.isActive) {
@@ -673,13 +618,6 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
   /** {@inheritDoc} */
   @Override
   public void onUpdateSpec(Spec updatedSpec) {
-    if (this.helixManager.isPresent() && !this.helixManager.get().isConnected()) {
-      // Specs in store will be notified when Scheduler is added as listener to FlowCatalog, so ignore
-      // .. Specs if in cluster mode and Helix is not yet initialized
-      _log.info("System not yet initialized. Skipping Spec Update: " + updatedSpec);
-      return;
-    }
-
     _log.info("Spec changed: " + updatedSpec);
 
     if (!(updatedSpec instanceof FlowSpec)) {
@@ -775,7 +713,7 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     }
 
     @Override
-    public void interrupt() throws UnableToInterruptJobException {
+    public void interrupt() {
       log.info("Job was interrupted");
     }
   }
@@ -800,12 +738,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     public void run() {
       try {
         GobblinServiceJobScheduler.this.runJob(this.jobConfig, this.jobListener);
-        if (flowCatalog.isPresent() && removeSpec) {
-          Object syncObject = GobblinServiceJobScheduler.this.flowCatalog.get().getSyncObject(specUri.toString());
+        if (removeSpec) {
+          Object syncObject = GobblinServiceJobScheduler.this.flowCatalog.getSyncObject(specUri.toString());
           if (syncObject != null) {
             // if the sync object does not exist, this job must be set to run due to job submission at service restart
             synchronized (syncObject) {
-              while (!GobblinServiceJobScheduler.this.flowCatalog.get().exists(specUri)) {
+              while (!GobblinServiceJobScheduler.this.flowCatalog.exists(specUri)) {
                 syncObject.wait();
               }
             }

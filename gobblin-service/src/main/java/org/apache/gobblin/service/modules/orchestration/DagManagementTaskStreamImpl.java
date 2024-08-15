@@ -18,11 +18,9 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.util.Optional;
 import java.util.concurrent.BlockingQueue;
 import java.util.concurrent.LinkedBlockingQueue;
 
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.quartz.SchedulerException;
 
 import com.google.inject.Inject;
@@ -31,7 +29,6 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
 
-import javax.inject.Named;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -40,8 +37,9 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.runtime.util.InjectionNames;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceFlowFinishDeadlineDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
@@ -78,32 +76,19 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   private final Config config;
   @Getter private final EventSubmitter eventSubmitter;
   protected MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter;
-  protected Optional<DagActionReminderScheduler> dagActionReminderScheduler;
-  private final boolean isMultiActiveExecutionEnabled;
+  protected DagActionReminderScheduler dagActionReminderScheduler;
   private static final int MAX_HOUSEKEEPING_THREAD_DELAY = 180;
   private final BlockingQueue<DagActionStore.LeaseParams> leaseParamsQueue = new LinkedBlockingQueue<>();
   private final DagManagementStateStore dagManagementStateStore;
   private final DagProcessingEngineMetrics dagProcEngineMetrics;
 
   @Inject
-  public DagManagementTaskStreamImpl(Config config, Optional<DagActionStore> dagActionStore,
-      @Named(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter,
-      Optional<DagActionReminderScheduler> dagActionReminderScheduler,
-      @Named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED) boolean isMultiActiveExecutionEnabled,
-      DagManagementStateStore dagManagementStateStore, DagProcessingEngineMetrics dagProcEngineMetrics) {
+  public DagManagementTaskStreamImpl(Config config, MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter,
+      DagActionReminderScheduler dagActionReminderScheduler, DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = config;
-    if (!dagActionStore.isPresent()) {
-      /* DagActionStore is optional because there are other configurations that do not require it and it's initialized
-      in {@link GobblinServiceGuiceModule} which handles all possible configurations */
-      throw new RuntimeException("DagProcessingEngine should not be enabled without dagActionStore enabled.");
-    }
-    if (!dagActionReminderScheduler.isPresent()) {
-      throw new RuntimeException(String.format("DagProcessingEngine requires %s to be instantiated.",
-          DagActionReminderScheduler.class.getSimpleName()));
-    }
     this.dagActionProcessingLeaseArbiter = dagActionProcessingLeaseArbiter;
     this.dagActionReminderScheduler = dagActionReminderScheduler;
-    this.isMultiActiveExecutionEnabled = isMultiActiveExecutionEnabled;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
     this.dagManagementStateStore = dagManagementStateStore;
@@ -156,14 +141,14 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   private void createJobStartDeadlineTrigger(DagActionStore.LeaseParams leaseParams)
       throws SchedulerException, IOException {
-    long timeOutForJobStart = DagManagerUtils.getJobStartSla(this.dagManagementStateStore.getDag(
+    long timeOutForJobStart = DagUtils.getJobStartSla(this.dagManagementStateStore.getDag(
         leaseParams.getDagAction().getDagId()).get().getNodes().get(0), DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
     // todo - this timestamp is just an approximation, the real job submission has happened in past, and that is when a
     // ENFORCE_JOB_START_DEADLINE dag action was created; we are just processing that dag action here
     long jobSubmissionTime = System.currentTimeMillis();
     long reminderDuration = jobSubmissionTime + timeOutForJobStart - System.currentTimeMillis();
 
-    dagActionReminderScheduler.get().scheduleReminder(leaseParams, reminderDuration, true);
+    dagActionReminderScheduler.scheduleReminder(leaseParams, reminderDuration, true);
   }
 
   private void createFlowFinishDeadlineTrigger(DagActionStore.LeaseParams leaseParams)
@@ -172,19 +157,19 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     Dag.DagNode<JobExecutionPlan> dagNode = this.dagManagementStateStore.getDag(leaseParams.getDagAction().getDagId()).get().getNodes().get(0);
 
     try {
-      timeOutForJobFinish = DagManagerUtils.getFlowSLA(dagNode);
+      timeOutForJobFinish = DagUtils.getFlowSLA(dagNode);
     } catch (ConfigException e) {
       log.warn("Flow SLA for flowGroup: {}, flowName: {} is given in invalid format, using default SLA of {}",
           dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
           dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
-          DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS);
-      timeOutForJobFinish = DagManagerUtils.DEFAULT_FLOW_SLA_MILLIS;
+          ServiceConfigKeys.DEFAULT_FLOW_SLA_MILLIS);
+      timeOutForJobFinish = ServiceConfigKeys.DEFAULT_FLOW_SLA_MILLIS;
     }
 
-    long flowStartTime = DagManagerUtils.getFlowStartTime(dagNode);
+    long flowStartTime = DagUtils.getFlowStartTime(dagNode);
     long reminderDuration = flowStartTime + timeOutForJobFinish - System.currentTimeMillis();
 
-    dagActionReminderScheduler.get().scheduleReminder(leaseParams, reminderDuration, true);
+    dagActionReminderScheduler.scheduleReminder(leaseParams, reminderDuration, true);
   }
 
   /**
@@ -240,7 +225,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   */
   protected void scheduleReminderForEvent(LeaseAttemptStatus leaseStatus)
       throws SchedulerException {
-    dagActionReminderScheduler.get().scheduleReminder(leaseStatus.getConsensusLeaseParams(),
+    dagActionReminderScheduler.scheduleReminder(leaseStatus.getConsensusLeaseParams(),
         leaseStatus.getMinimumLingerDurationMillis(), false);
   }
 }

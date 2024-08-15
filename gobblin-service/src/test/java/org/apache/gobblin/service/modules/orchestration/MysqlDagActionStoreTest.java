@@ -18,10 +18,10 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
+import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.HashSet;
 
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -34,6 +34,7 @@ import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 
 public class MysqlDagActionStoreTest {
   private static final String USER = "testUser";
@@ -62,13 +63,16 @@ public class MysqlDagActionStoreTest {
   }
 
   public static DagActionStore getTestDagActionStore(ITestMetastoreDatabase testDb) throws Exception {
-    Config config = ConfigBuilder.create()
-        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
-        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
-        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
-        .addPrimitive("MysqlDagActionStore." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
+    return new MysqlDagActionStore(getDagActionStoreTestConfigs(testDb), Mockito.mock(DagProcessingEngineMetrics.class));
+  }
+
+  public static Config getDagActionStoreTestConfigs(ITestMetastoreDatabase testDb) throws URISyntaxException {
+    return ConfigBuilder.create()
+        .addPrimitive(MysqlDagActionStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_URL_KEY, testDb.getJdbcUrl())
+        .addPrimitive(MysqlDagActionStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_USER_KEY, USER)
+        .addPrimitive(MysqlDagActionStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY, PASSWORD)
+        .addPrimitive(MysqlDagActionStore.CONFIG_PREFIX + "." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TABLE)
         .build();
-    return new MysqlDagActionStore(config, Mockito.mock(DagProcessingEngineMetrics.class));
   }
 
   @Test
@@ -112,5 +116,4 @@ public class MysqlDagActionStoreTest {
      Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.RESUME));
      Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId_2, jobName, DagActionStore.DagActionType.KILL));
   }
-
 }

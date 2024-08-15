@@ -52,9 +52,9 @@ import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
@@ -114,7 +114,7 @@ public class KillDagProcTest {
   @Test
   public void killDag() throws IOException, URISyntaxException, InterruptedException {
     long flowExecutionId = System.currentTimeMillis();
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         5, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg"))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
@@ -130,7 +130,7 @@ public class KillDagProcTest {
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
       try {
-        return DagManagerUtils.getSpecProducer(n);
+        return DagUtils.getSpecProducer(n);
       } catch (ExecutionException | InterruptedException e) {
         throw new RuntimeException(e);
       }
@@ -175,7 +175,7 @@ public class KillDagProcTest {
   @Test
   public void killDagNode() throws IOException, URISyntaxException, InterruptedException {
     long flowExecutionId = System.currentTimeMillis();
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("2", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("2", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         5, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg"))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
@@ -198,7 +198,7 @@ public class KillDagProcTest {
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
       try {
-        return DagManagerUtils.getSpecProducer(n);
+        return DagUtils.getSpecProducer(n);
       } catch (ExecutionException | InterruptedException e) {
         throw new RuntimeException(e);
       }
