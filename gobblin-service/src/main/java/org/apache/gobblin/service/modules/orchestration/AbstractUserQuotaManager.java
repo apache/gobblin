@@ -29,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -37,9 +38,9 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 @Slf4j
 abstract public class AbstractUserQuotaManager implements UserQuotaManager {
-  public static final String PER_USER_QUOTA = DagManager.DAG_MANAGER_PREFIX + "perUserQuota";
-  public static final String PER_FLOWGROUP_QUOTA = DagManager.DAG_MANAGER_PREFIX + "perFlowGroupQuota";
-  public static final String USER_JOB_QUOTA_KEY = DagManager.DAG_MANAGER_PREFIX + "defaultJobQuota";
+  public static final String PER_USER_QUOTA = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "perUserQuota";
+  public static final String PER_FLOWGROUP_QUOTA = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "perFlowGroupQuota";
+  public static final String USER_JOB_QUOTA_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "defaultJobQuota";
   public static final String QUOTA_SEPERATOR = ":";
   public static final Integer DEFAULT_USER_JOB_QUOTA = Integer.MAX_VALUE;
   private final Map<String, Integer> perUserQuota;

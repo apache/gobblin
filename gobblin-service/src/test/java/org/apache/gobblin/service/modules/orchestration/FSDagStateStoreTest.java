@@ -46,28 +46,26 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 public class FSDagStateStoreTest {
   private DagStateStore _dagStateStore;
-  private final String dagStateStoreDir = "/tmp/fsDagStateStoreTest/dagStateStore";
   private File checkpointDir;
-  private Map<URI, TopologySpec> topologySpecMap;
-  private TopologySpec topologySpec;
   private URI specExecURI;
 
   @BeforeClass
   public void setUp()
       throws IOException, URISyntaxException {
+    String dagStateStoreDir = "/tmp/fsDagStateStoreTest/dagStateStore";
     this.checkpointDir = new File(dagStateStoreDir);
     FileUtils.deleteDirectory(this.checkpointDir);
     Config config = ConfigFactory.empty().withValue(FSDagStateStore.DAG_STATESTORE_DIR, ConfigValueFactory.fromAnyRef(
-        this.dagStateStoreDir));
-    this.topologySpecMap = new HashMap<>();
+        dagStateStoreDir));
+    Map<URI, TopologySpec> topologySpecMap = new HashMap<>();
 
     // Construct the TopologySpec and its map.
     String specExecInstanceUriInString = "mySpecExecutor";
-    this.topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstanceUriInString);
+    TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstanceUriInString);
     this.specExecURI = new URI(specExecInstanceUriInString);
-    this.topologySpecMap.put(this.specExecURI, topologySpec);
+    topologySpecMap.put(this.specExecURI, topologySpec);
 
-    this._dagStateStore = new FSDagStateStore(config, this.topologySpecMap);
+    this._dagStateStore = new FSDagStateStore(config, topologySpecMap);
   }
 
   @Test
@@ -77,7 +75,7 @@ public class FSDagStateStoreTest {
     Dag<JobExecutionPlan> dag = DagTestUtils.buildDag(flowGroupId, flowExecutionId);
     this._dagStateStore.writeCheckpoint(dag);
 
-    String fileName = DagManagerUtils.generateDagId(dag) + FSDagStateStore.DAG_FILE_EXTENSION;
+    String fileName = DagUtils.generateDagId(dag) + FSDagStateStore.DAG_FILE_EXTENSION;
     File dagFile = new File(this.checkpointDir, fileName);
     Dag<JobExecutionPlan> dagDeserialized = ((FSDagStateStore) this._dagStateStore).getDag(dagFile);
     Assert.assertEquals(dagDeserialized.getNodes().size(), 2);
@@ -104,7 +102,7 @@ public class FSDagStateStoreTest {
     String flowGroupId = "0";
     Dag<JobExecutionPlan> dag = DagTestUtils.buildDag(flowGroupId, flowExecutionId);
     this._dagStateStore.writeCheckpoint(dag);
-    String fileName = DagManagerUtils.generateDagId(dag) + FSDagStateStore.DAG_FILE_EXTENSION;
+    String fileName = DagUtils.generateDagId(dag) + FSDagStateStore.DAG_FILE_EXTENSION;
     File dagFile = new File(this.checkpointDir, fileName);
     Assert.assertTrue(dagFile.exists());
     this._dagStateStore.cleanUp(dag);
@@ -112,7 +110,7 @@ public class FSDagStateStoreTest {
 
     this._dagStateStore.writeCheckpoint(dag);
     Assert.assertTrue(dagFile.exists());
-    this._dagStateStore.cleanUp(DagManagerUtils.generateDagId(dag).toString());
+    this._dagStateStore.cleanUp(DagUtils.generateDagId(dag).toString());
     Assert.assertFalse(dagFile.exists());
   }
 
@@ -129,7 +127,7 @@ public class FSDagStateStoreTest {
 
     List<Dag<JobExecutionPlan>> dags = this._dagStateStore.getDags();
     Assert.assertEquals(dags.size(), 2);
-    Dag<JobExecutionPlan> singleDag = this._dagStateStore.getDag(DagManagerUtils.generateDagId(dags.get(0)).toString());
+    Dag<JobExecutionPlan> singleDag = this._dagStateStore.getDag(DagUtils.generateDagId(dags.get(0)).toString());
     dags.add(singleDag);
     for (Dag<JobExecutionPlan> dag: dags) {
       Assert.assertEquals(dag.getNodes().size(), 2);
@@ -145,7 +143,7 @@ public class FSDagStateStoreTest {
     Set<String> dagIds = this._dagStateStore.getDagIds();
     Assert.assertEquals(dagIds.size(), 2);
     for (Dag<JobExecutionPlan> dag: dags) {
-      Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag).toString()));
+      Assert.assertTrue(dagIds.contains(DagUtils.generateDagId(dag).toString()));
     }
   }
 

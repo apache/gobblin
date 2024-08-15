@@ -30,23 +30,23 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  * An interface for storing and retrieving currently running {@link Dag.DagNode<JobExecutionPlan>}s.
  * Callers should use {@link DagStateStore#writeCheckpoint} to store dags. After that, to update individual
  * {@link Dag.DagNode}s, {@link DagStateStoreWithDagNodes#updateDagNode} should be used.
- * {@link DagStateStore#cleanUp(DagManager.DagId)} should be used to delete all the {@link Dag.DagNode}s for a {@link Dag}.
+ * {@link DagStateStore#cleanUp(Dag.DagId)} should be used to delete all the {@link Dag.DagNode}s for a {@link Dag}.
  */
 public interface DagStateStoreWithDagNodes extends DagStateStore {
 
   /**
-   * Updates a dag node identified by the provided {@link DagManager.DagId}
+   * Updates a dag node identified by the provided {@link Dag.DagId}
    * with the given {@link Dag.DagNode}.
    * Returns 1 if the dag node is inserted as a new one, 2 if is updated, and 0 if new dag node is same as the existing one
    * <a href="https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html">Refer</a>
    */
-  int updateDagNode(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
+  int updateDagNode(Dag.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
   /**
    * Returns all the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}s for the given
-   * {@link org.apache.gobblin.service.modules.orchestration.DagManager.DagId}
+   * {@link Dag.DagId}
    */
-  Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
+  Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(Dag.DagId dagId) throws IOException;
 
   /**
    * Return the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} for the given {@link DagNodeId} or empty

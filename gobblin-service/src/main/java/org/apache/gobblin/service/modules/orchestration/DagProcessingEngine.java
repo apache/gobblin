@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import java.util.Optional;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -35,6 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
@@ -57,31 +57,25 @@ import org.apache.gobblin.util.ExecutorsUtils;
 @Singleton
 public class DagProcessingEngine extends AbstractIdleService {
 
-  @Getter private final Optional<DagTaskStream> dagTaskStream;
-  @Getter Optional<DagManagementStateStore> dagManagementStateStore;
+  @Getter private final DagTaskStream dagTaskStream;
+  @Getter DagManagementStateStore dagManagementStateStore;
   private final Config config;
-  private final Optional<DagProcFactory> dagProcFactory;
+  private final DagProcFactory dagProcFactory;
   private ScheduledExecutorService scheduledExecutorPool;
   private final DagProcessingEngineMetrics dagProcEngineMetrics;
   private static final Integer TERMINATION_TIMEOUT = 30;
   public static final String DEFAULT_JOB_START_DEADLINE_TIME_MS = "defaultJobStartDeadlineTimeMillis";
   @Getter static long defaultJobStartSlaTimeMillis;
+  public static final String DEFAULT_FLOW_FAILURE_OPTION = DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name();
 
   @Inject
-  public DagProcessingEngine(Config config, Optional<DagTaskStream> dagTaskStream, Optional<DagProcFactory> dagProcFactory,
-      Optional<DagManagementStateStore> dagManagementStateStore,
+  public DagProcessingEngine(Config config, DagTaskStream dagTaskStream, DagProcFactory dagProcFactory,
+      DagManagementStateStore dagManagementStateStore,
       @Named(DEFAULT_JOB_START_DEADLINE_TIME_MS) long deadlineTimeMs, DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = config;
     this.dagProcFactory = dagProcFactory;
     this.dagTaskStream = dagTaskStream;
     this.dagManagementStateStore = dagManagementStateStore;
-    if (!dagTaskStream.isPresent() || !dagProcFactory.isPresent() || !dagManagementStateStore.isPresent()) {
-      throw new RuntimeException(String.format("DagProcessingEngine cannot be initialized without all of the following"
-              + "classes present. DagTaskStream is %s, DagProcFactory is %s, DagManagementStateStore is %s",
-          this.dagTaskStream.isPresent() ? "present" : "MISSING",
-          this.dagProcFactory.isPresent() ? "present" : "MISSING",
-          this.dagManagementStateStore.isPresent() ? "present" : "MISSING"));
-    }
     this.dagProcEngineMetrics = dagProcEngineMetrics;
     log.info("DagProcessingEngine initialized.");
     setDefaultJobStartDeadlineTimeMs(deadlineTimeMs);
@@ -101,8 +95,8 @@ public class DagProcessingEngine extends AbstractIdleService {
                 com.google.common.base.Optional.of("DagProcessingEngineThread")));
     for (int i=0; i < numThreads; i++) {
       // todo - set metrics for count of active DagProcEngineThread
-      DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream.get(), dagProcFactory.get(),
-          dagManagementStateStore.get(), dagProcEngineMetrics, i);
+      DagProcEngineThread dagProcEngineThread = new DagProcEngineThread(dagTaskStream, dagProcFactory,
+          dagManagementStateStore, dagProcEngineMetrics, i);
       this.scheduledExecutorPool.submit(dagProcEngineThread);
     }
   }
@@ -113,6 +107,31 @@ public class DagProcessingEngine extends AbstractIdleService {
     log.info("DagProcessingEngine shutting down.");
     this.scheduledExecutorPool.shutdown();
     this.scheduledExecutorPool.awaitTermination(TERMINATION_TIMEOUT, TimeUnit.SECONDS);
+  }
+
+  /**
+   * Action to be performed on a {@link Dag}, in case of a job failure. Currently, we allow 2 modes:
+   * <ul>
+   *   <li> FINISH_RUNNING, which allows currently running jobs to finish.</li>
+   *   <li> FINISH_ALL_POSSIBLE, which allows every possible job in the Dag to finish, as long as all the dependencies
+   *   of the job are successful.</li>
+   * </ul>
+   */
+  public enum FailureOption {
+    FINISH_RUNNING("FINISH_RUNNING"),
+    CANCEL("CANCEL"),
+    FINISH_ALL_POSSIBLE("FINISH_ALL_POSSIBLE");
+
+    private final String failureOption;
+
+    FailureOption(final String failureOption) {
+      this.failureOption = failureOption;
+    }
+
+    @Override
+    public String toString() {
+      return this.failureOption;
+    }
   }
 
   @AllArgsConstructor
@@ -127,6 +146,7 @@ public class DagProcessingEngine extends AbstractIdleService {
     @Override
     public void run() {
       log.info("Starting DagProcEngineThread to process dag tasks. Thread id: {}", threadID);
+
       while (true) {
         DagTask dagTask = dagTaskStream.next(); // blocking call
         if (dagTask == null) {

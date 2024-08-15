@@ -28,11 +28,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
-import javax.inject.Named;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.util.ExponentialBackoff;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -47,6 +43,7 @@ import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Getter;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.Tag;
@@ -65,6 +62,7 @@ import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExponentialBackoff;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
 
@@ -90,7 +88,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   protected final Logger log;
   protected final MetricContext metricContext;
   protected final MutableStandardMetrics metrics;
-  protected final boolean isWarmStandbyEnabled;
   protected final int maxRetriesWhenGetSpec;
   @Getter
   protected final SpecStore specStore;
@@ -98,24 +95,20 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   // to provide synchronization needed for flow specs
   private final Map<String, Object> specSyncObjects = new HashMap<>();
 
-  private final ClassAliasResolver<SpecStore> aliasResolver;
-
   public FlowCatalog(Config config) {
-    this(config, Optional.<Logger>absent());
+    this(config, Optional.absent());
   }
 
   public FlowCatalog(Config config, Optional<Logger> log) {
-    this(config, log, Optional.<MetricContext>absent(), true, false);
+    this(config, log, Optional.absent(), true);
   }
 
   @Inject
-  public FlowCatalog(Config config, GobblinInstanceEnvironment env, @Named(InjectionNames.WARM_STANDBY_ENABLED) boolean isWarmStandbyEnabled) {
-    this(config, Optional.of(env.getLog()), Optional.of(env.getMetricContext()),
-        env.isInstrumentationEnabled(), isWarmStandbyEnabled);
+  public FlowCatalog(Config config, GobblinInstanceEnvironment env) {
+    this(config, Optional.of(env.getLog()), Optional.of(env.getMetricContext()), env.isInstrumentationEnabled());
   }
 
-  public FlowCatalog(Config config, Optional<Logger> log, Optional<MetricContext> parentMetricContext,
-      boolean instrumentationEnabled, boolean isWarmStandbyEnabled) {
+  public FlowCatalog(Config config, Optional<Logger> log, Optional<MetricContext> parentMetricContext, boolean instrumentationEnabled) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
     this.listeners = new SpecCatalogListenersList(log);
     if (instrumentationEnabled) {
@@ -128,9 +121,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       this.metricContext = null;
       this.metrics = null;
     }
-    this.isWarmStandbyEnabled = isWarmStandbyEnabled;
 
-    this.aliasResolver = new ClassAliasResolver<>(SpecStore.class);
+    ClassAliasResolver<SpecStore> aliasResolver = new ClassAliasResolver<>(SpecStore.class);
     this.maxRetriesWhenGetSpec = ConfigUtils.getInt(config, ConfigurationKeys.MYSQL_GET_MAX_RETRIES, ConfigurationKeys.DEFAULT_MYSQL_GET_MAX_RETRIES);
 
     try {
@@ -146,7 +138,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
       SpecSerDe specSerDe = (SpecSerDe) ConstructorUtils.invokeConstructor(Class.forName(
           new ClassAliasResolver<>(SpecSerDe.class).resolve(specSerDeClassName)));
-      this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(this.aliasResolver.resolve(
+      this.specStore = (SpecStore) ConstructorUtils.invokeConstructor(Class.forName(aliasResolver.resolve(
           specStoreClassName)), newConfig, specSerDe);
     } catch (NoSuchMethodException | IllegalAccessException | InvocationTargetException | InstantiationException
         | ClassNotFoundException e) {
@@ -166,21 +158,6 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
   @Override
   protected void shutDown() throws Exception {
     this.listeners.close();
-  }
-
-  /***************************************************
-   /* Catalog listeners                              *
-   /**************************************************/
-
-  protected void notifyAllListeners() {
-    try {
-      Iterator<URI> uriIterator = getSpecURIs();
-      while (uriIterator.hasNext()) {
-        this.listeners.onAddSpec(getSpecWrapper(uriIterator.next()));
-      }
-    } catch (IOException e) {
-      log.error("Cannot retrieve specs from catalog:", e);
-    }
   }
 
   @Override
@@ -413,19 +390,14 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
         responseMap.put(entry.getKey().getName(), entry.getValue().getResult());
       }
       // If flow fails compilation, the result will have a non-empty string with the error
-      if (response.getValue().getFailures().size() > 0) {
+      if (!response.getValue().getFailures().isEmpty()) {
         for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getFailures().entrySet()) {
           throw entry.getValue().getError().getCause();
         }
       }
     }
-    AddSpecResponse<String> compileResponse;
-    if (isWarmStandbyEnabled) {
-      compileResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_ORCHESTRATOR_LISTENER_CLASS, new AddSpecResponse<>(null));
+    AddSpecResponse<String> compileResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_ORCHESTRATOR_LISTENER_CLASS, new AddSpecResponse<>(null));
       //todo: do we check quota here? or in compiler? Quota manager need dag to check quota which is not accessable from this class
-    } else {
-      compileResponse = responseMap.getOrDefault(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS, new AddSpecResponse<>(null));
-    }
     responseMap.put(ServiceConfigKeys.COMPILATION_RESPONSE, compileResponse);
 
     // Check that the flow configuration is valid and matches to a corresponding edge

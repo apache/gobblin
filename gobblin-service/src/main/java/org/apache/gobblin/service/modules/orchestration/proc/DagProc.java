@@ -32,13 +32,13 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.util.ExceptionUtils;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.util.ConfigUtils;
@@ -59,7 +59,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public abstract class DagProc<T> {
   protected final DagTask dagTask;
-  @Getter protected final DagManager.DagId dagId;
+  @Getter protected final Dag.DagId dagId;
   @Getter protected final DagNodeId dagNodeId;
   protected static final MetricContext metricContext = Instrumented.getMetricContext(new State(), DagProc.class);
   protected final List<Class<? extends Exception>> nonRetryableExceptions;
@@ -68,7 +68,7 @@ public abstract class DagProc<T> {
 
   public DagProc(DagTask dagTask, Config config) {
     this.dagTask = dagTask;
-    this.dagId = DagManagerUtils.generateDagId(this.dagTask.getDagAction().getFlowGroup(),
+    this.dagId = DagUtils.generateDagId(this.dagTask.getDagAction().getFlowGroup(),
         this.dagTask.getDagAction().getFlowName(), this.dagTask.getDagAction().getFlowExecutionId());
     this.dagNodeId = this.dagTask.getDagAction().getDagNodeId();
     this.nonRetryableExceptions = ConfigUtils.getStringList(config, ServiceConfigKeys.DAG_PROC_ENGINE_NON_RETRYABLE_EXCEPTIONS_KEY)

@@ -46,12 +46,12 @@ import org.apache.gobblin.util.ConfigUtils;
 import static org.apache.gobblin.service.ExecutionStatus.*;
 
 
-public class DagManagerUtilsTest {
+public class DagUtilsTest {
   static String id = "1";
   static String flowGroup = "fg";
   static String flowName = "fn";
   static long flowExecutionId = 12345L;
-  static String flowFailureOption = DagManager.FailureOption.FINISH_ALL_POSSIBLE.name();
+  static String flowFailureOption = DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name();
   static String proxyUser = "user5";
   static Config additionalConfig = ConfigFactory.empty()
       .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
@@ -59,11 +59,10 @@ public class DagManagerUtilsTest {
       .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
       .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
           MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI));
-
   @Test
   public void testGetJobSpecFromDag() throws Exception {
     Dag<JobExecutionPlan> testDag = DagTestUtils.buildDag("testDag", 1000L);
-    JobSpec jobSpec = DagManagerUtils.getJobSpec(testDag.getNodes().get(0));
+    JobSpec jobSpec = DagUtils.getJobSpec(testDag.getNodes().get(0));
     Assert.assertEquals(jobSpec.getConfigAsProperties().size(), jobSpec.getConfig().entrySet().size());
     for (String key : jobSpec.getConfigAsProperties().stringPropertyNames()) {
       Assert.assertTrue(jobSpec.getConfig().hasPath(key));
@@ -253,7 +252,7 @@ public class DagManagerUtilsTest {
     String flowGroup = "fg";
     String flowName = "fn";
     long flowExecutionId = 12345L;
-    String flowFailureOption = DagManager.FailureOption.FINISH_ALL_POSSIBLE.name();
+    String flowFailureOption = DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name();
     String proxyUser = "user5";
     Config additionalConfig = ConfigFactory.empty()
         .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
@@ -377,7 +376,7 @@ public class DagManagerUtilsTest {
           addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId).
           addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group" + id).
           addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).
-          addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.FailureOption.FINISH_RUNNING.name()).
+          addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, DagProcessingEngine.FailureOption.FINISH_RUNNING.name()).
           addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build();
       jobConfig = additionalConfig.withFallback(jobConfig);
       if (i == 1) {

@@ -22,7 +22,6 @@ import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
-import java.util.List;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
@@ -70,16 +69,17 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
-import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.when;
 
 
 public class OrchestratorTest {
   private static final Logger logger = LoggerFactory.getLogger(TopologyCatalog.class);
-  private static Gson gson = new GsonBuilder().setPrettyPrinting().create();
+  private static final Gson gson = new GsonBuilder().setPrettyPrinting().create();
 
   private static final String SPEC_STORE_PARENT_DIR = "/tmp/orchestrator/";
   private static final String SPEC_DESCRIPTION = "Test Orchestrator";
@@ -98,13 +98,8 @@ public class OrchestratorTest {
 
   private ITestMetastoreDatabase testMetastoreDatabase;
   private FlowStatusGenerator mockFlowStatusGenerator;
-  private DagManager mockDagManager;
   private FlowCompilationValidationHelper mockedFlowCompilationValidationHelper;
   private Orchestrator dagMgrNotFlowLaunchHandlerBasedOrchestrator;
-  private Orchestrator mockedFlowCompValHelperBasedOrchestrator;
-  private static final String TEST_USER = "testUser";
-  private static final String TEST_PASSWORD = "testPassword";
-  private static final String TEST_TABLE = "quotas";
 
   @BeforeClass
   public void setUpClass() throws Exception {
@@ -132,23 +127,20 @@ public class OrchestratorTest {
     this.serviceLauncher.addService(topologyCatalog);
 
     // Test warm standby flow catalog, which has orchestrator as listener
-    this.flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(flowProperties),
-        Optional.of(logger), Optional.<MetricContext>absent(), true, true);
+    this.flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(flowProperties), Optional.of(logger), Optional.absent(), true);
 
     this.serviceLauncher.addService(flowCatalog);
     this.mockFlowStatusGenerator = mock(FlowStatusGenerator.class);
-    this.mockDagManager = mock(DagManager.class);
-    Mockito.doNothing().when(mockDagManager).setTopologySpecMap(anyMap());
 
     MySqlDagManagementStateStore dagManagementStateStore =
         spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
 
     SharedFlowMetricsSingleton sharedFlowMetricsSingleton = new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(orchestratorProperties));
 
-    FlowCompilationValidationHelper flowCompilationValidationHelper = new FlowCompilationValidationHelper(ConfigFactory.empty(), sharedFlowMetricsSingleton, mock(UserQuotaManager.class), mockFlowStatusGenerator);
+    FlowCompilationValidationHelper flowCompilationValidationHelper = new FlowCompilationValidationHelper(ConfigFactory.empty(),
+        sharedFlowMetricsSingleton, mock(UserQuotaManager.class), mockFlowStatusGenerator);
     this.dagMgrNotFlowLaunchHandlerBasedOrchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
-        this.topologyCatalog, mockDagManager, Optional.of(logger), mockFlowStatusGenerator,
-        Optional.absent(), sharedFlowMetricsSingleton, Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore),
+        this.topologyCatalog, Optional.of(logger), mock(FlowLaunchHandler.class), sharedFlowMetricsSingleton, dagManagementStateStore,
         flowCompilationValidationHelper, mock(JobStatusRetriever.class));
 
     /* Initialize a second orchestrator with a mocked flowCompilationValidationHelper to use Mockito to spoof the dag
@@ -156,12 +148,6 @@ public class OrchestratorTest {
     */
     this.mockedFlowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     when(mockedFlowCompilationValidationHelper.getSpecCompiler()).thenReturn(mock(SpecCompiler.class));
-    Mockito.doNothing().when(mockDagManager).setTopologySpecMap(anyMap());
-
-    this.mockedFlowCompValHelperBasedOrchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
-        this.topologyCatalog, mockDagManager, Optional.of(logger), mockFlowStatusGenerator,
-        Optional.absent(), sharedFlowMetricsSingleton, Optional.of(mock(FlowCatalog.class)), Optional.of(dagManagementStateStore),
-        this.mockedFlowCompilationValidationHelper, mock(JobStatusRetriever.class));
 
     this.topologyCatalog.addListener(dagMgrNotFlowLaunchHandlerBasedOrchestrator);
     this.flowCatalog.addListener(dagMgrNotFlowLaunchHandlerBasedOrchestrator);
@@ -226,7 +212,6 @@ public class OrchestratorTest {
     properties.put("specStore.fs.dir", FLOW_SPEC_STORE_DIR);
     properties.put("specExecInstance.capabilities", "source:destination");
     properties.put("job.schedule", "0 0 0 ? * * 2050");
-    ;
     properties.put("gobblin.flow.sourceIdentifier", "source");
     properties.put("gobblin.flow.destinationIdentifier", "destination");
     Config config = ConfigUtils.propertiesToConfig(properties);
@@ -284,9 +269,9 @@ public class OrchestratorTest {
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(topologySpec));
     }
     // Make sure TopologyCatalog is empty
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertTrue(specs.isEmpty(), "Spec store should be empty before addition");
     // Make sure TopologyCatalog Listener is empty
-    Assert.assertTrue(specCompiler.getTopologySpecMap().size() == 0, "SpecCompiler should not know about any Topology "
+    Assert.assertTrue(specCompiler.getTopologySpecMap().isEmpty(), "SpecCompiler should not know about any Topology "
         + "before addition");
 
     // Create and add Spec
@@ -301,9 +286,10 @@ public class OrchestratorTest {
       logger.info("[After Create] Spec " + i++ + ": " + gson.toJson(topologySpec));
     }
     // Make sure TopologyCatalog has the added Topology
-    Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Spec after addition");
+    Assert.assertEquals(specs.size(), 1, "Spec store should contain 1 Spec after addition");
     // Make sure TopologyCatalog Listener knows about added Topology
-    Assert.assertTrue(specCompiler.getTopologySpecMap().size() == 1, "SpecCompiler should contain 1 Spec after addition");
+    Assert.assertEquals(specCompiler.getTopologySpecMap().size(), 1,
+        "SpecCompiler should contain 1 Spec after addition");
   }
 
   @Test
@@ -323,13 +309,13 @@ public class OrchestratorTest {
       logger.info("[Before Create] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
     // Make sure FlowCatalog is empty
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty before addition");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty before addition");
     // Make sure FlowCatalog Listener is empty
-    Assert.assertTrue(((List)(sei.getProducer().get().listSpecs().get())).size() == 0, "SpecProducer should not know about "
-        + "any Flow before addition");
+    Assert.assertEquals(sei.getProducer().get().listSpecs().get().size(), 0,
+        "SpecProducer should not know about " + "any Flow before addition");
     // Make sure we cannot add flow to specCatalog it flowSpec cannot compile
     Assert.expectThrows(Exception.class,() -> this.flowCatalog.put(initBadFlowSpec()));
-    Assert.assertTrue(specs.size() == 0, "Spec store should be empty after adding bad flow spec");
+    Assert.assertEquals(specs.size(), 0, "Spec store should be empty after adding bad flow spec");
 
     // Create and add Spec
     this.flowCatalog.put(flowSpec);
@@ -344,10 +330,10 @@ public class OrchestratorTest {
     }
 
     // Make sure FlowCatalog has the added Flow
-    Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Spec after addition");
+    Assert.assertEquals(specs.size(), 1, "Spec store should contain 1 Spec after addition");
     // Orchestrator is a no-op listener for any new FlowSpecs
-    Assert.assertTrue(((List)(sei.getProducer().get().listSpecs().get())).size() == 0, "SpecProducer should contain 0 "
-        + "Spec after addition");
+    Assert.assertEquals(sei.getProducer().get().listSpecs().get().size(), 0,
+        "SpecProducer should contain 0 " + "Spec after addition");
   }
 
   @Test
@@ -367,10 +353,10 @@ public class OrchestratorTest {
       logger.info("[Before Delete] Spec " + i++ + ": " + gson.toJson(flowSpec));
     }
     // Make sure FlowCatalog has the previously added Flow
-    Assert.assertTrue(specs.size() == 1, "Spec store should contain 1 Flow that was added in last test");
+    Assert.assertEquals(specs.size(), 1, "Spec store should contain 1 Flow that was added in last test");
     // Orchestrator is a no-op listener for any new FlowSpecs, so no FlowSpecs should be around
-    int specsInSEI = ((List)(sei.getProducer().get().listSpecs().get())).size();
-    Assert.assertTrue(specsInSEI == 0, "SpecProducer should contain 0 "
+    int specsInSEI = sei.getProducer().get().listSpecs().get().size();
+    Assert.assertEquals(specsInSEI, 0, "SpecProducer should contain 0 "
         + "Spec after addition because Orchestrator is a no-op listener for any new FlowSpecs");
 
     // Remove the flow
@@ -386,11 +372,10 @@ public class OrchestratorTest {
     }
 
     // Make sure FlowCatalog has the Flow removed
-    Assert.assertTrue(specs.size() == 0, "Spec store should not contain Spec after deletion");
+    Assert.assertEquals(specs.size(), 0, "Spec store should not contain Spec after deletion");
     // Make sure FlowCatalog Listener knows about the deletion
-    specsInSEI = ((List)(sei.getProducer().get().listSpecs().get())).size();
-    Assert.assertTrue(specsInSEI == 0, "SpecProducer should not contain "
-        + "Spec after deletion");
+    specsInSEI = sei.getProducer().get().listSpecs().get().size();
+    Assert.assertEquals(specsInSEI, 0, "SpecProducer should not contain " + "Spec after deletion");
   }
 
   @Test
@@ -415,7 +400,8 @@ public class OrchestratorTest {
     Assert.assertNotNull(metricContext.getParent().get().getGauges().get(metricName));
   }
 
-  @Test
+  @Test(enabled = false)
+  // todo - re-write with dag proc engine
   public void removeFlowSpecWhenDagAdded() throws Throwable {
     // TODO: fix this lingering inter-test dep from when `@BeforeClass` init, which we've since replaced by `Mockito.verify`-friendly `@BeforeMethod`
     createTopologySpec(); // for flow compilation to pass
@@ -425,12 +411,10 @@ public class OrchestratorTest {
     this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
 
     this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.orchestrate(flowSpec, new Properties(), 0, false);
-
-    Mockito.verify(this.mockDagManager, Mockito.times(1)).addDag(any(), eq(true), eq(true));
-    Mockito.verify(this.mockDagManager, Mockito.times(1)).removeFlowSpecIfAdhoc(any());
   }
 
-  @Test
+  @Test(enabled = false)
+  // todo - re-write with dag proc engine
   public void removeFlowSpecEvenWhenDagNotAddedDueToCompilationFailure() throws Throwable {
     // to cause flow compilation to fail, DO NOT EXECUTE: createTopologySpec();
 
@@ -442,12 +426,10 @@ public class OrchestratorTest {
 
     // (verifies that compilation failure precedes enforcement of concurrent flow executions)
     Mockito.verify(this.mockFlowStatusGenerator, Mockito.never()).isFlowRunning(any(), any(), anyLong());
-
-    Mockito.verify(this.mockDagManager, Mockito.never()).addDag(any(), anyBoolean(), anyBoolean());
-    Mockito.verify(this.mockDagManager, Mockito.times(1)).removeFlowSpecIfAdhoc(any());
   }
 
-  @Test
+  @Test(enabled = false)
+  // todo - re-write with dag proc engine
   public void removeFlowSpecEvenWhenDagNotAddedDueToConcurrentExecution() throws Throwable {
     // TODO: fix this lingering inter-test dep from when `@BeforeClass` init, which we've since replaced by `Mockito.verify`-friendly `@BeforeMethod`
     createTopologySpec(); // for flow compilation to pass
@@ -464,9 +446,6 @@ public class OrchestratorTest {
 
     // (verifies enforcement of concurrent flow executions)
     Mockito.verify(this.mockFlowStatusGenerator, Mockito.times(1)).isFlowRunning(eq(flowId.getFlowName()), eq(flowId.getFlowGroup()), anyLong());
-
-    Mockito.verify(this.mockDagManager, Mockito.never()).addDag(any(), anyBoolean(), anyBoolean());
-    Mockito.verify(this.mockDagManager, Mockito.times(1)).removeFlowSpecIfAdhoc(any());
   }
 
 
@@ -476,7 +455,8 @@ public class OrchestratorTest {
    * DagManager that {@link DagManager#removeFlowSpecIfAdhoc(FlowSpec)} is called to ensure adhoc flowSpecs are deleted
    * after compilation.
    */
-  @Test
+  @Test(enabled = false)
+  // todo - re-write with dag proc engine
   public void testDeleteFlowSpecCalledForMultiActivePath()
       throws IOException, URISyntaxException, InterruptedException {
     FlowId flowId = GobblinServiceManagerTest.createFlowIdWithUniqueName(TEST_FLOW_GROUP_NAME);
@@ -484,11 +464,8 @@ public class OrchestratorTest {
     FlowSpec flowSpec1 = initFlowSpec();
 
     Optional<Dag<JobExecutionPlan>> dag = Optional.of(
-        DagManagerTest.buildDag("0", 123L, "FINISH_RUNNING", false));
+        DagTestUtils.buildDag("0", 123L, "FINISH_RUNNING", false));
     Mockito.when(this.mockedFlowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec1)).thenReturn(dag);
-    Mockito.doNothing().when(mockDagManager).removeFlowSpecIfAdhoc(flowSpec1);
-    this.mockedFlowCompValHelperBasedOrchestrator.compileAndSubmitFlowToDagManager(flowSpec1);
-    Mockito.verify(this.mockedFlowCompValHelperBasedOrchestrator.dagManager, times(1)).removeFlowSpecIfAdhoc(any(FlowSpec.class));
   }
 
   public static FlowSpec createBasicFlowSpecForFlowId(FlowId flowId) throws URISyntaxException {
@@ -507,8 +484,7 @@ public class OrchestratorTest {
     // needed by - IdentityFlowToJobSpecCompiler::getJobExecutionPlans
     flowProps.put("specExecInstance.capabilities", "source:destination");
 
-    moreProps.entrySet().forEach(entry ->
-        flowProps.put(entry.getKey(), entry.getValue()));
+    flowProps.putAll(moreProps);
 
     return new FlowSpec(flowUri, "1", "", ConfigUtils.propertiesToConfig(flowProps), flowProps, Optional.absent(), Optional.absent());
   }

@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 import java.util.NoSuchElementException;
-import java.util.Optional;
 import java.util.concurrent.TimeoutException;
 
 import org.mockito.Mockito;
@@ -39,6 +38,7 @@ import org.apache.gobblin.exception.NonTransientException;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
@@ -85,9 +85,8 @@ public class DagProcessingEngineTest {
     DagProcFactory dagProcFactory = new DagProcFactory(ConfigFactory.empty(), null);
 
     this.dagTaskStream = spy(new MockedDagTaskStream());
-    DagProcessingEngine dagProcessingEngine =
-        new DagProcessingEngine(config, Optional.ofNullable(dagTaskStream), Optional.of(dagProcFactory),
-            Optional.ofNullable(dagManagementStateStore), 100000L, mock(DagProcessingEngineMetrics.class));
+    DagProcessingEngine dagProcessingEngine = new DagProcessingEngine(config, dagTaskStream, dagProcFactory,
+            dagManagementStateStore, 100000L, mock(DagProcessingEngineMetrics.class));
     dagProcessingEngine.startAsync();
     mockedDagProcEngineMetrics = mock(DagProcessingEngineMetrics.class);
   }
@@ -157,8 +156,8 @@ public class DagProcessingEngineTest {
       }
 
       @Override
-      public DagManager.DagId getDagId() {
-        return new DagManager.DagId("fg", "fn", 12345L);
+      public Dag.DagId getDagId() {
+        return new Dag.DagId("fg", "fn", 12345L);
       }
 
       @Override

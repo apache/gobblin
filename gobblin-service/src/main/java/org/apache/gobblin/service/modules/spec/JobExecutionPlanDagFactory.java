@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
 
 
 /**
@@ -81,7 +81,7 @@ public class JobExecutionPlanDagFactory {
     }
     Dag<JobExecutionPlan> dag = new Dag<>(dagNodeList);
     if (!dagNodeList.isEmpty()) {
-      log.info("Dag plan created with id {} and jobs: {}", DagManagerUtils.generateDagId(dag), jobNames);
+      log.info("Dag plan created with id {} and jobs: {}", DagUtils.generateDagId(dag), jobNames);
     } else {
       log.info("Empty dag plan created for execution plans {}", jobExecutionPlans);
     }

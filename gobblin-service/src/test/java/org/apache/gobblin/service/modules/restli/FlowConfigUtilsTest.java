@@ -29,7 +29,6 @@ import com.linkedin.data.template.StringMap;
 
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigLoggedException;
-import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.Schedule;
 
@@ -38,7 +37,7 @@ import org.apache.gobblin.service.Schedule;
 public class FlowConfigUtilsTest {
   private void testFlowSpec(FlowConfig flowConfig) {
     try {
-      FlowConfigResourceLocalHandler.createFlowSpecForConfig(flowConfig);
+      FlowConfigsResourceHandler.createFlowSpecForConfig(flowConfig);
     } catch (FlowConfigLoggedException e) {
       Assert.fail("Should not get to here");
     }
@@ -64,28 +63,29 @@ public class FlowConfigUtilsTest {
     }
 
     // Check Id
-    Assert.assertTrue(f1.hasId() == f2.hasId());
-    Assert.assertTrue(f1.getId().equals(f2.getId()));
+    Assert.assertEquals(f2.hasId(), f1.hasId());
+    Assert.assertEquals(f2.getId(), f1.getId());
 
     // Check Schedule
-    Assert.assertTrue(f1.hasSchedule() == f2.hasSchedule());
+    Assert.assertEquals(f2.hasSchedule(), f1.hasSchedule());
     if (f1.hasSchedule()) {
-       Schedule s1 = f1.getSchedule();
-       Schedule s2 = f2.getSchedule();
-       Assert.assertTrue(s1.getCronSchedule().equals(s2.getCronSchedule()));
-       Assert.assertTrue(s1.isRunImmediately().equals(s2.isRunImmediately()));
+      Schedule s1 = f1.getSchedule();
+      Schedule s2 = f2.getSchedule();
+      assert s1 != null;
+      Assert.assertEquals(s2.getCronSchedule(), s1.getCronSchedule());
+      Assert.assertEquals(s2.isRunImmediately(), s1.isRunImmediately());
     }
 
     // Check Template URI
-    Assert.assertTrue(f1.hasTemplateUris() == f2.hasTemplateUris());
+    Assert.assertEquals(f2.hasTemplateUris(), f1.hasTemplateUris());
     if (f1.hasTemplateUris()) {
-      Assert.assertTrue(f1.getTemplateUris().equals(f2.getTemplateUris()));
+      Assert.assertEquals(f2.getTemplateUris(), f1.getTemplateUris());
     }
 
     // Check Properties
-    Assert.assertTrue(f1.hasProperties() == f2.hasProperties());
+    Assert.assertEquals(f2.hasProperties(), f1.hasProperties());
     if (f1.hasProperties()) {
-      Assert.assertTrue(f1.getProperties().equals(f2.getProperties()));
+      Assert.assertEquals(f2.getProperties(), f1.getProperties());
     }
 
     return true;
@@ -154,7 +154,7 @@ public class FlowConfigUtilsTest {
     flowConfig.setProperties(new StringMap(Maps.fromProperties(properties)));
 
     try {
-      FlowConfigResourceLocalHandler.createFlowSpecForConfig(flowConfig);
+      FlowConfigsResourceHandler.createFlowSpecForConfig(flowConfig);
       Assert.fail("Should not get to here");
     } catch (RequiredFieldNotPresentException e) {
       Assert.assertTrue(true, "templateUri cannot be empty");

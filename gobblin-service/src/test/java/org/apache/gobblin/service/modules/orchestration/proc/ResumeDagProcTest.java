@@ -35,9 +35,9 @@ import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
@@ -77,13 +77,13 @@ public class ResumeDagProcTest {
     long flowExecutionId = 12345L;
     String flowGroup = "fg";
     String flowName = "fn";
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         5, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
+    Dag.DagId dagId = DagUtils.generateDagId(dag);
     // simulate a failed dag in store
     dag.getNodes().get(0).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
     dag.getNodes().get(1).getValue().setExecutionStatus(ExecutionStatus.FAILED);

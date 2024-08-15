@@ -47,6 +47,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_serde.GsonSerDe;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
@@ -59,14 +60,12 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public class FSDagStateStore implements DagStateStore {
   public static final String DAG_FILE_EXTENSION = ".dag";
-  static final String DAG_STATESTORE_DIR = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreDir";
+  static final String DAG_STATESTORE_DIR = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "dagStateStoreDir";
 
   private final String dagCheckpointDir;
   private final GsonSerDe<List<JobExecutionPlan>> serDe;
 
-  private MetricContext metricContext;
-
-  private ContextAwareCounter totalDagCount;
+  private final ContextAwareCounter totalDagCount;
 
   public FSDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
     this.dagCheckpointDir = config.getString(DAG_STATESTORE_DIR);
@@ -80,15 +79,15 @@ public class FSDagStateStore implements DagStateStore {
     JsonSerializer<List<JobExecutionPlan>> serializer = new JobExecutionPlanListSerializer();
     JsonDeserializer<List<JobExecutionPlan>> deserializer = new JobExecutionPlanListDeserializer(topologySpecMap);
 
-    /** {@link Type} object will need to strictly match with the generic arguments being used
+    /* {@link Type} object will need to strictly match with the generic arguments being used
      * to define {@link GsonSerDe}
      * Due to type erasure, the {@link Type} needs to initialized here instead of inside {@link GsonSerDe}.
      * */
     Type typeToken = new TypeToken<List<JobExecutionPlan>>(){}.getType();
     this.serDe = new GsonSerDe<>(typeToken, serializer, deserializer);
-    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
-        this.getClass());
-    this.totalDagCount = this.metricContext.contextAwareCounter(ServiceMetricNames.DAG_COUNT_FS_DAG_STATE_COUNT);
+    MetricContext metricContext = Instrumented.getMetricContext(
+        new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)), this.getClass());
+    this.totalDagCount = metricContext.contextAwareCounter(ServiceMetricNames.DAG_COUNT_FS_DAG_STATE_COUNT);
   }
 
   /**
@@ -98,7 +97,7 @@ public class FSDagStateStore implements DagStateStore {
   public synchronized void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException {
     // write to a temporary name then rename to make the operation atomic when the file system allows a file to be
     // replaced
-    String fileName = DagManagerUtils.generateDagId(dag) + DAG_FILE_EXTENSION;
+    String fileName = DagUtils.generateDagId(dag) + DAG_FILE_EXTENSION;
     String serializedDag = serializeDag(dag);
 
     File tmpCheckpointFile = new File(this.dagCheckpointDir, fileName + ".tmp");
@@ -114,7 +113,7 @@ public class FSDagStateStore implements DagStateStore {
    */
   @Override
   public synchronized void cleanUp(Dag<JobExecutionPlan> dag) {
-    cleanUp(DagManagerUtils.generateDagId(dag).toString());
+    cleanUp(DagUtils.generateDagId(dag).toString());
   }
 
   /**

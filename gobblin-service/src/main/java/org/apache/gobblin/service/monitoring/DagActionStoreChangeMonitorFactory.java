@@ -22,15 +22,12 @@ import java.util.Objects;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.runtime.util.InjectionNames;
+import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
+import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -43,41 +40,33 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
   static final String DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
-  private DagManager dagManager;
-  private FlowCatalog flowCatalog;
-  private Orchestrator orchestrator;
-  private DagManagementStateStore dagManagementStateStore;
-  private boolean isMultiActiveSchedulerEnabled;
-  private DagProcessingEngineMetrics dagProcEngineMetrics;
+  private final DagManagementStateStore dagManagementStateStore;
+  private final DagManagement dagManagement;
+  private final DagActionReminderScheduler dagActionReminderScheduler;
+  private final DagProcessingEngineMetrics dagProcEngineMetrics;
 
   @Inject
-  public DagActionStoreChangeMonitorFactory(Config config, DagManager dagManager, FlowCatalog flowCatalog,
-      Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore,
-      @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled,
-      DagProcessingEngineMetrics dagProcEngineMetrics) {
+  public DagActionStoreChangeMonitorFactory(Config config, DagManagementStateStore dagManagementStateStore,
+      DagManagement dagManagement, DagActionReminderScheduler dagActionReminderScheduler, DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = Objects.requireNonNull(config);
-    this.dagManager = dagManager;
-    this.flowCatalog = flowCatalog;
-    this.orchestrator = orchestrator;
     this.dagManagementStateStore = dagManagementStateStore;
-    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
+    this.dagManagement = dagManagement;
+    this.dagActionReminderScheduler = dagActionReminderScheduler;
     this.dagProcEngineMetrics = dagProcEngineMetrics;
   }
 
   private DagActionStoreChangeMonitor createDagActionStoreMonitor() {
     Config dagActionStoreChangeConfig = this.config.getConfig(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX);
-    log.info("DagActionStore will be initialized with config {}", dagActionStoreChangeConfig);
+    log.info("DagActionStoreChangeMonitor will be initialized with config {}", dagActionStoreChangeConfig);
 
-    String topic = ""; // Pass empty string because we expect underlying client to dynamically determine the Kafka topic
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
-    return new DagActionStoreChangeMonitor(topic, dagActionStoreChangeConfig, this.dagManager, numThreads, flowCatalog,
-        orchestrator, dagManagementStateStore, isMultiActiveSchedulerEnabled, dagProcEngineMetrics);
+    return new DagActionStoreChangeMonitor(dagActionStoreChangeConfig, numThreads, dagManagementStateStore,
+        dagManagement, dagActionReminderScheduler, dagProcEngineMetrics);
   }
 
   @Override
   public DagActionStoreChangeMonitor get() {
-    DagActionStoreChangeMonitor changeMonitor = createDagActionStoreMonitor();
-    return changeMonitor;
+    return createDagActionStoreMonitor();
   }
 }

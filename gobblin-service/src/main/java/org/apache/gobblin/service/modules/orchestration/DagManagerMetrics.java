@@ -55,7 +55,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 @Slf4j
 public class DagManagerMetrics {
-  private static final Map<String, DagManager.FlowState> flowGauges = Maps.newConcurrentMap();
+  private static final Map<String, Dag.FlowState> flowGauges = Maps.newConcurrentMap();
   // Meters representing the total number of flows in a given state
   private ContextAwareMeter allSuccessfulMeter;
   private ContextAwareMeter allFailedMeter;
@@ -80,10 +80,6 @@ public class DagManagerMetrics {
   private final Map<String, ContextAwareMeter> executorSlaExceededMeters = Maps.newConcurrentMap();
   private final Map<String, ContextAwareMeter> executorJobSentMeters = Maps.newConcurrentMap();
   MetricContext metricContext;
-
-  public DagManagerMetrics(MetricContext metricContext) {
-    this.metricContext = metricContext;
-  }
 
   public DagManagerMetrics() {
     // Create a new metric context for the DagManagerMetrics tagged appropriately
@@ -115,10 +111,10 @@ public class DagManagerMetrics {
 
   public void registerFlowMetric(FlowId flowId, Dag<JobExecutionPlan> dag) {
     // Do not register flow-specific metrics for an adhoc flow
-    if (!flowGauges.containsKey(flowId.toString()) && DagManagerUtils.shouldFlowOutputMetrics(dag)) {
+    if (!flowGauges.containsKey(flowId.toString()) && DagUtils.shouldFlowOutputMetrics(dag)) {
       String flowStateGaugeName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowId.getFlowGroup(),
           flowId.getFlowName(), ServiceMetricNames.RUNNING_STATUS);
-      flowGauges.put(flowId.toString(), DagManager.FlowState.RUNNING);
+      flowGauges.put(flowId.toString(), Dag.FlowState.RUNNING);
       ContextAwareGauge<Integer> gauge = RootMetricContext
           .get().newContextAwareGauge(flowStateGaugeName, () -> flowGauges.get(flowId.toString()).value);
       RootMetricContext.get().register(flowStateGaugeName, gauge);
@@ -144,7 +140,7 @@ public class DagManagerMetrics {
    * @param flowId
    * @param state
    */
-  public void conditionallyMarkFlowAsState(FlowId flowId, DagManager.FlowState state) {
+  public void conditionallyMarkFlowAsState(FlowId flowId, Dag.FlowState state) {
     if (flowGauges.containsKey(flowId.toString())) {
       flowGauges.put(flowId.toString(), state);
     }
@@ -152,7 +148,7 @@ public class DagManagerMetrics {
 
   public void emitFlowSuccessMetrics(FlowId flowId) {
     if (this.metricContext != null) {
-      this.conditionallyMarkFlowAsState(flowId, DagManager.FlowState.SUCCESSFUL);
+      this.conditionallyMarkFlowAsState(flowId, Dag.FlowState.SUCCESSFUL);
       this.allSuccessfulMeter.mark();
       this.getGroupMeterForDag(flowId.getFlowGroup(), ServiceMetricNames.SUCCESSFUL_FLOW_METER, groupSuccessfulMeters).mark();
     }
@@ -160,7 +156,7 @@ public class DagManagerMetrics {
 
   public void emitFlowFailedMetrics(FlowId flowId) {
     if (this.metricContext != null) {
-      this.conditionallyMarkFlowAsState(flowId, DagManager.FlowState.FAILED);
+      this.conditionallyMarkFlowAsState(flowId, Dag.FlowState.FAILED);
       this.allFailedMeter.mark();
       this.getGroupMeterForDag(flowId.getFlowGroup(), ServiceMetricNames.FAILED_FLOW_METER, groupFailureMeters).mark();
     }
@@ -168,7 +164,7 @@ public class DagManagerMetrics {
 
   public void emitFlowSlaExceededMetrics(FlowId flowId) {
     if (this.metricContext != null) {
-      this.conditionallyMarkFlowAsState(flowId, DagManager.FlowState.FAILED);
+      this.conditionallyMarkFlowAsState(flowId, Dag.FlowState.FAILED);
       this.allSlaExceededMeter.mark();
       this.getGroupMeterForDag(flowId.getFlowGroup(), ServiceMetricNames.SLA_EXCEEDED_FLOWS_METER, groupSlaExceededMeters).mark();
     }
@@ -222,7 +218,7 @@ public class DagManagerMetrics {
     }
 
     try {
-      String serializedRequesters = DagManagerUtils.getSerializedRequesterList(dagNode);
+      String serializedRequesters = DagUtils.getSerializedRequesterList(dagNode);
       if (StringUtils.isNotEmpty(serializedRequesters)) {
         List<ServiceRequester> requesters = RequesterService.deserialize(serializedRequesters);
         for (ServiceRequester requester : requesters) {
@@ -241,7 +237,7 @@ public class DagManagerMetrics {
     return this.metricContext.contextAwareCounter(
         MetricRegistry.name(
             ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
-            DagManagerUtils.getSpecExecutorName(dagNode),
+            DagUtils.getSpecExecutorName(dagNode),
             ServiceMetricNames.RUNNING_FLOWS_COUNTER));
   }
 
@@ -259,7 +255,7 @@ public class DagManagerMetrics {
    * @return
    */
   private ContextAwareMeter getExecutorMeterForDag(Dag.DagNode<JobExecutionPlan> dagNode, String meterName, Map<String, ContextAwareMeter> meterMap) {
-    String executorName = DagManagerUtils.getSpecExecutorName(dagNode);
+    String executorName = DagUtils.getSpecExecutorName(dagNode);
     return meterMap.computeIfAbsent(executorName,
         executorUri -> metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, executorUri, meterName)));
   }
@@ -272,7 +268,7 @@ public class DagManagerMetrics {
 
   public void cleanup() {
     // Add null check so that unit test will not affect each other when we de-active non-instrumented DagManager
-    if(this.metricContext != null && this.metricContext.getTagMap().get(GobblinMetricsKeys.CLASS_META).equals(DagManager.class.getSimpleName())) {
+    if (this.metricContext != null && this.metricContext.getTagMap().get(GobblinMetricsKeys.CLASS_META).equals(DagManagerMetrics.class.getSimpleName())) {
       // The DMThread's metrics mappings follow the lifecycle of the DMThread itself and so are lost by DM deactivation-reactivation but the RootMetricContext is a (persistent) singleton.
       // To avoid IllegalArgumentException by the RMC preventing (re-)add of a metric already known, remove all metrics that a new DMThread thread would attempt to add (in DagManagerThread::initialize) whenever running post-re-enablement
       RootMetricContext.get().removeMatching(getMetricsFilterForDagManager());

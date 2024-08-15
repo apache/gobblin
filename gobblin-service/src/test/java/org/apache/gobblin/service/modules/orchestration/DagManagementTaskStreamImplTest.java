@@ -18,7 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
-import java.util.Optional;
 
 import org.junit.Assert;
 import org.testng.annotations.AfterClass;
@@ -68,9 +67,8 @@ public class DagManagementTaskStreamImplTest {
 
     MySqlDagManagementStateStore dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
     this.dagManagementTaskStream =
-        new DagManagementTaskStreamImpl(config, Optional.of(mock(DagActionStore.class)),
-            mock(MultiActiveLeaseArbiter.class), Optional.of(mock(DagActionReminderScheduler.class)),
-            false, mock(DagManagementStateStore.class), mock(DagProcessingEngineMetrics.class));
+        new DagManagementTaskStreamImpl(config, mock(MultiActiveLeaseArbiter.class), mock(DagActionReminderScheduler.class),
+            mock(DagManagementStateStore.class), mock(DagProcessingEngineMetrics.class));
     this.dagProcFactory = new DagProcFactory(ConfigFactory.empty(), null);
     this.dagProcEngineThread = new DagProcessingEngine.DagProcEngineThread(
         this.dagManagementTaskStream, this.dagProcFactory, dagManagementStateStore, mock(DagProcessingEngineMetrics.class), 0);

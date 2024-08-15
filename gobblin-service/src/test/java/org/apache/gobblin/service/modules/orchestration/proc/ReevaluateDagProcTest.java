@@ -44,9 +44,9 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
@@ -91,8 +91,8 @@ public class ReevaluateDagProcTest {
   @Test
   public void testOneNextJobToRun() throws Exception {
     String flowName = "fn";
-    DagManager.DagId dagId = new DagManager.DagId(flowGroup, flowName, flowExecutionId);
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag.DagId dagId = new Dag.DagId(flowGroup, flowName, flowExecutionId);
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         2, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
@@ -137,8 +137,8 @@ public class ReevaluateDagProcTest {
   @Test
   public void testNoNextJobToRun() throws Exception {
     String flowName = "fn2";
-    DagManager.DagId dagId = new DagManager.DagId(flowGroup, flowName, flowExecutionId);
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("2", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag.DagId dagId = new Dag.DagId(flowGroup, flowName, flowExecutionId);
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("2", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
@@ -151,7 +151,7 @@ public class ReevaluateDagProcTest {
         .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
     dagManagementStateStore.addDag(dag);
 
-    Dag<JobExecutionPlan> mockedDag = DagManagerTest.buildDag("2", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> mockedDag = DagTestUtils.buildDag("2", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
@@ -188,7 +188,7 @@ public class ReevaluateDagProcTest {
   @Test
   public void testCurrentJobToRun() throws Exception {
     String flowName = "fn3";
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         2, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
@@ -226,7 +226,7 @@ public class ReevaluateDagProcTest {
   public void testMultipleNextJobToRun() throws Exception {
     String flowName = "fn4";
     Dag<JobExecutionPlan> dag = LaunchDagProcTest.buildDagWithMultipleNodesAtDifferentLevels("1", flowExecutionId,
-        DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), "user5", ConfigFactory.empty()
+        DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
@@ -272,7 +272,7 @@ public class ReevaluateDagProcTest {
   @Test
   public void testRetryCurrentFailedJob() throws Exception {
     String flowName = "fn5";
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         2, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
@@ -311,7 +311,7 @@ public class ReevaluateDagProcTest {
   public static List<SpecProducer<Spec>> getDagSpecProducers(Dag<JobExecutionPlan> dag) {
     return dag.getNodes().stream().map(n -> {
       try {
-        return DagManagerUtils.getSpecProducer(n);
+        return DagUtils.getSpecProducer(n);
       } catch (ExecutionException | InterruptedException e) {
         throw new RuntimeException(e);
       }

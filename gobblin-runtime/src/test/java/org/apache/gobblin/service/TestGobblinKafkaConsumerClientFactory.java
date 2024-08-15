@@ -17,5 +17,18 @@
 
 package org.apache.gobblin.service;
 
-public interface FlowConfigsV2ResourceHandler extends FlowConfigsResourceHandler {
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.kafka.client.GobblinKafkaConsumerClient;
+
+
+import static org.mockito.Mockito.mock;
+
+
+public class TestGobblinKafkaConsumerClientFactory implements GobblinKafkaConsumerClient.GobblinKafkaConsumerClientFactory {
+    @SuppressWarnings("rawtypes")
+    @Override
+    public GobblinKafkaConsumerClient create(Config config) {
+      return mock(GobblinKafkaConsumerClient.class);
+    }
 }

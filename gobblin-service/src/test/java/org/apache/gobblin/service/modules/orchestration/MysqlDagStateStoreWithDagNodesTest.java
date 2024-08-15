@@ -77,8 +77,8 @@ public class MysqlDagStateStoreWithDagNodesTest {
   public void testAddGetAndDeleteDag() throws Exception{
     Dag<JobExecutionPlan> originalDag1 = DagTestUtils.buildDag("random_1", 123L);
     Dag<JobExecutionPlan> originalDag2 = DagTestUtils.buildDag("random_2", 456L);
-    DagManager.DagId dagId1 = DagManagerUtils.generateDagId(originalDag1);
-    DagManager.DagId dagId2 = DagManagerUtils.generateDagId(originalDag2);
+    Dag.DagId dagId1 = DagUtils.generateDagId(originalDag1);
+    Dag.DagId dagId2 = DagUtils.generateDagId(originalDag2);
     originalDag1.getStartNodes().get(0).getValue().setCurrentGeneration(2);
     originalDag1.getStartNodes().get(0).getValue().setCurrentAttempts(3);
     this.dagStateStore.writeCheckpoint(originalDag1);

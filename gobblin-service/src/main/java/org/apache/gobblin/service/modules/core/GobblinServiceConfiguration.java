@@ -31,58 +31,21 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 
+@Getter
 @ToString
 public class GobblinServiceConfiguration {
 
-  @Getter
   private final String serviceName;
-
-  @Getter
   private final String serviceId;
-
-  @Getter
-  private final boolean isWarmStandbyEnabled;
-
-  @Getter
-  private final boolean isMultiActiveSchedulerEnabled;
-
-  @Getter
-  private final boolean isMultiActiveExecutionEnabled;
-
-  @Getter
   private final boolean isFlowCatalogEnabled;
-
-  @Getter
   private final boolean isSchedulerEnabled;
-
-  @Getter
   private final boolean isRestLIServerEnabled;
-
-  @Getter
   private final boolean isTopologySpecFactoryEnabled;
-
-  @Getter
   private final boolean isGitConfigMonitorEnabled;
-
-  @Getter
   private final boolean isJobStatusMonitorEnabled;
-
-  @Getter
-  private final boolean isHelixManagerEnabled;
-
-  @Getter
-  private final boolean flowCatalogLocalCommit;
-
-  @Getter
   private final boolean onlyAnnounceLeader;
-
-  @Getter
-  private final boolean isDagProcessingEngineEnabled;
-
-  @Getter
   private final Config innerConfig;
 
-  @Getter
   @Nullable
   private final Path serviceWorkDir;
 
@@ -97,21 +60,12 @@ public class GobblinServiceConfiguration {
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_ENABLED_KEY, true);
 
     if (isFlowCatalogEnabled) {
-      flowCatalogLocalCommit =
-          ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT,
-              ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT);
       isGitConfigMonitorEnabled =
           ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY, false);
     } else {
-      flowCatalogLocalCommit = false;
       isGitConfigMonitorEnabled = false;
     }
 
-    this.isWarmStandbyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY, false);
-    this.isMultiActiveSchedulerEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY, false);
-    this.isMultiActiveExecutionEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_MULTI_ACTIVE_EXECUTION_ENABLED, false);
-
-    this.isHelixManagerEnabled = config.hasPath(ServiceConfigKeys.ZK_CONNECTION_STRING_KEY);
     this.isJobStatusMonitorEnabled =
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, true);
     this.isSchedulerEnabled =
@@ -121,6 +75,5 @@ public class GobblinServiceConfiguration {
     this.isTopologySpecFactoryEnabled =
         ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_TOPOLOGY_SPEC_FACTORY_ENABLED_KEY, true);
     this.onlyAnnounceLeader = ConfigUtils.getBoolean(config, ServiceConfigKeys.GOBBLIN_SERVICE_D2_ONLY_ANNOUNCE_LEADER, false);
-    this.isDagProcessingEngineEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, false);
   }
 }

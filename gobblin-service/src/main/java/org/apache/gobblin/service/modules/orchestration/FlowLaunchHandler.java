@@ -39,7 +39,6 @@ import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -68,33 +67,27 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public class FlowLaunchHandler {
   private final MultiActiveLeaseArbiter multiActiveLeaseArbiter;
-  private DagManagementStateStore dagManagementStateStore;
-  private final MetricContext metricContext;
+  private final DagManagementStateStore dagManagementStateStore;
   private final int schedulerMaxBackoffMillis;
-  private static Random random = new Random();
+  private static final Random random = new Random();
   protected SchedulerService schedulerService;
-  private ContextAwareMeter numFlowsSubmitted;
-  private ContextAwareCounter jobDoesNotExistInSchedulerCount;
-  private ContextAwareCounter failedToSetEventReminderCount;
+  private final ContextAwareMeter numFlowsSubmitted;
+  private final ContextAwareCounter jobDoesNotExistInSchedulerCount;
+  private final ContextAwareCounter failedToSetEventReminderCount;
 
   @Inject
-  public FlowLaunchHandler(Config config,
-      @Named(ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter leaseArbiter,
-      SchedulerService schedulerService, com.google.common.base.Optional<DagManagementStateStore> dagManagementStateStoreOpt) {
+  public FlowLaunchHandler(Config config, MultiActiveLeaseArbiter leaseArbiter,
+      SchedulerService schedulerService, DagManagementStateStore dagManagementStateStore) {
     this.multiActiveLeaseArbiter = leaseArbiter;
-
-    if (!dagManagementStateStoreOpt.isPresent()) {
-      throw new RuntimeException("DagActionStore MUST be present for flow launch handling!");
-    }
-    this.dagManagementStateStore = dagManagementStateStoreOpt.get();
+    this.dagManagementStateStore = dagManagementStateStore;
 
     this.schedulerMaxBackoffMillis = ConfigUtils.getInt(config, ConfigurationKeys.SCHEDULER_MAX_BACKOFF_MILLIS_KEY,
         ConfigurationKeys.DEFAULT_SCHEDULER_MAX_BACKOFF_MILLIS);
     this.schedulerService = schedulerService;
 
     // Initialize FlowLaunchHandler related metrics
-    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
-        this.getClass());
+    MetricContext metricContext = Instrumented.getMetricContext(
+        new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)), this.getClass());
     this.numFlowsSubmitted = metricContext.contextAwareMeter(ServiceMetricNames.GOBBLIN_FLOW_TRIGGER_HANDLER_NUM_FLOWS_SUBMITTED);
     this.jobDoesNotExistInSchedulerCount = metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_JOB_DOES_NOT_EXIST_COUNT);
     this.failedToSetEventReminderCount = metricContext.contextAwareCounter(ServiceMetricNames.FLOW_TRIGGER_HANDLER_FAILED_TO_SET_REMINDER_COUNT);
@@ -142,7 +135,7 @@ public class FlowLaunchHandler {
       return Optional.of((LeaseAttemptStatus.LeasedToAnotherStatus) leaseAttempt);
     } else if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus) { // remind w/o delay to immediately re-attempt handling
       return Optional.of(new LeaseAttemptStatus.LeasedToAnotherStatus(
-          ((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt).getConsensusLeaseParams(), 0L));
+          leaseAttempt.getConsensusLeaseParams(), 0L));
     } else {
       throw new RuntimeException("unexpected `LeaseAttemptStatus` derived type: '" + leaseAttempt.getClass().getName() + "' in '" + leaseAttempt + "'");
     }

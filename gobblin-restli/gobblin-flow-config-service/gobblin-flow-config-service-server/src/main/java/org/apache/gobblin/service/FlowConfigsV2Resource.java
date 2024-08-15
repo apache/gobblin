@@ -53,10 +53,10 @@ import com.linkedin.restli.server.resources.ComplexKeyResourceTemplate;
 import com.linkedin.restli.server.util.PatchApplier;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
+import org.apache.gobblin.service.modules.restli.FlowConfigsResourceHandler;
 
 
 /**
@@ -66,24 +66,14 @@ import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 @RestLiCollection(name = "flowconfigsV2", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, FlowStatusId, FlowConfig> {
   private static final Logger LOG = LoggerFactory.getLogger(FlowConfigsV2Resource.class);
-  public static final String INJECT_READY_TO_USE = "v2ReadyToUse";
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
 
-
-  @edu.umd.cs.findbugs.annotations.SuppressWarnings("MS_SHOULD_BE_FINAL")
-  public static FlowConfigsResourceHandler global_flowConfigsResourceHandler = null;
-
   @Inject
-  private FlowConfigsV2ResourceHandler flowConfigsResourceHandler;
+  private FlowConfigsResourceHandler flowConfigsResourceHandler;
 
   // For getting who sends the request
   @Inject
   private RequesterService requesterService;
-
-  // For blocking use of this resource until it is ready
-  @Inject
-  @Named(INJECT_READY_TO_USE)
-  private Boolean readyToUse;
 
   @Inject
   private GroupOwnershipService groupOwnershipService;
@@ -98,7 +88,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @Override
   public FlowConfig get(ComplexResourceKey<FlowId, FlowStatusId> key) {
-    return this.getFlowConfigResourceHandler().getFlowConfig(key.getKey());
+    return this.flowConfigsResourceHandler.getFlowConfig(key.getKey());
   }
 
   /**
@@ -108,9 +98,9 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   public List<FlowConfig> getAll(@Context PagingContext pagingContext) {
     // Check to see if the count and start parameters are user defined or default from the framework
     if (!pagingContext.hasCount() && !pagingContext.hasStart())
-      return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs();
+      return (List<FlowConfig>) this.flowConfigsResourceHandler.getAllFlowConfigs();
     else {
-      return (List) this.getFlowConfigResourceHandler().getAllFlowConfigs(pagingContext.getStart(), pagingContext.getCount());
+      return (List<FlowConfig>) this.flowConfigsResourceHandler.getAllFlowConfigs(pagingContext.getStart(), pagingContext.getCount());
     }
   }
 
@@ -145,7 +135,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
           isRunImmediately, owningGroup, propertyFilter, context.getStart(), context.getCount());
     }
 
-    return (List) this.getFlowConfigResourceHandler().getFlowConfig(flowSpecSearchObject);
+    return (List<FlowConfig>) this.flowConfigsResourceHandler.getFlowConfig(flowSpecSearchObject);
   }
 
   /**
@@ -155,7 +145,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
    */
   @ReturnEntity
   @Override
-  public CreateKVResponse create(FlowConfig flowConfig) {
+  public CreateKVResponse<ComplexResourceKey<FlowId, FlowStatusId>, FlowConfig> create(FlowConfig flowConfig) {
     List<ServiceRequester> requesterList = this.requesterService.findRequesters(this);
     try {
       String serialized = RequesterService.serialize(requesterList);
@@ -167,7 +157,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     } catch (IOException e) {
       throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "cannot get who is the requester", e);
     }
-    return (CreateKVResponse) this.getFlowConfigResourceHandler().createFlowConfig(flowConfig);
+    return this.flowConfigsResourceHandler.createFlowConfig(flowConfig);
   }
 
   /**
@@ -183,7 +173,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
-    return this.getFlowConfigResourceHandler().updateFlowConfig(flowId, flowConfig);
+    return this.flowConfigsResourceHandler.updateFlowConfig(flowId, flowConfig);
   }
 
   /**
@@ -205,7 +195,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
-    return this.getFlowConfigResourceHandler().partialUpdateFlowConfig(flowId, flowConfigPatch);
+    return this.flowConfigsResourceHandler.partialUpdateFlowConfig(flowId, flowConfigPatch);
   }
 
   /**
@@ -219,7 +209,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     String flowGroup = key.getKey().getFlowGroup();
     String flowName = key.getKey().getFlowName();
     FlowId flowId = new FlowId().setFlowGroup(flowGroup).setFlowName(flowName);
-    return this.getFlowConfigResourceHandler().deleteFlowConfig(flowId, getHeaders());
+    return this.flowConfigsResourceHandler.deleteFlowConfig(flowId, getHeaders());
   }
 
   /**
@@ -234,13 +224,6 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     ComplexResourceKey<FlowId, FlowStatusId> id = pathKeys.get("id");
     update(id, flowConfigPatch);
     return "Successfully triggered flow " + id.getKey().toString();
-  }
-
-  private FlowConfigsResourceHandler getFlowConfigResourceHandler() {
-    if (global_flowConfigsResourceHandler != null) {
-      return global_flowConfigsResourceHandler;
-    }
-    return flowConfigsResourceHandler;
   }
 
   private Properties getHeaders() {
@@ -278,7 +261,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
     // Check that requester is part of owning group if owning group is being updated
     if (updatedFlowConfig.hasOwningGroup() && !this.groupOwnershipService.isMemberOfGroup(requesterList, updatedFlowConfig.getOwningGroup())) {
       throw new FlowConfigLoggedException(HttpStatus.S_401_UNAUTHORIZED, "Requester not part of owning group specified. Requester " + requesterList
-      + " should join group " + updatedFlowConfig.getOwningGroup() + " and retry.");
+          + " should join group " + updatedFlowConfig.getOwningGroup() + " and retry.");
     }
 
     if (updatedFlowConfig.hasProperties() && updatedFlowConfig.getProperties().containsKey(RequesterService.REQUESTER_LIST)) {

@@ -47,7 +47,7 @@ public interface DagStateStore {
    */
   void cleanUp(Dag<JobExecutionPlan> dag) throws IOException;
 
-  default boolean cleanUp(DagManager.DagId dagId) throws IOException {
+  default boolean cleanUp(Dag.DagId dagId) throws IOException {
     cleanUp(dagId.toString());
     return true;
   }
@@ -72,7 +72,7 @@ public interface DagStateStore {
    * Return a single dag from the dag state store.
    * @param dagId The ID of the dag to load.
    */
-  default Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException {
+  default Dag<JobExecutionPlan> getDag(Dag.DagId dagId) throws IOException {
     return getDag(dagId.toString());
   }
 
@@ -84,8 +84,4 @@ public interface DagStateStore {
    */
   @Deprecated
   Set<String> getDagIds() throws IOException;
-
-  default boolean existsDag(DagManager.DagId dagId) throws IOException {
-    throw new UnsupportedOperationException("containsDag not implemented");
-  }
 }
