@@ -137,4 +137,29 @@ public class MysqlDagStateStoreWithDagNodesTest {
     Assert.assertNull(this.dagStateStore.getDag(dagId1));
     Assert.assertNull(this.dagStateStore.getDag(dagId2));
   }
+
+  @Test
+  public void testMarkDagAsFailed() throws Exception {
+    //Set up initial conditions
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("test_dag", 789L);
+    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
+
+    this.dagStateStore.writeCheckpoint(dag);
+    //Check Initial State
+    for (Dag.DagNode<JobExecutionPlan> node : dag.getNodes()) {
+      Assert.assertFalse(node.isFailedDag());
+    }
+    dag.setFailedDag(true);
+    this.dagStateStore.writeCheckpoint(dag);
+
+    Dag<JobExecutionPlan> updatedDag = this.dagStateStore.getDag(dagId);
+    for (Dag.DagNode<JobExecutionPlan> node : updatedDag.getNodes()) {
+      Assert.assertTrue(node.isFailedDag());
+    }
+
+    // Cleanup
+    dagStateStore.cleanUp(dagId);
+    Assert.assertNull(this.dagStateStore.getDag(dagId));
+  }
+
 }

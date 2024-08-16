@@ -40,7 +40,8 @@ public interface DagStateStoreWithDagNodes extends DagStateStore {
    * Returns 1 if the dag node is inserted as a new one, 2 if is updated, and 0 if new dag node is same as the existing one
    * <a href="https://dev.mysql.com/doc/refman/8.4/en/insert-on-duplicate.html">Refer</a>
    */
-  int updateDagNode(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
+  int updateDagNode(DagManager.DagId dagId, Dag.DagNode<JobExecutionPlan> dagNode, boolean isFailedDag) throws IOException;
+
 
   /**
    * Returns all the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}s for the given
