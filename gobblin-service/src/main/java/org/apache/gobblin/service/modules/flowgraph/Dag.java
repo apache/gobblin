@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.flowgraph;
 
+import com.google.common.annotations.VisibleForTesting;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -48,6 +49,8 @@ public class Dag<T> {
   // Map to maintain parent to children mapping.
   private Map<DagNode, List<DagNode<T>>> parentChildMap;
   private List<DagNode<T>> nodes;
+  @Setter
+  private boolean isFailedDag;
 
   @Setter
   @Deprecated // because this field is not persisted in mysql and contains information in very limited cases
@@ -259,10 +262,15 @@ public class Dag<T> {
     private T value;
     //List of parent Nodes that are dependencies of this Node.
     private List<DagNode<T>> parentNodes;
+    private boolean isFailedDag;
 
     //Constructor
     public DagNode(T value) {
       this.value = value;
+    }
+    public DagNode(T value,boolean isFailedDag) {
+      this.value = value;
+      this.isFailedDag = isFailedDag;
     }
 
 

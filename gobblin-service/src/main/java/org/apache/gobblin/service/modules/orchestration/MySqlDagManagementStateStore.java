@@ -134,10 +134,8 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   @Override
   public void markDagFailed(DagManager.DagId dagId) throws IOException {
     Dag<JobExecutionPlan> dag = this.dagStateStore.getDag(dagId);
+    dag.setFailedDag(true);
     this.failedDagStateStore.writeCheckpoint(dag);
-    this.dagStateStore.cleanUp(dagId);
-    // todo - updated failedDagStateStore iff cleanup returned 1
-    // or merge dagStateStore and failedDagStateStore and change the flag that marks a dag `failed`
     log.info("Marked dag failed {}", dagId);
   }
 
@@ -161,7 +159,7 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   @Override
   public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
       throws IOException {
-    this.dagStateStore.updateDagNode(dagId, dagNode);
+    this.dagStateStore.updateDagNode(dagId, dagNode, false);
   }
 
   @Override
