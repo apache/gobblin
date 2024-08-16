@@ -159,7 +159,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       }
     }
     try {
-      boolean executedSuccessfully= executorService.awaitTermination(ConfigUtils.getInt(this.config, ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_TIMEOUT_SECONDS,30), TimeUnit.SECONDS);
+      boolean executedSuccessfully = executorService.awaitTermination(ConfigUtils.getInt(this.config, ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_TIMEOUT_SECONDS, 30), TimeUnit.SECONDS);
       if (!executedSuccessfully) {
         log.error("Executor terminated before processing all actions during startup,consider increasing the timeOut during awaitTermination");
         this.unexpectedErrors.mark();
