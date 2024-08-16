@@ -148,7 +148,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       throw new RuntimeException(String.format("Unable to retrieve dagActions from the dagActionStore while "
           + "initializing the %s", DagActionStoreChangeMonitor.class.getCanonicalName()), e);
     }
-    final ExecutorService executorService = Executors.newFixedThreadPool(ConfigUtils.getInt(this.config,ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_THREADS,1));
+    final ExecutorService executorService = Executors.newFixedThreadPool(ConfigUtils.getInt(this.config, ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_THREADS, 5));
 
     for (DagActionStore.DagAction action : dagActions) {
       try {
@@ -159,8 +159,8 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       }
     }
     try {
-      boolean executedSuccessfully= executorService.awaitTermination(ConfigUtils.getInt(this.config,ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_TIMEOUT_SECONDS,30),TimeUnit.SECONDS);
-      if(!executedSuccessfully){
+      boolean executedSuccessfully= executorService.awaitTermination(ConfigUtils.getInt(this.config, ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_TIMEOUT_SECONDS,30), TimeUnit.SECONDS);
+      if (!executedSuccessfully) {
         log.error("Executor terminated before processing all actions during startup,consider increasing the timeOut during awaitTermination");
         this.unexpectedErrors.mark();
       }
