@@ -54,8 +54,6 @@ import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
-import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -64,7 +62,6 @@ import org.apache.gobblin.util.ConfigUtils;
  *
  * @author Yinan Li
  */
-@Slf4j
 public class YarnHelixUtils {
   private static final Logger LOGGER = LoggerFactory.getLogger(YarnHelixUtils.class);
 
