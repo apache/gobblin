@@ -9,6 +9,9 @@ import org.apache.hadoop.fs.Path;
 import lombok.extern.slf4j.Slf4j;
 
 
+/**
+ * Utility class for uploading jar files to HDFS with retries to handle concurrency
+ */
 @Slf4j
 public class HdfsJarUploadUtils {
 
