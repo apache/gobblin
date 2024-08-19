@@ -24,6 +24,7 @@ import java.util.Collection;
 import java.util.UUID;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -148,11 +149,13 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       throw new RuntimeException(String.format("Unable to retrieve dagActions from the dagActionStore while "
           + "initializing the %s", DagActionStoreChangeMonitor.class.getCanonicalName()), e);
     }
-    final ExecutorService executorService = Executors.newFixedThreadPool(ConfigUtils.getInt(this.config, ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_THREADS, 5));
+    ThreadFactory threadFactory = getThreadFactoryWithUncaughtExceptionHandler();
+
+    final ExecutorService executorService = Executors.newFixedThreadPool(ConfigUtils.getInt(this.config, ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_THREADS, 5), threadFactory);
 
     for (DagActionStore.DagAction action : dagActions) {
       try {
-        executorService.submit(()->handleDagAction(action, true));
+        executorService.submit(() -> handleDagAction(action, true));
       } catch (Exception e) {
         log.error("Unexpected error initializing from DagActionStore changes, upon {}", action, e);
         this.unexpectedErrors.mark();
@@ -168,6 +171,18 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       log.error("Interrupted Exception in processing dag actions during startup,ignoring", ignored);
       this.unexpectedErrors.mark();
     }
+  }
+
+  private ThreadFactory getThreadFactoryWithUncaughtExceptionHandler() {
+    ThreadFactory threadFactory = r -> {
+      Thread thread = new Thread(r);
+      thread.setUncaughtExceptionHandler((t, e) -> {
+        log.error("Uncaught exception in thread {}: {}", t.getName(), e.getMessage(), e);
+        unexpectedErrors.mark();
+      });
+      return thread;
+    };
+    return threadFactory;
   }
 
   /*
