@@ -197,6 +197,9 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
         jobExecPlanDagFactory.createDag(dagNodes.stream().map(Dag.DagNode::getValue).collect(Collectors.toList()));
     if (dagNodes.stream().anyMatch(Dag.DagNode::isFailedDag)) {
       dag.setFailedDag(true);
+      for (Dag.DagNode dagNode : dag.getNodes()) {
+        dagNode.setFailedDag(true);
+      }
     }
     return dag;
   }

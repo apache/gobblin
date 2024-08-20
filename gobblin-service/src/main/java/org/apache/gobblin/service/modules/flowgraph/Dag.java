@@ -262,6 +262,7 @@ public class Dag<T> {
     private T value;
     //List of parent Nodes that are dependencies of this Node.
     private List<DagNode<T>> parentNodes;
+    @Setter
     private boolean isFailedDag;
 
     //Constructor
