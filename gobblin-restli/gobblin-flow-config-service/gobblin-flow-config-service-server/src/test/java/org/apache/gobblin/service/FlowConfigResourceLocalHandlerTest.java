@@ -29,7 +29,7 @@ import com.linkedin.data.template.StringMap;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
-import org.apache.gobblin.service.modules.restli.FlowConfigsResourceHandler;
+import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
 
 
 public class FlowConfigResourceLocalHandlerTest {
@@ -48,7 +48,7 @@ public class FlowConfigResourceLocalHandlerTest {
             setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
-    FlowSpec flowSpec = FlowConfigsResourceHandler.createFlowSpecForConfig(flowConfig);
+    FlowSpec flowSpec = FlowConfigsV2ResourceHandler.createFlowSpecForConfig(flowConfig);
     Assert.assertEquals(flowSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), TEST_GROUP_NAME);
     Assert.assertEquals(flowSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), TEST_FLOW_NAME);
     Assert.assertEquals(flowSpec.getConfig().getString(ConfigurationKeys.JOB_SCHEDULE_KEY), TEST_SCHEDULE);
@@ -65,7 +65,7 @@ public class FlowConfigResourceLocalHandlerTest {
         .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
             setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
-    flowSpec = FlowConfigsResourceHandler.createFlowSpecForConfig(flowConfig);
+    flowSpec = FlowConfigsV2ResourceHandler.createFlowSpecForConfig(flowConfig);
 
     Assert.assertEquals(flowSpec.getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY), TEST_GROUP_NAME);
     Assert.assertEquals(flowSpec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), TEST_FLOW_NAME);

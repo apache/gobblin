@@ -164,7 +164,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
   protected void startUp() {}
 
   /*
-   This method should be called once by the {@link GobblinServiceManager} only after the DagManager, FlowGraph and
+   This method should be called once by the {@link GobblinServiceManager} only after the FlowGraph and
    SpecCompiler are initialized and running.
    */
   public synchronized void setActive() {
@@ -274,8 +274,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
   }
 
   /**
-   * For a given dagAction, calls the appropriate method in the DagManager to carry out the desired action.
-   * @param isStartup true if called for dagAction loaded directly from store upon startup, false otherwise
+   * This implementation passes on the {@link DagActionStore.DagAction} to {@link DagManagement}.
    */
   protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
     log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",

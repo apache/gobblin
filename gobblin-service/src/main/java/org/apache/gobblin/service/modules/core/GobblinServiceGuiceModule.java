@@ -74,7 +74,7 @@ import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProcUtils;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
-import org.apache.gobblin.service.modules.restli.FlowConfigsResourceHandler;
+import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
 import org.apache.gobblin.service.modules.restli.FlowExecutionResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
@@ -139,7 +139,7 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bind(FlowConfigsV2Resource.class);
     binder.bind(FlowStatusResource.class);
     binder.bind(FlowExecutionResource.class);
-    binder.bind(FlowConfigsResourceHandler.class);
+    binder.bind(FlowConfigsV2ResourceHandler.class);
     binder.bind(FlowExecutionResourceHandler.class);
     binder.bind(FlowExecutionResourceHandlerInterface.class).to(FlowExecutionResourceHandler.class);
 

@@ -49,7 +49,7 @@ public class InMemoryUserQuotaManagerTest {
   @Test
   public void testExceedsQuotaOnStartup() throws Exception {
     List<Dag<JobExecutionPlan>> dags = DagTestUtils.buildDagList(2, "user", ConfigFactory.empty());
-    // Ensure that the current attempt is 1, normally done by DagManager
+    // Ensure that the current attempt is 1, normally done by DagProcs
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
@@ -61,7 +61,7 @@ public class InMemoryUserQuotaManagerTest {
   public void testExceedsUserQuotaThrowsException() throws Exception {
     List<Dag<JobExecutionPlan>> dags = DagTestUtils.buildDagList(2, "user2", ConfigFactory.empty());
 
-    // Ensure that the current attempt is 1, normally done by DagManager
+    // Ensure that the current attempt is 1, normally done by DagProcs
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
@@ -76,7 +76,7 @@ public class InMemoryUserQuotaManagerTest {
     // Test that multiple decrements cannot cause the number to decrease by more than 1
     List<Dag<JobExecutionPlan>> dags = DagTestUtils.buildDagList(2, "user3", ConfigFactory.empty());
 
-    // Ensure that the current attempt is 1, normally done by DagManager
+    // Ensure that the current attempt is 1, normally done by DagProcs
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
@@ -91,7 +91,7 @@ public class InMemoryUserQuotaManagerTest {
     List<Dag<JobExecutionPlan>> dags = DagTestUtils.buildDagList(2, "user4", ConfigFactory.empty().withValue(
         ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group1")));
 
-    // Ensure that the current attempt is 1, normally done by DagManager
+    // Ensure that the current attempt is 1, normally done by DagProcs
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
@@ -113,7 +113,7 @@ public class InMemoryUserQuotaManagerTest {
         1, "user6", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group3")));
     Dag<JobExecutionPlan> dag4 = DagTestUtils.buildDag("4", System.currentTimeMillis(), DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         1, "user5", ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("group2")));
-    // Ensure that the current attempt is 1, normally done by DagManager
+    // Ensure that the current attempt is 1, normally done by DagProcs
     dag1.getNodes().get(0).getValue().setCurrentAttempts(1);
     dag2.getNodes().get(0).getValue().setCurrentAttempts(1);
     dag3.getNodes().get(0).getValue().setCurrentAttempts(1);
