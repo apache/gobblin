@@ -77,21 +77,10 @@ public interface DagManagementStateStore {
 
   /**
    * This marks the dag as a failed one.
-   * Failed dags are queried using {@link DagManagementStateStore#getFailedDag(DagManager.DagId)} ()} later to be retried.
+   * Failed dags are queried using {@link DagManagementStateStore#getDag(DagManager.DagId)} ()} later to be retried.
    * @param dagId failing dag's dagId
    */
   void markDagFailed(DagManager.DagId dagId) throws IOException;
-
-  /**
-   * Returns the failed dag.
-   * If the dag is not found because it was never marked as failed through
-   * {@link DagManagementStateStore#markDagFailed(org.apache.gobblin.service.modules.orchestration.DagManager.DagId)},
-   * it returns Optional.absent.
-   * @param dagId dag id of the failed dag
-   */
-  Optional<Dag<JobExecutionPlan>> getFailedDag(DagManager.DagId dagId) throws IOException;
-
-  void deleteFailedDag(DagManager.DagId dagId) throws IOException;
 
   /**
    * Adds state of a {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} to the store.

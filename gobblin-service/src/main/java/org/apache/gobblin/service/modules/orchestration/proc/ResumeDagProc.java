@@ -54,7 +54,7 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   @Override
   protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
       throws IOException {
-      return dagManagementStateStore.getFailedDag(getDagId());
+      return dagManagementStateStore.getDag(getDagId());
   }
 
   @Override
@@ -92,7 +92,7 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     dagManagementStateStore.addDag(failedDag.get());
 
     // if it fails here, it will check point the failed dag in the (running) dag store again, which is idempotent
-    dagManagementStateStore.deleteFailedDag(getDagId());
+    dagManagementStateStore.deleteDag(getDagId());
 
     DagProcUtils.submitNextNodes(dagManagementStateStore, failedDag.get(), getDagId());
 

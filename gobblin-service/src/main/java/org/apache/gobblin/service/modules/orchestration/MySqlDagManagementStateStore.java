@@ -61,15 +61,12 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 @Slf4j
 @Singleton
 public class MySqlDagManagementStateStore implements DagManagementStateStore {
-  // todo - these two stores should merge
   private DagStateStoreWithDagNodes dagStateStore;
-  private DagStateStoreWithDagNodes failedDagStateStore;
   private final JobStatusRetriever jobStatusRetriever;
   private boolean dagStoresInitialized = false;
   private final UserQuotaManager quotaManager;
   Map<URI, TopologySpec> topologySpecMap;
   private final Config config;
-  public static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
   public static final String DAG_STATESTORE_CLASS_KEY = DagManager.DAG_MANAGER_PREFIX + "dagStateStoreClass";
   FlowCatalog flowCatalog;
   @Getter
@@ -91,8 +88,6 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   private synchronized void start() {
     if (!dagStoresInitialized) {
       this.dagStateStore = createDagStateStore(config, topologySpecMap);
-      this.failedDagStateStore = createDagStateStore(ConfigUtils.getConfigOrEmpty(config, FAILED_DAG_STATESTORE_PREFIX).withFallback(config),
-          topologySpecMap);
       // This implementation does not need to update quota usage when the service restarts or when its leadership status
       // changes because quota usage are persisted in mysql table. For the same reason, there is no need to call getDags also.
       // Also, calling getDags during startUp may fail, because the topologies that are required to deserialize dags may
@@ -135,7 +130,7 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   public void markDagFailed(DagManager.DagId dagId) throws IOException {
     Dag<JobExecutionPlan> dag = this.dagStateStore.getDag(dagId);
     dag.setFailedDag(true);
-    this.failedDagStateStore.writeCheckpoint(dag);
+    this.dagStateStore.writeCheckpoint(dag);
     log.info("Marked dag failed {}", dagId);
   }
 
@@ -143,17 +138,6 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   public void deleteDag(DagManager.DagId dagId) throws IOException {
     this.dagStateStore.cleanUp(dagId);
     log.info("Deleted dag {}", dagId);
-  }
-
-  @Override
-  public void deleteFailedDag(DagManager.DagId dagId) throws IOException {
-    this.failedDagStateStore.cleanUp(dagId);
-    log.info("Deleted failed dag {}", dagId);
-  }
-
-  @Override
-  public Optional<Dag<JobExecutionPlan>> getFailedDag(DagManager.DagId dagId) throws IOException {
-    return Optional.of(this.failedDagStateStore.getDag(dagId));
   }
 
   @Override

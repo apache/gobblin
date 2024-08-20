@@ -135,9 +135,7 @@ public class MySqlDagManagementStateStoreTest {
     configBuilder.addPrimitive(MySqlDagManagementStateStore.DAG_STATESTORE_CLASS_KEY, MysqlDagStateStoreWithDagNodes.class.getName())
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_URL_KEY, testMetastoreDatabase.getJdbcUrl())
         .addPrimitive(ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, "dag" + 1)
-        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER)
-        .addPrimitive(MySqlDagManagementStateStore.FAILED_DAG_STATESTORE_PREFIX
-            + "." + ConfigurationKeys.STATE_STORE_DB_TABLE_KEY, TEST_TABLE + 2);
+        .addPrimitive(ConfigurationKeys.STATE_STORE_DB_USER_KEY, TEST_USER);
     Config config = configBuilder.build();
     JobStatusRetriever jobStatusRetriever = mock(JobStatusRetriever.class);
     JobStatus dummyJobStatus = JobStatus.builder().flowName("fn").flowGroup("fg").jobGroup("fg").jobName("job0")
