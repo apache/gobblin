@@ -58,7 +58,7 @@ import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
-import org.apache.gobblin.service.modules.restli.FlowConfigsResourceHandler;
+import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.mock;
@@ -131,7 +131,7 @@ public class FlowConfigTest {
     groupOwnershipService = new LocalGroupOwnershipService(groupServiceConfig);
 
     Injector injector = Guice.createInjector(binder -> {
-      binder.bind(FlowConfigsResourceHandler.class).toInstance(new FlowConfigsResourceHandler("service_name", flowCatalog));
+      binder.bind(FlowConfigsV2ResourceHandler.class).toInstance(new FlowConfigsV2ResourceHandler("service_name", flowCatalog));
       binder.bind(RequesterService.class).toInstance(_requesterService);
       binder.bind(GroupOwnershipService.class).toInstance(groupOwnershipService);
     });
@@ -270,7 +270,7 @@ public class FlowConfigTest {
     FlowConfig persistedFlowConfig = _client.getFlowConfig(flowId);
 
     Assert.assertFalse(persistedFlowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_UNSCHEDULE_KEY));
-    Assert.assertEquals(Objects.requireNonNull(persistedFlowConfig.getSchedule()).getCronSchedule(), FlowConfigsResourceHandler.NEVER_RUN_CRON_SCHEDULE.getCronSchedule());
+    Assert.assertEquals(Objects.requireNonNull(persistedFlowConfig.getSchedule()).getCronSchedule(), FlowConfigsV2ResourceHandler.NEVER_RUN_CRON_SCHEDULE.getCronSchedule());
   }
 
   @Test (dependsOnMethods = "testUnschedule")

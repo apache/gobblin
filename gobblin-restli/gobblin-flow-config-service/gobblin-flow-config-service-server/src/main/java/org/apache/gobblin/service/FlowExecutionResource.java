@@ -209,7 +209,6 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
       jobStatusArray.add(jobStatus);
     }
 
-    // If DagManager is not enabled, we have to determine flow end time by individual job's end times.
     flowEndTime = flowEndTime == 0L ? maxJobEndTime : flowEndTime;
 
     jobStatusArray.sort(Comparator.comparing((org.apache.gobblin.service.JobStatus js) -> js.getExecutionStatistics().getExecutionStartTime()));

@@ -75,7 +75,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 @Slf4j
-public class FlowConfigsResourceHandler {
+public class FlowConfigsV2ResourceHandler {
 
   @Getter
   private String serviceName;
@@ -87,7 +87,7 @@ public class FlowConfigsResourceHandler {
   protected final ContextAwareMeter runImmediatelyFlow;
 
   @Inject
-  public FlowConfigsResourceHandler(@Named(InjectionNames.SERVICE_NAME) String serviceName, FlowCatalog flowCatalog) {
+  public FlowConfigsV2ResourceHandler(@Named(InjectionNames.SERVICE_NAME) String serviceName, FlowCatalog flowCatalog) {
     this.serviceName = serviceName;
     this.flowCatalog = flowCatalog;
     MetricContext

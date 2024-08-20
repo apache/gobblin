@@ -17,17 +17,20 @@
 
 package org.apache.gobblin.service.modules.utils;
 
+import java.net.URI;
+import java.util.Map;
+
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.MetricRegistry;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
-import java.net.URI;
-import java.util.Map;
+
 import javax.inject.Inject;
 import javax.inject.Singleton;
 import lombok.Data;
 import lombok.Setter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareGauge;
@@ -40,8 +43,8 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Class to store flow related metrics shared between the {@link Orchestrator} and {@link DagManager} so we can easily
- * track all flow compilations and skipped flows handled between the two in a common place.
+ * Class to store flow related metrics shared between the {@link Orchestrator} and {@link FlowCompilationValidationHelper}
+ * so we can easily track all flow compilations and skipped flows handled between the two in a common place.
  */
 @Singleton
 @Data
@@ -61,7 +64,7 @@ public class SharedFlowMetricsSingleton {
     SUCCESSFUL(1),
     SKIPPED(2);
 
-    public int value;
+    public final int value;
 
     CompiledState(int value) {
       this.value = value;

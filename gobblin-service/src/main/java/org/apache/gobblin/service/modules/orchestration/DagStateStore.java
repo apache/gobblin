@@ -27,9 +27,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 
 /**
- * An interface for storing and retrieving currently running {@link Dag<JobExecutionPlan>}s. In case of a leadership
- * change in the {@link org.apache.gobblin.service.modules.core.GobblinServiceManager}, the corresponding {@link DagManager}
- * loads the running {@link Dag}s from the {@link DagStateStore} to resume their execution.
+ * An interface for storing and retrieving currently running {@link Dag<JobExecutionPlan>}s.
  */
 @Alpha
 public interface DagStateStore {
@@ -37,7 +35,7 @@ public interface DagStateStore {
    * Persist the {@link Dag} to the backing store.
    * This is not an actual checkpoint but more like a Write-ahead log, where uncommitted job will be persisted
    * and be picked up again when leader transition happens.
-   * @param dag The dag submitted to {@link DagManager}
+   * @param dag The dag submitted to store
    */
   void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException;
 
@@ -60,9 +58,8 @@ public interface DagStateStore {
   void cleanUp(String dagId) throws IOException;
 
   /**
-   * Load all currently running {@link Dag}s from the underlying store. Typically, invoked when a new {@link DagManager}
-   * takes over or on restart of service.
-   * @deprecated because {@link DagProcessingEngine} that will replace {@link DagManager} does not need this API
+   * Load all currently running {@link Dag}s from the underlying store.
+   * @deprecated because {@link DagProcessingEngine} does not need this API
    * @return a {@link List} of currently running {@link Dag}s.
    */
   @Deprecated

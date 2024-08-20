@@ -19,26 +19,27 @@ package org.apache.gobblin.service.modules.utils;
 
 import java.net.URISyntaxException;
 import java.util.HashMap;
-import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+
 import org.junit.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
+import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+
 
 /**
- * Test functionality provided by the helper class re-used between the DagManager and Orchestrator for flow compilation.
+ * Test functionality provided by the helper class re-used between the DagProcs and Orchestrator for flow compilation.
  */
 public class FlowCompilationValidationHelperTest {
-  private String dagId = "testDag";
-  private Long jobSpecFlowExecutionId = 1234L;
-  private String existingFlowExecutionId = "9999";
+  private final Long jobSpecFlowExecutionId = 1234L;
   private Dag<JobExecutionPlan> jobExecutionPlanDag;
 
   @BeforeClass
   public void setup() throws URISyntaxException {
+    String dagId = "testDag";
     jobExecutionPlanDag =  DagTestUtils.buildDag(dagId, jobSpecFlowExecutionId);
 
   }
@@ -59,8 +60,10 @@ public class FlowCompilationValidationHelperTest {
   @Test
   public void testSkipAddingFlowExecutionIdWhenPresent() {
     HashMap<String, String> flowMetadata = new HashMap<>();
+    String existingFlowExecutionId = "9999";
     flowMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, existingFlowExecutionId);
     FlowCompilationValidationHelper.addFlowExecutionIdIfAbsent(flowMetadata,jobExecutionPlanDag);
-    Assert.assertEquals(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD), existingFlowExecutionId);
+    Assert.assertEquals(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD),
+        existingFlowExecutionId);
   }
 }

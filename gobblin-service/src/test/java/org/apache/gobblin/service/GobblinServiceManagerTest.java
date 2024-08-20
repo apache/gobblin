@@ -70,7 +70,7 @@ import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStoreTest;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagStateStore;
 import org.apache.gobblin.service.modules.orchestration.MysqlMultiActiveLeaseArbiterTest;
 import org.apache.gobblin.service.modules.orchestration.ServiceAzkabanConfigKeys;
-import org.apache.gobblin.service.modules.restli.FlowConfigsResourceHandler;
+import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
@@ -333,11 +333,11 @@ public class GobblinServiceManagerTest {
     FlowConfig uncompilableFlowConfig = new FlowConfig().setId(UNCOMPILABLE_FLOW_ID).setTemplateUris(TEST_TEMPLATE_URI)
         .setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
-    FlowSpec uncompilableSpec = FlowConfigsResourceHandler.createFlowSpecForConfig(uncompilableFlowConfig);
+    FlowSpec uncompilableSpec = FlowConfigsV2ResourceHandler.createFlowSpecForConfig(uncompilableFlowConfig);
     FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);
     FlowConfig runOnceFlowConfig = new FlowConfig().setId(flowId)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
-    FlowSpec runOnceSpec = FlowConfigsResourceHandler.createFlowSpecForConfig(runOnceFlowConfig);
+    FlowSpec runOnceSpec = FlowConfigsV2ResourceHandler.createFlowSpecForConfig(runOnceFlowConfig);
 
     // add the non compilable flow directly to the spec store skipping flow catalog which would not allow this
     this.gobblinServiceManager.getFlowCatalog().getSpecStore().addSpec(uncompilableSpec);
@@ -357,7 +357,7 @@ public class GobblinServiceManagerTest {
     // restart the service
     serviceReboot();
 
-    // runOnce job is not deleted from spec store after running because DagManager is inactive for tests
+    // runOnce job is not deleted from spec store till LaunchDagTask concludes
     AssertWithBackoff.create().maxSleepMs(200L).timeoutMs(20000L).backoffFactor(1)
         .assertTrue(input -> this.gobblinServiceManager.getFlowCatalog().getSpecs().size() == 2,
             "Both flow specs should be present");

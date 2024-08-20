@@ -42,7 +42,7 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
 
 /**
  * An implementation for {@link DagProc} that marks the {@link Dag} as failed and cancel the job if it does not start in
- * {@link org.apache.gobblin.service.modules.orchestration.DagManager#JOB_START_SLA_TIME} time.
+ * {@link org.apache.gobblin.service.ServiceConfigKeys#JOB_START_SLA_TIME} time.
  */
 @Slf4j
 public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {

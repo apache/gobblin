@@ -79,7 +79,7 @@ import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
-import org.apache.gobblin.service.modules.restli.FlowConfigsResourceHandler;
+import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
 import org.apache.gobblin.service.modules.restli.FlowExecutionResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
@@ -120,7 +120,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   @Inject
   @Getter
-  protected FlowConfigsResourceHandler resourceHandler;
+  protected FlowConfigsV2ResourceHandler resourceHandler;
 
   @Inject
   @Getter

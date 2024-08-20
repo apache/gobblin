@@ -37,7 +37,7 @@ import org.apache.gobblin.service.Schedule;
 public class FlowConfigUtilsTest {
   private void testFlowSpec(FlowConfig flowConfig) {
     try {
-      FlowConfigsResourceHandler.createFlowSpecForConfig(flowConfig);
+      FlowConfigsV2ResourceHandler.createFlowSpecForConfig(flowConfig);
     } catch (FlowConfigLoggedException e) {
       Assert.fail("Should not get to here");
     }
@@ -154,7 +154,7 @@ public class FlowConfigUtilsTest {
     flowConfig.setProperties(new StringMap(Maps.fromProperties(properties)));
 
     try {
-      FlowConfigsResourceHandler.createFlowSpecForConfig(flowConfig);
+      FlowConfigsV2ResourceHandler.createFlowSpecForConfig(flowConfig);
       Assert.fail("Should not get to here");
     } catch (RequiredFieldNotPresentException e) {
       Assert.assertTrue(true, "templateUri cannot be empty");

@@ -56,7 +56,7 @@ import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
-import org.apache.gobblin.service.modules.restli.FlowConfigsResourceHandler;
+import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
 
 
 /**
@@ -69,7 +69,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
   private static final Set<String> ALLOWED_METADATA = ImmutableSet.of("delete.state.store");
 
   @Inject
-  private FlowConfigsResourceHandler flowConfigsResourceHandler;
+  private FlowConfigsV2ResourceHandler flowConfigsResourceHandler;
 
   // For getting who sends the request
   @Inject
