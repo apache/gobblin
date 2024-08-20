@@ -143,7 +143,7 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   @Override
   public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
       throws IOException {
-    this.dagStateStore.updateDagNode(dagId, dagNode, false);
+    this.dagStateStore.updateDagNode(dagId, dagNode, false);// isFailedDag is set as false because addDagNodeState adds a new DagNode, doesn't update an existing dagNode as failed.
   }
 
   @Override

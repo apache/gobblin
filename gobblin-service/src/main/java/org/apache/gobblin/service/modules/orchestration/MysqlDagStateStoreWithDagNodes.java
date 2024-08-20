@@ -77,19 +77,17 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   protected final GsonSerDe<List<JobExecutionPlan>> serDe;
   private final JobExecutionPlanDagFactory jobExecPlanDagFactory;
 
-  protected static final String CREATE_TABLE_STATEMENT =
-      "CREATE TABLE IF NOT EXISTS %s (" + "dag_node_id VARCHAR(" + ServiceConfigKeys.MAX_DAG_NODE_ID_LENGTH
-          + ") CHARACTER SET latin1 COLLATE latin1_bin NOT NULL, " + "parent_dag_id VARCHAR("
-          + ServiceConfigKeys.MAX_DAG_ID_LENGTH + ") NOT NULL, " + "dag_node JSON NOT NULL, "
-          + "modified_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
-          + "is_failed_dag INT NOT NULL DEFAULT 0, " + "PRIMARY KEY (dag_node_id), "
-          + "UNIQUE INDEX dag_node_index (dag_node_id), " + "INDEX dag_index (parent_dag_id))";
+  protected static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
+      + "dag_node_id VARCHAR(" + ServiceConfigKeys.MAX_DAG_NODE_ID_LENGTH
+      + ") CHARACTER SET latin1 COLLATE latin1_bin NOT NULL, " + "parent_dag_id VARCHAR("
+      + ServiceConfigKeys.MAX_DAG_ID_LENGTH + ") NOT NULL, " + "dag_node JSON NOT NULL, "
+      + "modified_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
+      + "is_failed_dag INT NOT NULL DEFAULT 0, " + "PRIMARY KEY (dag_node_id), "
+      + "UNIQUE INDEX dag_node_index (dag_node_id), " + "INDEX dag_index (parent_dag_id))";
 
-  protected static final String INSERT_STATEMENT =
-      "INSERT INTO %s (dag_node_id, parent_dag_id, dag_node, is_failed_dag) "
-          + "VALUES (?, ?, ?, ?) AS new ON DUPLICATE KEY UPDATE dag_node = new.dag_node, is_failed_dag = new.is_failed_dag";
-  protected static final String GET_DAG_NODES_STATEMENT =
-      "SELECT dag_node,is_failed_dag FROM %s WHERE parent_dag_id = ?";
+  protected static final String INSERT_STATEMENT = "INSERT INTO %s (dag_node_id, parent_dag_id, dag_node, is_failed_dag) "
+      + "VALUES (?, ?, ?, ?) AS new ON DUPLICATE KEY UPDATE dag_node = new.dag_node, is_failed_dag = new.is_failed_dag";
+  protected static final String GET_DAG_NODES_STATEMENT = "SELECT dag_node,is_failed_dag FROM %s WHERE parent_dag_id = ?";
   protected static final String GET_DAG_NODE_STATEMENT = "SELECT dag_node,is_failed_dag FROM %s WHERE dag_node_id = ?";
   protected static final String DELETE_DAG_STATEMENT = "DELETE FROM %s WHERE parent_dag_id = ?";
   private final ContextAwareCounter totalDagCount;
@@ -105,8 +103,7 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
     DataSource dataSource = MysqlDataSourceFactory.get(config, SharedResourcesBrokerFactory.getImplicitBroker());
 
     try (Connection connection = dataSource.getConnection();
-        PreparedStatement createStatement = connection.prepareStatement(
-            String.format(CREATE_TABLE_STATEMENT, tableName))) {
+        PreparedStatement createStatement = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT, tableName))) {
       createStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
@@ -168,8 +165,7 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   @Override
   public List<Dag<JobExecutionPlan>> getDags() throws IOException {
     throw new NotSupportedException(getClass().getSimpleName() + " does not need this legacy API that originated with "
-        + "the DagManager that is replaced by DagProcessingEngine");
-  }
+        + "the DagManager that is replaced by DagProcessingEngine"); }
 
   @Override
   public Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException {
@@ -193,13 +189,12 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
     if (dagNodes.isEmpty()) {
       return null;
     }
-    Dag<JobExecutionPlan> dag =
-        jobExecPlanDagFactory.createDag(dagNodes.stream().map(Dag.DagNode::getValue).collect(Collectors.toList()));
-    if (dagNodes.stream().anyMatch(Dag.DagNode::isFailedDag)) {
+    Dag<JobExecutionPlan> dag = jobExecPlanDagFactory.createDag(dagNodes.stream().map(Dag.DagNode::getValue).collect(Collectors.toList()));
+
+    // if any node of the dag is failed it means that the dag has been marked as failed, update the is_failed_dag field of the dag and it's nodes as true
+    if (dag.getNodes().stream().anyMatch(Dag.DagNode::isFailedDag)) {
       dag.setFailedDag(true);
-      for (Dag.DagNode dagNode : dag.getNodes()) {
-        dagNode.setFailedDag(true);
-      }
+      dag.getNodes().forEach(node -> node.setFailedDag(true));
     }
     return dag;
   }
