@@ -48,12 +48,12 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
   // client itself to determine all Kafka related information dynamically rather than through the config.
   public DagManagementDagActionStoreChangeMonitor(Config config, int numThreads,
       FlowCatalog flowCatalog, Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore,
-      boolean isMultiActiveSchedulerEnabled, DagManagement dagManagement,
-      DagActionReminderScheduler dagActionReminderScheduler, DagProcessingEngineMetrics dagProcEngineMetrics) {
+      DagManagement dagManagement, DagActionReminderScheduler dagActionReminderScheduler,
+      DagProcessingEngineMetrics dagProcEngineMetrics) {
     // DagManager is only needed in the `handleDagAction` method of its parent class and not needed in this class,
     // so we are passing a null value for DagManager to its parent class.
     super("", config, null, numThreads, flowCatalog, orchestrator, dagManagementStateStore,
-        isMultiActiveSchedulerEnabled, dagProcEngineMetrics);
+        dagProcEngineMetrics);
     this.dagManagement = dagManagement;
     this.dagActionReminderScheduler = dagActionReminderScheduler;
   }
