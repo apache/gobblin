@@ -22,6 +22,8 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.UUID;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -29,8 +31,10 @@ import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
 import com.google.common.cache.LoadingCache;
+import com.google.common.base.Optional;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
+
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -52,6 +56,8 @@ import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 
 
 /**
@@ -76,7 +82,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
   protected ContextAwareMeter heartbeatMessagesMeter;
   protected ContextAwareMeter nullDagActionTypeMessagesMeter;
   private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
-
   protected volatile Long produceToConsumeDelayValue = -1L;
 
   protected LaunchSubmissionMetricProxy ON_STARTUP = new NullLaunchSubmissionMetricProxy();
@@ -146,14 +151,27 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       throw new RuntimeException(String.format("Unable to retrieve dagActions from the dagActionStore while "
           + "initializing the %s", DagActionStoreChangeMonitor.class.getCanonicalName()), e);
     }
-    // TODO: make this multi-threaded to add parallelism
+
+    final ExecutorService executorService = Executors.newFixedThreadPool(ConfigUtils.getInt(this.config, ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_THREADS, 5), ExecutorsUtils.newThreadFactory(Optional.of(log)));
+
     for (DagActionStore.DagAction action : dagActions) {
       try {
-        handleDagAction(action, true);
+        executorService.submit(() -> handleDagAction(action, true));
       } catch (Exception e) {
         log.error("Unexpected error initializing from DagActionStore changes, upon {}", action, e);
         this.unexpectedErrors.mark();
       }
+    }
+    try {
+      boolean executedSuccessfully = executorService.awaitTermination(ConfigUtils.getInt(this.config, ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_TIMEOUT_SECONDS, 30), TimeUnit.SECONDS);
+
+      if (!executedSuccessfully) {
+        log.error("Executor terminated before processing all actions during startup,consider increasing the timeOut during awaitTermination");
+        this.unexpectedErrors.mark();
+      }
+    } catch (InterruptedException ignored) {
+      log.error("Interrupted Exception in processing dag actions during startup,ignoring", ignored);
+      this.unexpectedErrors.mark();
     }
   }
 
