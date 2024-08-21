@@ -40,6 +40,7 @@ import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -170,7 +171,7 @@ public class DatasetCleaner implements Instrumentable, Closeable {
           LOG.info("Successfully cleaned: " + dataset.datasetURN());
           Instrumented.markMeter(DatasetCleaner.this.datasetsCleanSuccessMeter);
         }
-      });
+      }, MoreExecutors.directExecutor());
     }
   }
 
