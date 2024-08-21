@@ -77,18 +77,20 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   protected final GsonSerDe<List<JobExecutionPlan>> serDe;
   private final JobExecutionPlanDagFactory jobExecPlanDagFactory;
 
-  protected static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s ("
-      + "dag_node_id VARCHAR(" + ServiceConfigKeys.MAX_DAG_NODE_ID_LENGTH
-      + ") CHARACTER SET latin1 COLLATE latin1_bin NOT NULL, " + "parent_dag_id VARCHAR("
-      + ServiceConfigKeys.MAX_DAG_ID_LENGTH + ") NOT NULL, " + "dag_node JSON NOT NULL, "
-      + "modified_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
-      + "is_failed_dag INT NOT NULL DEFAULT 0, " + "PRIMARY KEY (dag_node_id), "
-      + "UNIQUE INDEX dag_node_index (dag_node_id), " + "INDEX dag_index (parent_dag_id))";
+  protected static final String CREATE_TABLE_STATEMENT =
+      "CREATE TABLE IF NOT EXISTS %s (" + "dag_node_id VARCHAR(" + ServiceConfigKeys.MAX_DAG_NODE_ID_LENGTH
+          + ") CHARACTER SET latin1 COLLATE latin1_bin NOT NULL, " + "parent_dag_id VARCHAR("
+          + ServiceConfigKeys.MAX_DAG_ID_LENGTH + ") NOT NULL, " + "dag_node JSON NOT NULL, "
+          + "modified_time timestamp NOT NULL DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP, "
+          + "is_failed_dag TINYINT(1) DEFAULT 0, " + "PRIMARY KEY (dag_node_id), "
+          + "UNIQUE INDEX dag_node_index (dag_node_id), " + "INDEX dag_index (parent_dag_id))";
 
-  protected static final String INSERT_STATEMENT = "INSERT INTO %s (dag_node_id, parent_dag_id, dag_node, is_failed_dag) "
-      + "VALUES (?, ?, ?, ?) AS new ON DUPLICATE KEY UPDATE dag_node = new.dag_node, is_failed_dag = new.is_failed_dag";
-  protected static final String GET_DAG_NODES_STATEMENT = "SELECT dag_node,is_failed_dag FROM %s WHERE parent_dag_id = ?";
-  protected static final String GET_DAG_NODE_STATEMENT = "SELECT dag_node,is_failed_dag FROM %s WHERE dag_node_id = ?";
+  protected static final String INSERT_STATEMENT =
+      "INSERT INTO %s (dag_node_id, parent_dag_id, dag_node, is_failed_dag) "
+          + "VALUES (?, ?, ?, ?) AS new ON DUPLICATE KEY UPDATE dag_node = new.dag_node, is_failed_dag = new.is_failed_dag";
+  protected static final String GET_DAG_NODES_STATEMENT =
+      "SELECT dag_node FROM %s WHERE parent_dag_id = ?";
+  protected static final String GET_DAG_NODE_STATEMENT = "SELECT dag_node FROM %s WHERE dag_node_id = ?";
   protected static final String DELETE_DAG_STATEMENT = "DELETE FROM %s WHERE parent_dag_id = ?";
   private final ContextAwareCounter totalDagCount;
 
@@ -103,7 +105,8 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
     DataSource dataSource = MysqlDataSourceFactory.get(config, SharedResourcesBrokerFactory.getImplicitBroker());
 
     try (Connection connection = dataSource.getConnection();
-        PreparedStatement createStatement = connection.prepareStatement(String.format(CREATE_TABLE_STATEMENT, tableName))) {
+        PreparedStatement createStatement = connection.prepareStatement(
+            String.format(CREATE_TABLE_STATEMENT, tableName))) {
       createStatement.executeUpdate();
       connection.commit();
     } catch (SQLException e) {
@@ -150,8 +153,7 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
         return deleteStatement.executeUpdate() != 0;
       } catch (SQLException e) {
         throw new IOException(String.format("Failure deleting dag for %s", dagId), e);
-      }
-    }, true);
+      }}, true);
     this.totalDagCount.dec();
     return true;
   }
@@ -165,7 +167,7 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   @Override
   public List<Dag<JobExecutionPlan>> getDags() throws IOException {
     throw new NotSupportedException(getClass().getSimpleName() + " does not need this legacy API that originated with "
-        + "the DagManager that is replaced by DagProcessingEngine"); }
+        + "the DagManager that is replaced by DagProcessingEngine");}
 
   @Override
   public Dag<JobExecutionPlan> getDag(DagManager.DagId dagId) throws IOException {
@@ -189,19 +191,11 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
     if (dagNodes.isEmpty()) {
       return null;
     }
-    Dag<JobExecutionPlan> dag = jobExecPlanDagFactory.createDag(dagNodes.stream().map(Dag.DagNode::getValue).collect(Collectors.toList()));
-
-    // if any node of the dag is failed it means that the dag has been marked as failed, update the is_failed_dag field of the dag and it's nodes as true
-    if (dag.getNodes().stream().anyMatch(Dag.DagNode::isFailedDag)) {
-      dag.setFailedDag(true);
-      dag.getNodes().forEach(node -> node.setFailedDag(true));
-    }
-    return dag;
+    return jobExecPlanDagFactory.createDag(dagNodes.stream().map(Dag.DagNode::getValue).collect(Collectors.toList()));
   }
 
   @Override
-  public int updateDagNode(DagManager.DagId parentDagId, Dag.DagNode<JobExecutionPlan> dagNode, boolean isFailedDag)
-      throws IOException {
+  public int updateDagNode(DagManager.DagId parentDagId, Dag.DagNode<JobExecutionPlan> dagNode, boolean isFailedDag) throws IOException {
     String dagNodeId = dagNode.getValue().getId().toString();
     return dbStatementExecutor.withPreparedStatement(String.format(INSERT_STATEMENT, tableName), insertStatement -> {
       try {
@@ -212,25 +206,23 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
         return insertStatement.executeUpdate();
       } catch (SQLException e) {
         throw new IOException(String.format("Failure adding dag node for %s", dagNodeId), e);
-      }
-    }, true);
+      }}, true);
   }
 
   @Override
   public Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId parentDagId) throws IOException {
-    return dbStatementExecutor.withPreparedStatement(String.format(GET_DAG_NODES_STATEMENT, tableName),
-        getStatement -> {
-          getStatement.setString(1, parentDagId.toString());
-          HashSet<Dag.DagNode<JobExecutionPlan>> dagNodes = new HashSet<>();
-          try (ResultSet rs = getStatement.executeQuery()) {
-            while (rs.next()) {
-              dagNodes.add(new Dag.DagNode<>(this.serDe.deserialize(rs.getString(1)).get(0), rs.getBoolean(2)));
-            }
-            return dagNodes;
-          } catch (SQLException e) {
-            throw new IOException(String.format("Failure get dag nodes for dag %s", parentDagId), e);
-          }
-        }, true);
+    return dbStatementExecutor.withPreparedStatement(String.format(GET_DAG_NODES_STATEMENT, tableName), getStatement -> {
+      getStatement.setString(1, parentDagId.toString());
+      HashSet<Dag.DagNode<JobExecutionPlan>> dagNodes = new HashSet<>();
+      try (ResultSet rs = getStatement.executeQuery()) {
+        while (rs.next()) {
+          dagNodes.add(new Dag.DagNode<>(this.serDe.deserialize(rs.getString(1)).get(0)));
+        }
+        return dagNodes;
+      } catch (SQLException e) {
+        throw new IOException(String.format("Failure get dag nodes for dag %s", parentDagId), e);
+      }
+    }, true);
   }
 
   @Override
@@ -239,7 +231,7 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
       getStatement.setString(1, dagNodeId.toString());
       try (ResultSet rs = getStatement.executeQuery()) {
         if (rs.next()) {
-          return Optional.of(new Dag.DagNode<>(this.serDe.deserialize(rs.getString(1)).get(0), rs.getBoolean(2)));
+          return Optional.of(new Dag.DagNode<>(this.serDe.deserialize(rs.getString(1)).get(0)));
         }
         return Optional.empty();
       } catch (SQLException e) {

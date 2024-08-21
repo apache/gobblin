@@ -17,9 +17,17 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.io.IOException;
 import java.net.URI;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.Map;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -36,17 +44,22 @@ import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.metastore.MysqlDataSourceFactory;
+import org.apache.gobblin.util.DBStatementExecutor;
 
 /**
  * Mainly testing functionalities related to DagStateStore but not Mysql-related components.
  */
+@Slf4j
 public class MysqlDagStateStoreWithDagNodesTest {
 
   private DagStateStore dagStateStore;
-
   private static final String TEST_USER = "testUser";
   private static ITestMetastoreDatabase testDb;
+  private DBStatementExecutor dbStatementExecutor;
+  private static final String GET_DAG_NODES_STATEMENT = "SELECT dag_node, is_failed_dag FROM %s WHERE parent_dag_id = ?";
+  private static final String tableName = "dag_node_state_store";
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -63,6 +76,8 @@ public class MysqlDagStateStoreWithDagNodesTest {
     URI specExecURI = new URI(specExecInstance);
     topologySpecMap.put(specExecURI, topologySpec);
     this.dagStateStore = new MysqlDagStateStoreWithDagNodes(configBuilder.build(), topologySpecMap);
+    dbStatementExecutor = new DBStatementExecutor(
+        MysqlDataSourceFactory.get(configBuilder.build(), SharedResourcesBrokerFactory.getImplicitBroker()), log);
   }
 
   @AfterClass(alwaysRun = true)
@@ -74,7 +89,7 @@ public class MysqlDagStateStoreWithDagNodesTest {
   }
 
   @Test
-  public void testAddGetAndDeleteDag() throws Exception{
+  public void testAddGetAndDeleteDag() throws Exception {
     Dag<JobExecutionPlan> originalDag1 = DagTestUtils.buildDag("random_1", 123L);
     Dag<JobExecutionPlan> originalDag2 = DagTestUtils.buildDag("random_2", 456L);
     DagManager.DagId dagId1 = DagManagerUtils.generateDagId(originalDag1);
@@ -140,26 +155,53 @@ public class MysqlDagStateStoreWithDagNodesTest {
 
   @Test
   public void testMarkDagAsFailed() throws Exception {
-    //Set up initial conditions
+    // Set up initial conditions
     Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("test_dag", 789L);
     DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
 
     this.dagStateStore.writeCheckpoint(dag);
-    //Check Initial State
-    for (Dag.DagNode<JobExecutionPlan> node : dag.getNodes()) {
-      Assert.assertFalse(node.isFailedDag());
+
+    // Fetch all initial states into a list
+    List<Boolean> initialStates = fetchDagNodeStates(dagId.toString());
+
+    // Check Initial State
+    for (Boolean state : initialStates) {
+      Assert.assertFalse(state);
     }
+    // Set the DAG as failed
     dag.setFailedDag(true);
     this.dagStateStore.writeCheckpoint(dag);
 
-    Dag<JobExecutionPlan> updatedDag = this.dagStateStore.getDag(dagId);
-    for (Dag.DagNode<JobExecutionPlan> node : updatedDag.getNodes()) {
-      Assert.assertTrue(node.isFailedDag());
-    }
+    // Fetch all states after marking the DAG as failed
+    List<Boolean> failedStates = fetchDagNodeStates(dagId.toString());
 
-    // Cleanup
+    // Check if all states are now true (indicating failure)
+    for (Boolean state : failedStates) {
+      Assert.assertTrue(state);
+    }
     dagStateStore.cleanUp(dagId);
     Assert.assertNull(this.dagStateStore.getDag(dagId));
   }
 
+  private List<Boolean> fetchDagNodeStates(String dagId) throws IOException {
+    List<Boolean> states = new ArrayList<>();
+
+    dbStatementExecutor.withPreparedStatement(String.format(GET_DAG_NODES_STATEMENT, tableName), getStatement -> {
+
+      getStatement.setString(1, dagId.toString());
+
+      HashSet<Dag.DagNode<JobExecutionPlan>> dagNodes = new HashSet<>();
+
+      try (ResultSet rs = getStatement.executeQuery()) {
+        while (rs.next()) {
+          states.add(rs.getBoolean(2));
+        }
+        return dagNodes;
+      } catch (SQLException e) {
+        throw new IOException(String.format("Failure get dag nodes for dag %s", dagId), e);
+      }
+    }, true);
+
+    return states;
+  }
 }
