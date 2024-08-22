@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.trash;
 
-
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
@@ -236,6 +235,74 @@ public class TrashTest {
 
       Assert.assertEquals(deletedPaths.size(), 1);
       Assert.assertTrue(deletedPaths.get(0).equals(snapshot2));
+    } finally {
+      DateTimeUtils.setCurrentMillisSystem();
+    }
+  }
+
+  @Test
+  public void testMoveToTrashSimulate() throws IOException {
+    Properties properties = new Properties();
+    properties.setProperty(TrashFactory.SIMULATE, "true");
+    TrashTestBase trash = new TrashTestBase(properties);
+
+    Path pathToDelete = new Path("/path/to/delete");
+
+    final List<Pair<Path, Path>> movedPaths = Lists.newArrayList();
+
+    when(trash.fs.rename(any(Path.class), any(Path.class))).thenAnswer(new Answer<Boolean>() {
+      @Override
+      public Boolean answer(InvocationOnMock invocation)
+          throws Throwable {
+        Object[] args = invocation.getArguments();
+        movedPaths.add(new Pair<Path, Path>((Path) args[0], (Path) args[1]));
+        return true;
+      }
+    });
+
+    Assert.assertTrue(trash.trash.moveToTrash(pathToDelete));
+
+    verify(trash.fs, times(0)).mkdirs(any(Path.class));
+
+    Assert.assertEquals(movedPaths.size(), 0);
+
+  }
+
+  @Test
+  public void testPurgeSnapshotsWithSimulate() throws IOException {
+
+    try {
+      Properties properties = new Properties();
+      properties.setProperty(Trash.SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TestCleanupPolicy.class.getCanonicalName());
+      properties.setProperty(TrashFactory.SIMULATE, "true");
+      TrashTestBase trash = new TrashTestBase(properties);
+
+      DateTimeUtils.setCurrentMillisFixed(new DateTime(2015, 7, 15, 10, 0).withZone(DateTimeZone.UTC).getMillis());
+
+      final List<Path> deletedPaths = Lists.newArrayList();
+
+      Path snapshot1 = new Path(trash.trash.getTrashLocation(), Trash.TRASH_SNAPSHOT_NAME_FORMATTER.print(new DateTime()));
+      Path snapshot2 = new Path(trash.trash.getTrashLocation(),
+          Trash.TRASH_SNAPSHOT_NAME_FORMATTER.print(new DateTime().minusDays(1)));
+
+      when(trash.fs.listStatus(any(Path.class), any(PathFilter.class))).
+          thenReturn(
+          Lists.newArrayList(
+                  new FileStatus(0, true, 0, 0, 0, snapshot1),
+                  new FileStatus(0, true, 0, 0, 0, snapshot2))
+              .toArray(new FileStatus[]{}));
+      when(trash.fs.delete(any(Path.class), anyBoolean())).thenAnswer(new Answer<Boolean>() {
+        @Override
+        public Boolean answer(InvocationOnMock invocation)
+            throws Throwable {
+          deletedPaths.add((Path) invocation.getArguments()[0]);
+          return true;
+        }
+      });
+
+      trash.trash.purgeTrashSnapshots();
+
+      Assert.assertEquals(deletedPaths.size(), 0);
     } finally {
       DateTimeUtils.setCurrentMillisSystem();
     }
