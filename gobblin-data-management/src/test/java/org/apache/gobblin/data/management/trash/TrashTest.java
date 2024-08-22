@@ -23,6 +23,7 @@ import java.util.Properties;
 import java.util.regex.Pattern;
 
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.PathFilter;
 import org.apache.hadoop.fs.permission.FsAction;
@@ -243,8 +244,13 @@ public class TrashTest {
   @Test
   public void testMoveToTrashSimulate() throws IOException {
     Properties properties = new Properties();
+    properties.setProperty(Trash.SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TestCleanupPolicy.class.getCanonicalName());
     properties.setProperty(TrashFactory.SIMULATE, "true");
-    TrashTestBase trash = new TrashTestBase(properties);
+    properties.setProperty(TrashFactory.SIMULATE_USING_ACTUAL_TRASH, "true");
+    properties.setProperty(Trash.TRASH_LOCATION_KEY, "/trash/dir");
+    FileSystem mockTrash = mock(FileSystem.class);
+    when(mockTrash.makeQualified(any(Path.class))).thenReturn(new Path("/trash/dir"));
+    Trash trash = TrashFactory.createTrash(mockTrash, properties);
 
     Path pathToDelete = new Path("/path/to/delete");
 
@@ -260,7 +266,7 @@ public class TrashTest {
       }
     });
 
-    Assert.assertTrue(trash.trash.moveToTrash(pathToDelete));
+    Assert.assertTrue(trash.moveToTrash(pathToDelete));
 
     verify(trash.fs, times(0)).mkdirs(any(Path.class));
 
@@ -275,14 +281,18 @@ public class TrashTest {
       Properties properties = new Properties();
       properties.setProperty(Trash.SNAPSHOT_CLEANUP_POLICY_CLASS_KEY, TestCleanupPolicy.class.getCanonicalName());
       properties.setProperty(TrashFactory.SIMULATE, "true");
-      TrashTestBase trash = new TrashTestBase(properties);
+      properties.setProperty(TrashFactory.SIMULATE_USING_ACTUAL_TRASH, "true");
+      properties.setProperty(Trash.TRASH_LOCATION_KEY, "/trash/dir");
+      FileSystem mockTrash = mock(FileSystem.class);
+      when(mockTrash.makeQualified(any(Path.class))).thenReturn(new Path("/trash/dir"));
+      Trash trash = TrashFactory.createTrash(mockTrash, properties);
 
       DateTimeUtils.setCurrentMillisFixed(new DateTime(2015, 7, 15, 10, 0).withZone(DateTimeZone.UTC).getMillis());
 
       final List<Path> deletedPaths = Lists.newArrayList();
 
-      Path snapshot1 = new Path(trash.trash.getTrashLocation(), Trash.TRASH_SNAPSHOT_NAME_FORMATTER.print(new DateTime()));
-      Path snapshot2 = new Path(trash.trash.getTrashLocation(),
+      Path snapshot1 = new Path(trash.getTrashLocation(), Trash.TRASH_SNAPSHOT_NAME_FORMATTER.print(new DateTime()));
+      Path snapshot2 = new Path(trash.getTrashLocation(),
           Trash.TRASH_SNAPSHOT_NAME_FORMATTER.print(new DateTime().minusDays(1)));
 
       when(trash.fs.listStatus(any(Path.class), any(PathFilter.class))).
@@ -300,7 +310,7 @@ public class TrashTest {
         }
       });
 
-      trash.trash.purgeTrashSnapshots();
+      trash.purgeTrashSnapshots();
 
       Assert.assertEquals(deletedPaths.size(), 0);
     } finally {
