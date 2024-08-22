@@ -195,7 +195,6 @@ public class GobblinServiceGuiceModule implements Module {
         ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME)).toProvider(
         FlowLaunchMultiActiveLeaseArbiterFactory.class);
     OptionalBinder.newOptionalBinder(binder, FlowLaunchHandler.class);
-    binder.bind(FlowLaunchHandler.class);
 
     OptionalBinder.newOptionalBinder(binder, DagManagement.class);
     OptionalBinder.newOptionalBinder(binder, DagTaskStream.class);
