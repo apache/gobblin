@@ -33,6 +33,7 @@ import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.Service;
 import com.google.common.util.concurrent.ServiceManager;
 
@@ -157,7 +158,7 @@ public class ServiceBasedAppLauncher implements ApplicationLauncher {
           LOG.error("Could not shutdown services gracefully. This may cause the application to hang.");
         }
       }
-    });
+    }, MoreExecutors.directExecutor());
 
     Runtime.getRuntime().addShutdownHook(new Thread() {
       @Override

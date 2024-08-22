@@ -38,6 +38,7 @@ import com.google.common.collect.ImmutableMap;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import edu.umd.cs.findbugs.annotations.SuppressWarnings;
 import javax.annotation.Nullable;
@@ -156,7 +157,7 @@ public class ComplianceRetentionJob extends ComplianceJob {
               .of(ComplianceEvents.FAILURE_CONTEXT_METADATA_KEY, ExceptionUtils.getFullStackTrace(t),
                   ComplianceEvents.DATASET_URN_METADATA_KEY, dataset.datasetURN()));
         }
-      });
+      }, MoreExecutors.directExecutor());
     }
   }
 

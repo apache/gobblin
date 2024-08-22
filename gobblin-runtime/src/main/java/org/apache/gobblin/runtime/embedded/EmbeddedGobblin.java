@@ -59,6 +59,7 @@ import com.google.common.collect.Maps;
 import com.google.common.escape.Escaper;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.linkedin.data.template.DataTemplate;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -513,7 +514,7 @@ public class EmbeddedGobblin {
           log.error("Failed to shutdown Gobblin instance driver.");
         }
       }
-    });
+    }, MoreExecutors.directExecutor());
 
     return listener.getJobDriver();
   }

@@ -55,6 +55,7 @@ import com.google.common.io.Closer;
 import com.google.common.util.concurrent.FutureCallback;
 import com.google.common.util.concurrent.Futures;
 import com.google.common.util.concurrent.ListenableFuture;
+import com.google.common.util.concurrent.MoreExecutors;
 
 import org.apache.gobblin.compaction.Compactor;
 import org.apache.gobblin.compaction.dataset.Dataset;
@@ -723,7 +724,7 @@ public class MRCompactor implements Compactor {
           addCallback(datasetsToBeVerified, future2);
         }
       }
-    });
+    }, MoreExecutors.directExecutor());
   }
 
   /**
