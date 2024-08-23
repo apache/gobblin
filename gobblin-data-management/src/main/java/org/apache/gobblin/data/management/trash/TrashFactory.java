@@ -41,6 +41,9 @@ public class TrashFactory {
   public static final String SIMULATE = "gobblin.trash.simulate";
   public static final String SKIP_TRASH = "gobblin.trash.skip.trash";
 
+  // Configuration to avoid using MockTrash - as Trash implementations get more complex it's better to have the Trash class itself support simulate
+  public static final String SIMULATE_USING_ACTUAL_TRASH = "gobblin.trash.simulate.actual.trash";
+
   public static Trash createTrash(FileSystem fs) throws IOException {
     return createTrash(fs, new Properties());
   }
@@ -107,8 +110,8 @@ public class TrashFactory {
       LOG.info("Creating a test trash. Nothing will actually be deleted.");
       return new TestTrash(fs, props, user);
     }
-    if(props.containsKey(SIMULATE) && Boolean.parseBoolean(props.getProperty(SIMULATE))) {
-      LOG.info("Creating a simulate trash. Nothing will actually be deleted.");
+    if(props.containsKey(SIMULATE) && Boolean.parseBoolean(props.getProperty(SIMULATE)) && !Boolean.parseBoolean(props.getProperty(SIMULATE_USING_ACTUAL_TRASH)) ) {
+      LOG.info("Creating a mock trash. Nothing will actually be deleted.");
       return new MockTrash(fs, props, user);
     }
     if(props.containsKey(SKIP_TRASH) && Boolean.parseBoolean(props.getProperty(SKIP_TRASH))) {
