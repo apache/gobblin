@@ -128,6 +128,9 @@ public class ReevaluateDagProcTest {
     // assert that the first job is completed
     Assert.assertEquals(ExecutionStatus.COMPLETE,
         this.dagManagementStateStore.getDag(dagId).get().getStartNodes().get(0).getValue().getExecutionStatus());
+
+    // note that only assertFalse can be tested on DagProcUtils.isDagFinished, because if it had returned true, dag must have been cleaned
+    Assert.assertFalse(DagProcUtils.isDagFinished(this.dagManagementStateStore.getDag(dagId).get()));
   }
 
   // test when there does not exist a next job in the dag when the current job's reevaluate dag action is processed
@@ -161,7 +164,7 @@ public class ReevaluateDagProcTest {
     doReturn(new ImmutablePair<>(Optional.of(mockedDag.getNodes().get(0)), Optional.of(jobStatus)))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
 
-    Assert.assertTrue(dagManagementStateStore.hasRunningJobs(dagId));
+    Assert.assertFalse(DagProcUtils.isDagFinished(this.dagManagementStateStore.getDag(dagId).get()));
 
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
 
@@ -180,8 +183,6 @@ public class ReevaluateDagProcTest {
 
     Assert.assertEquals(Mockito.mockingDetails(this.dagManagementStateStore).getInvocations().stream()
         .filter(a -> a.getMethod().getName().equals("deleteDagAction")).count(), 1);
-
-    Assert.assertFalse(dagManagementStateStore.hasRunningJobs(dagId));
   }
 
   @Test
@@ -195,6 +196,7 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
     );
+    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     dagManagementStateStore.addDag(dag);
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.empty()))
@@ -216,6 +218,8 @@ public class ReevaluateDagProcTest {
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(any());
     Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
         eq(DagActionStore.DagActionType.REEVALUATE));
+
+    Assert.assertFalse(DagProcUtils.isDagFinished(this.dagManagementStateStore.getDag(dagId).get()));
   }
 
   @Test
@@ -229,6 +233,7 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
     );
+    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
         .jobName("job3").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.COMPLETE.name())
         .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
@@ -260,6 +265,8 @@ public class ReevaluateDagProcTest {
 
     // when there are parallel jobs to launch, they are not directly sent to spec producers, instead reevaluate dag action is created
     specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
+
+    Assert.assertFalse(DagProcUtils.isDagFinished(this.dagManagementStateStore.getDag(dagId).get()));
   }
 
   @Test
@@ -271,8 +278,8 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
-    );
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     dagManagementStateStore.addDag(dag);
     // a job status with shouldRetry=true, it should have execution status = PENDING_RETRY
@@ -294,6 +301,7 @@ public class ReevaluateDagProcTest {
     specProducers.stream().skip(numOfLaunchedJobs) // separately verified `specProducers.get(0)`
         .forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
 
+    Assert.assertFalse(DagProcUtils.isDagFinished(this.dagManagementStateStore.getDag(dagId).get()));
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(any());
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDag(any());
     Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),

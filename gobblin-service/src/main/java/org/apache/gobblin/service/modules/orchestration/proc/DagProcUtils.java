@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -54,7 +55,6 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
-import static org.apache.gobblin.service.ExecutionStatus.CANCELLED;
 
 
 /**
@@ -175,7 +175,7 @@ public class DagProcUtils {
       }
       DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), cancelJobArgs).get();
       // add back the dag node with updated states in the store
-      dagNodeToCancel.getValue().setExecutionStatus(CANCELLED);
+      dagNodeToCancel.getValue().setExecutionStatus(ExecutionStatus.CANCELLED);
       dagManagementStateStore.addDagNodeState(dagNodeToCancel, dagId);
       // send cancellation event after updating the state, because cancellation event triggers a ReevaluateDagAction
       // that will delete the dag. Due to race condition between adding dag node and deleting dag, state store may get
@@ -290,5 +290,80 @@ public class DagProcUtils {
     } catch (IOException e) {
       log.warn("Failed to delete dag action {}", enforceFlowFinishDeadlineDagAction);
     }
+  }
+
+  /**
+   * Returns true if all dag nodes are finished, and it is not possible to run any new dag node.
+   */
+  public static boolean isDagFinished(Dag<JobExecutionPlan> dag) {
+    List<Dag.DagNode<JobExecutionPlan>> nodes = dag.getNodes();
+    Set<Dag.DagNode<JobExecutionPlan>> canRun = new HashSet<>(nodes);
+    Set<Dag.DagNode<JobExecutionPlan>> completed = new HashSet<>();
+    DagManager.FailureOption failureOption = DagManagerUtils.getFailureOption(dag);
+    boolean anyFailure = false;
+
+    for (Dag.DagNode<JobExecutionPlan> node : nodes) {
+      if (!canRun.contains(node)) {
+        continue;
+      }
+      ExecutionStatus status = node.getValue().getExecutionStatus();
+      if (status == ExecutionStatus.FAILED || status == ExecutionStatus.CANCELLED) {
+        anyFailure = true;
+        removeChildrenFromCanRun(node, dag, canRun);
+        completed.add(node);
+      } else if (status == ExecutionStatus.COMPLETE) {
+        completed.add(node);
+      } else if (status == ExecutionStatus.PENDING) {
+        // Remove PENDING node if its parents are not in canRun, this means remove the pending nodes also from canRun set
+        // if its parents cannot run
+        if (!areParentsInCanRun(node, canRun)) {
+          canRun.remove(node);
+        }
+      }
+    }
+
+    // In the end, check if there are more nodes in canRun than completed
+    assert canRun.size() >= completed.size();
+
+    if (!anyFailure || failureOption == DagManager.FailureOption.FINISH_ALL_POSSIBLE) {
+      return canRun.size() == completed.size();
+    } else if (failureOption == DagManager.FailureOption.FINISH_RUNNING) {
+      //if all the remaining jobs are pending return true
+      canRun.removeAll(completed);
+      boolean isFinished = true;
+      for (Dag.DagNode<JobExecutionPlan> remainingNode : canRun) {
+        if (remainingNode.getValue().getExecutionStatus() == ExecutionStatus.RUNNING ||
+            remainingNode.getValue().getExecutionStatus() == ExecutionStatus.PENDING_RESUME ||
+            remainingNode.getValue().getExecutionStatus() == ExecutionStatus.ORCHESTRATED ||
+            remainingNode.getValue().getExecutionStatus() == ExecutionStatus.PENDING_RETRY) {
+          isFinished = false;
+          break;
+        }
+      }
+      return isFinished;
+    } else {
+      throw new RuntimeException("Unexpected failure option " + failureOption);
+    }
+  }
+
+  private static void removeChildrenFromCanRun(Dag.DagNode<JobExecutionPlan> node, Dag<JobExecutionPlan> dag,
+      Set<Dag.DagNode<JobExecutionPlan>> canRun) {
+    for (Dag.DagNode<JobExecutionPlan> child : dag.getChildren(node)) {
+      canRun.remove(child);
+      removeChildrenFromCanRun(child, dag, canRun); // Recursively remove all descendants
+    }
+  }
+
+  private static boolean areParentsInCanRun(Dag.DagNode<JobExecutionPlan> node,
+      Set<Dag.DagNode<JobExecutionPlan>> canRun) {
+    if (node.getParentNodes() == null) {
+      return true;
+    }
+    for (Dag.DagNode<JobExecutionPlan> parent : node.getParentNodes()) {
+      if (!canRun.contains(parent)) {
+        return false; // If any parent is not in canRun, return false
+      }
+    }
+    return true; // All parents are in canRun
   }
 }

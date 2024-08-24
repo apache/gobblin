@@ -144,12 +144,6 @@ public interface DagManagementStateStore {
   Optional<JobStatus> getJobStatus(DagNodeId dagNodeId);
 
   /**
-   * Returns true if the {@link Dag} identified by the given {@link org.apache.gobblin.service.modules.orchestration.DagManager.DagId}
-   * has any running job, false otherwise.
-   */
-  boolean hasRunningJobs(DagManager.DagId dagId) throws IOException;
-
-  /**
    * Check if an action exists in dagAction store by flow group, flow name, flow execution id, and job name.
    * @param flowGroup flow group for the dag action
    * @param flowName flow name for the dag action
