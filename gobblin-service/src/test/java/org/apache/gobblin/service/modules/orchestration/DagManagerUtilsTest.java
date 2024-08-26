@@ -23,7 +23,6 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
-import java.util.Random;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -48,7 +47,18 @@ import static org.apache.gobblin.service.ExecutionStatus.*;
 
 
 public class DagManagerUtilsTest {
-  Random rand = new Random();
+  static String id = "1";
+  static String flowGroup = "fg";
+  static String flowName = "fn";
+  static long flowExecutionId = 12345L;
+  static String flowFailureOption = DagManager.FailureOption.FINISH_ALL_POSSIBLE.name();
+  static String proxyUser = "user5";
+  static Config additionalConfig = ConfigFactory.empty()
+      .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+      .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+      .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+      .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+          MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI));
 
   @Test
   public void testGetJobSpecFromDag() throws Exception {
@@ -64,17 +74,8 @@ public class DagManagerUtilsTest {
 
   @Test
   public void testIsDagFinishedSingleNode() throws URISyntaxException {
-    long flowExecutionId = 12345L;
-    String flowGroup = "fg";
-    String flowName = "fn";
-
     Dag<JobExecutionPlan> dag =
-        DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), 1, "user5",
-            ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-                .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
-                .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-                .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,
-                    ConfigValueFactory.fromAnyRef(MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+        DagManagerTest.buildDag(id, flowExecutionId, flowFailureOption, 1, proxyUser, additionalConfig);
 
     setJobStatuses(dag, Collections.singletonList(COMPLETE));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
@@ -103,17 +104,8 @@ public class DagManagerUtilsTest {
 
   @Test
   public void testIsDagFinishedTwoNodes() throws URISyntaxException {
-    long flowExecutionId = 12345L;
-    String flowGroup = "fg";
-    String flowName = "fn";
-
     Dag<JobExecutionPlan> dag =
-        DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), 2, "user5",
-            ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-                .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
-                .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-                .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,
-                    ConfigValueFactory.fromAnyRef(MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+        DagManagerTest.buildDag(id, flowExecutionId, flowFailureOption, 2, proxyUser, additionalConfig);
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
@@ -130,16 +122,7 @@ public class DagManagerUtilsTest {
 
   @Test
   public void testIsDagFinishedThreeNodes() throws URISyntaxException {
-    long flowExecutionId = 12345L;
-    String flowGroup = "fg";
-    String flowName = "fn";
-
-    Dag<JobExecutionPlan> dag = buildComplexDag3("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), "user5",
-        ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
-            .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,
-                ConfigValueFactory.fromAnyRef(MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    Dag<JobExecutionPlan> dag = buildComplexDag3();
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, PENDING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
@@ -153,17 +136,7 @@ public class DagManagerUtilsTest {
 
   @Test
   public void testIsDagFinishedFourNodes() throws URISyntaxException {
-    long flowExecutionId = 12345L;
-    String flowGroup = "fg";
-    String flowName = "fn";
-
-    Dag<JobExecutionPlan> dag =
-        buildComplexDag2("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(), "user5",
-            ConfigFactory.empty().withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-                .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
-                .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-                .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY,
-                    ConfigValueFactory.fromAnyRef(MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    Dag<JobExecutionPlan> dag = buildLinearDagOf4Nodes();
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, PENDING, PENDING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
@@ -237,35 +210,13 @@ public class DagManagerUtilsTest {
 
   @Test
   public void testIsDagFinishedWithFinishRunningFailureOption() throws URISyntaxException {
-    long flowExecutionId = 12345L;
-    String flowGroup = "fg";
-    String flowName = "fn";
-    Dag<JobExecutionPlan> dag = buildComplexDag4("1", flowExecutionId, DagManager.FailureOption.FINISH_RUNNING.name(), "user5",
-        ConfigFactory.empty()
-            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
-            .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    Dag<JobExecutionPlan> dag = buildComplexDagWithFinishRunningFailureOption();
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, CANCELLED, COMPLETE, PENDING, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, CANCELLED, COMPLETE, RUNNING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
-  }
-
-  private List<Dag.DagNode<JobExecutionPlan>> randomizeNodes(Dag<JobExecutionPlan> dag) {
-    int size = dag.getNodes().size();
-    List<Dag.DagNode<JobExecutionPlan>> randomizedDagNodes = new ArrayList<>();
-
-    for (int i=0; i<size; i++) {
-      int index = rand.nextInt(size);
-      randomizedDagNodes.add(dag.getNodes().get(index));
-    }
-
-    return randomizedDagNodes;
-
   }
 
   private void setJobStatuses(Dag<JobExecutionPlan> dag, List<ExecutionStatus> statuses) {
@@ -335,8 +286,7 @@ public class DagManagerUtilsTest {
 
   // This creates a dag like this
   // D0 -> D1 -> D2 -> D3
-  public static Dag<JobExecutionPlan> buildComplexDag2(String id, long flowExecutionId,
-      String flowFailureOption, String proxyUser, Config additionalConfig) throws URISyntaxException {
+  public static Dag<JobExecutionPlan> buildLinearDagOf4Nodes() throws URISyntaxException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
     for (int i = 0; i < 4; i++) {
@@ -371,8 +321,7 @@ public class DagManagerUtilsTest {
   // D0  D1
   //   \/
   //   D2
-  public static Dag<JobExecutionPlan> buildComplexDag3(String id, long flowExecutionId,
-      String flowFailureOption, String proxyUser, Config additionalConfig) throws URISyntaxException {
+  public static Dag<JobExecutionPlan> buildComplexDag3() throws URISyntaxException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
     for (int i = 0; i < 3; i++) {
@@ -405,8 +354,7 @@ public class DagManagerUtilsTest {
   // D1  D2
   //    / \
   //   D3  D4
-  public static Dag<JobExecutionPlan> buildComplexDag4(String id, long flowExecutionId,
-      String flowFailureOption, String proxyUser, Config additionalConfig) throws URISyntaxException {
+  public static Dag<JobExecutionPlan> buildComplexDagWithFinishRunningFailureOption() throws URISyntaxException {
     List<JobExecutionPlan> jobExecutionPlans = new ArrayList<>();
 
     for (int i = 0; i < 5; i++) {
@@ -417,7 +365,7 @@ public class DagManagerUtilsTest {
           addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId).
           addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group" + id).
           addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).
-          addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, flowFailureOption).
+          addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.FailureOption.FINISH_RUNNING.name()).
           addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build();
       jobConfig = additionalConfig.withFallback(jobConfig);
       if (i == 1) {
