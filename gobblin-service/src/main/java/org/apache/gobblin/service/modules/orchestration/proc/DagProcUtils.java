@@ -29,6 +29,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Optional;
+import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
@@ -55,6 +56,7 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
+import static org.apache.gobblin.service.ExecutionStatus.*;
 
 
 /**
@@ -309,52 +311,43 @@ public class DagProcUtils {
       ExecutionStatus status = node.getValue().getExecutionStatus();
       if (status == ExecutionStatus.FAILED || status == ExecutionStatus.CANCELLED) {
         anyFailure = true;
-        removeChildrenFromCanRun(node, dag, canRun);
+        removeDescendantsFromCanRun(node, dag, canRun);
         completed.add(node);
       } else if (status == ExecutionStatus.COMPLETE) {
         completed.add(node);
       } else if (status == ExecutionStatus.PENDING) {
         // Remove PENDING node if its parents are not in canRun, this means remove the pending nodes also from canRun set
         // if its parents cannot run
-        if (!areParentsInCanRun(node, canRun)) {
+        if (!areAllParentsInCanRun(node, canRun)) {
           canRun.remove(node);
         }
       }
     }
 
-    // In the end, check if there are more nodes in canRun than completed
     assert canRun.size() >= completed.size();
 
     if (!anyFailure || failureOption == DagManager.FailureOption.FINISH_ALL_POSSIBLE) {
+      // In the end, check if there are more nodes in canRun than completed
       return canRun.size() == completed.size();
     } else if (failureOption == DagManager.FailureOption.FINISH_RUNNING) {
-      //if all the remaining jobs are pending return true
+      // if all the remaining jobs are pending return true
       canRun.removeAll(completed);
-      boolean isFinished = true;
-      for (Dag.DagNode<JobExecutionPlan> remainingNode : canRun) {
-        if (remainingNode.getValue().getExecutionStatus() == ExecutionStatus.RUNNING ||
-            remainingNode.getValue().getExecutionStatus() == ExecutionStatus.PENDING_RESUME ||
-            remainingNode.getValue().getExecutionStatus() == ExecutionStatus.ORCHESTRATED ||
-            remainingNode.getValue().getExecutionStatus() == ExecutionStatus.PENDING_RETRY) {
-          isFinished = false;
-          break;
-        }
-      }
-      return isFinished;
+      List<ExecutionStatus> unfinishedStatuses = Lists.newArrayList(RUNNING, PENDING_RESUME, ORCHESTRATED, PENDING_RETRY);
+      return canRun.stream().noneMatch(node -> unfinishedStatuses.contains(node.getValue().getExecutionStatus()));
     } else {
       throw new RuntimeException("Unexpected failure option " + failureOption);
     }
   }
 
-  private static void removeChildrenFromCanRun(Dag.DagNode<JobExecutionPlan> node, Dag<JobExecutionPlan> dag,
+  private static void removeDescendantsFromCanRun(Dag.DagNode<JobExecutionPlan> node, Dag<JobExecutionPlan> dag,
       Set<Dag.DagNode<JobExecutionPlan>> canRun) {
     for (Dag.DagNode<JobExecutionPlan> child : dag.getChildren(node)) {
       canRun.remove(child);
-      removeChildrenFromCanRun(child, dag, canRun); // Recursively remove all descendants
+      removeDescendantsFromCanRun(child, dag, canRun); // Recursively remove all descendants
     }
   }
 
-  private static boolean areParentsInCanRun(Dag.DagNode<JobExecutionPlan> node,
+  private static boolean areAllParentsInCanRun(Dag.DagNode<JobExecutionPlan> node,
       Set<Dag.DagNode<JobExecutionPlan>> canRun) {
     if (node.getParentNodes() == null) {
       return true;
