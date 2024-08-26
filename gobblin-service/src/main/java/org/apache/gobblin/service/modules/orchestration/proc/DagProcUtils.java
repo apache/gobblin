@@ -311,7 +311,6 @@ public class DagProcUtils {
     List<Dag.DagNode<JobExecutionPlan>> nodes = dag.getNodes();
     Set<Dag.DagNode<JobExecutionPlan>> canRun = new HashSet<>(nodes);
     Set<Dag.DagNode<JobExecutionPlan>> completed = new HashSet<>();
-    DagManager.FailureOption failureOption = DagManagerUtils.getFailureOption(dag);
     boolean anyFailure = false;
 
     for (Dag.DagNode<JobExecutionPlan> node : nodes) {
@@ -339,6 +338,8 @@ public class DagProcUtils {
 
     assert canRun.size() >= completed.size();
 
+    DagManager.FailureOption failureOption = DagManagerUtils.getFailureOption(dag);
+
     if (!anyFailure || failureOption == DagManager.FailureOption.FINISH_ALL_POSSIBLE) {
       // In the end, check if there are more nodes in canRun than completed
       return canRun.size() == completed.size();
@@ -361,14 +362,6 @@ public class DagProcUtils {
 
   private static boolean areAllParentsInCanRun(Dag.DagNode<JobExecutionPlan> node,
       Set<Dag.DagNode<JobExecutionPlan>> canRun) {
-    if (node.getParentNodes() == null) {
-      return true;
-    }
-    for (Dag.DagNode<JobExecutionPlan> parent : node.getParentNodes()) {
-      if (!canRun.contains(parent)) {
-        return false; // If any parent is not in canRun, return false
-      }
-    }
-    return true; // All parents are in canRun
+    return node.getParentNodes() == null || canRun.containsAll(node.getParentNodes());
   }
 }
