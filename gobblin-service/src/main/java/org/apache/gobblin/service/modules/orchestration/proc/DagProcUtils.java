@@ -296,8 +296,19 @@ public class DagProcUtils {
 
   /**
    * Returns true if all dag nodes are finished, and it is not possible to run any new dag node.
+   * If failure option is {@link org.apache.gobblin.service.modules.orchestration.DagManager.FailureOption#FINISH_RUNNING},
+   * no new jobs should be orchestrated, so even if some job can run, dag should be considered finished.
    */
   public static boolean isDagFinished(Dag<JobExecutionPlan> dag) {
+    /*
+    The algo for this method is that it adds all the dag nodes into a set `canRun` that signifies all the nodes that can
+    run in this dag. This also includes all the jobs that are completed. It scans all the nodes and if the node is
+    completed it adds it to the `completed` set; if the node is failed/cancelled it removes all its dependant nodes from
+    `canRun` set. In the end if there are more nodes that "canRun" than "completed", dag is not finished.
+    For FINISH_RUNNING failure option, there is an additional condition that all the remaining `canRun` jobs should already
+    be running/orchestrated/pending_retry/pending_resume. Basically they should already be out of PENDING state, in order
+    for dag to be considered "NOT FINISHED".
+     */
     List<Dag.DagNode<JobExecutionPlan>> nodes = dag.getNodes();
     Set<Dag.DagNode<JobExecutionPlan>> canRun = new HashSet<>(nodes);
     Set<Dag.DagNode<JobExecutionPlan>> completed = new HashSet<>();
