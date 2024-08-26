@@ -123,7 +123,7 @@ public class ReevaluateDagProcTest {
     // next job is sent to spec producer
     Mockito.verify(specProducers.get(1), Mockito.times(1)).addSpec(any());
     // there are two invocations, one after setting status and other after sending new job to specProducer
-    Mockito.verify(this.dagManagementStateStore, Mockito.times(2)).addDagNodeState(any(), any());
+    Mockito.verify(this.dagManagementStateStore, Mockito.times(2)).updateDagNode(any());
 
     // assert that the first job is completed
     Assert.assertEquals(ExecutionStatus.COMPLETE,

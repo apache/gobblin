@@ -87,8 +87,8 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
       + "UNIQUE INDEX dag_node_index (dag_node_id), "
       + "INDEX dag_index (parent_dag_id))";
 
-  protected static final String INSERT_STATEMENT = "INSERT INTO %s (dag_node_id, parent_dag_id, dag_node) "
-      + "VALUES (?, ?, ?) AS new ON DUPLICATE KEY UPDATE dag_node = new.dag_node";
+  protected static final String INSERT_DAG_NODE_STATEMENT = "INSERT INTO %s (dag_node_id, parent_dag_id, dag_node) VALUES (?, ?, ?)";
+  protected static final String UPDATE_DAG_NODE_STATEMENT = "UPDATE %s SET dag_node = ? WHERE dag_node_id = ?";
   protected static final String GET_DAG_NODES_STATEMENT = "SELECT dag_node FROM %s WHERE parent_dag_id = ?";
   protected static final String GET_DAG_NODE_STATEMENT = "SELECT dag_node FROM %s WHERE dag_node_id = ?";
   protected static final String DELETE_DAG_STATEMENT = "DELETE FROM %s WHERE parent_dag_id = ?";
@@ -126,18 +126,32 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   }
 
   @Override
-  public void writeCheckpoint(Dag<JobExecutionPlan> dag)
-      throws IOException {
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
-    boolean newDag = false;
-    for (Dag.DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
-      if (updateDagNode(dagId, dagNode) == 1) {
-        newDag = true;
+  public void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException {
+    String dagId = DagManagerUtils.generateDagId(dag).toString();
+    dbStatementExecutor.withPreparedStatement(String.format(INSERT_DAG_NODE_STATEMENT, tableName), insertStatement -> {
+      int dagSize = dag.getNodes().size();
+      Object[][] data = new Object[dagSize][3];
+
+      for (int i=0; i<dagSize; i++) {
+        Dag.DagNode<JobExecutionPlan> dagNode = dag.getNodes().get(i);
+        data[i][0] = dagNode.getValue().getId().toString();
+        data[i][1] = dagId;
+        data[i][2] =this.serDe.serialize(Collections.singletonList(dagNode.getValue()));
       }
-    }
-    if (newDag) {
-      this.totalDagCount.inc();
-    }
+
+      for (Object[] row : data) {
+        insertStatement.setObject(1, row[0]);
+        insertStatement.setObject(2, row[1]);
+        insertStatement.setObject(3, row[2]);
+        insertStatement.addBatch();
+      }
+      try {
+        return insertStatement.executeBatch();
+      } catch (SQLException e) {
+        throw new IOException(String.format("Failure adding dag for %s", dagId), e);
+      }}, true);
+
+    this.totalDagCount.inc();
   }
 
   @Override
@@ -147,15 +161,18 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
 
   @Override
   public boolean cleanUp(DagManager.DagId dagId) throws IOException {
-    dbStatementExecutor.withPreparedStatement(String.format(DELETE_DAG_STATEMENT, tableName), deleteStatement -> {
+    if (dbStatementExecutor.withPreparedStatement(String.format(DELETE_DAG_STATEMENT, tableName), deleteStatement -> {
       try {
         deleteStatement.setString(1, dagId.toString());
         return deleteStatement.executeUpdate() != 0;
       } catch (SQLException e) {
         throw new IOException(String.format("Failure deleting dag for %s", dagId), e);
-      }}, true);
-    this.totalDagCount.dec();
-    return true;
+      }}, true)) {
+      this.totalDagCount.dec();
+      return true;
+    } else {
+      return false;
+    }
   }
 
   @Override
@@ -195,16 +212,15 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   }
 
   @Override
-  public int updateDagNode(DagManager.DagId parentDagId, Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
+  public int updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
     String dagNodeId = dagNode.getValue().getId().toString();
-    return dbStatementExecutor.withPreparedStatement(String.format(INSERT_STATEMENT, tableName), insertStatement -> {
+    return dbStatementExecutor.withPreparedStatement(String.format(UPDATE_DAG_NODE_STATEMENT, tableName), updateStatement -> {
       try {
-        insertStatement.setString(1, dagNodeId);
-        insertStatement.setString(2, parentDagId.toString());
-        insertStatement.setString(3, this.serDe.serialize(Collections.singletonList(dagNode.getValue())));
-        return insertStatement.executeUpdate();
+        updateStatement.setString(1, this.serDe.serialize(Collections.singletonList(dagNode.getValue())));
+        updateStatement.setString(2, dagNodeId);
+        return updateStatement.executeUpdate();
       } catch (SQLException e) {
-        throw new IOException(String.format("Failure adding dag node for %s", dagNodeId), e);
+        throw new IOException(String.format("Failure updating dag node for %s", dagNodeId), e);
       }}, true);
   }
 

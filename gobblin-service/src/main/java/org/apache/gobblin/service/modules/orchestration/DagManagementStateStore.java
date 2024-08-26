@@ -101,7 +101,7 @@ public interface DagManagementStateStore {
    * @param dagNode dag node to be added
    * @param dagId dag id of the dag this dag node belongs to
    */
-  void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId) throws IOException;
+  void updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
   /**
    * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} and its {@link JobStatus}.
