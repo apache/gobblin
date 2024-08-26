@@ -219,6 +219,7 @@ public class DagManagerUtils {
         switch (failureOption) {
           case FINISH_RUNNING:
             return new HashSet<>();
+          // todo - FINISH_ALL_POSSIBLE should probably `continue` not `break`
           case FINISH_ALL_POSSIBLE:
           default:
             break;
@@ -228,7 +229,7 @@ public class DagManagerUtils {
     return nextNodesToExecute;
   }
 
-  static FailureOption getFailureOption(Dag<JobExecutionPlan> dag) {
+  public static FailureOption getFailureOption(Dag<JobExecutionPlan> dag) {
     if (dag.isEmpty()) {
       return null;
     }

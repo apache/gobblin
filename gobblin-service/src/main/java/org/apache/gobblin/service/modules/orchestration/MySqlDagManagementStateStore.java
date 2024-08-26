@@ -43,7 +43,6 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
@@ -207,13 +206,6 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
     } else {
       return java.util.Optional.empty();
     }
-  }
-
-
-  @Override
-  public boolean hasRunningJobs(DagManager.DagId dagId) throws IOException {
-    return getDagNodes(dagId).stream()
-        .anyMatch(node -> !FlowStatusGenerator.FINISHED_STATUSES.contains(node.getValue().getExecutionStatus().name()));
   }
 
   @Override

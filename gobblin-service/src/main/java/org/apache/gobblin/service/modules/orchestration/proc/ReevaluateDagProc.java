@@ -104,7 +104,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // set to PASS, which would be incorrect.
       dag.setFlowEvent(null);
       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
-    } else if (!dagManagementStateStore.hasRunningJobs(getDagId())) {
+    } else if (DagProcUtils.isDagFinished(dag)) {
       if (dag.getFlowEvent() == null) {
         // If the dag flow event is not set and there are no more jobs running, then it is successful
         // also note that `onJobFinish` method does whatever is required to do after job finish, determining a Dag's
@@ -160,7 +160,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         break;
       case COMPLETE:
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorSuccess(dagNode);
-        DagProcUtils.submitNextNodes(dagManagementStateStore, dag, getDagId());
+        if (!DagProcUtils.isDagFinished(dag)) { // this may fail when dag failure option is finish_running and some dag node has failed
+          DagProcUtils.submitNextNodes(dagManagementStateStore, dag, getDagId());
+        }
         break;
       default:
         log.warn("It should not reach here. Job status {} is unexpected.", executionStatus);
