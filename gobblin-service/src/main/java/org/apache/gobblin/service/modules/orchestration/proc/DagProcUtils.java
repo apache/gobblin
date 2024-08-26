@@ -29,7 +29,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
 import com.google.common.base.Optional;
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
@@ -332,6 +331,9 @@ public class DagProcUtils {
         if (!areAllParentsInCanRun(node, canRun)) {
           canRun.remove(node);
         }
+      } else if (!(status == COMPILED || status == PENDING_RESUME || status == PENDING_RETRY || status == ORCHESTRATED ||
+                  status == RUNNING)) {
+        throw new RuntimeException("Unexpected status " + status + " for dag node " + node);
       }
     }
 
@@ -341,10 +343,9 @@ public class DagProcUtils {
       // In the end, check if there are more nodes in canRun than completed
       return canRun.size() == completed.size();
     } else if (failureOption == DagManager.FailureOption.FINISH_RUNNING) {
-      // if all the remaining jobs are pending return true
+      // if all the remaining jobs are pending/compiled (basically not started yet) return true
       canRun.removeAll(completed);
-      List<ExecutionStatus> unfinishedStatuses = Lists.newArrayList(RUNNING, PENDING_RESUME, ORCHESTRATED, PENDING_RETRY);
-      return canRun.stream().noneMatch(node -> unfinishedStatuses.contains(node.getValue().getExecutionStatus()));
+      return canRun.stream().allMatch(node -> (node.getValue().getExecutionStatus() == PENDING || node.getValue().getExecutionStatus() == COMPILED));
     } else {
       throw new RuntimeException("Unexpected failure option " + failureOption);
     }
