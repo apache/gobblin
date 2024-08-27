@@ -30,7 +30,6 @@ import com.google.common.io.Closer;
 import io.temporal.failure.ApplicationFailure;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -117,9 +116,9 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
 
     // TODO: count total bytes for progress tracking!
 
-    boolean canCleanUp = canCleanStagingData(jobState);
+    boolean canCleanUpTempDirs = false; // unlike `AbstractJobLauncher` running the job end-to-end, this is Work Discovery only, so WAY TOO SOON for cleanup
     DestinationDatasetHandlerService datasetHandlerService = closer.register(
-        new DestinationDatasetHandlerService(jobState, canCleanUp, eventSubmitterContext.create()));
+        new DestinationDatasetHandlerService(jobState, canCleanUpTempDirs, eventSubmitterContext.create()));
     WorkUnitStream handledWorkUnitStream = datasetHandlerService.executeHandlers(workUnitStream);
 
     // initialize writer and converter(s)
@@ -142,14 +141,5 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     WorkUnitStream trackedWorkUnitStream = AbstractJobLauncher.addWorkUnitTrackingPerConfig(preparedWorkUnitStream, jobState, log);
 
     return AbstractJobLauncher.materializeWorkUnitList(trackedWorkUnitStream);
-  }
-
-  protected static boolean canCleanStagingData(JobState jobState) {
-    if (DeliverySemantics.EXACTLY_ONCE.equals(DeliverySemantics.parse(jobState))) {
-      String errMsg = "DeliverySemantics.EXACTLY_ONCE NOT currently supported; job " + jobState.getJobId();
-      log.error(errMsg);
-      throw ApplicationFailure.newNonRetryableFailure(errMsg, "Unsupported: DeliverySemantics.EXACTLY_ONCE");
-    }
-    return true;
   }
 }

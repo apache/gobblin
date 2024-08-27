@@ -110,6 +110,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     this.dagProcEngineMetrics = dagProcEngineMetrics;
   }
 
+  @Override
   public synchronized void addDagAction(DagActionStore.LeaseParams leaseParams) {
     log.info("Adding {} to queue...", leaseParams);
     if (!this.leaseParamsQueue.offer(leaseParams)) {
