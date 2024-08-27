@@ -196,7 +196,7 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
     );
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
+    Dag.DagId dagId = DagUtils.generateDagId(dag);
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     dagManagementStateStore.addDag(dag);
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.empty()))
@@ -233,7 +233,7 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI))
     );
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
+    Dag.DagId dagId = DagUtils.generateDagId(dag);
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
         .jobName("job3").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.COMPLETE.name())
         .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
@@ -279,7 +279,7 @@ public class ReevaluateDagProcTest {
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
+    Dag.DagId dagId = DagUtils.generateDagId(dag);
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     dagManagementStateStore.addDag(dag);
     // a job status with shouldRetry=true, it should have execution status = PENDING_RETRY
