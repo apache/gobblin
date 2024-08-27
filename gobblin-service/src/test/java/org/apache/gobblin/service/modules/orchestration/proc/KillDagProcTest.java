@@ -180,7 +180,6 @@ public class KillDagProcTest {
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef("fg"))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     JobStatus
         jobStatus = JobStatus.builder().flowName("job0").flowGroup("fg").jobGroup("fg").jobName("job0").flowExecutionId(flowExecutionId).

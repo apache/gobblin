@@ -47,6 +47,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -295,7 +296,7 @@ public class DagProcUtils {
 
   /**
    * Returns true if all dag nodes are finished, and it is not possible to run any new dag node.
-   * If failure option is {@link org.apache.gobblin.service.modules.orchestration.DagManager.FailureOption#FINISH_RUNNING},
+   * If failure option is {@link org.apache.gobblin.service.modules.orchestration.DagProcessingEngine.FailureOption#FINISH_RUNNING},
    * no new jobs should be orchestrated, so even if some job can run, dag should be considered finished.
    */
   public static boolean isDagFinished(Dag<JobExecutionPlan> dag) {
@@ -338,12 +339,12 @@ public class DagProcUtils {
 
     assert canRun.size() >= completed.size();
 
-    DagManager.FailureOption failureOption = DagManagerUtils.getFailureOption(dag);
+    DagProcessingEngine.FailureOption failureOption = DagUtils.getFailureOption(dag);
 
-    if (!anyFailure || failureOption == DagManager.FailureOption.FINISH_ALL_POSSIBLE) {
+    if (!anyFailure || failureOption == DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE) {
       // In the end, check if there are more nodes in canRun than completed
       return canRun.size() == completed.size();
-    } else if (failureOption == DagManager.FailureOption.FINISH_RUNNING) {
+    } else if (failureOption == DagProcessingEngine.FailureOption.FINISH_RUNNING) {
       // if all the remaining jobs are pending/compiled (basically not started yet) return true
       canRun.removeAll(completed);
       return canRun.stream().allMatch(node -> (node.getValue().getExecutionStatus() == PENDING || node.getValue().getExecutionStatus() == COMPILED));
