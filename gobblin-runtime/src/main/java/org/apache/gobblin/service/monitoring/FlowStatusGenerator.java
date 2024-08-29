@@ -154,7 +154,7 @@ public class FlowStatusGenerator {
    * @return true, if any jobs of the flow are RUNNING.
    */
   public boolean isFlowRunning(String flowName, String flowGroup, long flowExecutionId) {
-    List<FlowStatus> flowStatusList = jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(flowName, flowGroup);
+    List<FlowStatus> flowStatusList = jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(flowGroup, flowName);
 
     if (flowStatusList == null || flowStatusList.isEmpty()) {
       return false;
