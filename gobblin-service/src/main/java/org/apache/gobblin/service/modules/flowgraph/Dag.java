@@ -48,6 +48,8 @@ public class Dag<T> {
   // Map to maintain parent to children mapping.
   private Map<DagNode, List<DagNode<T>>> parentChildMap;
   private List<DagNode<T>> nodes;
+  @Setter
+  private boolean isFailedDag;
 
   @Setter
   @Deprecated // because this field is not persisted in mysql and contains information in very limited cases
