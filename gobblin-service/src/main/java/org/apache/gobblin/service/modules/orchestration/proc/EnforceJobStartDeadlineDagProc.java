@@ -63,7 +63,7 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
     }
 
     Dag.DagNode<JobExecutionPlan> dagNode = dagNodeToCheckDeadline.getLeft().get();
-    long timeOutForJobStart = DagUtils.getJobStartSla(dagNode, DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
+    long timeOutForJobStart = DagUtils.getJobStartDeadline(dagNode, DagProcessingEngine.getDefaultJobStartDeadlineTimeMillis());
     Optional<org.apache.gobblin.service.monitoring.JobStatus> jobStatus = dagNodeToCheckDeadline.getRight();
     if (!jobStatus.isPresent()) {
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);

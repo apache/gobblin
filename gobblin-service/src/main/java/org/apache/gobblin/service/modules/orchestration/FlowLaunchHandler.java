@@ -39,6 +39,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
+import javax.inject.Named;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -76,7 +77,8 @@ public class FlowLaunchHandler {
   private final ContextAwareCounter failedToSetEventReminderCount;
 
   @Inject
-  public FlowLaunchHandler(Config config, MultiActiveLeaseArbiter leaseArbiter,
+  public FlowLaunchHandler(Config config,
+      @Named(ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter leaseArbiter,
       SchedulerService schedulerService, DagManagementStateStore dagManagementStateStore) {
     this.multiActiveLeaseArbiter = leaseArbiter;
     this.dagManagementStateStore = dagManagementStateStore;

@@ -36,11 +36,11 @@ import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 
 
 /**
- * Resource for handling flow status requests. Deprecated, use {@link FlowExecutionResource}
+ * Resource for handling flow status requests
  */
-@Deprecated
 @RestLiCollection(name = "flowstatuses", namespace = "org.apache.gobblin.service", keyName = "id")
 public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId, EmptyRecord, FlowStatus> {
+  public static final String MESSAGE_SEPARATOR = ", ";
 
   @Inject
   FlowStatusGenerator _flowStatusGenerator;
@@ -55,13 +55,13 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
   @Override
   public FlowStatus get(ComplexResourceKey<FlowStatusId, EmptyRecord> key) {
     // this returns null to raise a 404 error if flowStatus is null
-    return convertFlowStatus(FlowExecutionResource.getFlowStatusFromGenerator(key, this._flowStatusGenerator));
+    return convertFlowStatus(FlowExecutionResourceLocalHandler.getFlowStatusFromGenerator(key, this._flowStatusGenerator));
   }
 
   @Finder("latestFlowStatus")
   public List<FlowStatus> getLatestFlowStatus(@Context PagingContext context,
       @QueryParam("flowId") FlowId flowId, @Optional @QueryParam("count") Integer count, @Optional @QueryParam("tag") String tag) {
-    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses = FlowExecutionResource
+    List<org.apache.gobblin.service.monitoring.FlowStatus> flowStatuses = FlowExecutionResourceLocalHandler
         .getLatestFlowStatusesFromGenerator(flowId, count, tag, null, this._flowStatusGenerator);
 
     if (flowStatuses != null) {
@@ -82,7 +82,7 @@ public class FlowStatusResource extends ComplexKeyResourceTemplate<FlowStatusId,
     if (monitoringFlowStatus == null) {
       return null;
     }
-    FlowExecution flowExecution = FlowExecutionResource.convertFlowStatus(monitoringFlowStatus, false);
+    FlowExecution flowExecution = FlowExecutionResourceLocalHandler.convertFlowStatus(monitoringFlowStatus, false);
     return new FlowStatus()
         .setId(flowExecution.getId())
         .setExecutionStatistics(flowExecution.getExecutionStatistics())

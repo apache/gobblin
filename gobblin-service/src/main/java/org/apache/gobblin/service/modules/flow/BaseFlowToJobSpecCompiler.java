@@ -73,8 +73,7 @@ public abstract class BaseFlowToJobSpecCompiler implements SpecCompiler {
   // Since {@link SpecCompiler} is an {@link SpecCatalogListener}, it is expected that any Spec change should be reflected
   // to these data structures.
   @Getter
-  @Setter
-  protected Map<URI, TopologySpec> topologySpecMap;
+  protected final Map<URI, TopologySpec> topologySpecMap;
 
   protected final Config config;
   protected final Logger log;

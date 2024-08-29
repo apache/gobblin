@@ -38,9 +38,9 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 @Slf4j
 abstract public class AbstractUserQuotaManager implements UserQuotaManager {
-  public static final String PER_USER_QUOTA = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "perUserQuota";
-  public static final String PER_FLOWGROUP_QUOTA = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "perFlowGroupQuota";
-  public static final String USER_JOB_QUOTA_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "defaultJobQuota";
+  public static final String PER_USER_QUOTA = ServiceConfigKeys.QUOTA_MANAGER_PREFIX + "perUserQuota";
+  public static final String PER_FLOWGROUP_QUOTA = ServiceConfigKeys.QUOTA_MANAGER_PREFIX + "perFlowGroupQuota";
+  public static final String USER_JOB_QUOTA_KEY = ServiceConfigKeys.QUOTA_MANAGER_PREFIX + "defaultJobQuota";
   public static final String QUOTA_SEPERATOR = ":";
   public static final Integer DEFAULT_USER_JOB_QUOTA = Integer.MAX_VALUE;
   private final Map<String, Integer> perUserQuota;

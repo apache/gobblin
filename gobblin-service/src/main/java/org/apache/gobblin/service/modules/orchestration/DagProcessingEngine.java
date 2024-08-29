@@ -65,8 +65,8 @@ public class DagProcessingEngine extends AbstractIdleService {
   private final DagProcessingEngineMetrics dagProcEngineMetrics;
   private static final Integer TERMINATION_TIMEOUT = 30;
   public static final String DEFAULT_JOB_START_DEADLINE_TIME_MS = "defaultJobStartDeadlineTimeMillis";
-  @Getter static long defaultJobStartSlaTimeMillis;
-  public static final String DEFAULT_FLOW_FAILURE_OPTION = DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name();
+  @Getter static long defaultJobStartDeadlineTimeMillis;
+  public static final String DEFAULT_FLOW_FAILURE_OPTION = FailureOption.FINISH_ALL_POSSIBLE.name();
 
   @Inject
   public DagProcessingEngine(Config config, DagTaskStream dagTaskStream, DagProcFactory dagProcFactory,
@@ -82,7 +82,7 @@ public class DagProcessingEngine extends AbstractIdleService {
   }
 
   private static void setDefaultJobStartDeadlineTimeMs(long deadlineTimeMs) {
-    defaultJobStartSlaTimeMillis = deadlineTimeMs;
+    defaultJobStartDeadlineTimeMillis = deadlineTimeMs;
   }
 
   @Override
@@ -118,20 +118,9 @@ public class DagProcessingEngine extends AbstractIdleService {
    * </ul>
    */
   public enum FailureOption {
-    FINISH_RUNNING("FINISH_RUNNING"),
-    CANCEL("CANCEL"),
-    FINISH_ALL_POSSIBLE("FINISH_ALL_POSSIBLE");
-
-    private final String failureOption;
-
-    FailureOption(final String failureOption) {
-      this.failureOption = failureOption;
-    }
-
-    @Override
-    public String toString() {
-      return this.failureOption;
-    }
+    FINISH_RUNNING,
+    CANCEL,
+    FINISH_ALL_POSSIBLE
   }
 
   @AllArgsConstructor

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.service.modules.restli;
+package org.apache.gobblin.service;
 
 import java.net.URI;
 import java.net.URISyntaxException;
@@ -29,25 +29,22 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.StringEscapeUtils;
+import org.apache.commons.lang.StringUtils;
 
 import com.codahale.metrics.MetricRegistry;
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.linkedin.data.template.StringMap;
-import com.linkedin.data.transform.DataProcessingException;
 import com.linkedin.restli.common.ComplexResourceKey;
+import com.linkedin.restli.common.EmptyRecord;
 import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.common.PatchRequest;
-import com.linkedin.restli.server.CreateKVResponse;
+import com.linkedin.restli.server.CreateResponse;
 import com.linkedin.restli.server.RestLiServiceException;
 import com.linkedin.restli.server.UpdateResponse;
-import com.linkedin.restli.server.util.PatchApplier;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -63,22 +60,14 @@ import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.service.FlowConfig;
-import org.apache.gobblin.service.FlowConfigLoggedException;
-import org.apache.gobblin.service.FlowId;
-import org.apache.gobblin.service.FlowStatusId;
-import org.apache.gobblin.service.RequesterService;
-import org.apache.gobblin.service.Schedule;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 
+/**
+ * A {@link FlowConfigsResourceHandler} that handles Restli locally.
+ */
 @Slf4j
-public class FlowConfigsV2ResourceHandler {
-
-  @Getter
-  private String serviceName;
+public class FlowConfigResourceLocalHandler implements FlowConfigsResourceHandler {
   public static final Schedule NEVER_RUN_CRON_SCHEDULE = new Schedule().setCronSchedule("0 0 0 ? 1 1 2050");
   @Getter
   protected FlowCatalog flowCatalog;
@@ -87,11 +76,9 @@ public class FlowConfigsV2ResourceHandler {
   protected final ContextAwareMeter runImmediatelyFlow;
 
   @Inject
-  public FlowConfigsV2ResourceHandler(@Named(InjectionNames.SERVICE_NAME) String serviceName, FlowCatalog flowCatalog) {
-    this.serviceName = serviceName;
+  public FlowConfigResourceLocalHandler(FlowCatalog flowCatalog) {
     this.flowCatalog = flowCatalog;
-    MetricContext
-        metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
+    MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(ConfigFactory.empty()), getClass());
     this.createFlow = metricContext.contextAwareMeter(
         MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, ServiceMetricNames.CREATE_FLOW_METER));
     this.deleteFlow = metricContext.contextAwareMeter(
@@ -100,8 +87,10 @@ public class FlowConfigsV2ResourceHandler {
         MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, ServiceMetricNames.RUN_IMMEDIATELY_FLOW_METER));
   }
 
-  public FlowConfig getFlowConfig(FlowId flowId)
-      throws FlowConfigLoggedException {
+  /**
+   * Get flow config given a {@link FlowId}
+   */
+  public FlowConfig getFlowConfig(FlowId flowId) throws FlowConfigLoggedException {
     log.info("[GAAS-REST] Get called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
 
     try {
@@ -115,74 +104,80 @@ public class FlowConfigsV2ResourceHandler {
     }
   }
 
+  /**
+   * Get flow config given a {@link FlowSpecSearchObject}
+   * @return all the {@link FlowConfig}s that satisfy the {@link FlowSpecSearchObject}
+   */
   public Collection<FlowConfig> getFlowConfig(FlowSpecSearchObject flowSpecSearchObject) throws FlowConfigLoggedException {
     log.info("[GAAS-REST] Get called with flowSpecSearchObject {}", flowSpecSearchObject);
     return flowCatalog.getSpecs(flowSpecSearchObject).stream().map(FlowSpec.Utils::toFlowConfig).collect(Collectors.toList());
-
   }
 
+  /**
+   * Get all flow configs
+   */
   public Collection<FlowConfig> getAllFlowConfigs() {
     log.info("[GAAS-REST] GetAll called");
     return flowCatalog.getAllSpecs().stream().map(FlowSpec.Utils::toFlowConfig).collect(Collectors.toList());
-
   }
 
+  /**
+   * Get all flow configs in between start and start + count - 1
+   */
   public Collection<FlowConfig> getAllFlowConfigs(int start, int count) {
     return flowCatalog.getSpecsPaginated(start, count).stream().map(FlowSpec.Utils::toFlowConfig).collect(Collectors.toList());
   }
 
-
-
-  public UpdateResponse deleteFlowConfig(FlowId flowId, Properties header)
-      throws FlowConfigLoggedException {
-    log.info("[GAAS-REST] Delete called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
-    this.deleteFlow.mark();
-    URI flowUri = null;
-
-    try {
-      flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
-      this.flowCatalog.remove(flowUri, header, true);
-      return new UpdateResponse(HttpStatus.S_200_OK);
-    } catch (URISyntaxException e) {
-      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUri, e);
-    }  }
-
-  public UpdateResponse  partialUpdateFlowConfig(FlowId flowId,
-      PatchRequest<FlowConfig> flowConfigPatch) throws FlowConfigLoggedException {
-    long modifiedWatermark = System.currentTimeMillis() / 1000;
-    FlowConfig flowConfig = getFlowConfig(flowId);
-
-    try {
-      PatchApplier.applyPatch(flowConfig, flowConfigPatch);
-    } catch (DataProcessingException e) {
-      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "Failed to apply partial update", e);
+  /**
+   * Add flowConfig locally and trigger all listeners iff @param triggerListener is set to true
+   */
+  public CreateResponse createFlowConfig(FlowConfig flowConfig, boolean triggerListener) throws FlowConfigLoggedException {
+    log.info("[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName());
+    this.createFlow.mark();
+    if (!flowConfig.hasSchedule() || StringUtils.isEmpty(flowConfig.getSchedule().getCronSchedule())) {
+      this.runImmediatelyFlow.mark();
     }
 
-    return updateFlowConfig(flowId, flowConfig, modifiedWatermark);
-  }
-
-  public UpdateResponse updateFlowConfig(FlowId flowId,
-      FlowConfig flowConfig) throws FlowConfigLoggedException {
-    // We have modifiedWatermark here to avoid update config happens at the same time on different hosts overwrite each other
-    // timestamp here will be treated as largest modifiedWatermark that we can update
-    long version = System.currentTimeMillis() / 1000;
-    return updateFlowConfig(flowId, flowConfig, version);
-  }
-
-  public UpdateResponse updateFlowConfig(FlowId flowId,
-      FlowConfig flowConfig, long modifiedWatermark) throws FlowConfigLoggedException {
-    String flowName = flowId.getFlowName();
-    String flowGroup = flowId.getFlowGroup();
-
-    if (!flowGroup.equals(flowConfig.getId().getFlowGroup()) || !flowName.equals(flowConfig.getId().getFlowName())) {
-      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST,
-          "flowName and flowGroup cannot be changed in update", null);
+    if (flowConfig.hasExplain()) {
+      //Return Error if FlowConfig has explain set. Explain request is only valid for v2 FlowConfig.
+      return new CreateResponse(new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, "FlowConfig with explain not supported."));
     }
 
-    // We directly call localHandler to create flow config and put it in spec store
+    FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
+    // Existence of a flow spec in the flow catalog implies that the flow is currently running.
+    // If the new flow spec has a schedule we should allow submission of the new flow to accept the new schedule.
+    // However, if the new flow spec does not have a schedule, we should allow submission only if it is not running.
+    if (!flowConfig.hasSchedule() && this.flowCatalog.exists(flowSpec.getUri())) {
+      return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_409_CONFLICT);
+    } else {
+      try {
+        this.flowCatalog.put(flowSpec, triggerListener);
+      } catch (QuotaExceededException e) {
+        throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
+      } catch (Throwable e) {
+        // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
+        log.warn(String.format("Failed to add flow configuration %s.%s to catalog due to", flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName()), e);
+        throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
+      }
+      return new CreateResponse(new ComplexResourceKey<>(flowConfig.getId(), new EmptyRecord()), HttpStatus.S_201_CREATED);
+    }
+  }
 
-    //Instead of helix message, forwarding message is done by change stream of spec store
+  /**
+   * Add flowConfig locally and trigger all listeners
+   */
+  public CreateResponse createFlowConfig(FlowConfig flowConfig) throws FlowConfigLoggedException {
+    return this.createFlowConfig(flowConfig, true);
+  }
 
+  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener) {
+    // Set the max version to be the largest value so that we blindly update the flow spec in this case
+    return updateFlowConfig(flowId, flowConfig, triggerListener, Long.MAX_VALUE);
+  }
+  /**
+   * Update flowConfig locally and trigger all listeners iff @param triggerListener is set to true
+   */
+  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, boolean triggerListener, long modifiedWatermark) {
     log.info("[GAAS-REST] Update called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
 
     if (!flowId.getFlowGroup().equals(flowConfig.getId().getFlowGroup()) || !flowId.getFlowName().equals(flowConfig.getId().getFlowName())) {
@@ -206,7 +201,7 @@ public class FlowConfigsV2ResourceHandler {
     FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
     Map<String, AddSpecResponse> responseMap;
     try {
-      responseMap = this.flowCatalog.update(flowSpec, true, modifiedWatermark);
+      responseMap = this.flowCatalog.update(flowSpec, triggerListener, modifiedWatermark);
     } catch (QuotaExceededException e) {
       throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
     } catch (Throwable e) {
@@ -222,70 +217,45 @@ public class FlowConfigsV2ResourceHandler {
     }
   }
 
-  public CreateKVResponse<ComplexResourceKey<FlowId, FlowStatusId>, FlowConfig> createFlowConfig(FlowConfig flowConfig) throws FlowConfigLoggedException {
-    if (flowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST,
-          String.format("%s cannot be set by the user", ConfigurationKeys.FLOW_EXECUTION_ID_KEY), null);
-    }
-
-    String createLog = "[GAAS-REST] Create called with flowGroup " + flowConfig.getId().getFlowGroup() + " flowName " + flowConfig.getId().getFlowName();
-    this.createFlow.mark();
-
-    if (flowConfig.hasExplain()) {
-      createLog += " explain " + flowConfig.isExplain();
-    }
-
-    log.info(createLog);
-    FlowSpec flowSpec = createFlowSpecForConfig(flowConfig);
-    FlowStatusId flowStatusId =
-        new FlowStatusId().setFlowName(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_NAME_KEY))
-            .setFlowGroup(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_GROUP_KEY));
-    if (flowSpec.getConfigAsProperties().containsKey(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
-      flowStatusId.setFlowExecutionId(Long.valueOf(flowSpec.getConfigAsProperties().getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
-    } else {
-      flowStatusId.setFlowExecutionId(-1L);
-    }
-
-    // Return conflict and take no action if flowSpec has already been created
-    if (this.flowCatalog.exists(flowSpec.getUri())) {
-      log.warn("FlowSpec with URI {} already exists, no action will be taken", flowSpec.getUri());
-      return new CreateKVResponse<>(new RestLiServiceException(HttpStatus.S_409_CONFLICT,
-          "FlowSpec with URI " + flowSpec.getUri() + " already exists, no action will be taken"));
-    }
-
-    Map<String, AddSpecResponse> responseMap;
-    try {
-      responseMap = this.flowCatalog.put(flowSpec, true);
-    } catch (QuotaExceededException e) {
-      throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
-    } catch (Throwable e) {
-      // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
-      log.warn(String.format("Failed to add flow configuration %s.%s to catalog due to", flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName()), e);
-      throw new RestLiServiceException(HttpStatus.S_500_INTERNAL_SERVER_ERROR, e.getMessage());
-    }
-
-    HttpStatus httpStatus;
-
-    if (flowConfig.hasExplain() && flowConfig.isExplain()) {
-      //This is an Explain request. So no resource is actually created.
-      //Enrich original FlowConfig entity by adding the compiledFlow to the properties map.
-      StringMap props = flowConfig.getProperties();
-      AddSpecResponse<String> addSpecResponse = responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_RESPONSE, null);
-      props.put("gobblin.flow.compiled",
-          addSpecResponse != null && addSpecResponse.getValue() != null ? StringEscapeUtils.escapeJson(addSpecResponse.getValue()) : "");
-      flowConfig.setProperties(props);
-      httpStatus = HttpStatus.S_200_OK;
-    } else if (Boolean.parseBoolean(responseMap.getOrDefault(ServiceConfigKeys.COMPILATION_SUCCESSFUL, new AddSpecResponse<>("false")).getValue().toString())) {
-      httpStatus = HttpStatus.S_201_CREATED;
-    } else {
-      throw new RestLiServiceException(HttpStatus.S_400_BAD_REQUEST, getErrorMessage(flowSpec));
-    }
-
-    return new CreateKVResponse<>(new ComplexResourceKey<>(flowConfig.getId(), flowStatusId), flowConfig, httpStatus);
-  }
-
   private boolean isUnscheduleRequest(FlowConfig flowConfig) {
     return Boolean.parseBoolean(flowConfig.getProperties().getOrDefault(ConfigurationKeys.FLOW_UNSCHEDULE_KEY, "false"));
+  }
+
+  /**
+   * Update flowConfig locally and trigger all listeners
+   */
+  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig) throws FlowConfigLoggedException {
+    return updateFlowConfig(flowId, flowConfig, true);
+  }
+
+  @Override
+  public UpdateResponse partialUpdateFlowConfig(FlowId flowId, PatchRequest<FlowConfig> flowConfigPatch) throws FlowConfigLoggedException {
+    throw new UnsupportedOperationException("Partial update only supported by GobblinServiceFlowConfigResourceHandler");
+  }
+
+  /**
+   * Delete flowConfig locally and trigger all listeners iff @param triggerListener is set to true
+   */
+  public UpdateResponse deleteFlowConfig(FlowId flowId, Properties header, boolean triggerListener) throws FlowConfigLoggedException {
+
+    log.info("[GAAS-REST] Delete called with flowGroup {} flowName {}", flowId.getFlowGroup(), flowId.getFlowName());
+    this.deleteFlow.mark();
+    URI flowUri = null;
+
+    try {
+      flowUri = FlowSpec.Utils.createFlowSpecUri(flowId);
+      this.flowCatalog.remove(flowUri, header, triggerListener);
+      return new UpdateResponse(HttpStatus.S_200_OK);
+    } catch (URISyntaxException e) {
+      throw new FlowConfigLoggedException(HttpStatus.S_400_BAD_REQUEST, "bad URI " + flowUri, e);
+    }
+  }
+
+  /**
+   * Delete flowConfig locally and trigger all listeners
+   */
+  public UpdateResponse deleteFlowConfig(FlowId flowId, Properties header)  throws FlowConfigLoggedException {
+    return deleteFlowConfig(flowId, header, true);
   }
 
   /**

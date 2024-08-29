@@ -306,11 +306,11 @@ public class DagManagerTest {
     Config executorOneConfig = ConfigFactory.empty()
         .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef("executorOne"))
         .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, ConfigValueFactory.fromAnyRef(flowExecutionId))
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef(10))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(10))
         .withValue(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS, ConfigValueFactory.fromAnyRef(true));
     Config executorTwoConfig = ConfigFactory.empty()
         .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef("executorTwo"))
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef(10))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(10))
         .withValue(ConfigurationKeys.GOBBLIN_OUTPUT_JOB_LEVEL_METRICS, ConfigValueFactory.fromAnyRef(true));
 
     List<Dag<JobExecutionPlan>> dagList = DagTestUtils.buildDagList(2, "newUser", executorOneConfig);

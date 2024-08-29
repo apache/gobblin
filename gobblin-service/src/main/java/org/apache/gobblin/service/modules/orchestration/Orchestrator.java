@@ -211,11 +211,11 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       _log.info("Found {} flows to cancel.", flowExecutionIds.size());
 
       for (long flowExecutionId : flowExecutionIds) {
-      DagActionStore.DagAction killDagAction = DagActionStore.DagAction.forFlow(flowGroup, flowName, flowExecutionId,
-          DagActionStore.DagActionType.KILL);
-      DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(killDagAction, false,
+        DagActionStore.DagAction killDagAction = DagActionStore.DagAction.forFlow(flowGroup, flowName, flowExecutionId,
+            DagActionStore.DagActionType.KILL);
+        DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(killDagAction, false,
           System.currentTimeMillis());
-      flowLaunchHandler.handleFlowKillTriggerEvent(new Properties(), leaseParams);
+        flowLaunchHandler.handleFlowKillTriggerEvent(new Properties(), leaseParams);
       }
       // We need to recompile the flow to find the spec producer,
       // If compilation result is different, its remove request can go to some different spec producer

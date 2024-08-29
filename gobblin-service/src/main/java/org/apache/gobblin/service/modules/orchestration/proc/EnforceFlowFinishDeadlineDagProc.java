@@ -35,7 +35,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 /**
  * An implementation for {@link DagProc} that kills all the jobs if the dag does not finish in
- * {@link org.apache.gobblin.configuration.ConfigurationKeys#GOBBLIN_FLOW_SLA_TIME} time.
+ * {@link org.apache.gobblin.configuration.ConfigurationKeys#GOBBLIN_FLOW_DEADLINE_TIME} time.
  */
 @Slf4j
 public class EnforceFlowFinishDeadlineDagProc extends DeadlineEnforcementDagProc {
@@ -48,7 +48,7 @@ public class EnforceFlowFinishDeadlineDagProc extends DeadlineEnforcementDagProc
   protected void enforceDeadline(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
       DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     Dag.DagNode<JobExecutionPlan> dagNode = dag.getNodes().get(0);
-    long flowFinishDeadline = DagUtils.getFlowSLA(dagNode);
+    long flowFinishDeadline = DagUtils.getFlowFinishDeadline(dagNode);
     long flowStartTime = DagUtils.getFlowStartTime(dagNode);
 
     // note that this condition should be true because the triggered dag action has waited enough before reaching here

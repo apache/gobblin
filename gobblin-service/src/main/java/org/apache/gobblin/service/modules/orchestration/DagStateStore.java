@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Set;
 
-import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
@@ -29,7 +28,6 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 /**
  * An interface for storing and retrieving currently running {@link Dag<JobExecutionPlan>}s.
  */
-@Alpha
 public interface DagStateStore {
   /**
    * Persist the {@link Dag} to the backing store.

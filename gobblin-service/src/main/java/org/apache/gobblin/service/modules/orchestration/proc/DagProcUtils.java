@@ -251,9 +251,9 @@ public class DagProcUtils {
 
   public static long getDefaultJobStartDeadline(Config config) {
     TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
-        config, ServiceConfigKeys.JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
+        config, ServiceConfigKeys.JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_DEADLINE_TIME_UNIT));
     return jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, ServiceConfigKeys.JOB_START_SLA_TIME,
-        ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME));
+        ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_DEADLINE_TIME));
   }
 
   public static boolean isJobLevelStatus(String jobName) {

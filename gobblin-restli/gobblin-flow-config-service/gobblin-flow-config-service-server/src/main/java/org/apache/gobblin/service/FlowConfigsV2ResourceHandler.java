@@ -15,14 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.runtime.util;
+package org.apache.gobblin.service;
 
-/**
- * These names are used for dependency injection, when we need to inject different instances of the same type,
- * or inject constants.
- * */
-public final class InjectionNames {
-  public static final String SERVICE_NAME = "serviceName";
-  public static final String FORCE_LEADER = "forceLeader";
-  public static final String FLOW_CATALOG_LOCAL_COMMIT = "flowCatalogLocalCommit";
+public interface FlowConfigsV2ResourceHandler extends FlowConfigsResourceHandler {
 }

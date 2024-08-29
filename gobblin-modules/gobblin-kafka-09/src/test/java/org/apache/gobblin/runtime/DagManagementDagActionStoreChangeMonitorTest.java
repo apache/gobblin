@@ -45,7 +45,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeEvent;
-import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.DagActionValue;
 import org.apache.gobblin.service.monitoring.GenericStoreChangeEvent;
 import org.apache.gobblin.service.monitoring.OperationType;
@@ -54,18 +54,18 @@ import static org.mockito.Mockito.*;
 
 
 /**
- * Tests the main functionality of {@link DagActionStoreChangeMonitor} to process {@link DagActionStoreChangeEvent} type
+ * Tests the main functionality of {@link DagManagementDagActionStoreChangeMonitor} to process {@link DagActionStoreChangeEvent} type
  * events stored in a {@link org.apache.gobblin.kafka.client.KafkaConsumerRecord}. The
  * processMessage(DecodeableKafkaRecord message) function should be able to gracefully process a variety of message
  * types, even with undesired formats, without throwing exceptions.
  */
 @Slf4j
-public class DagActionStoreChangeMonitorTest {
+public class DagManagementDagActionStoreChangeMonitorTest {
   public static final String TOPIC = DagActionStoreChangeEvent.class.getSimpleName();
   private final String FLOW_GROUP = "flowGroup";
   private final String FLOW_NAME = "flowName";
   private final String FLOW_EXECUTION_ID = "123456789";
-  private MockDagActionStoreChangeMonitor mockDagActionStoreChangeMonitor;
+  private MockDagManagementDagActionStoreChangeMonitor mockDagActionStoreChangeMonitor;
   private int txidCounter = 0;
   private static final DagActionReminderScheduler dagActionReminderScheduler = mock(DagActionReminderScheduler.class);
 
@@ -75,13 +75,13 @@ public class DagActionStoreChangeMonitorTest {
    * Note: The class methods are wrapped in a test specific method because the original methods are package protected
    * and cannot be accessed by this class.
    */
-  static class MockDagActionStoreChangeMonitor extends DagActionStoreChangeMonitor {
+  static class MockDagManagementDagActionStoreChangeMonitor extends DagManagementDagActionStoreChangeMonitor {
 
-    public MockDagActionStoreChangeMonitor(Config config, int numThreads) {
+    public MockDagManagementDagActionStoreChangeMonitor(Config config, int numThreads) {
       this(config, numThreads, mock(DagManagementStateStore.class));
     }
 
-    public MockDagActionStoreChangeMonitor(Config config, int numThreads, DagManagementStateStore dagManagementStateStore) {
+    public MockDagManagementDagActionStoreChangeMonitor(Config config, int numThreads, DagManagementStateStore dagManagementStateStore) {
       super(config, numThreads, dagManagementStateStore, mock(DagManagement.class),
           dagActionReminderScheduler, mock(DagProcessingEngineMetrics.class));
     }
@@ -95,12 +95,12 @@ public class DagActionStoreChangeMonitorTest {
     }
   }
 
-  MockDagActionStoreChangeMonitor createMockDagActionStoreChangeMonitor() {
+  MockDagManagementDagActionStoreChangeMonitor createMockDagActionStoreChangeMonitor() {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef("/tmp/fakeStateStore"))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
-    return new MockDagActionStoreChangeMonitor(config, 5);
+    return new MockDagManagementDagActionStoreChangeMonitor(config, 5);
   }
 
   // Called at start of every test so the count of each method being called is reset to 0
@@ -235,7 +235,7 @@ public class DagActionStoreChangeMonitorTest {
     FlowCatalog mockFlowCatalog = mock(FlowCatalog.class);
     // Throw an uncaught exception during startup sequence
     when(mockFlowCatalog.getSpecs(any(URI.class))).thenThrow(new RuntimeException("Uncaught exception"));
-    mockDagActionStoreChangeMonitor =  new MockDagActionStoreChangeMonitor(monitorConfig, 5, dagManagementStateStore);
+    mockDagActionStoreChangeMonitor =  new MockDagManagementDagActionStoreChangeMonitor(monitorConfig, 5, dagManagementStateStore);
     try {
       mockDagActionStoreChangeMonitor.setActive();
     } catch (Exception e) {

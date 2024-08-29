@@ -70,7 +70,10 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigV2Client;
+import org.apache.gobblin.service.FlowConfigsResourceHandler;
 import org.apache.gobblin.service.FlowConfigsV2Resource;
+import org.apache.gobblin.service.FlowConfigsV2ResourceHandler;
+import org.apache.gobblin.service.FlowExecutionResourceHandler;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.GroupOwnershipService;
 import org.apache.gobblin.service.Schedule;
@@ -79,11 +82,9 @@ import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
-import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
-import org.apache.gobblin.service.modules.restli.FlowExecutionResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
-import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
@@ -98,6 +99,9 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   // These two options are required to launch GobblinServiceManager.
   public static final String SERVICE_NAME_OPTION_NAME = "service_name";
   public static final String SERVICE_ID_OPTION_NAME = "service_id";
+
+  public static final String SERVICE_EVENT_BUS_NAME = "GobblinServiceManagerEventBus";
+
   private static final Logger LOGGER = LoggerFactory.getLogger(GobblinServiceManager.class);
   protected final ServiceBasedAppLauncher serviceLauncher;
   private volatile boolean stopInProgress = false;
@@ -120,7 +124,11 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
   @Inject
   @Getter
-  protected FlowConfigsV2ResourceHandler resourceHandler;
+  protected FlowConfigsResourceHandler resourceHandler;
+
+  @Inject
+  @Getter
+  protected FlowConfigsV2ResourceHandler v2ResourceHandler;
 
   @Inject
   @Getter
@@ -177,7 +185,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   protected SpecStoreChangeMonitor specStoreChangeMonitor;
 
   @Inject(optional = true)
-  protected DagActionStoreChangeMonitor dagActionStoreChangeMonitor;
+  protected DagManagementDagActionStoreChangeMonitor _dagManagementDagActionStoreChangeMonitor;
 
   @Inject(optional = true)
   protected DagProcessingEngine dagProcessingEngine;
@@ -285,7 +293,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     }
 
     this.serviceLauncher.addService(specStoreChangeMonitor);
-    this.serviceLauncher.addService(dagActionStoreChangeMonitor);
+    this.serviceLauncher.addService(_dagManagementDagActionStoreChangeMonitor);
   }
 
   private void configureServices(){
@@ -348,7 +356,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     // Activate both monitors last as they're dependent on the SpecCompiler and Scheduler being active
     this.specStoreChangeMonitor.setActive();
-    this.dagActionStoreChangeMonitor.setActive();
+    this._dagManagementDagActionStoreChangeMonitor.setActive();
   }
 
   @Override

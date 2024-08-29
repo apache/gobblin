@@ -82,7 +82,7 @@ public class DagTestUtils {
           addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "flow" + id).
           addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId).
           addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).build();
-      if (i > 0) {
+      if (i == 1) {
         jobConfig = jobConfig.withValue(ConfigurationKeys.JOB_DEPENDENCIES, ConfigValueFactory.fromAnyRef("job0"));
       }
       JobSpec js = JobSpec.builder("test_job" + suffix).withVersion(suffix).withConfig(jobConfig).

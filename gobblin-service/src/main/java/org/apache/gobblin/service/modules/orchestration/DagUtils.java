@@ -239,13 +239,13 @@ public class DagUtils {
    * @param dagNode dag node for which sla is to be retrieved
    * @return sla if it is provided, DEFAULT_FLOW_SLA_MILLIS otherwise
    */
-  public static long getFlowSLA(DagNode<JobExecutionPlan> dagNode) {
+  public static long getFlowFinishDeadline(DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
-        jobConfig, ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT));
+        jobConfig, ConfigurationKeys.GOBBLIN_FLOW_DEADLINE_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_DEADLINE_TIME_UNIT));
 
-    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME)
-        ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME))
+    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_DEADLINE_TIME)
+        ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_DEADLINE_TIME))
         : ServiceConfigKeys.DEFAULT_FLOW_SLA_MILLIS;
   }
 
@@ -255,15 +255,15 @@ public class DagUtils {
    * @param dagNode dag node for which flow start sla is to be retrieved
    * @return job start sla in ms
    */
-  public static long getJobStartSla(DagNode<JobExecutionPlan> dagNode, Long defaultJobStartSla) {
+  public static long getJobStartDeadline(DagNode<JobExecutionPlan> dagNode, Long defaultJobStartDeadline) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
-    TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
-        jobConfig, ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
+    TimeUnit deadlineTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
+        jobConfig, ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_DEADLINE_TIME_UNIT));
 
 
-    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME)
-        ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME))
-        : defaultJobStartSla;
+    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME)
+        ? deadlineTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME))
+        : defaultJobStartDeadline;
   }
 
   public static Config getDagJobConfig(Dag<JobExecutionPlan> dag) {

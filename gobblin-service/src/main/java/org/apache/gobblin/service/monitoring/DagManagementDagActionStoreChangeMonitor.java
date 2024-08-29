@@ -60,7 +60,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
  * connector between the API and execution layers of GaaS.
  */
 @Slf4j
-public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagActionStoreChangeEvent> {
+public class DagManagementDagActionStoreChangeMonitor extends HighLevelConsumer<String, DagActionStoreChangeEvent> {
   @VisibleForTesting @Getter private final DagManagement dagManagement;
   @VisibleForTesting @Getter private final DagActionReminderScheduler dagActionReminderScheduler;
   public static final String DAG_ACTION_CHANGE_MONITOR_PREFIX = "dagActionChangeStore";
@@ -95,7 +95,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
-  public DagActionStoreChangeMonitor(Config config, int numThreads, DagManagementStateStore dagManagementStateStore,
+  public DagManagementDagActionStoreChangeMonitor(Config config, int numThreads, DagManagementStateStore dagManagementStateStore,
       DagManagement dagManagement, DagActionReminderScheduler dagActionReminderScheduler, DagProcessingEngineMetrics dagProcEngineMetrics) {
     // Differentiate group id for each host
     // Pass empty string because we expect underlying client to dynamically determine the Kafka topic
@@ -129,7 +129,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       dagActions = dagManagementStateStore.getDagActions();
     } catch (IOException e) {
       throw new RuntimeException(String.format("Unable to retrieve dagActions from the dagActionStore while "
-          + "initializing the %s", DagActionStoreChangeMonitor.class.getCanonicalName()), e);
+          + "initializing the %s", DagManagementDagActionStoreChangeMonitor.class.getCanonicalName()), e);
     }
 
     final ExecutorService executorService = Executors.newFixedThreadPool(ConfigUtils.getInt(this.config, ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_THREADS, 5), ExecutorsUtils.newThreadFactory(Optional.of(log)));

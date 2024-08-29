@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service;
 
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -24,42 +25,42 @@ import org.testng.annotations.Test;
 public class FlowExecutionResourceLocalHandlerTest {
 
   @Test
-  public void testEstimateCopyTimeLeftSanityCheck() {
+  public void testEstimateCopyTimeLeftSanityCheck() throws Exception {
     long currentTime = 10000;
     long startTime = 0;
     int copyPercentage = 50;
 
-    long timeLeft = FlowExecutionResource.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
+    long timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
     Assert.assertEquals(timeLeft, 10);
   }
 
   @Test
-  public void testEstimateCopyTimeLeftSimple() {
+  public void testEstimateCopyTimeLeftSimple() throws Exception {
     long currentTime = 50000;
     long startTime = 20000;
     int copyPercentage = 10;
 
-    long timeLeft = FlowExecutionResource.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
+    long timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
     Assert.assertEquals(timeLeft, 270);
   }
 
   @Test
-  public void testEstimateCopyTimeLeftMedium() {
+  public void testEstimateCopyTimeLeftMedium() throws Exception {
     long currentTime = 5000000;
     long startTime = 1500000;
     int copyPercentage = 25;
 
-    long timeLeft = FlowExecutionResource.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
+    long timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
     Assert.assertEquals(timeLeft, 10500);
   }
 
   @Test
-  public void testEstimateCopyTimeRealData() {
+  public void testEstimateCopyTimeRealData() throws Exception {
     long currentTime = 1626717751099L;
     long startTime = 1626716510626L;
     int copyPercentage = 24;
 
-    long timeLeft = FlowExecutionResource.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
+    long timeLeft = FlowExecutionResourceLocalHandler.estimateCopyTimeLeft(currentTime, startTime, copyPercentage);
     Assert.assertEquals(timeLeft, 3926L);
   }
 }

@@ -52,12 +52,13 @@ import org.apache.gobblin.util.ConfigUtils;
 /**
  * Helper class with functionality meant to be re-used between the LaunchDagProc and Orchestrator when launching
  * executions of a flow spec. In the common case, the Orchestrator receives a flow to orchestrate, performs necessary
- * validations, and creates DagActions. The DagProcessingEngine's responsibility is to
- * process out dag action requests. However, with launch executions now being stored in the DagActionStateStore, on
- * restart, the LaunchDagProc has to perform validations before executing any launch actions the previous LaunchDagProc
- * process was unable to complete. Rather than duplicating the code or introducing a circular dependency between
- * the LaunchDagProc and Orchestrator, this class is utilized to store the common functionality. It is stateful,
- * requiring all stateful pieces to be passed as input from the caller upon instantiating the helper.
+ * validations, and creates {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.DagAction}s which the
+ * {@link org.apache.gobblin.service.modules.orchestration.DagProcessingEngine} is responsible for processing.
+ * However, with launch executions now being stored in the DagActionStateStore, on restart, the LaunchDagProc has to
+ * perform validations before executing any launch actions the previous LaunchDagProc was unable to complete.
+ * Rather than duplicating the code or introducing a circular dependency between the LaunchDagProc and Orchestrator,
+ * this class is utilized to store the common functionality. It is stateful, requiring all stateful pieces to be passed
+ * as input from the caller upon instantiating the helper.
  */
 @Slf4j
 @Data

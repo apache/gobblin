@@ -27,19 +27,15 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
-import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
-import lombok.EqualsAndHashCode;
+import lombok.Data;
 import lombok.Getter;
 import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.service.FlowId;
-import org.apache.gobblin.service.modules.orchestration.DagActionStore;
-
-import static org.apache.gobblin.service.modules.orchestration.DagActionStore.NO_JOB_NAME_DEFAULT;
 
 
 /**
@@ -316,27 +312,11 @@ public class Dag<T> {
     }
   }
 
-  @Getter
-  @EqualsAndHashCode
+  @Data
   public static class DagId {
-    String flowGroup;
-    String flowName;
-    long flowExecutionId;
-
-    public DagId(String flowGroup, String flowName, long flowExecutionId) {
-      this.flowGroup = flowGroup;
-      this.flowName = flowName;
-      this.flowExecutionId = flowExecutionId;
-    }
-
-    @Override
-    public String toString() {
-      return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
-    }
-
-    DagActionStore.DagAction toDagAction(DagActionStore.DagActionType actionType) {
-      return new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, NO_JOB_NAME_DEFAULT, actionType);
-    }
+    private final String flowGroup;
+    private final String flowName;
+    private final long flowExecutionId;
 
     public FlowId getFlowId() {
       return new FlowId().setFlowGroup(this.flowGroup).setFlowName(this.flowName);

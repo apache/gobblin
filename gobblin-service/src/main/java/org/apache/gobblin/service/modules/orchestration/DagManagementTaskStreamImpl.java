@@ -29,6 +29,7 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 import com.typesafe.config.ConfigFactory;
 
+import javax.inject.Named;
 import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
@@ -83,7 +84,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
   private final DagProcessingEngineMetrics dagProcEngineMetrics;
 
   @Inject
-  public DagManagementTaskStreamImpl(Config config, MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter,
+  public DagManagementTaskStreamImpl(Config config,
+      @Named(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME) MultiActiveLeaseArbiter dagActionProcessingLeaseArbiter,
       DagActionReminderScheduler dagActionReminderScheduler, DagManagementStateStore dagManagementStateStore,
       DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = config;
@@ -141,8 +143,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   private void createJobStartDeadlineTrigger(DagActionStore.LeaseParams leaseParams)
       throws SchedulerException, IOException {
-    long timeOutForJobStart = DagUtils.getJobStartSla(this.dagManagementStateStore.getDag(
-        leaseParams.getDagAction().getDagId()).get().getNodes().get(0), DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
+    long timeOutForJobStart = DagUtils.getJobStartDeadline(this.dagManagementStateStore.getDag(
+        leaseParams.getDagAction().getDagId()).get().getNodes().get(0), DagProcessingEngine.getDefaultJobStartDeadlineTimeMillis());
     // todo - this timestamp is just an approximation, the real job submission has happened in past, and that is when a
     // ENFORCE_JOB_START_DEADLINE dag action was created; we are just processing that dag action here
     long jobSubmissionTime = System.currentTimeMillis();
@@ -157,7 +159,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     Dag.DagNode<JobExecutionPlan> dagNode = this.dagManagementStateStore.getDag(leaseParams.getDagAction().getDagId()).get().getNodes().get(0);
 
     try {
-      timeOutForJobFinish = DagUtils.getFlowSLA(dagNode);
+      timeOutForJobFinish = DagUtils.getFlowFinishDeadline(dagNode);
     } catch (ConfigException e) {
       log.warn("Flow SLA for flowGroup: {}, flowName: {} is given in invalid format, using default SLA of {}",
           dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),

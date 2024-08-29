@@ -70,9 +70,8 @@ import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStoreTest;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagStateStore;
 import org.apache.gobblin.service.modules.orchestration.MysqlMultiActiveLeaseArbiterTest;
 import org.apache.gobblin.service.modules.orchestration.ServiceAzkabanConfigKeys;
-import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
-import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.GitConfigMonitor;
 import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
@@ -240,15 +239,15 @@ public class GobblinServiceManagerTest {
       throws URISyntaxException {
     serviceCoreProperties.putAll(ConfigUtils.configToProperties(MysqlDagActionStoreTest.getDagActionStoreTestConfigs(testMetastoreDatabase)));
 
-    serviceCoreProperties.put(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX + "." +
+    serviceCoreProperties.put(DagManagementDagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX + "." +
         ConfigurationKeys.KAFKA_BROKERS, "localhost:0000");
-    serviceCoreProperties.put(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX +
+    serviceCoreProperties.put(DagManagementDagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX +
         ".source.kafka.value.deserializer", "org.apache.kafka.common.serialization.ByteArrayDeserializer");
-    serviceCoreProperties.put(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX + "." +
+    serviceCoreProperties.put(DagManagementDagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX + "." +
         ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, "/tmp/fakeStateStore");
-    serviceCoreProperties.put(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX + "." +
+    serviceCoreProperties.put(DagManagementDagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX + "." +
         "zookeeper.connect", "localhost:2121");
-    serviceCoreProperties.put(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX + "." +
+    serviceCoreProperties.put(DagManagementDagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX + "." +
         HighLevelConsumer.CONSUMER_CLIENT_FACTORY_CLASS_KEY, TestGobblinKafkaConsumerClientFactory.class.getCanonicalName());
 
     serviceCoreProperties.put(SpecStoreChangeMonitor.SPEC_STORE_CHANGE_MONITOR_PREFIX + "." +
@@ -261,6 +260,10 @@ public class GobblinServiceManagerTest {
         "zookeeper.connect", "localhost:2121");
     serviceCoreProperties.put(SpecStoreChangeMonitor.SPEC_STORE_CHANGE_MONITOR_PREFIX + "." +
         HighLevelConsumer.CONSUMER_CLIENT_FACTORY_CLASS_KEY, TestGobblinKafkaConsumerClientFactory.class.getCanonicalName());
+
+    serviceCoreProperties.putAll(PropertiesUtils.addPrefixToProperties(ConfigUtils.configToProperties(
+            MysqlMultiActiveLeaseArbiterTest.getLeaseArbiterTestConfigs(testMetastoreDatabase)),
+        ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME));
 
     serviceCoreProperties.putAll(PropertiesUtils.addPrefixToProperties(ConfigUtils.configToProperties(
             MysqlMultiActiveLeaseArbiterTest.getLeaseArbiterTestConfigs(testMetastoreDatabase)),
@@ -333,11 +336,11 @@ public class GobblinServiceManagerTest {
     FlowConfig uncompilableFlowConfig = new FlowConfig().setId(UNCOMPILABLE_FLOW_ID).setTemplateUris(TEST_TEMPLATE_URI)
         .setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
-    FlowSpec uncompilableSpec = FlowConfigsV2ResourceHandler.createFlowSpecForConfig(uncompilableFlowConfig);
+    FlowSpec uncompilableSpec = FlowConfigResourceLocalHandler.createFlowSpecForConfig(uncompilableFlowConfig);
     FlowId flowId = createFlowIdWithUniqueName(TEST_GROUP_NAME);
     FlowConfig runOnceFlowConfig = new FlowConfig().setId(flowId)
         .setTemplateUris(TEST_TEMPLATE_URI).setProperties(new StringMap(flowProperties));
-    FlowSpec runOnceSpec = FlowConfigsV2ResourceHandler.createFlowSpecForConfig(runOnceFlowConfig);
+    FlowSpec runOnceSpec = FlowConfigResourceLocalHandler.createFlowSpecForConfig(runOnceFlowConfig);
 
     // add the non compilable flow directly to the spec store skipping flow catalog which would not allow this
     this.gobblinServiceManager.getFlowCatalog().getSpecStore().addSpec(uncompilableSpec);

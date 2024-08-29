@@ -20,14 +20,12 @@ package org.apache.gobblin.service;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 
-
-@Alpha
 public class ServiceConfigKeys {
 
   public static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
+  public static final String GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS = "org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler";
   public static final String GOBBLIN_ORCHESTRATOR_LISTENER_CLASS = "org.apache.gobblin.service.modules.orchestration.Orchestrator";
 
   // Gobblin Service Manager Keys
@@ -42,14 +40,28 @@ public class ServiceConfigKeys {
   // If true, will mark up/down d2 servers on leadership so that all requests will be routed to the leader node
   public static final String GOBBLIN_SERVICE_D2_ONLY_ANNOUNCE_LEADER = GOBBLIN_SERVICE_PREFIX + "d2.onlyAnnounceLeader";
 
+  // Helix / ServiceScheduler Keys
+  public static final String HELIX_CLUSTER_NAME_KEY = GOBBLIN_SERVICE_PREFIX + "helix.cluster.name";
+  public static final String ZK_CONNECTION_STRING_KEY = GOBBLIN_SERVICE_PREFIX + "zk.connection.string";
+  public static final String HELIX_INSTANCE_NAME_OPTION_NAME = "helix_instance_name";
+  public static final String HELIX_INSTANCE_NAME_KEY = GOBBLIN_SERVICE_PREFIX + "helixInstanceName";
   public static final String GOBBLIN_SERVICE_FLOWSPEC = GOBBLIN_SERVICE_PREFIX + "flowSpec";
   public static final String GOBBLIN_SERVICE_FLOWGRAPH_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowGraph.class";
   public static final String GOBBLIN_SERVICE_FLOWGRAPH_HELPER_KEY = GOBBLIN_SERVICE_PREFIX + "flowGraphHelper.class";
+
+  // Helix message sub types for FlowSpec
+  public static final String HELIX_FLOWSPEC_ADD = "FLOWSPEC_ADD";
+  public static final String HELIX_FLOWSPEC_REMOVE = "FLOWSPEC_REMOVE";
+  public static final String HELIX_FLOWSPEC_UPDATE = "FLOWSPEC_UPDATE";
 
   // Flow Compiler Keys
   public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowCompiler.class";
   public static final String COMPILATION_SUCCESSFUL = "compilation.successful";
   public static final String COMPILATION_RESPONSE = "compilation.response";
+
+  // Flow Catalog Keys
+  public static final String GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT = GOBBLIN_SERVICE_PREFIX + "flowCatalog.localCommit";
+  public static final boolean DEFAULT_GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT = true;
 
   // Job Level Keys
   public static final String WORK_UNIT_SIZE = GOBBLIN_SERVICE_PREFIX + "work.unit.size";
@@ -94,6 +106,8 @@ public class ServiceConfigKeys {
   public static final String DEFAULT_NODE_SECURITY = "true";
 
   public static final String SERVICE_PORT = GOBBLIN_SERVICE_PREFIX + "port";
+  public static final String SERVICE_NAME = GOBBLIN_SERVICE_PREFIX + "serviceName";
+  public static final String SERVICE_URL_PREFIX = GOBBLIN_SERVICE_PREFIX + "serviceUrlPrefix";
 
   // Prefix for config to ServiceBasedAppLauncher that will only be used by GaaS and not orchestrated jobs
   public static final String GOBBLIN_SERVICE_APP_LAUNCHER_PREFIX = "gobblinServiceAppLauncher";
@@ -103,6 +117,9 @@ public class ServiceConfigKeys {
   public static final Boolean DEFAULT_FLOW_CONCURRENCY_ALLOWED = true;
 
   public static final String LEADER_URL = "leaderUrl";
+
+  public static final String FORCE_LEADER = GOBBLIN_SERVICE_PREFIX + "forceLeader";
+  public static final boolean DEFAULT_FORCE_LEADER = false;
 
   public static final String QUOTA_MANAGER_CLASS = GOBBLIN_SERVICE_PREFIX + "quotaManager.class";
   public static final String DEFAULT_QUOTA_MANAGER = "org.apache.gobblin.service.modules.orchestration.InMemoryUserQuotaManager";
@@ -161,12 +178,13 @@ public class ServiceConfigKeys {
   public static final int DEFAULT_MEMORY_ISSUE_REPO_MAX_ISSUE_PER_CONTEXT= 20;
 
   public static final String ISSUE_REPO_CLASS = GOBBLIN_SERVICE_PREFIX + "issueRepo.class";
+  public static final String QUOTA_MANAGER_PREFIX = "UserQuotaManagerPrefix.";
 
   public static final String GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "dagProcessingEngine.";
   public static final String NUM_DAG_PROC_THREADS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "numThreads";
   public static final String DAG_PROC_ENGINE_NON_RETRYABLE_EXCEPTIONS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "nonRetryableExceptions";
   public static final Integer DEFAULT_NUM_DAG_PROC_THREADS = 3;
-  public static final String JOB_START_SLA_TIME = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME;
-  public static final String JOB_START_SLA_UNITS = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT;
+  public static final String JOB_START_SLA_TIME = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME;
+  public static final String JOB_START_SLA_UNITS = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT;
   public static final long DEFAULT_FLOW_SLA_MILLIS = TimeUnit.HOURS.toMillis(24);
 }

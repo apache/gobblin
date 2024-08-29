@@ -61,7 +61,7 @@ public class InMemoryUserQuotaManagerTest {
   public void testExceedsUserQuotaThrowsException() throws Exception {
     List<Dag<JobExecutionPlan>> dags = DagTestUtils.buildDagList(2, "user2", ConfigFactory.empty());
 
-    // Ensure that the current attempt is 1, normally done by DagProcs
+    // Ensure that the current attempt is 1, normally done by job is submitted by Launch and Reevaluate DagProcs
     dags.get(0).getNodes().get(0).getValue().setCurrentAttempts(1);
     dags.get(1).getNodes().get(0).getValue().setCurrentAttempts(1);
 
