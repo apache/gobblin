@@ -47,9 +47,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metastore.MysqlDataSourceFactory;
-import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.MetricContext;
-import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_serde.GsonSerDe;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -92,7 +90,6 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   protected static final String GET_DAG_NODES_STATEMENT = "SELECT dag_node FROM %s WHERE parent_dag_id = ?";
   protected static final String GET_DAG_NODE_STATEMENT = "SELECT dag_node FROM %s WHERE dag_node_id = ?";
   protected static final String DELETE_DAG_STATEMENT = "DELETE FROM %s WHERE parent_dag_id = ?";
-  private final ContextAwareCounter totalDagCount;
 
   public MysqlDagStateStoreWithDagNodes(Config config, Map<URI, TopologySpec> topologySpecMap) throws IOException {
     if (config.hasPath(CONFIG_PREFIX)) {
@@ -121,7 +118,6 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
     this.jobExecPlanDagFactory = new JobExecutionPlanDagFactory();
     MetricContext metricContext =
         Instrumented.getMetricContext(new State(ConfigUtils.configToProperties(config)), this.getClass());
-    this.totalDagCount = metricContext.contextAwareCounter(ServiceMetricNames.DAG_COUNT_MYSQL_DAG_STATE_COUNT);
     log.info("Instantiated {}", getClass().getSimpleName());
   }
 
@@ -129,29 +125,19 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   public void writeCheckpoint(Dag<JobExecutionPlan> dag) throws IOException {
     String dagId = DagManagerUtils.generateDagId(dag).toString();
     dbStatementExecutor.withPreparedStatement(String.format(INSERT_DAG_NODE_STATEMENT, tableName), insertStatement -> {
-      int dagSize = dag.getNodes().size();
-      Object[][] data = new Object[dagSize][3];
 
-      for (int i=0; i<dagSize; i++) {
-        Dag.DagNode<JobExecutionPlan> dagNode = dag.getNodes().get(i);
-        data[i][0] = dagNode.getValue().getId().toString();
-        data[i][1] = dagId;
-        data[i][2] =this.serDe.serialize(Collections.singletonList(dagNode.getValue()));
-      }
-
-      for (Object[] row : data) {
-        insertStatement.setObject(1, row[0]);
-        insertStatement.setObject(2, row[1]);
-        insertStatement.setObject(3, row[2]);
+      for (Dag.DagNode<JobExecutionPlan> dagNode : dag.getNodes()) {
+        insertStatement.setObject(1, dagNode.getValue().getId().toString());
+        insertStatement.setObject(2, dagId);
+        insertStatement.setObject(3, this.serDe.serialize(Collections.singletonList(dagNode.getValue())));
         insertStatement.addBatch();
       }
+
       try {
         return insertStatement.executeBatch();
       } catch (SQLException e) {
         throw new IOException(String.format("Failure adding dag for %s", dagId), e);
       }}, true);
-
-    this.totalDagCount.inc();
   }
 
   @Override
@@ -161,18 +147,15 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
 
   @Override
   public boolean cleanUp(DagManager.DagId dagId) throws IOException {
-    if (dbStatementExecutor.withPreparedStatement(String.format(DELETE_DAG_STATEMENT, tableName), deleteStatement -> {
-      try {
-        deleteStatement.setString(1, dagId.toString());
-        return deleteStatement.executeUpdate() != 0;
-      } catch (SQLException e) {
-        throw new IOException(String.format("Failure deleting dag for %s", dagId), e);
-      }}, true)) {
-      this.totalDagCount.dec();
-      return true;
-    } else {
-      return false;
-    }
+    return dbStatementExecutor.withPreparedStatement(String.format(DELETE_DAG_STATEMENT, tableName),
+        deleteStatement -> {
+          try {
+            deleteStatement.setString(1, dagId.toString());
+            return deleteStatement.executeUpdate() != 0;
+          } catch (SQLException e) {
+            throw new IOException(String.format("Failure deleting dag for %s", dagId), e);
+          }
+        }, true);
   }
 
   @Override
@@ -212,13 +195,13 @@ public class MysqlDagStateStoreWithDagNodes implements DagStateStoreWithDagNodes
   }
 
   @Override
-  public int updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
+  public boolean updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException {
     String dagNodeId = dagNode.getValue().getId().toString();
     return dbStatementExecutor.withPreparedStatement(String.format(UPDATE_DAG_NODE_STATEMENT, tableName), updateStatement -> {
       try {
         updateStatement.setString(1, this.serDe.serialize(Collections.singletonList(dagNode.getValue())));
         updateStatement.setString(2, dagNodeId);
-        return updateStatement.executeUpdate();
+        return updateStatement.executeUpdate() == 1;
       } catch (SQLException e) {
         throw new IOException(String.format("Failure updating dag node for %s", dagNodeId), e);
       }}, true);

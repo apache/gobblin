@@ -38,7 +38,7 @@ public interface DagStateStoreWithDagNodes extends DagStateStore {
    * Updates the {@link Dag.DagNode} with the provided value.
    * Returns 1 if the dag node is updated successfully, 0 otherwise
    */
-  int updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
+  boolean updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
   /**
    * Returns all the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}s for the given
