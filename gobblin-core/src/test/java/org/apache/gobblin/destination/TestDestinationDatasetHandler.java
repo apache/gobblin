@@ -18,6 +18,8 @@
 package org.apache.gobblin.destination;
 
 import java.io.IOException;
+import java.util.ArrayList;
+import java.util.List;
 
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
@@ -34,6 +36,11 @@ public class TestDestinationDatasetHandler implements DestinationDatasetHandler 
       wu.setProp(TEST_COUNTER_KEY, wu.getPropAsInt(TEST_COUNTER_KEY, 0) + 1);
       return wu;
     });
+  }
+
+  @Override
+  public List<String> getCleanupResources() {
+    return new ArrayList<>();
   }
 
   @Override
