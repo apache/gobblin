@@ -81,11 +81,6 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
 
     JobStatus jobStatus = dagNodeWithJobStatus.getRight().get();
     ExecutionStatus executionStatus = ExecutionStatus.valueOf(jobStatus.getEventName());
-    // get the dag before updating dag node's status because after updating status, dag may be considered "complete" and
-    // may get cleaned up by other Reevaluate DagProc
-    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
-    dag.getNodes().stream().filter(node -> node.getValue().getId().equals(getDagNodeId())).findFirst().get().getValue()
-        .setExecutionStatus(executionStatus);
     updateDagNodeStatus(dagManagementStateStore, dagNode, executionStatus);
     boolean isRetry = jobStatus.isShouldRetry();
 
@@ -97,6 +92,18 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
           FlowStatusGenerator.FINISHED_STATUSES));
     }
 
+    // get the dag after updating dag node status
+    Optional<Dag<JobExecutionPlan>> dagOptional = dagManagementStateStore.getDag(getDagId());
+    if (!dagOptional.isPresent()) {
+      // This may happen if another ReevaluateDagProc removed the dag after this DagProc updated the dag node status.
+      // The other ReevaluateDagProc can do that purely out of race condition when the dag is cancelled and ReevaluateDagProcs
+      // are being processed for dag node kill requests; or when this DagProc ran into some exception after updating the
+      // status and thus gave the other ReevaluateDagProc sufficient time to delete the dag before being retried.
+      log.warn("Dag not found {}", getDagId());
+      return;
+    }
+
+    Dag<JobExecutionPlan> dag = dagOptional.get();
     onJobFinish(dagManagementStateStore, dagNode, dag);
 
     if (jobStatus.isShouldRetry()) {
