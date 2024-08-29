@@ -27,6 +27,7 @@ import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
+import org.apache.gobblin.temporal.ddm.activity.CleanupActivity;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.EagerFsDirBackedWorkUnitClaimCheckWorkload;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
@@ -57,22 +58,24 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   private CommitStats performWork(WUProcessingSpec workSpec) {
-    Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
-    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec);
-    int workunitsProcessed = processingWorkflow.performWorkload(
-        WorkflowAddr.ROOT, workload, 0,
-        workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty()
-    );
-    if (workunitsProcessed > 0) {
-      CommitStepWorkflow commitWorkflow = createCommitStepWorkflow();
-      CommitStats result = commitWorkflow.commit(workSpec);
-      if (result.getNumCommittedWorkUnits() == 0) {
-        log.warn("No work units committed at the job level. They could have been committed at the task level.");
+    try {
+      Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
+      NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec);
+      int workunitsProcessed = processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0,
+          workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty());
+      if (workunitsProcessed > 0) {
+        CommitStepWorkflow commitWorkflow = createCommitStepWorkflow();
+        CommitStats result = commitWorkflow.commit(workSpec);
+        if (result.getNumCommittedWorkUnits() == 0) {
+          log.warn("No work units committed at the job level. They could have been committed at the task level.");
+        }
+        return result;
+      } else {
+        log.error("No work units processed, so no commit attempted.");
+        return CommitStats.createEmpty();
       }
-      return result;
-    } else {
-      log.error("No work units processed, so no commit attempted.");
-      return CommitStats.createEmpty();
+    } finally {
+      CleanupActivity cleanupActivity = new CleanupActivity();
     }
   }
 
