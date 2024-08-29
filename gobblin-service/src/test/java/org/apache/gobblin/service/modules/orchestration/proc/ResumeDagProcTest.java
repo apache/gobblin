@@ -109,7 +109,7 @@ public class ResumeDagProcTest {
      buildNaiveTopologySpec().getSpecExecutor() respectively.
      the result will be that after serializing/deserializing the test dag, the spec executor (and producer) type may change */
 
-    Mockito.verify(this.dagManagementStateStore, Mockito.times(expectedNumOfResumedJobs)).addDagNodeState(any(), any());
+    Mockito.verify(this.dagManagementStateStore, Mockito.times(expectedNumOfResumedJobs)).updateDagNode(any());
 
     Assert.assertFalse(DagProcUtils.isDagFinished(this.dagManagementStateStore.getDag(dagId).get()));
   }

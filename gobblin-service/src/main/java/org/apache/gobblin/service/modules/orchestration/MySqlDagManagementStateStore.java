@@ -142,8 +142,11 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
 
   @Override
   public void deleteDag(DagManager.DagId dagId) throws IOException {
-    this.dagStateStore.cleanUp(dagId);
-    log.info("Deleted dag {}", dagId);
+    if (this.dagStateStore.cleanUp(dagId)) {
+      log.info("Deleted dag {}", dagId);
+    } else {
+      log.info("Dag deletion was tried but did not happen {}", dagId);
+    }
   }
 
   @Override
@@ -158,9 +161,9 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   }
 
   @Override
-  public synchronized void addDagNodeState(Dag.DagNode<JobExecutionPlan> dagNode, DagManager.DagId dagId)
+  public synchronized void updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode)
       throws IOException {
-    this.dagStateStore.updateDagNode(dagId, dagNode);
+    this.dagStateStore.updateDagNode(dagNode);
   }
 
   @Override

@@ -93,7 +93,17 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     }
 
     // get the dag after updating dag node status
-    Dag<JobExecutionPlan> dag = dagManagementStateStore.getDag(getDagId()).get();
+    Optional<Dag<JobExecutionPlan>> dagOptional = dagManagementStateStore.getDag(getDagId());
+    if (!dagOptional.isPresent()) {
+      // This may happen if another ReevaluateDagProc removed the dag after this DagProc updated the dag node status.
+      // The other ReevaluateDagProc can do that purely out of race condition when the dag is cancelled and ReevaluateDagProcs
+      // are being processed for dag node kill requests; or when this DagProc ran into some exception after updating the
+      // status and thus gave the other ReevaluateDagProc sufficient time to delete the dag before being retried.
+      log.warn("Dag not found {}", getDagId());
+      return;
+    }
+
+    Dag<JobExecutionPlan> dag = dagOptional.get();
     onJobFinish(dagManagementStateStore, dagNode, dag);
 
     if (jobStatus.isShouldRetry()) {
@@ -132,7 +142,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
   private void updateDagNodeStatus(DagManagementStateStore dagManagementStateStore,
       Dag.DagNode<JobExecutionPlan> dagNode, ExecutionStatus executionStatus) throws IOException {
     dagNode.getValue().setExecutionStatus(executionStatus);
-    dagManagementStateStore.addDagNodeState(dagNode, getDagId());
+    dagManagementStateStore.updateDagNode(dagNode);
   }
 
   /**

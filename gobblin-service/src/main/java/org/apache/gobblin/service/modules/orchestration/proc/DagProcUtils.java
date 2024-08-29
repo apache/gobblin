@@ -134,7 +134,7 @@ public class DagProcUtils {
       jobOrchestrationTimer.stop(jobMetadata);
       log.info("Orchestrated job: {} on Executor: {}", DagManagerUtils.getFullyQualifiedJobName(dagNode), specExecutorUri);
       dagManagementStateStore.getDagManagerMetrics().incrementJobsSentToExecutor(dagNode);
-      dagManagementStateStore.addDagNodeState(dagNode, dagId);
+      dagManagementStateStore.updateDagNode(dagNode);
       sendEnforceJobStartDeadlineDagAction(dagManagementStateStore, dagNode);
     } catch (Exception e) {
       TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
@@ -158,7 +158,6 @@ public class DagProcUtils {
 
   public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, DagManagementStateStore dagManagementStateStore) throws IOException {
     Properties cancelJobArgs = new Properties();
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dagNodeToCancel);
     String serializedFuture = null;
 
     if (dagNodeToCancel.getValue().getJobSpec().getConfig().hasPath(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)) {
@@ -175,12 +174,6 @@ public class DagProcUtils {
         log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getId());
       }
       DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), cancelJobArgs).get();
-      // add back the dag node with updated states in the store
-      dagNodeToCancel.getValue().setExecutionStatus(ExecutionStatus.CANCELLED);
-      dagManagementStateStore.addDagNodeState(dagNodeToCancel, dagId);
-      // send cancellation event after updating the state, because cancellation event triggers a ReevaluateDagAction
-      // that will delete the dag. Due to race condition between adding dag node and deleting dag, state store may get
-      // into inconsistent state.
       sendCancellationEvent(dagNodeToCancel);
       log.info("Cancelled dag node {}, spec_producer_future {}", dagNodeToCancel.getValue().getId(), serializedFuture);
     } catch (Exception e) {

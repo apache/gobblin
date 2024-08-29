@@ -100,14 +100,13 @@ public class MySqlDagManagementStateStoreTest {
     Dag.DagNode<JobExecutionPlan> dagNode2 = dag.getNodes().get(1);
     Dag.DagNode<JobExecutionPlan> dagNode3 = dag2.getNodes().get(0);
     DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
-    DagManager.DagId dagId2 = DagManagerUtils.generateDagId(dag2);
     DagNodeId dagNodeId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
 
     this.dagManagementStateStore.addDag(dag);
     this.dagManagementStateStore.addDag(dag2);
-    this.dagManagementStateStore.addDagNodeState(dagNode, dagId);
-    this.dagManagementStateStore.addDagNodeState(dagNode2, dagId);
-    this.dagManagementStateStore.addDagNodeState(dagNode3, dagId2);
+    this.dagManagementStateStore.updateDagNode(dagNode);
+    this.dagManagementStateStore.updateDagNode(dagNode2);
+    this.dagManagementStateStore.updateDagNode(dagNode3);
 
     Assert.assertTrue(compareLists(dag.getNodes(), this.dagManagementStateStore.getDag(dagId).get().getNodes()));
     Assert.assertEquals(dagNode, this.dagManagementStateStore.getDagNodeWithJobStatus(dagNodeId).getLeft().get());
@@ -126,7 +125,7 @@ public class MySqlDagManagementStateStoreTest {
     jobExecutionPlan.setJobFuture(Optional.of(future));
 
     Dag.DagNode<JobExecutionPlan> duplicateDagNode = new Dag.DagNode<>(jobExecutionPlan);
-    this.dagManagementStateStore.addDagNodeState(duplicateDagNode, dagId);
+    this.dagManagementStateStore.updateDagNode(duplicateDagNode);
     Assert.assertEquals(this.dagManagementStateStore.getDagNodes(dagId).size(), 2);
   }
 
