@@ -116,7 +116,7 @@ public class FlowStatusGeneratorTest {
         .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName("RUNNING").build();
     jobStatusIterator = Lists.newArrayList(jobStatus1, jobStatus2, jobStatus3, jobStatus4).iterator();
     flowStatus = new FlowStatus(flowName,flowGroup,flowExecutionId,jobStatusIterator,JobStatusRetriever.getFlowStatusFromJobStatuses(jobStatusIterator));
-    when(jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(flowName, flowGroup)).thenReturn(Collections.singletonList(flowStatus));
+    when(jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(flowGroup, flowName)).thenReturn(Collections.singletonList(flowStatus));
     Assert.assertTrue(flowStatusGenerator.isFlowRunning(flowName, flowGroup, flowExecutionId+1));
   }
 
