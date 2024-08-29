@@ -36,7 +36,7 @@ public interface DagStateStoreWithDagNodes extends DagStateStore {
 
   /**
    * Updates the {@link Dag.DagNode} with the provided value.
-   * Returns 1 if the dag node is updated successfully, 0 otherwise
+   * Returns true if the dag node is updated successfully, false otherwise
    */
   boolean updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
