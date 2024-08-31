@@ -60,7 +60,9 @@ public class EnforceFlowFinishDeadlineDagProc extends DeadlineEnforcementDagProc
         DagProcUtils.cancelDagNode(dagNodeToCancel, dagManagementStateStore);
       }
 
-      dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
+      DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_CANCELLED);
+
+      log.warn("Killing dag {} due to exceeding SLA of {} ms", getDagId(), flowFinishDeadline);
       dag.setMessage("Flow killed due to exceeding SLA of " + flowFinishDeadline + " ms");
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
     } else {

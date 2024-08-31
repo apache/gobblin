@@ -79,7 +79,8 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
           DagManagerUtils.getJobName(dagNode), jobOrchestratedTime, timeOutForJobStart);
       dagManagementStateStore.getDagManagerMetrics().incrementCountsStartSlaExceeded(dagNode);
       DagProcUtils.cancelDagNode(dagNode, dagManagementStateStore);
-      dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
+      DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
+
       dag.setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
     }
     dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
