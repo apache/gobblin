@@ -17,14 +17,16 @@
 package org.apache.gobblin.source;
 
 import java.util.Optional;
+
 import org.joda.time.DateTimeFieldType;
 import org.joda.time.Duration;
 import org.joda.time.chrono.ISOChronology;
 
-import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.util.DatePartitionType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.DatePartitionType;
 
 import static org.apache.gobblin.source.PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_LEAD_TIME;
 import static org.apache.gobblin.source.PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_LEAD_TIME_GRANULARITY;

@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.source;
 
-import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -25,8 +24,21 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import lombok.extern.slf4j.Slf4j;
+
 import org.apache.commons.lang3.StringUtils;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTime;
+import org.joda.time.Duration;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.base.Throwables;
+
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
@@ -45,14 +57,6 @@ import org.apache.gobblin.source.workunit.MultiWorkUnitWeightedQueue;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.DatePartitionType;
 import org.apache.gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-import org.joda.time.DateTime;
-import org.joda.time.Duration;
-import org.joda.time.format.DateTimeFormat;
-import org.joda.time.format.DateTimeFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 
 /**
