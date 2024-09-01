@@ -21,7 +21,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -45,6 +44,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
 import org.apache.gobblin.source.extractor.hadoop.HadoopFsHelper;
 import org.apache.gobblin.util.DatePartitionType;
+import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 
 import static org.apache.gobblin.source.PartitionedFileSourceBase.DATE_PARTITIONED_SOURCE_PARTITION_PATTERN;
 
