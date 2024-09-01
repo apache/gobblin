@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -54,9 +55,9 @@ import static org.apache.gobblin.source.PartitionedFileSourceBase.DATE_PARTITION
  *
  * For example, if {@link ConfigurationKeys#SOURCE_FILEBASED_DATA_DIRECTORY} is set to /my/data/, then the class assumes
  * folders following the pattern /my/data/daily/[year]/[month]/[day] are present. It will iterate through all the data
- * under these folders starting from the date specified by {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} until
- * either {@link #DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB} files have been processed, or until there is no more data
- * to process. For example, if {@link #DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} is set to 2015/01/01, then the job
+ * under these folders starting from the date specified by {@link PartitionedFileSourceBase#DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} until
+ * either {@link PartitionedFileSourceBase#DATE_PARTITIONED_SOURCE_MAX_FILES_PER_JOB} files have been processed, or until there is no more data
+ * to process. For example, if {@link PartitionedFileSourceBase#DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE} is set to 2015/01/01, then the job
  * will read from the folder /my/data/daily/2015/01/01/, /my/data/daily/2015/01/02/, /my/data/2015/01/03/ etc.
  *
  */
@@ -114,6 +115,10 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
       throw new IOException("Error initializing FileSystem", e);
     }
 
+    GrowthMilestoneTracker growthTracker = new GrowthMilestoneTracker();
+    Long iteration = 0L;
+    LOG.info("Starting processing files from {} to {}", lowWaterMarkDate, currentDay);
+
     for (DateTime date = lowWaterMarkDate; !date.isAfter(currentDay) && filesToProcess.size() < maxFilesToReturn;
         date = date.withFieldAdded(incrementalUnit, 1)) {
 
@@ -129,7 +134,14 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
               new FileInfo(fileStatus.getPath().toString(), fileStatus.getLen(), date.getMillis(), partitionPath));
         }
       }
+
+      if (growthTracker.isAnotherMilestone(iteration++)) {
+        LOG.info("~{}~ collected files to process", filesToProcess.size());
+        LOG.info("Last Source Path processed : ~{}~", sourcePath);
+      }
     }
+
+    LOG.info("Finished processing files");
 
     return filesToProcess;
   }

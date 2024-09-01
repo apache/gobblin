@@ -24,7 +24,9 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
@@ -45,6 +47,7 @@ import org.apache.gobblin.util.DatePartitionType;
 import org.apache.gobblin.writer.partitioner.TimeBasedAvroWriterPartitioner;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
@@ -119,6 +122,9 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
   private static final String DATE_PARTITIONED_SOURCE_MAX_WORKUNITS_PER_JOB =
       DATE_PARTITIONED_SOURCE_PREFIX + ".max.workunits.per.job";
 
+  private static final String DATE_PARTITIONED_SOURCE_LOOKBACK_TIME =
+      DATE_PARTITIONED_SOURCE_PREFIX + ".lookback.time";
+
   // Default configuration parameter values
 
   /**
@@ -143,6 +149,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
   private SourceState sourceState;
   private FileSystem fs;
   private long lowWaterMark;
+  private String lookBackTime;
   private int maxFilesPerJob;
   private int maxWorkUnitsPerJob;
   private int fileCount;
@@ -170,6 +177,8 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
     this.fs = fsHelper.getFileSystem();
 
     this.sourceState = state;
+
+    this.lookBackTime = getLookBackTimeProp(state);
 
     this.lowWaterMark =
         getLowWaterMark(state.getPreviousWorkUnitStates(), state.getProp(DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE,
@@ -347,10 +356,21 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
   }
 
   /**
-   * Gets the LWM for this job runs. The new LWM is the HWM of the previous run + 1 unit (day,hour,minute..etc).
+   * Gets the LWM for this job runs.
+   * If the lookback property {@link PartitionedFileSourceBase#DATE_PARTITIONED_SOURCE_LOOKBACK_TIME)} or
+   * {@link ConfigurationKeys#DEFAULT_COPY_LOOKBACK_TIME_KEY} is provided
+   * then the LWM is set to the current time minus the lookback time.
+   * Otherwise, The new LWM is the HWM of the previous run + 1 unit (day,hour,minute.etc.).
    * If there was no previous execution then it is set to the given lowWaterMark + 1 unit.
    */
   private long getLowWaterMark(Iterable<WorkUnitState> previousStates, String lowWaterMark) {
+
+    if (StringUtils.isNotEmpty(this.lookBackTime)) {
+      Optional<Duration> lookBackDuration = PartitionAwareFileRetrieverUtils.getLookbackTimeDuration(this.lookBackTime);
+      if (lookBackDuration.isPresent()) {
+        return new DateTime().minus(lookBackDuration.get()).getMillis();
+      }
+    }
 
     long lowWaterMarkValue = retriever.getWatermarkFromString(lowWaterMark);
 
@@ -369,5 +389,12 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
 
   protected PartitionAwareFileRetriever getRetriever() {
     return retriever;
+  }
+
+  private String getLookBackTimeProp(SourceState state) {
+    if (state.contains(DATE_PARTITIONED_SOURCE_LOOKBACK_TIME)) {
+      return state.getProp(DATE_PARTITIONED_SOURCE_LOOKBACK_TIME);
+    }
+    return state.getProp(ConfigurationKeys.DEFAULT_COPY_LOOKBACK_TIME_KEY, "");
   }
 }
