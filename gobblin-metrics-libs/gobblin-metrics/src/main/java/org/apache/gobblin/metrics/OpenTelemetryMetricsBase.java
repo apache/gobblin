@@ -24,10 +24,12 @@ import com.google.common.io.Closer;
 import io.opentelemetry.api.OpenTelemetry;
 import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 
 
+@Slf4j
 public abstract class OpenTelemetryMetricsBase implements AutoCloseable {
   protected MetricExporter metricExporter;
 
@@ -50,6 +52,7 @@ public abstract class OpenTelemetryMetricsBase implements AutoCloseable {
   }
 
   public void close() throws IOException {
+    log.info("Closing OpenTelemetryMetricsBase");
     if (this.closer != null) {
       this.closer.close();
     }
