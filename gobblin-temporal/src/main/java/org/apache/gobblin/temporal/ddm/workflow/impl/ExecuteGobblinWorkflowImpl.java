@@ -36,11 +36,13 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.temporal.ddm.activity.CleanupActivity;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
+import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitResult;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow;
@@ -72,13 +74,17 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   private final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
       GEN_WUS_ACTIVITY_OPTS);
 
+  private final CleanupActivity cleanupActivityStub = Workflow.newActivityStub(CleanupActivity.class);
+
   @Override
   public ExecGobblinStats execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
     timerFactory.create(TimingEvent.LauncherTimings.JOB_PREPARE).submit();
     EventTimer timer = timerFactory.createJobTimer();
+    GenerateWorkUnitResult generateWorkUnitResults = GenerateWorkUnitResult.createEmpty();
     try {
-      int numWUsGenerated = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
+      generateWorkUnitResults = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
+      int numWUsGenerated = generateWorkUnitResults.getGeneratedWuCount();
       int numWUsCommitted = 0;
       CommitStats commitStats = CommitStats.createEmpty();
       if (numWUsGenerated > 0) {
@@ -88,7 +94,8 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         numWUsCommitted = commitStats.getNumCommittedWorkUnits();
       }
       timer.stop();
-      return new ExecGobblinStats(numWUsGenerated, numWUsCommitted, jobProps.getProperty(Help.USER_TO_PROXY_KEY), commitStats.getDatasetStats());
+      return new ExecGobblinStats(numWUsGenerated, numWUsCommitted, jobProps.getProperty(Help.USER_TO_PROXY_KEY),
+          commitStats.getDatasetStats());
     } catch (Exception e) {
       // Emit a failed GobblinTrackingEvent to record job failures
       timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).submit();
@@ -98,6 +105,9 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
           e,
           null
       );
+    } finally {
+      // TODO: Cleanup WorkUnit Directory
+      cleanupActivityStub.cleanup(generateWorkUnitResults.getCleanupResources());
     }
   }
 

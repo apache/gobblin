@@ -20,7 +20,6 @@ package org.apache.gobblin.destination;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
-import java.util.List;
 
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
@@ -50,9 +49,4 @@ public interface DestinationDatasetHandler extends Closeable {
    */
   void close() throws IOException;
 
-  /**
-   * Gets a list of resources that the job launcher should clean up if any additional resources are created as part of the initialization
-   * @return list of resources to cleanup, e.g. directories
-   */
-  List<String> getCleanupResources();
 }

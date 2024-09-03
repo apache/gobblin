@@ -17,13 +17,14 @@
 
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
+import java.util.Set;
+
 import org.apache.gobblin.temporal.ddm.activity.CleanupActivity;
-import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 
 
 public class CleanupActivityImpl implements CleanupActivity {
   @Override
-  public void cleanup(WUProcessingSpec workSpec) {
+  public void cleanup(Set<String> foldersToClean) {
 
   }
 }
