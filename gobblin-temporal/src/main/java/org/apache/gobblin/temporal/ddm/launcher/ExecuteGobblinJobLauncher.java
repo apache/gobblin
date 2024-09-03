@@ -74,9 +74,11 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
   @Override
   public void submitJob(List<WorkUnit> workunits) {
     try {
+      // Initialize workflowId to be used by cancel workflow.
+      this.workflowId = Help.qualifyNamePerExecWithFlowExecId(WORKFLOW_ID_BASE, ConfigFactory.parseProperties(jobProps));
       WorkflowOptions options = WorkflowOptions.newBuilder()
           .setTaskQueue(this.queueName)
-          .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(WORKFLOW_ID_BASE, ConfigFactory.parseProperties(jobProps)))
+          .setWorkflowId(this.workflowId)
           .build();
       ExecuteGobblinWorkflow workflow = this.client.newWorkflowStub(ExecuteGobblinWorkflow.class, options);
 
