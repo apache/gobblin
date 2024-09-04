@@ -27,6 +27,7 @@ import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
@@ -174,7 +175,7 @@ public class DagProcUtils {
         log.warn("No Job future when canceling DAG node - {}", dagNodeToCancel.getValue().getId());
       }
       DagManagerUtils.getSpecProducer(dagNodeToCancel).cancelJob(dagNodeToCancel.getValue().getJobSpec().getUri(), cancelJobArgs).get();
-      sendCancellationEvent(dagNodeToCancel);
+      sendJobCancellationEvent(dagNodeToCancel);
       log.info("Cancelled dag node {}, spec_producer_future {}", dagNodeToCancel.getValue().getId(), serializedFuture);
     } catch (Exception e) {
       throw new IOException(e);
@@ -190,7 +191,7 @@ public class DagProcUtils {
     }
   }
 
-  private static void sendCancellationEvent(Dag.DagNode<JobExecutionPlan> dagNodeToCancel) {
+  private static void sendJobCancellationEvent(Dag.DagNode<JobExecutionPlan> dagNodeToCancel) {
     JobExecutionPlan jobExecutionPlan = dagNodeToCancel.getValue();
     Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
     DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_CANCEL).stop(jobMetadata);
@@ -356,5 +357,26 @@ public class DagProcUtils {
   private static boolean areAllParentsInCanRun(Dag.DagNode<JobExecutionPlan> node,
       Set<Dag.DagNode<JobExecutionPlan>> canRun) {
     return node.getParentNodes() == null || canRun.containsAll(node.getParentNodes());
+  }
+
+  public static ExecutionStatus calcFlowStatus(Dag<JobExecutionPlan> dag) {
+    Set<ExecutionStatus> jobsStatuses = dag.getNodes().stream().map(node -> node.getValue().getExecutionStatus())
+        .collect(Collectors.toSet());
+
+    if (jobsStatuses.contains(FAILED)) {
+      return FAILED;
+    } else if (jobsStatuses.contains(CANCELLED)) {
+      return CANCELLED;
+    } else if (jobsStatuses.contains(PENDING_RESUME)) {
+      return PENDING_RESUME;
+    } else if (jobsStatuses.contains(PENDING_RETRY)) {
+      return PENDING_RETRY;
+    } else if (jobsStatuses.stream().allMatch(jobStatus -> jobStatus == COMPLETE)) {
+      return COMPLETE;
+    } else if (jobsStatuses.stream().allMatch(jobStatus -> jobStatus == PENDING)) {
+      return PENDING;
+    } else {
+      return RUNNING;
+    }
   }
 }

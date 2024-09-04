@@ -79,27 +79,35 @@ public class DagManagerUtilsTest {
 
     setJobStatuses(dag, Collections.singletonList(COMPLETE));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(COMPLETE, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Collections.singletonList(FAILED));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(FAILED, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Collections.singletonList(CANCELLED));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(CANCELLED, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Collections.singletonList(PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(PENDING, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Collections.singletonList(PENDING_RETRY));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(PENDING_RETRY, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Collections.singletonList(PENDING_RESUME));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(PENDING_RESUME, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Collections.singletonList(ORCHESTRATED));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(RUNNING, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Collections.singletonList(RUNNING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(RUNNING, DagProcUtils.calcFlowStatus(dag));
   }
 
   @Test
@@ -109,15 +117,19 @@ public class DagManagerUtilsTest {
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(RUNNING, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, FAILED));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(FAILED, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Arrays.asList(FAILED, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(FAILED, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Arrays.asList(CANCELLED, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(CANCELLED, DagProcUtils.calcFlowStatus(dag));
   }
 
   @Test
@@ -126,12 +138,15 @@ public class DagManagerUtilsTest {
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, PENDING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(RUNNING, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, FAILED, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(FAILED, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, CANCELLED, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(CANCELLED, DagProcUtils.calcFlowStatus(dag));
   }
 
   @Test
@@ -140,15 +155,19 @@ public class DagManagerUtilsTest {
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, PENDING, PENDING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(RUNNING, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Arrays.asList(FAILED, PENDING, PENDING, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(FAILED, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Arrays.asList(CANCELLED, PENDING, PENDING, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(CANCELLED, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Arrays.asList(PENDING, PENDING, PENDING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(PENDING, DagProcUtils.calcFlowStatus(dag));
   }
 
   @Test
@@ -158,54 +177,63 @@ public class DagManagerUtilsTest {
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
     Collections.shuffle(dag.getNodes());
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(COMPLETE, DagProcUtils.calcFlowStatus(dag));
 
     Dag<JobExecutionPlan> dag2 = buildComplexDag1();
     setJobStatuses(dag2, Arrays.asList(COMPLETE, COMPLETE, COMPLETE, COMPLETE, PENDING, COMPLETE, COMPLETE, PENDING, COMPLETE, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag2));
-    Collections.shuffle(dag2.getNodes());
+//    Collections.shuffle(dag2.getNodes());
     Assert.assertFalse(DagProcUtils.isDagFinished(dag2));
+    Assert.assertEquals(RUNNING, DagProcUtils.calcFlowStatus(dag2));
 
     Dag<JobExecutionPlan> dag3 = buildComplexDag1();
     setJobStatuses(dag3, Arrays.asList(FAILED, COMPLETE, COMPLETE, COMPLETE, PENDING, COMPLETE, COMPLETE, PENDING, COMPLETE, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag3));
     Collections.shuffle(dag3.getNodes());
     Assert.assertTrue(DagProcUtils.isDagFinished(dag3));
+    Assert.assertEquals(FAILED, DagProcUtils.calcFlowStatus(dag3));
 
     Dag<JobExecutionPlan> dag4 = buildComplexDag1();
     setJobStatuses(dag4, Arrays.asList(COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE, CANCELLED, COMPLETE, PENDING, PENDING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag4));
     Collections.shuffle(dag4.getNodes());
     Assert.assertFalse(DagProcUtils.isDagFinished(dag4));
+    Assert.assertEquals(CANCELLED, DagProcUtils.calcFlowStatus(dag4));
 
     Dag<JobExecutionPlan> dag5 = buildComplexDag1();
     setJobStatuses(dag5, Arrays.asList(COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE, CANCELLED, COMPLETE, COMPLETE, PENDING, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag5));
     Collections.shuffle(dag5.getNodes());
     Assert.assertTrue(DagProcUtils.isDagFinished(dag5));
+    Assert.assertEquals(CANCELLED, DagProcUtils.calcFlowStatus(dag5));
 
     Dag<JobExecutionPlan> dag6 = buildComplexDag1();
     setJobStatuses(dag6, Arrays.asList(COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE, PENDING_RESUME, COMPLETE, COMPLETE, PENDING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag6));
     Collections.shuffle(dag6.getNodes());
     Assert.assertFalse(DagProcUtils.isDagFinished(dag6));
+    Assert.assertEquals(PENDING_RESUME, DagProcUtils.calcFlowStatus(dag6));
 
     Dag<JobExecutionPlan> dag7 = buildComplexDag1();
     setJobStatuses(dag7, Arrays.asList(COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE, PENDING_RETRY, COMPLETE, COMPLETE, PENDING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag7));
     Collections.shuffle(dag7.getNodes());
     Assert.assertFalse(DagProcUtils.isDagFinished(dag7));
+    Assert.assertEquals(PENDING_RETRY, DagProcUtils.calcFlowStatus(dag7));
 
     Dag<JobExecutionPlan> dag8 = buildComplexDag1();
     setJobStatuses(dag8, Arrays.asList(COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE, RUNNING, COMPLETE, COMPLETE, PENDING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag8));
     Collections.shuffle(dag8.getNodes());
     Assert.assertFalse(DagProcUtils.isDagFinished(dag8));
+    Assert.assertEquals(RUNNING, DagProcUtils.calcFlowStatus(dag8));
 
     Dag<JobExecutionPlan> dag9 = buildComplexDag1();
     setJobStatuses(dag9, Arrays.asList(COMPLETE, COMPLETE, COMPLETE, FAILED, COMPLETE, COMPLETE, PENDING, COMPLETE, PENDING, COMPLETE));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag9));
     Collections.shuffle(dag9.getNodes());
     Assert.assertFalse(DagProcUtils.isDagFinished(dag9));
+    Assert.assertEquals(FAILED, DagProcUtils.calcFlowStatus(dag9));
   }
 
   @Test
@@ -215,9 +243,11 @@ public class DagManagerUtilsTest {
 
     setJobStatuses(dag, Arrays.asList(FAILED, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(FAILED, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Arrays.asList(CANCELLED, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(CANCELLED, DagProcUtils.calcFlowStatus(dag));
   }
 
   @Test
@@ -226,9 +256,11 @@ public class DagManagerUtilsTest {
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, CANCELLED, COMPLETE, PENDING, PENDING));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(CANCELLED, DagProcUtils.calcFlowStatus(dag));
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, CANCELLED, COMPLETE, RUNNING, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag));
+    Assert.assertEquals(CANCELLED, DagProcUtils.calcFlowStatus(dag));
   }
 
   private void setJobStatuses(Dag<JobExecutionPlan> dag, List<ExecutionStatus> statuses) {
