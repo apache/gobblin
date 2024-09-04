@@ -36,7 +36,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.temporal.ddm.activity.CleanupActivity;
+import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
@@ -74,7 +74,18 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   private final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
       GEN_WUS_ACTIVITY_OPTS);
 
-  private final CleanupActivity cleanupActivityStub = Workflow.newActivityStub(CleanupActivity.class);
+  private static final RetryOptions DELETE_WORK_DIRS_RETRY_OPTS = RetryOptions.newBuilder()
+      .setInitialInterval(Duration.ofSeconds(3))
+      .setMaximumInterval(Duration.ofSeconds(100))
+      .setBackoffCoefficient(2)
+      .setMaximumAttempts(4)
+      .build();
+
+  private static final ActivityOptions DELETE_WORK_DIRS_ACTIVITY_OPTS = ActivityOptions.newBuilder()
+      .setStartToCloseTimeout(Duration.ofHours(1))
+      .setRetryOptions(DELETE_WORK_DIRS_RETRY_OPTS)
+      .build();
+  private final DeleteWorkDirsActivity _deleteWorkDirsActivityStub = Workflow.newActivityStub(DeleteWorkDirsActivity.class, DELETE_WORK_DIRS_ACTIVITY_OPTS);
 
   @Override
   public ExecGobblinStats execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
@@ -107,7 +118,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       );
     } finally {
       // TODO: Cleanup WorkUnit/Taskstate Directory for jobs cancelled mid flight
-      cleanupActivityStub.cleanup(wuSpec, eventSubmitterContext, generateWorkUnitResults.getCleanupResources());
+      _deleteWorkDirsActivityStub.cleanup(wuSpec, eventSubmitterContext, generateWorkUnitResults.getCleanupResources());
     }
   }
 

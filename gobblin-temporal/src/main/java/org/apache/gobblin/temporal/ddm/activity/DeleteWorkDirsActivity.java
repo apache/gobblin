@@ -26,10 +26,9 @@ import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
-/** Activity for reading the output of work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl} by
- * reading in a {@link WUProcessingSpec} to determine the location of the output task states */
+/** Activity for cleaning up a list of resources */
 @ActivityInterface
-public interface CleanupActivity {
+public interface DeleteWorkDirsActivity {
   /**
    * Clean the list of resources specified in the input
    * TODO: Generalize the input to support multiple platforms outside of just HDFS

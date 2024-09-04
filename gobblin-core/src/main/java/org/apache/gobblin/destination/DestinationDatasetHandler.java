@@ -20,7 +20,6 @@ package org.apache.gobblin.destination;
 import java.io.Closeable;
 import java.io.IOException;
 import java.util.Collection;
-
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 
@@ -48,5 +47,4 @@ public interface DestinationDatasetHandler extends Closeable {
    * @throws IOException
    */
   void close() throws IOException;
-
 }

@@ -42,7 +42,7 @@ import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobException;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.temporal.ddm.activity.CleanupActivity;
+import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.CleanupResult;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
@@ -57,11 +57,12 @@ import org.apache.gobblin.util.WriterUtils;
 
 
 @Slf4j
-public class CleanupActivityImpl implements CleanupActivity {
+public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
   static String UNDEFINED_JOB_NAME = "<job_name_stub>";
 
   @Override
   public CleanupResult cleanup(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> resourcesToClean) {
+    //TODO: Emit timers to measure length of cleanup step
     Optional<String> optJobName = Optional.empty();
     try {
       FileSystem fs = Help.loadFileSystem(workSpec);
