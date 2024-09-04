@@ -20,12 +20,9 @@ package org.apache.gobblin.service;
 import java.time.Duration;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
-
 public class ServiceConfigKeys {
 
   public static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
-  public static final String GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS = "org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler";
   public static final String GOBBLIN_ORCHESTRATOR_LISTENER_CLASS = "org.apache.gobblin.service.modules.orchestration.Orchestrator";
 
   // Gobblin Service Manager Keys
@@ -184,7 +181,5 @@ public class ServiceConfigKeys {
   public static final String NUM_DAG_PROC_THREADS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "numThreads";
   public static final String DAG_PROC_ENGINE_NON_RETRYABLE_EXCEPTIONS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "nonRetryableExceptions";
   public static final Integer DEFAULT_NUM_DAG_PROC_THREADS = 3;
-  public static final String JOB_START_SLA_TIME = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME;
-  public static final String JOB_START_SLA_UNITS = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT;
-  public static final long DEFAULT_FLOW_SLA_MILLIS = TimeUnit.HOURS.toMillis(24);
+  public static final long DEFAULT_FLOW_DEADLINE_MILLIS = TimeUnit.HOURS.toMillis(24);
 }

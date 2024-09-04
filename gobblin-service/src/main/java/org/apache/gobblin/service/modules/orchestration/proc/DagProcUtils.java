@@ -44,7 +44,6 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
@@ -251,8 +250,8 @@ public class DagProcUtils {
 
   public static long getDefaultJobStartDeadline(Config config) {
     TimeUnit jobStartTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
-        config, ServiceConfigKeys.JOB_START_SLA_UNITS, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_DEADLINE_TIME_UNIT));
-    return jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, ServiceConfigKeys.JOB_START_SLA_TIME,
+        config, ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_DEADLINE_TIME_UNIT));
+    return jobStartTimeUnit.toMillis(ConfigUtils.getLong(config, ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME,
         ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_DEADLINE_TIME));
   }
 

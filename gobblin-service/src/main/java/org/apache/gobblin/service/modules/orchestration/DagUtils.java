@@ -242,11 +242,11 @@ public class DagUtils {
   public static long getFlowFinishDeadline(DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
-        jobConfig, ConfigurationKeys.GOBBLIN_FLOW_DEADLINE_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_DEADLINE_TIME_UNIT));
+        jobConfig, ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT));
 
-    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_DEADLINE_TIME)
-        ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_DEADLINE_TIME))
-        : ServiceConfigKeys.DEFAULT_FLOW_SLA_MILLIS;
+    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_FINSIH_DEADLINE_TIME)
+        ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_FINSIH_DEADLINE_TIME))
+        : ServiceConfigKeys.DEFAULT_FLOW_DEADLINE_MILLIS;
   }
 
   /**

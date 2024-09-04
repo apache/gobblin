@@ -35,7 +35,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 /**
  * An implementation for {@link DagProc} that kills all the jobs if the dag does not finish in
- * {@link org.apache.gobblin.configuration.ConfigurationKeys#GOBBLIN_FLOW_DEADLINE_TIME} time.
+ * {@link org.apache.gobblin.configuration.ConfigurationKeys#GOBBLIN_FLOW_FINSIH_DEADLINE_TIME} time.
  */
 @Slf4j
 public class EnforceFlowFinishDeadlineDagProc extends DeadlineEnforcementDagProc {

@@ -47,7 +47,6 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_serde.GsonSerDe;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
@@ -60,7 +59,7 @@ import org.apache.gobblin.util.ConfigUtils;
 @Slf4j
 public class FSDagStateStore implements DagStateStore {
   public static final String DAG_FILE_EXTENSION = ".dag";
-  static final String DAG_STATESTORE_DIR = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "dagStateStoreDir";
+  static final String DAG_STATESTORE_DIR = "dagStateStoreDir";
 
   private final String dagCheckpointDir;
   private final GsonSerDe<List<JobExecutionPlan>> serDe;

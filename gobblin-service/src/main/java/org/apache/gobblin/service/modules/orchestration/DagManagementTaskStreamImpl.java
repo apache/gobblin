@@ -161,11 +161,11 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     try {
       timeOutForJobFinish = DagUtils.getFlowFinishDeadline(dagNode);
     } catch (ConfigException e) {
-      log.warn("Flow SLA for flowGroup: {}, flowName: {} is given in invalid format, using default SLA of {}",
+      log.warn("Flow deadline for flowGroup: {}, flowName: {} is given in invalid format, using default deadline of {}",
           dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
           dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
-          ServiceConfigKeys.DEFAULT_FLOW_SLA_MILLIS);
-      timeOutForJobFinish = ServiceConfigKeys.DEFAULT_FLOW_SLA_MILLIS;
+          ServiceConfigKeys.DEFAULT_FLOW_DEADLINE_MILLIS);
+      timeOutForJobFinish = ServiceConfigKeys.DEFAULT_FLOW_DEADLINE_MILLIS;
     }
 
     long flowStartTime = DagUtils.getFlowStartTime(dagNode);

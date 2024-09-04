@@ -25,7 +25,6 @@ import java.util.Map;
 import org.apache.commons.lang3.StringUtils;
 
 import com.codahale.metrics.MetricRegistry;
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
 
@@ -33,7 +32,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
-import org.apache.gobblin.instrumented.GobblinMetricsKeys;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.ContextAwareCounter;
 import org.apache.gobblin.metrics.ContextAwareGauge;
@@ -44,7 +42,6 @@ import org.apache.gobblin.metrics.MetricTagNames;
 import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.Tag;
-import org.apache.gobblin.metrics.metric.filter.MetricNameRegexFilter;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.RequesterService;
 import org.apache.gobblin.service.ServiceRequester;
@@ -258,17 +255,5 @@ public class DagManagerMetrics {
     String executorName = DagUtils.getSpecExecutorName(dagNode);
     return meterMap.computeIfAbsent(executorName,
         executorUri -> metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, executorUri, meterName)));
-  }
-
-
-  @VisibleForTesting
-  protected static MetricNameRegexFilter getMetricsFilterForDagManager() {
-    return new MetricNameRegexFilter(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX + "\\..*\\." + ServiceMetricNames.RUNNING_STATUS);
-  }
-
-  public void cleanup() {
-    if (this.metricContext != null && this.metricContext.getTagMap().get(GobblinMetricsKeys.CLASS_META).equals(DagManagerMetrics.class.getSimpleName())) {
-      RootMetricContext.get().removeMatching(getMetricsFilterForDagManager());
-    }
   }
 }

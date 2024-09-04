@@ -40,7 +40,6 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -70,7 +69,7 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   Map<URI, TopologySpec> topologySpecMap;
   private final Config config;
   public static final String FAILED_DAG_STATESTORE_PREFIX = "failedDagStateStore";
-  public static final String DAG_STATESTORE_CLASS_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "dagStateStoreClass";
+  public static final String DAG_STATESTORE_CLASS_KEY = "dagStateStoreClass";
   FlowCatalog flowCatalog;
   @Getter
   private final DagManagerMetrics dagManagerMetrics = new DagManagerMetrics();

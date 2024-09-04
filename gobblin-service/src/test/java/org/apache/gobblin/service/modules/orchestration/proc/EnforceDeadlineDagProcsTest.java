@@ -175,8 +175,8 @@ public class EnforceDeadlineDagProcsTest {
         numOfDagNodes, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
-            .withValue(ConfigurationKeys.GOBBLIN_FLOW_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
-            .withValue(ConfigurationKeys.GOBBLIN_FLOW_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(1L))
+            .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
+            .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINSIH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(1L))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
     List<SpecProducer<Spec>> specProducers = ReevaluateDagProcTest.getDagSpecProducers(dag);
