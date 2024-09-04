@@ -101,7 +101,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
   @VisibleForTesting
   protected DagManager dagManager;
   protected Orchestrator orchestrator;
-  protected boolean isMultiActiveSchedulerEnabled;
   @Getter
   @VisibleForTesting
   protected FlowCatalog flowCatalog;
@@ -114,7 +113,7 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
   // client itself to determine all Kafka related information dynamically rather than through the config.
   public DagActionStoreChangeMonitor(String topic, Config config, DagManager dagManager, int numThreads,
       FlowCatalog flowCatalog, Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore,
-      boolean isMultiActiveSchedulerEnabled, DagProcessingEngineMetrics dagProcEngineMetrics) {
+      DagProcessingEngineMetrics dagProcEngineMetrics) {
     // Differentiate group id for each host
     super(topic, config.withValue(GROUP_ID_KEY,
         ConfigValueFactory.fromAnyRef(DAG_ACTION_CHANGE_MONITOR_PREFIX + UUID.randomUUID().toString())),
@@ -123,7 +122,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
     this.dagManagementStateStore = dagManagementStateStore;
-    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     this.dagProcEngineMetrics = dagProcEngineMetrics;
 
     /*
@@ -300,11 +298,6 @@ public class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagAc
       this.killsInvoked.mark();
     } else if (dagAction.getDagActionType().equals(DagActionStore.DagActionType.LAUNCH)) {
       // If multi-active scheduler is NOT turned on we should not receive these type of events
-      if (!this.isMultiActiveSchedulerEnabled) {
-        this.unexpectedErrors.mark();
-        throw new RuntimeException(String.format("Received LAUNCH dagAction while not in multi-active scheduler "
-            + "mode for flowAction: %s", dagAction));
-      }
       submitFlowToDagManagerHelper(dagAction, isStartup);
     } else {
       log.warn("Received unsupported dagAction {}. Expected to be a KILL, RESUME, or LAUNCH", dagAction.getDagActionType());

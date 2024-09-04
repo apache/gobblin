@@ -83,15 +83,14 @@ public class DagActionStoreChangeMonitorTest {
    */
   class MockDagActionStoreChangeMonitor extends DagActionStoreChangeMonitor {
 
-    public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads,
-        boolean isMultiActiveSchedulerEnabled) {
-      this(topic, config, numThreads, isMultiActiveSchedulerEnabled, mock(DagManagementStateStore.class), mock(DagManager.class), mock(FlowCatalog.class), mock(Orchestrator.class));
+    public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads) {
+      this(topic, config, numThreads, mock(DagManagementStateStore.class), mock(DagManager.class), mock(FlowCatalog.class), mock(Orchestrator.class));
     }
 
-    public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads, boolean isMultiActiveSchedulerEnabled,
+    public MockDagActionStoreChangeMonitor(String topic, Config config, int numThreads,
         DagManagementStateStore dagManagementStateStore, DagManager dagManager, FlowCatalog flowCatalog, Orchestrator orchestrator) {
       super(topic, config, dagManager, numThreads, flowCatalog, orchestrator,
-          dagManagementStateStore, isMultiActiveSchedulerEnabled, mock(DagProcessingEngineMetrics.class));
+          dagManagementStateStore, mock(DagProcessingEngineMetrics.class));
     }
 
     protected void processMessageForTest(DecodeableKafkaRecord record) {
@@ -108,7 +107,7 @@ public class DagActionStoreChangeMonitorTest {
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef("/tmp/fakeStateStore"))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
-    return new MockDagActionStoreChangeMonitor("dummyTopic", config, 5, true);
+    return new MockDagActionStoreChangeMonitor("dummyTopic", config, 5);
   }
 
   // Called at start of every test so the count of each method being called is reset to 0
@@ -239,7 +238,7 @@ public class DagActionStoreChangeMonitorTest {
     // Throw an uncaught exception during startup sequence
     when(mockFlowCatalog.getSpecs(any(URI.class))).thenThrow(new RuntimeException("Uncaught exception"));
     mockDagActionStoreChangeMonitor =  new MockDagActionStoreChangeMonitor("dummyTopic", monitorConfig, 5,
-        true, dagManagementStateStore, mockDagManager, mockFlowCatalog, mockOrchestrator);
+        dagManagementStateStore, mockDagManager, mockFlowCatalog, mockOrchestrator);
     try {
       mockDagActionStoreChangeMonitor.setActive();
     } catch (Exception e) {

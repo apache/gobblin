@@ -22,12 +22,10 @@ import java.util.Objects;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
@@ -47,20 +45,17 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
   private FlowCatalog flowCatalog;
   private Orchestrator orchestrator;
   private DagManagementStateStore dagManagementStateStore;
-  private boolean isMultiActiveSchedulerEnabled;
   private DagProcessingEngineMetrics dagProcEngineMetrics;
 
   @Inject
   public DagActionStoreChangeMonitorFactory(Config config, DagManager dagManager, FlowCatalog flowCatalog,
       Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore,
-      @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled,
       DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = Objects.requireNonNull(config);
     this.dagManager = dagManager;
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
     this.dagManagementStateStore = dagManagementStateStore;
-    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     this.dagProcEngineMetrics = dagProcEngineMetrics;
   }
 
@@ -72,7 +67,7 @@ public class DagActionStoreChangeMonitorFactory implements Provider<DagActionSto
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
     return new DagActionStoreChangeMonitor(topic, dagActionStoreChangeConfig, this.dagManager, numThreads, flowCatalog,
-        orchestrator, dagManagementStateStore, isMultiActiveSchedulerEnabled, dagProcEngineMetrics);
+        orchestrator, dagManagementStateStore, dagProcEngineMetrics);
   }
 
   @Override

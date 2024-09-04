@@ -74,9 +74,9 @@ public class DagManagementDagActionStoreChangeMonitorTest {
    */
   static class MockDagManagementDagActionStoreChangeMonitor extends DagManagementDagActionStoreChangeMonitor {
 
-    public MockDagManagementDagActionStoreChangeMonitor(Config config, int numThreads, boolean isMultiActiveSchedulerEnabled) {
+    public MockDagManagementDagActionStoreChangeMonitor(Config config, int numThreads) {
       super(config, numThreads, mock(FlowCatalog.class), mock(Orchestrator.class), mock(DagManagementStateStore.class),
-          isMultiActiveSchedulerEnabled, mock(DagManagement.class), dagActionReminderScheduler,
+          mock(DagManagement.class), dagActionReminderScheduler,
           mock(DagProcessingEngineMetrics.class));
     }
     protected void processMessageForTest(DecodeableKafkaRecord<String, DagActionStoreChangeEvent> record) {
@@ -89,7 +89,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef("/tmp/fakeStateStore"))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
-    return new MockDagManagementDagActionStoreChangeMonitor(config, 5, true);
+    return new MockDagManagementDagActionStoreChangeMonitor(config, 5);
   }
 
   // Called at start of every test so the count of each method being called is reset to 0

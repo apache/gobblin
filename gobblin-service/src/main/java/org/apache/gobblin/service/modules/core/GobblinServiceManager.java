@@ -324,11 +324,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         LOGGER.info("Leader notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
             this.helixManager.get().isLeader());
 
-        if (configuration.isSchedulerEnabled()) {
-          LOGGER.info("Gobblin Service is now running in master instance mode, enabling Scheduler.");
-          this.scheduler.setActive(true);
-        }
-
         if (helixLeaderGauges.isPresent()) {
           helixLeaderGauges.get().setState(LeaderState.MASTER);
         }
@@ -353,12 +348,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       } else {
         LOGGER.info("Leader lost notification for {} HM.isLeader {}", this.helixManager.get().getInstanceName(),
             this.helixManager.get().isLeader());
-
-        if (configuration.isSchedulerEnabled() && !configuration.isMultiActiveSchedulerEnabled()) {
-          LOGGER.info("Gobblin Service is now running in non-leader mode without multi-active scheduler enabled, "
-              + "disabling Scheduler.");
-          this.scheduler.setActive(false);
-        }
 
         if (helixLeaderGauges.isPresent()) {
           helixLeaderGauges.get().setState(LeaderState.SLAVE);
@@ -467,15 +456,13 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     if (this.helixManager.isPresent()) {
       // Subscribe to leadership changes
       this.helixManager.get().addControllerListener((ControllerChangeListener) this::handleLeadershipChange);
-
+      if (configuration.isSchedulerEnabled()) {
+        LOGGER.info("[Init] Gobblin service is running in multi active mode, enabling Scheduler.");
+        this.scheduler.setActive(true);
+      }
 
       // Update for first time since there might be no notification
       if (helixManager.get().isLeader()) {
-        if (configuration.isSchedulerEnabled()) {
-          LOGGER.info("[Init] Gobblin Service is running in master instance mode, enabling Scheduler.");
-          this.scheduler.setActive(true);
-        }
-
         if (configuration.isGitConfigMonitorEnabled()) {
           this.gitConfigMonitor.setActive(true);
         }
@@ -485,14 +472,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
         }
 
       } else {
-        if (configuration.isSchedulerEnabled()) {
-          if (configuration.isMultiActiveSchedulerEnabled()) {
-          LOGGER.info("[Init] Gobblin Service enabling scheduler for non-leader since multi-active scheduler enabled");
-          this.scheduler.setActive(true);
-          } else {
-          LOGGER.info("[Init] Gobblin Service is running in non-leader instance mode, not enabling Scheduler.");
-          }
-        }
         if (helixLeaderGauges.isPresent()) {
           helixLeaderGauges.get().setState(LeaderState.SLAVE);
         }

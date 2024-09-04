@@ -166,9 +166,6 @@ public class GobblinServiceGuiceModule implements Module {
         .annotatedWith(Names.named(InjectionNames.WARM_STANDBY_ENABLED))
         .to(serviceConfig.isWarmStandbyEnabled());
     binder.bindConstant()
-        .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED))
-        .to(serviceConfig.isMultiActiveSchedulerEnabled());
-    binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.DAG_PROC_ENGINE_ENABLED))
         .to(serviceConfig.isDagProcessingEngineEnabled());
     binder.bindConstant()
@@ -198,9 +195,6 @@ public class GobblinServiceGuiceModule implements Module {
         ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME)).toProvider(
         FlowLaunchMultiActiveLeaseArbiterFactory.class);
     OptionalBinder.newOptionalBinder(binder, FlowLaunchHandler.class);
-    if (serviceConfig.isMultiActiveSchedulerEnabled()) {
-      binder.bind(FlowLaunchHandler.class);
-    }
 
     OptionalBinder.newOptionalBinder(binder, DagManagement.class);
     OptionalBinder.newOptionalBinder(binder, DagTaskStream.class);
