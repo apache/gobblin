@@ -150,7 +150,7 @@ public class AvroUtilsTest {
                 + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}], \"default\": null}]}"
                 + "]}");
 
-    Assert.assertEquals(expectedOutputSchema1.toString(), AvroUtils.nullifyFieldsForSchemaMerge(oldSchema1, newSchema1).toString());
+    Assert.assertEquals(expectedOutputSchema1, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema1, newSchema1));
 
     Schema oldSchema2 =
         new Schema.Parser().parse("{\"type\":\"record\", \"name\":\"test\", " + "\"fields\":["
@@ -166,7 +166,7 @@ public class AvroUtilsTest {
             + "{\"name\": \"name\", \"type\": \"string\"}, "
             + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"array\", \"items\": \"string\"}], \"default\": null}" + "]}");
 
-    Assert.assertEquals(expectedOutputSchema2.toString(), AvroUtils.nullifyFieldsForSchemaMerge(oldSchema2, newSchema2).toString());
+    Assert.assertEquals(expectedOutputSchema2, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema2, newSchema2));
   }
 
   /**
@@ -194,7 +194,7 @@ public class AvroUtilsTest {
                 + "{\"name\": \"color\", \"type\": [\"null\", \"string\"], \"default\": null}, "
                 + "{\"name\": \"number\", \"type\": [\"null\", {\"type\": \"string\"}, {\"type\": \"array\", \"items\": \"string\"}], \"default\": null}]}"
                 + "]}");
-    Assert.assertEquals(expectedOutputSchema.toString(), AvroUtils.nullifyFieldsForSchemaMerge(oldSchema, newSchema).toString());
+    Assert.assertEquals(expectedOutputSchema, AvroUtils.nullifyFieldsForSchemaMerge(oldSchema, newSchema));
   }
 
   /**
