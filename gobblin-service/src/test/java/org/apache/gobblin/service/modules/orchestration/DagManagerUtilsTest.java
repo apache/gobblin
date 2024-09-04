@@ -74,7 +74,7 @@ public class DagManagerUtilsTest {
   }
 
   @Test
-  public void testIsDagFinishedSingleNode() throws URISyntaxException {
+  public void testFlowStatusAndIsDagFinishedSingleNode() throws URISyntaxException {
     Dag<JobExecutionPlan> dag =
         DagManagerTest.buildDag(id, flowExecutionId, flowFailureOption, 1, proxyUser, additionalConfig);
 
@@ -112,7 +112,7 @@ public class DagManagerUtilsTest {
   }
 
   @Test
-  public void testIsDagFinishedTwoNodes() throws URISyntaxException {
+  public void testFlowStatusAndIsDagFinishedTwoNodes() throws URISyntaxException {
     Dag<JobExecutionPlan> dag =
         DagManagerTest.buildDag(id, flowExecutionId, flowFailureOption, 2, proxyUser, additionalConfig);
 
@@ -134,7 +134,7 @@ public class DagManagerUtilsTest {
   }
 
   @Test
-  public void testIsDagFinishedThreeNodes() throws URISyntaxException {
+  public void testFlowStatusAndIsDagFinishedThreeNodes() throws URISyntaxException {
     Dag<JobExecutionPlan> dag = buildComplexDag3();
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, PENDING, PENDING));
@@ -151,7 +151,7 @@ public class DagManagerUtilsTest {
   }
 
   @Test
-  public void testIsDagFinishedFourNodes() throws URISyntaxException {
+  public void testFlowStatusAndIsDagFinishedFourNodes() throws URISyntaxException {
     Dag<JobExecutionPlan> dag = buildLinearDagOf4Nodes();
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, PENDING, PENDING, PENDING));
@@ -172,7 +172,7 @@ public class DagManagerUtilsTest {
   }
 
   @Test
-  public void testIsDagFinishedMultiNodes() throws URISyntaxException {
+  public void testFlowStatusAndIsDagFinishedMultiNodes() throws URISyntaxException {
     Dag<JobExecutionPlan> dag = buildComplexDag1();
     setJobStatuses(dag, Arrays.asList(COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE, COMPLETE));
     Assert.assertTrue(DagProcUtils.isDagFinished(dag));
@@ -238,7 +238,7 @@ public class DagManagerUtilsTest {
   }
 
   @Test
-  public void testIsDagFinishedWithFinishRunningFailureOptionTwoNodes() throws URISyntaxException {
+  public void testFlowStatusAndIsDagFinishedWithFinishRunningFailureOptionTwoNodes() throws URISyntaxException {
     Dag<JobExecutionPlan> dag =
         DagManagerTest.buildDag(id, flowExecutionId, flowFailureOption, 2, proxyUser, additionalConfig);
 
@@ -252,7 +252,7 @@ public class DagManagerUtilsTest {
   }
 
   @Test
-  public void testIsDagFinishedWithFinishRunningFailureOptionMultiNodes() throws URISyntaxException {
+  public void testFlowStatusAndIsDagFinishedWithFinishRunningFailureOptionMultiNodes() throws URISyntaxException {
     Dag<JobExecutionPlan> dag = buildComplexDagWithFinishRunningFailureOption();
 
     setJobStatuses(dag, Arrays.asList(COMPLETE, CANCELLED, COMPLETE, PENDING, PENDING));
