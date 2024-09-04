@@ -185,13 +185,22 @@ public class DagProcUtils {
   /**
    * Emits JOB_SKIPPED GTE for each of the dependent job.
    */
-  public static void sendSkippedEventForDependentJobs(Dag<JobExecutionPlan> dag, Dag.DagNode<JobExecutionPlan> node,
-      DagManagementStateStore dagManagementStateStore) throws IOException {
-    for (Dag.DagNode<JobExecutionPlan> child : dag.getChildren(node)) {
-      child.getValue().setExecutionStatus(SKIPPED);
-      dagManagementStateStore.updateDagNode(child);
-      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), child.getValue());
+  public static void sendSkippedEventForDependentJobs(Dag<JobExecutionPlan> dag, Dag.DagNode<JobExecutionPlan> node) {
+    Set<Dag.DagNode<JobExecutionPlan>> dependentJobs = new HashSet<>();
+    findDependentJobs(dag, node, dependentJobs);
+    for (Dag.DagNode<JobExecutionPlan> dependentJob : dependentJobs) {
+      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), dependentJob.getValue());
       DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_SKIPPED).stop(jobMetadata);
+    }
+  }
+
+  private static void findDependentJobs(Dag<JobExecutionPlan> dag,
+      Dag.DagNode<JobExecutionPlan> node, Set<Dag.DagNode<JobExecutionPlan>> dependentJobs) {
+    for (Dag.DagNode<JobExecutionPlan> child : dag.getChildren(node)) {
+      if (!dependentJobs.contains(child)) {
+        dependentJobs.add(child);
+        findDependentJobs(dag, child, dependentJobs);
+      }
     }
   }
 

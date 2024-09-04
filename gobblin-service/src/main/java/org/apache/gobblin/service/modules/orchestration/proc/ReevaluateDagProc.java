@@ -99,6 +99,8 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // The other ReevaluateDagProc can do that purely out of race condition when the dag is cancelled and ReevaluateDagProcs
       // are being processed for dag node kill requests; or when this DagProc ran into some exception after updating the
       // status and thus gave the other ReevaluateDagProc sufficient time to delete the dag before being retried.
+      // This can also happen when a job is cancelled/failed and dag is cleaned; but we are still processing Reevaluate
+      // dag actions for SKIPPED dependent jobs
       log.warn("Dag not found {}", getDagId());
       return;
     }
@@ -159,12 +161,12 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dag.setMessage("Flow failed because job " + jobName + " failed");
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_FAILED);
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorFailed(dagNode);
-        DagProcUtils.sendSkippedEventForDependentJobs(dag, dagNode, dagManagementStateStore);
+        DagProcUtils.sendSkippedEventForDependentJobs(dag, dagNode);
         break;
       case CANCELLED:
       case SKIPPED:
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
-        DagProcUtils.sendSkippedEventForDependentJobs(dag, dagNode, dagManagementStateStore);
+        DagProcUtils.sendSkippedEventForDependentJobs(dag, dagNode);
         break;
       case COMPLETE:
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorSuccess(dagNode);

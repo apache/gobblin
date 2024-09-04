@@ -19,7 +19,6 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
 import java.net.URISyntaxException;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.ExecutionException;
@@ -226,20 +225,5 @@ public class KillDagProcTest {
         .submit(eq(TimingEvent.LauncherTimings.JOB_CANCEL), anyMap());
     Mockito.verify(this.mockedEventSubmitter, Mockito.times(numOfCancelledFlows))
         .submit(eq(TimingEvent.FlowTimings.FLOW_CANCELLED), anyMap());
-
-    Assert.assertEquals(dag.getNodes().get(0).getValue().getExecutionStatus(), ExecutionStatus.ORCHESTRATED); // because this was a mocked dag and we launched this job
-    Assert.assertEquals(dag.getNodes().get(1).getValue().getExecutionStatus(), ExecutionStatus.PENDING); // because this was a mocked dag and we did not launch the job
-    Assert.assertEquals(dag.getNodes().get(2).getValue().getExecutionStatus(), ExecutionStatus.CANCELLED); // because we cancelled this job
-    Assert.assertEquals(dag.getNodes().get(3).getValue().getExecutionStatus(), ExecutionStatus.PENDING); // because this was a mocked dag and we did not launch the job
-    Assert.assertEquals(dag.getNodes().get(4).getValue().getExecutionStatus(), ExecutionStatus.SKIPPED); // because its parent job was cancelled
-
-    Assert.assertTrue(dagManagementStateStore.hasRunningJobs(dagId));
-
-    dag.getNodes().get(0).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
-    dag.getNodes().get(1).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
-    dag.getNodes().get(3).getValue().setExecutionStatus(ExecutionStatus.COMPLETE);
-
-    doReturn(new HashSet<>(dag.getNodes())).when(dagManagementStateStore).getDagNodes(any());
-    Assert.assertFalse(dagManagementStateStore.hasRunningJobs(dagId));
   }
 }
