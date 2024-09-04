@@ -23,7 +23,6 @@ import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
-import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
@@ -47,13 +46,11 @@ import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.SafeDatasetCommit;
 import org.apache.gobblin.runtime.TaskState;
-import org.apache.gobblin.runtime.TaskStateCollectorService;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -88,7 +85,7 @@ public class CommitActivityImpl implements CommitActivity {
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);
       troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobState.getProperties());
       troubleshooter.start();
-      List<TaskState> taskStates = loadTaskStates(workSpec, fs, jobState, numDeserializationThreads);
+      List<TaskState> taskStates = Help.loadTaskStates(workSpec, fs, jobState, numDeserializationThreads);
       if (taskStates.isEmpty()) {
         return CommitStats.createEmpty();
       }
@@ -175,29 +172,6 @@ public class CommitActivityImpl implements CommitActivity {
     } catch (InterruptedException exc) {
       throw new IOException(exc);
     }
-  }
-
-  /** @return {@link TaskState}s loaded from the {@link StateStore<TaskState>} indicated by the {@link WUProcessingSpec} and {@link FileSystem} */
-  private List<TaskState> loadTaskStates(WUProcessingSpec workSpec, FileSystem fs, JobState jobState, int numThreads) throws IOException {
-    // TODO - decide whether to replace this method by adapting TaskStateCollectorService::collectOutputTaskStates (whence much of this code was drawn)
-    StateStore<TaskState> taskStateStore = Help.openTaskStateStore(workSpec, fs);
-    // NOTE: TaskState dir is assumed to be a sibling to the workunits dir (following conventions of `MRJobLauncher`)
-    String jobIdPathName = new Path(workSpec.getWorkUnitsDir()).getParent().getName();
-    log.info("TaskStateStore path (name component): '{}' (fs: '{}')", jobIdPathName, fs.getUri());
-    Optional<Queue<TaskState>> taskStateQueueOpt = TaskStateCollectorService.deserializeTaskStatesFromFolder(taskStateStore, jobIdPathName, numThreads);
-    return taskStateQueueOpt.map(taskStateQueue ->
-        taskStateQueue.stream().peek(taskState ->
-                // CRITICAL: although some `WorkUnit`s, like those created by `CopySource::FileSetWorkUnitGenerator` for each `CopyEntity`
-                // already themselves contain every prop of their `JobState`, not all do.
-                // `TaskState extends WorkUnit` serialization will include its constituent `WorkUnit`, but not the constituent `JobState`.
-                // given some `JobState` props may be essential for commit/publish, deserialization must re-associate each `TaskState` w/ `JobState`
-                taskState.setJobState(jobState)
-                // TODO - decide whether something akin necessary to streamline cumulative in-memory size of all issues: consumeTaskIssues(taskState);
-            ).collect(Collectors.toList())
-    ).orElseGet(() -> {
-      log.error("TaskStateStore successfully opened, but no task states found under (name) '{}'", jobIdPathName);
-      return Lists.newArrayList();
-    });
   }
 
   private Map<String, DatasetStats> summarizeDatasetOutcomes(Map<String, JobState.DatasetState> datasetStatesByUrns, JobCommitPolicy commitPolicy, boolean shouldIncludeFailedTasks) {

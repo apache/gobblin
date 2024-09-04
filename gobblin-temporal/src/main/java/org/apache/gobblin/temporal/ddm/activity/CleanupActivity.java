@@ -21,7 +21,9 @@ import java.util.Set;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 
+import org.apache.gobblin.temporal.ddm.work.CleanupResult;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
+import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
 /** Activity for reading the output of work done by {@link org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl} by
@@ -33,6 +35,6 @@ public interface CleanupActivity {
    * TODO: Generalize the input to support multiple platforms outside of just HDFS
    */
   @ActivityMethod
-  void cleanup(Set<String> resourcesToClean);
+  CleanupResult cleanup(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> resourcesToClean);
 }
 

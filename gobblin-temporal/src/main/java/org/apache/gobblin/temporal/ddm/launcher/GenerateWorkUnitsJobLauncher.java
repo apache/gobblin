@@ -34,7 +34,7 @@ import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
-import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitStats;
+import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitResult;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.workflow.GenerateWorkUnitsWorkflow;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
@@ -80,7 +80,7 @@ public class GenerateWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
 
       Help.propagateGaaSFlowExecutionContext(this.jobProps);
       EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder(this.eventSubmitter).build();
-      GenerateWorkUnitStats generateWorkUnitStats = workflow.generate(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
+      GenerateWorkUnitResult generateWorkUnitStats = workflow.generate(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
       log.info("FINISHED - GenerateWorkUnitsWorkflow.generate = {}", generateWorkUnitStats.getGeneratedWuCount());
     } catch (Exception e) {
       throw new RuntimeException(e);

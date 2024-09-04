@@ -82,13 +82,13 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     timerFactory.create(TimingEvent.LauncherTimings.JOB_PREPARE).submit();
     EventTimer timer = timerFactory.createJobTimer();
     GenerateWorkUnitResult generateWorkUnitResults = GenerateWorkUnitResult.createEmpty();
+    WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
     try {
       generateWorkUnitResults = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       int numWUsGenerated = generateWorkUnitResults.getGeneratedWuCount();
       int numWUsCommitted = 0;
       CommitStats commitStats = CommitStats.createEmpty();
       if (numWUsGenerated > 0) {
-        WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
         ProcessWorkUnitsWorkflow processWUsWorkflow = createProcessWorkUnitsWorkflow(jobProps);
         commitStats = processWUsWorkflow.process(wuSpec);
         numWUsCommitted = commitStats.getNumCommittedWorkUnits();
@@ -106,8 +106,8 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
           null
       );
     } finally {
-      // TODO: Cleanup WorkUnit Directory
-      cleanupActivityStub.cleanup(generateWorkUnitResults.getCleanupResources());
+      // TODO: Cleanup WorkUnit/Taskstate Directory for jobs cancelled mid flight
+      cleanupActivityStub.cleanup(wuSpec, eventSubmitterContext, generateWorkUnitResults.getCleanupResources());
     }
   }
 

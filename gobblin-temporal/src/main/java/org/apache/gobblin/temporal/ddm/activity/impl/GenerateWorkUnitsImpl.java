@@ -83,16 +83,18 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
 
       List<WorkUnit> workUnits = generateWorkUnitsForJobState(jobState, datasetHandlerService, closer);
 
-      // GET FOLDERS FROM HERE TO CLEANUP
-      Set<String> foldersToCleanup = new HashSet<>();
+      Set<String> resourcesToCleanUp = new HashSet<>();
       for (WorkUnit workUnit : workUnits) {
-        foldersToCleanup.add(workUnit.getProp(ConfigurationKeys.WRITER_STAGING_DIR));
-        foldersToCleanup.add(workUnit.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
+        resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.WRITER_STAGING_DIR));
+        resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
+        if (workUnit.getPropAsBoolean(ConfigurationKeys.CLEAN_ERR_DIR, ConfigurationKeys.DEFAULT_CLEAN_ERR_DIR)) {
+          resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE));
+        }
       }
       JobStateUtils.writeWorkUnits(workUnits, workDirRoot, jobState, fs);
       JobStateUtils.writeJobState(jobState, workDirRoot, fs);
 
-      return new GenerateWorkUnitResult(jobState.getTaskCount(), foldersToCleanup);
+      return new GenerateWorkUnitResult(jobState.getTaskCount(), resourcesToCleanUp);
     } catch (ReflectiveOperationException roe) {
       String errMsg = "Unable to construct a source for generating workunits for job " + jobState.getJobId();
       log.error(errMsg, roe);
