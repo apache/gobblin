@@ -836,7 +836,7 @@ public class KafkaAvroJobStatusMonitorTest {
     jobStatusMonitor.shutDown();
   }
 
-  @Test// (dependsOnMethods = "testObservabilityEventFlowFailed")
+  @Test
   public void testProcessMessageForSkippedEvent() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic8");

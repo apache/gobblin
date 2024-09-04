@@ -157,7 +157,7 @@ public class DagProcUtils {
     log.info("Submitted job {} for dagId {}", DagUtils.getJobName(dagNode), dagId);
   }
 
-  public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, DagManagementStateStore dagManagementStateStore) throws IOException {
+  public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel) throws IOException {
     Properties cancelJobArgs = new Properties();
     String serializedFuture = null;
 
@@ -185,22 +185,31 @@ public class DagProcUtils {
   /**
    * Emits JOB_SKIPPED GTE for each of the dependent job.
    */
-  public static void sendSkippedEventForDependentJobs(Dag<JobExecutionPlan> dag, Dag.DagNode<JobExecutionPlan> node,
-      DagManagementStateStore dagManagementStateStore) throws IOException {
-    for (Dag.DagNode<JobExecutionPlan> child : dag.getChildren(node)) {
-      child.getValue().setExecutionStatus(SKIPPED);
-      dagManagementStateStore.updateDagNode(child);
-      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), child.getValue());
+  public static void sendSkippedEventForDependentJobs(Dag<JobExecutionPlan> dag, Dag.DagNode<JobExecutionPlan> node) {
+    Set<Dag.DagNode<JobExecutionPlan>> dependentJobs = new HashSet<>();
+    findDependentJobs(dag, node, dependentJobs);
+    for (Dag.DagNode<JobExecutionPlan> dependentJob : dependentJobs) {
+      Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), dependentJob.getValue());
       DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_SKIPPED).stop(jobMetadata);
     }
   }
 
-  public static void cancelDag(Dag<JobExecutionPlan> dag, DagManagementStateStore dagManagementStateStore) throws IOException {
+  private static void findDependentJobs(Dag<JobExecutionPlan> dag,
+      Dag.DagNode<JobExecutionPlan> node, Set<Dag.DagNode<JobExecutionPlan>> dependentJobs) {
+    for (Dag.DagNode<JobExecutionPlan> child : dag.getChildren(node)) {
+      if (!dependentJobs.contains(child)) {
+        dependentJobs.add(child);
+        findDependentJobs(dag, child, dependentJobs);
+      }
+    }
+  }
+
+  public static void cancelDag(Dag<JobExecutionPlan> dag) throws IOException {
     List<Dag.DagNode<JobExecutionPlan>> dagNodesToCancel = dag.getNodes();
     log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), DagUtils.generateDagId(dag));
 
     for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
-      DagProcUtils.cancelDagNode(dagNodeToCancel, dagManagementStateStore);
+      DagProcUtils.cancelDagNode(dagNodeToCancel);
     }
   }
 

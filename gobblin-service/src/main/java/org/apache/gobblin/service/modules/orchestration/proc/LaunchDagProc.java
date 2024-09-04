@@ -80,7 +80,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   protected void act(DagManagementStateStore dagManagementStateStore, Optional<Dag<JobExecutionPlan>> dag,
       DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     if (!dag.isPresent()) {
-      log.warn("Dag with id " + getDagId() + " could not be compiled.");
+      log.warn("Dag with id " + getDagId() + " could not be compiled or cannot run concurrently.");
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
     } else {
       DagProcUtils.submitNextNodes(dagManagementStateStore, dag.get(), getDagId());

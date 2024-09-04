@@ -77,6 +77,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     public static final String FLOW_RUN_DEADLINE_EXCEEDED = "FlowRunDeadlineExceeded";
     public static final String FLOW_START_DEADLINE_EXCEEDED = "FlowStartDeadlineExceeded";
     public static final String FLOW_PENDING_RESUME = "FlowPendingResume";
+    public static final String FLOW_SKIPPED = "FlowSkipped";
   }
 
   public static class FlowEventConstants {

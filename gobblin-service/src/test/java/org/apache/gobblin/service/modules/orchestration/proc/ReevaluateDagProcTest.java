@@ -49,9 +49,10 @@ import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
-import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
@@ -321,17 +322,16 @@ public class ReevaluateDagProcTest {
   @Test
   public void testCancelledJob() throws Exception {
     String flowName = "fn5";
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
         3, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
+    dagManagementStateStore.addDag(dag);
 
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
-    dagManagementStateStore.addDag(dag);
     JobStatus jobStatus1 = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
         .jobName("job0").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.CANCELLED.name())
         .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
@@ -341,6 +341,7 @@ public class ReevaluateDagProcTest {
     JobStatus jobStatus3 = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
         .jobName("job2").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.SKIPPED.name())
         .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
+
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.of(jobStatus1)))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
 
@@ -352,15 +353,25 @@ public class ReevaluateDagProcTest {
     // job cancelled, so no more jobs to launch
     specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
 
-    // dag should still have the running jobs that are skipped
-    Assert.assertTrue(dagManagementStateStore.hasRunningJobs(dagId));
+    // dag is considered finish because the remaining jobs depend on this cancelled job
+    // it should have been marked `failed`
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDag(any());
-    Mockito.verify(dagManagementStateStore, Mockito.never()).markDagFailed(any());
-    // and also remove the ENFORCE_FLOW_FINISH_DEADLINE dag action
-    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(any());
-    // JOB_SKIPPED is emitted twice, once for each of the child job
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).markDagFailed(any());
+
+    // and ENFORCE_FLOW_FINISH_DEADLINE dag action should have got deleted
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(
+        argThat(dagAction -> dagAction.getDagActionType() == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
+
+    // total of three events should be emitted. two JOB_SKIPPED events, once for each of the child job and one flow_cancelled event
     Mockito.verify(this.mockedEventSubmitter, Mockito.times(2))
         .submit(eq(TimingEvent.LauncherTimings.JOB_SKIPPED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(1))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_CANCELLED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(3)).submit(any(), anyMap());
+
+    // this finished dag should not create any new dag actions
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(), any());
 
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(1)), Optional.of(jobStatus2)))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
@@ -369,16 +380,19 @@ public class ReevaluateDagProcTest {
         dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     reEvaluateDagProc2.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
-    // dag should still have the running jobs that are skipped
-    Assert.assertTrue(dagManagementStateStore.hasRunningJobs(dagId));
+    // reEvaluateDagProc2 should exit without doing anything because the dag is already deleted
+    specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDag(any());
-    Mockito.verify(dagManagementStateStore, Mockito.never()).markDagFailed(any());
-    // and also remove the ENFORCE_FLOW_FINISH_DEADLINE dag action
-    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDagAction(any());
-    // JOB_SKIPPED is emitted twice, once for each of the child job
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).markDagFailed(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(
+        argThat(dagAction -> dagAction.getDagActionType() == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
     Mockito.verify(this.mockedEventSubmitter, Mockito.times(2))
         .submit(eq(TimingEvent.LauncherTimings.JOB_SKIPPED), anyMap());
-
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(1))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_CANCELLED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(3)).submit(any(), anyMap());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(), any());
 
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(2)), Optional.of(jobStatus3)))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
@@ -387,61 +401,139 @@ public class ReevaluateDagProcTest {
         dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
     reEvaluateDagProc3.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
-    // this final relaunch dag proc should mark the dag failed
+    // reEvaluateDagProc3 should exit without doing anything because the dag is already deleted
+    specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDag(any());
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).markDagFailed(any());
-    // and also remove the ENFORCE_FLOW_FINISH_DEADLINE dag action
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(any());
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(
         argThat(dagAction -> dagAction.getDagActionType() == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
-
-    // this finished dag should not create any new dag actions
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(2))
+        .submit(eq(TimingEvent.LauncherTimings.JOB_SKIPPED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(1))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_CANCELLED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(3)).submit(any(), anyMap());
     Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(), any());
-    Mockito.verify(this.mockedEventSubmitter, Mockito.times(2)).submit(any(), anyMap());
   }
 
   @Test
   public void testFailedJob() throws Exception {
-    String flowName = "fn5";
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagManager.FailureOption.FINISH_ALL_POSSIBLE.name(),
-        3, "user5", ConfigFactory.empty()
+    String flowName = "fn6";
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        4, "user5", ConfigFactory.empty()
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
             .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
                 MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
+    dagManagementStateStore.addDag(dag);
 
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
-    dagManagementStateStore.addDag(dag);
     JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
         .jobName("job0").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.FAILED.name())
         .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
+    JobStatus jobStatus2 = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
+        .jobName("job1").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.SKIPPED.name())
+        .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
+    JobStatus jobStatus3 = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
+        .jobName("job2").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.SKIPPED.name())
+        .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
+    JobStatus jobStatus4 = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup)
+        .jobName("job3").flowExecutionId(flowExecutionId).message("Test message").eventName(ExecutionStatus.SKIPPED.name())
+        .startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
+
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.of(jobStatus)))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
 
-    ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(
+    ReevaluateDagProc reEvaluateDagProc1 = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(
         flowGroup, flowName, flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
         dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
-    reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
+    reEvaluateDagProc1.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     // job cancelled, so no more jobs to launch
     specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
 
-    // JOB_SKIPPED is emitted twice, once for each of the child job
-    Mockito.verify(this.mockedEventSubmitter, Mockito.times(2))
-        .submit(eq(TimingEvent.LauncherTimings.JOB_SKIPPED), anyMap());
-
-    // dag should not have any running jobs now
-    Assert.assertFalse(dagManagementStateStore.hasRunningJobs(dagId));
-
-    // job cancellation should mark the dag failed
+    // dag should be considered finish because the remaining jobs depend on this cancelled job
+    // it should have been marked `failed`
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDag(any());
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).markDagFailed(any());
 
-    // and also remove the ENFORCE_FLOW_FINISH_DEADLINE dag action
+    // and ENFORCE_FLOW_FINISH_DEADLINE dag action should have got deleted
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(any());
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(
         argThat(dagAction -> dagAction.getDagActionType() == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
+
+    // total of four events should be emitted. three JOB_SKIPPED events, once for each of the descendent jobs and one flow_failed event
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(3))
+        .submit(eq(TimingEvent.LauncherTimings.JOB_SKIPPED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(1))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_FAILED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(4)).submit(any(), anyMap());
+
     // this finished dag should not create any new dag actions
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(), any());
+
+    doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(1)), Optional.of(jobStatus2)))
+        .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+    ReevaluateDagProc reEvaluateDagProc2 = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(
+        flowGroup, flowName, flowExecutionId, "job1", DagActionStore.DagActionType.REEVALUATE), null,
+        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+    reEvaluateDagProc2.process(dagManagementStateStore, mockedDagProcEngineMetrics);
+
+    // reEvaluateDagProc2 should exit without doing anything because the dag is already deleted
+    specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDag(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).markDagFailed(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(
+        argThat(dagAction -> dagAction.getDagActionType() == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(3))
+        .submit(eq(TimingEvent.LauncherTimings.JOB_SKIPPED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(1))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_FAILED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(4)).submit(any(), anyMap());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(), any());
+
+    doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(2)), Optional.of(jobStatus3)))
+        .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+    ReevaluateDagProc reEvaluateDagProc3 = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(
+        flowGroup, flowName, flowExecutionId, "job2", DagActionStore.DagActionType.REEVALUATE), null,
+        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+    reEvaluateDagProc3.process(dagManagementStateStore, mockedDagProcEngineMetrics);
+
+    // reEvaluateDagProc3 should exit without doing anything because the dag is already deleted
+    specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDag(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).markDagFailed(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(
+        argThat(dagAction -> dagAction.getDagActionType() == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(3))
+        .submit(eq(TimingEvent.LauncherTimings.JOB_SKIPPED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(1))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_FAILED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(4)).submit(any(), anyMap());
+    Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(), any());
+
+    doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(3)), Optional.of(jobStatus4)))
+        .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+    ReevaluateDagProc reEvaluateDagProc4 = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(
+        flowGroup, flowName, flowExecutionId, "job2", DagActionStore.DagActionType.REEVALUATE), null,
+        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+    reEvaluateDagProc4.process(dagManagementStateStore, mockedDagProcEngineMetrics);
+
+    // reEvaluateDagProc4 should exit without doing anything because the dag is already deleted
+    specProducers.forEach(sp -> Mockito.verify(sp, Mockito.never()).addSpec(any()));
+    Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDag(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).markDagFailed(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(any());
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(
+        argThat(dagAction -> dagAction.getDagActionType() == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE));
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(3))
+        .submit(eq(TimingEvent.LauncherTimings.JOB_SKIPPED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(1))
+        .submit(eq(TimingEvent.FlowTimings.FLOW_FAILED), anyMap());
+    Mockito.verify(this.mockedEventSubmitter, Mockito.times(4)).submit(any(), anyMap());
     Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(), any());
   }
 

@@ -69,13 +69,13 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     if (this.shouldKillSpecificJob) {
       Optional<Dag.DagNode<JobExecutionPlan>> dagNodeToCancel = dagManagementStateStore.getDagNodeWithJobStatus(this.dagNodeId).getLeft();
       if (dagNodeToCancel.isPresent()) {
-        DagProcUtils.cancelDagNode(dagNodeToCancel.get(), dagManagementStateStore);
+        DagProcUtils.cancelDagNode(dagNodeToCancel.get());
       } else {
         dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
         log.error("Did not find Dag node with id {}, it might be already cancelled/finished and thus cleaned up from the store.", getDagNodeId());
       }
     } else {
-      DagProcUtils.cancelDag(dag.get(), dagManagementStateStore);
+      DagProcUtils.cancelDag(dag.get());
     }
     dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
   }

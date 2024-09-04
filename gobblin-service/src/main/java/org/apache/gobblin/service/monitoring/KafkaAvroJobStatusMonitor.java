@@ -141,6 +141,7 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
       case TimingEvent.LauncherTimings.JOB_PENDING:
         properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.PENDING.name());
         break;
+      case TimingEvent.FlowTimings.FLOW_SKIPPED:
       case TimingEvent.LauncherTimings.JOB_SKIPPED:
         properties.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.SKIPPED.name());
         break;

@@ -171,10 +171,10 @@ public class FlowCompilationValidationHelper {
           quotaManager.releaseQuota(dagNode);
         }
       }
-      // Send FLOW_FAILED event
-      flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
+      // Send FLOW_SKIPPED event
+      flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow is skipped because another instance is running and concurrent "
           + "executions are disabled. Set flow.allowConcurrentExecution to true in the flowSpec to change this behaviour.");
-      new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
+      new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_SKIPPED).stop(flowMetadata);
       return Optional.absent();
     }
   }
