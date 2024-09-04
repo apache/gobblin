@@ -182,7 +182,7 @@ public class DagManagerUtilsTest {
     Dag<JobExecutionPlan> dag2 = buildComplexDag1();
     setJobStatuses(dag2, Arrays.asList(COMPLETE, COMPLETE, COMPLETE, COMPLETE, PENDING, COMPLETE, COMPLETE, PENDING, COMPLETE, PENDING));
     Assert.assertFalse(DagProcUtils.isDagFinished(dag2));
-//    Collections.shuffle(dag2.getNodes());
+    Collections.shuffle(dag2.getNodes());
     Assert.assertFalse(DagProcUtils.isDagFinished(dag2));
     Assert.assertEquals(RUNNING, DagProcUtils.calcFlowStatus(dag2));
 
