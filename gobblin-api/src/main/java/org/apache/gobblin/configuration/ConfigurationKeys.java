@@ -1071,8 +1071,8 @@ public class ConfigurationKeys {
    * Configuration properties related to Flows
    */
   public static final String FLOW_RUN_IMMEDIATELY = "flow.runImmediately";
-  public static final String GOBBLIN_FLOW_FINSIH_DEADLINE_TIME = "gobblin.flow.deadline.time";
-  public static final String GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT = "gobblin.flow.deadline.timeunit";
+  public static final String GOBBLIN_FLOW_FINSIH_DEADLINE_TIME = "gobblin.flow.finish.deadline.time";
+  public static final String GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT = "gobblin.flow.finish.deadline.timeunit";
   public static final String DEFAULT_GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT = TimeUnit.MINUTES.name();
   public static final String GOBBLIN_JOB_START_DEADLINE_TIME = "gobblin.job.start.deadline.time";
   public static final String GOBBLIN_JOB_START_DEADLINE_TIME_UNIT = "gobblin.job.start.deadline.timeunit";

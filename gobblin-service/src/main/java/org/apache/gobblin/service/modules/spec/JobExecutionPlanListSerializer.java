@@ -70,7 +70,7 @@ public class JobExecutionPlanListSerializer implements JsonSerializer<List<JobEx
       try {
          specExecutorConfig = jobExecutionPlan.getSpecExecutor().getConfig().get();
       } catch (InterruptedException | ExecutionException e) {
-        log.error("Error serializing JobExecutionPlan {}", jobExecutionPlan.toString());
+        log.error("Error serializing JobExecutionPlan {}", jobExecutionPlan);
         throw new RuntimeException(e);
       }
       JsonObject specExecutorJson = new JsonObject();
@@ -84,7 +84,6 @@ public class JobExecutionPlanListSerializer implements JsonSerializer<List<JobEx
       jobExecutionPlanJson.addProperty(SerializationConstants.EXECUTION_STATUS_KEY, executionStatus);
       jobExecutionPlanJson.addProperty(SerializationConstants.CURRENT_GENERATION_KEY, jobExecutionPlan.getCurrentGeneration());
       jobExecutionPlanJson.addProperty(SerializationConstants.CURRENT_ATTEMPTS_KEY, jobExecutionPlan.getCurrentAttempts());
-
       jobExecutionPlanJson.addProperty(SerializationConstants.FLOW_START_TIME_KEY, jobExecutionPlan.getFlowStartTime());
 
       try {

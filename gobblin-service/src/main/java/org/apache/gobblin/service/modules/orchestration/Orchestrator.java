@@ -102,6 +102,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
     this.jobStatusRetriever = jobStatusRetriever;
     this.specCompiler = flowCompilationValidationHelper.getSpecCompiler();
+    // todo remove the need to set topology factory outside of constructor GOBBLIN-2056
     //At this point, the TopologySpecMap is initialized by the SpecCompiler. Pass the TopologySpecMap to the DagManagementStateStore.
     ((MySqlDagManagementStateStore) dagManagementStateStore).setTopologySpecMap(getSpecCompiler().getTopologySpecMap());
 
@@ -184,9 +185,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       sharedFlowMetricsSingleton.addFlowGauge(spec, flowConfig, flowGroup, flowName);
       DagActionStore.DagAction launchDagAction = DagActionStore.DagAction.forFlow(flowGroup, flowName,
           FlowUtils.getOrCreateFlowExecutionId(flowSpec), DagActionStore.DagActionType.LAUNCH);
-      DagActionStore.LeaseParams
-          leaseObject = new DagActionStore.LeaseParams(launchDagAction, isReminderEvent,
-          triggerTimestampMillis);
+      DagActionStore.LeaseParams leaseObject = new DagActionStore.LeaseParams(launchDagAction, isReminderEvent, triggerTimestampMillis);
       // `flowSpec.isScheduled()` ==> adopt consensus `flowExecutionId` as clock drift safeguard, yet w/o disrupting API-layer's ad hoc ID assignment
       flowLaunchHandler.handleFlowLaunchTriggerEvent(jobProps, leaseObject, flowSpec.isScheduled());
       _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",

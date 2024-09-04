@@ -164,8 +164,8 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
       log.warn("Flow deadline for flowGroup: {}, flowName: {} is given in invalid format, using default deadline of {}",
           dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
           dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
-          ServiceConfigKeys.DEFAULT_FLOW_DEADLINE_MILLIS);
-      timeOutForJobFinish = ServiceConfigKeys.DEFAULT_FLOW_DEADLINE_MILLIS;
+          ServiceConfigKeys.DEFAULT_FLOW_FINISH_DEADLINE_MILLIS);
+      timeOutForJobFinish = ServiceConfigKeys.DEFAULT_FLOW_FINISH_DEADLINE_MILLIS;
     }
 
     long flowStartTime = DagUtils.getFlowStartTime(dagNode);

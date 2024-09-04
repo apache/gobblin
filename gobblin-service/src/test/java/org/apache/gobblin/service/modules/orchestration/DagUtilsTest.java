@@ -66,7 +66,7 @@ public class DagUtilsTest {
   @Test
   void deadlineConfigCheck() throws Exception {
     Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("5", 123456783L, "FINISH_RUNNING", 1);
-    Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), ServiceConfigKeys.DEFAULT_FLOW_DEADLINE_MILLIS);
+    Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), ServiceConfigKeys.DEFAULT_FLOW_FINISH_DEADLINE_MILLIS);
 
     Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
     jobConfig = jobConfig

@@ -53,6 +53,11 @@ import org.apache.gobblin.util.ConfigUtils;
 import static org.apache.gobblin.service.ExecutionStatus.*;
 
 
+/**
+ * A class to group together all the utility methods needed to read a {@link Dag}.
+ * Also refer {@link org.apache.gobblin.service.modules.orchestration.proc.DagProcUtils}, which contains utility methods
+ * that help {@link DagProcessingEngine} to process {@link Dag}s.
+ */
 public class DagUtils {
   static String QUOTA_KEY_SEPERATOR = ",";
 
@@ -246,7 +251,7 @@ public class DagUtils {
 
     return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_FINSIH_DEADLINE_TIME)
         ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_FINSIH_DEADLINE_TIME))
-        : ServiceConfigKeys.DEFAULT_FLOW_DEADLINE_MILLIS;
+        : ServiceConfigKeys.DEFAULT_FLOW_FINISH_DEADLINE_MILLIS;
   }
 
   /**
