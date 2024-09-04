@@ -137,8 +137,19 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
           .build();
       DescribeWorkflowExecutionResponse response = workflowServiceStubs.blockingStub().describeWorkflowExecution(request);
 
+      WorkflowExecutionStatus status;
+      try {
+        status = response.getWorkflowExecutionInfo().getStatus();
+      }
+      catch (Exception e) {
+        log.warn("Exception occurred while getting status of the workflow " + this.workflowId
+            + ". We would still attempt the cancellation", e);
+        workflowStub.cancel();
+        log.info("Temporal workflow {} cancelled successfully", this.workflowId);
+        return;
+      }
+      
       // Check if the workflow is not finished
-      WorkflowExecutionStatus status = response.getWorkflowExecutionInfo().getStatus();
       if (status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED &&
           status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED &&
           status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CANCELED &&

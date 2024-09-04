@@ -167,4 +167,16 @@ public class GobblinTemporalJobLauncherTest {
 
     verify(mockStub, times(1)).cancel();
   }
+
+  @Test
+  public void testCancelWorkflowFetchStatusThrowsException() throws Exception {
+    // Mock the get workflow status to throw an exception
+    Mockito.doThrow(new RuntimeException("Some exception occurred")).when(mockExecutionInfo).getStatus();
+
+    jobLauncher.submitJob(null);
+
+    jobLauncher.executeCancellation();
+
+    verify(mockStub, times(1)).cancel();
+  }
 }
