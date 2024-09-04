@@ -115,11 +115,10 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       dag.setFlowEvent(null);
       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
     } else if (DagProcUtils.isDagFinished(dag)) {
-      ExecutionStatus flowExecutionStatus = DagProcUtils.calcFlowStatus(dag);
-      String flowEvent = FlowStatusGenerator.FLOW_STATUS_TO_FLOW_EVENT_MAPPING.get(flowExecutionStatus);
+      String flowEvent = DagProcUtils.calcFlowStatus(dag);
       dag.setFlowEvent(flowEvent);
-      DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag, flowExecutionStatus.name());
-      if (flowExecutionStatus == ExecutionStatus.COMPLETE) {
+      DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag, flowEvent);
+      if (flowEvent.equals(TimingEvent.FlowTimings.FLOW_SUCCEEDED)) {
         // todo - verify if work from PR#3641 is required
         dagManagementStateStore.deleteDag(getDagId());
       } else {

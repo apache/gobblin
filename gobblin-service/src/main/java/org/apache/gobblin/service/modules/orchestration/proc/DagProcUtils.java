@@ -359,24 +359,20 @@ public class DagProcUtils {
     return node.getParentNodes() == null || canRun.containsAll(node.getParentNodes());
   }
 
-  public static ExecutionStatus calcFlowStatus(Dag<JobExecutionPlan> dag) {
+  public static String calcFlowStatus(Dag<JobExecutionPlan> dag) {
     Set<ExecutionStatus> jobsStatuses = dag.getNodes().stream().map(node -> node.getValue().getExecutionStatus())
         .collect(Collectors.toSet());
 
     if (jobsStatuses.contains(FAILED)) {
-      return FAILED;
+      return TimingEvent.FlowTimings.FLOW_FAILED;
     } else if (jobsStatuses.contains(CANCELLED)) {
-      return CANCELLED;
+      return TimingEvent.FlowTimings.FLOW_CANCELLED;
     } else if (jobsStatuses.contains(PENDING_RESUME)) {
-      return PENDING_RESUME;
-    } else if (jobsStatuses.contains(PENDING_RETRY)) {
-      return PENDING_RETRY;
+      return TimingEvent.FlowTimings.FLOW_PENDING_RESUME;
     } else if (jobsStatuses.stream().allMatch(jobStatus -> jobStatus == COMPLETE)) {
-      return COMPLETE;
-    } else if (jobsStatuses.stream().allMatch(jobStatus -> jobStatus == PENDING)) {
-      return PENDING;
+      return TimingEvent.FlowTimings.FLOW_SUCCEEDED;
     } else {
-      return RUNNING;
+      return TimingEvent.FlowTimings.FLOW_RUNNING;
     }
   }
 }

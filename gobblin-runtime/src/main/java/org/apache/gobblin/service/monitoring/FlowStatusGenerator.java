@@ -20,21 +20,18 @@ package org.apache.gobblin.service.monitoring;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import com.google.common.base.Predicate;
 import com.google.common.base.Predicates;
 import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
 
 
@@ -45,14 +42,6 @@ import org.apache.gobblin.service.ExecutionStatus;
 public class FlowStatusGenerator {
   public static final List<String> FINISHED_STATUSES = Lists.newArrayList(ExecutionStatus.FAILED.name(),
       ExecutionStatus.COMPLETE.name(), ExecutionStatus.CANCELLED.name());
-  public static final Map<ExecutionStatus, String> FLOW_STATUS_TO_FLOW_EVENT_MAPPING = ImmutableMap.<ExecutionStatus, String>builder()
-      .put(ExecutionStatus.COMPILED, TimingEvent.FlowTimings.FLOW_COMPILED)
-      .put(ExecutionStatus.RUNNING, TimingEvent.FlowTimings.FLOW_RUNNING)
-      .put(ExecutionStatus.PENDING_RESUME, TimingEvent.FlowTimings.FLOW_PENDING_RESUME)
-      .put(ExecutionStatus.COMPLETE, TimingEvent.FlowTimings.FLOW_SUCCEEDED)
-      .put(ExecutionStatus.FAILED, TimingEvent.FlowTimings.FLOW_FAILED)
-      .put(ExecutionStatus.CANCELLED, TimingEvent.FlowTimings.FLOW_CANCELLED)
-      .build();
 
   public static final int MAX_LOOKBACK = 100;
 
