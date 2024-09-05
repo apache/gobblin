@@ -115,13 +115,8 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       dag.setFlowEvent(null);
       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
     } else if (DagProcUtils.isDagFinished(dag)) {
-      if (dag.getFlowEvent() == null) {
-        // If the dag flow event is not set and there are no more jobs running, then it is successful
-        // also note that `onJobFinish` method does whatever is required to do after job finish, determining a Dag's
-        // status is not possible on individual job's finish status
-        dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_SUCCEEDED);
-      }
-      String flowEvent = dag.getFlowEvent();
+      String flowEvent = DagProcUtils.calcFlowStatus(dag);
+      dag.setFlowEvent(flowEvent);
       DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag, flowEvent);
       if (flowEvent.equals(TimingEvent.FlowTimings.FLOW_SUCCEEDED)) {
         // todo - verify if work from PR#3641 is required
