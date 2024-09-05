@@ -70,14 +70,14 @@ public class DagUtilsTest {
 
     Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
     jobConfig = jobConfig
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINSIH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef("7"))
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("7"))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
     Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), TimeUnit.SECONDS.toMillis(7L));
 
     jobConfig = jobConfig
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINSIH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef("8"))
-        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.name()));
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME, ConfigValueFactory.fromAnyRef("8"))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.name()));
     dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
     Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(8L));
   }
