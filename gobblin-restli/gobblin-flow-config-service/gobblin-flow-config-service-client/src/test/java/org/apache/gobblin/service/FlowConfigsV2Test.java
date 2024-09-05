@@ -132,8 +132,7 @@ public class FlowConfigsV2Test {
       binder.bind(GroupOwnershipService.class).toInstance(groupOwnershipService);
     });
 
-    _server = EmbeddedRestliServer.builder().resources(
-        Lists.newArrayList(FlowConfigsV2Resource.class)).injector(injector).build();
+    _server = EmbeddedRestliServer.builder().resources(Lists.newArrayList(FlowConfigsV2Resource.class)).injector(injector).build();
 
     _server.startAsync();
     _server.awaitRunning();

@@ -124,7 +124,7 @@ public class OrchestratorTest {
     SharedFlowMetricsSingleton sharedFlowMetricsSingleton = new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(orchestratorProperties));
 
     FlowCompilationValidationHelper flowCompilationValidationHelper = new FlowCompilationValidationHelper(ConfigFactory.empty(),
-        sharedFlowMetricsSingleton, mock(UserQuotaManager.class), mock(FlowStatusGenerator.class));
+        sharedFlowMetricsSingleton, mock(UserQuotaManager.class), dagManagementStateStore);
     this.dagMgrNotFlowLaunchHandlerBasedOrchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.topologyCatalog, Optional.of(logger), mock(FlowLaunchHandler.class), sharedFlowMetricsSingleton, dagManagementStateStore,
         flowCompilationValidationHelper, mock(JobStatusRetriever.class));
