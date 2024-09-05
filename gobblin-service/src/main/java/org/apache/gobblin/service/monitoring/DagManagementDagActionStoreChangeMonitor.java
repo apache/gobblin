@@ -107,10 +107,11 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
     LaunchSubmissionMetricProxy launchSubmissionMetricProxy = isStartup ? ON_STARTUP : POST_STARTUP;
     try {
       switch (dagAction.getDagActionType()) {
+        case LAUNCH:
+          launchSubmissionMetricProxy.markSuccess();
         case ENFORCE_FLOW_FINISH_DEADLINE:
         case ENFORCE_JOB_START_DEADLINE:
         case KILL :
-        case LAUNCH :
         case REEVALUATE :
         case RESUME:
           dagManagement.addDagAction(new DagActionStore.LeaseParams(dagAction));
@@ -121,7 +122,9 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
       }
     } catch (IOException e) {
       log.warn("Failed to addDagAction for flowId {} due to exception {}", dagAction.getFlowId(), e.getMessage());
-      launchSubmissionMetricProxy.markFailure();
+      if (dagAction.getDagActionType() == DagActionStore.DagActionType.LAUNCH) {
+        launchSubmissionMetricProxy.markFailure();
+      }
     }
   }
 }

@@ -288,6 +288,10 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
 
     public LaunchSubmissionMetricProxy() {}
 
+    public void markSuccess() {
+      getSuccessMeter().mark();
+    }
+
     public void markFailure() {
       getFailureMeter().mark();
     }
