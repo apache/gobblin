@@ -82,7 +82,6 @@ public class GobblinTemporalJobLauncherTest {
   public void setUp() throws Exception {
     mockServiceStubs = mock(WorkflowServiceStubs.class);
     mockClient = mock(WorkflowClient.class);
-    mockStub = mock(WorkflowStub.class);
     mockExecutionInfo = mock(WorkflowExecutionInfo.class);
     DescribeWorkflowExecutionResponse mockResponse = mock(DescribeWorkflowExecutionResponse.class);
     WorkflowServiceGrpc.WorkflowServiceBlockingStub mockBlockingStub = mock(WorkflowServiceGrpc.WorkflowServiceBlockingStub.class);
@@ -95,8 +94,6 @@ public class GobblinTemporalJobLauncherTest {
         .thenReturn(mockServiceStubs);
     mockWorkflowClientFactory.when(() -> TemporalWorkflowClientFactory.createClientInstance(Mockito.any(), Mockito.anyString()))
         .thenReturn(mockClient);
-    when(mockClient.newUntypedWorkflowStub(Mockito.anyString())).thenReturn(mockStub);
-    when(mockStub.getExecution()).thenReturn(WorkflowExecution.getDefaultInstance());
 
     jobProperties = new Properties();
     jobProperties.setProperty(ConfigurationKeys.FS_URI_KEY, "file:///");
@@ -107,6 +104,10 @@ public class GobblinTemporalJobLauncherTest {
 
   @BeforeMethod
   public void methodSetUp() throws Exception {
+    mockStub = mock(WorkflowStub.class);
+    when(mockClient.newUntypedWorkflowStub(Mockito.anyString())).thenReturn(mockStub);
+    when(mockStub.getExecution()).thenReturn(WorkflowExecution.getDefaultInstance());
+
     File tmpDir = Files.createTempDir();
     String basePath = tmpDir.getAbsolutePath();
     Path appWorkDir = new Path(basePath, "testAppWorkDir");
@@ -178,5 +179,7 @@ public class GobblinTemporalJobLauncherTest {
     jobLauncher.executeCancellation();
 
     verify(mockStub, times(1)).cancel();
+
+    Mockito.reset(mockExecutionInfo);
   }
 }
