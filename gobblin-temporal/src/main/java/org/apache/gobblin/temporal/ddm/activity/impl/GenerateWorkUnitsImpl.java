@@ -82,11 +82,15 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
           new DestinationDatasetHandlerService(jobState, canCleanUpTempDirs, eventSubmitterContext.create()));
 
       List<WorkUnit> workUnits = generateWorkUnitsForJobState(jobState, datasetHandlerService, closer);
-
       Set<String> resourcesToCleanUp = new HashSet<>();
+      // Validate every workunit if they have the temp dir props since some workunits may be commit steps
       for (WorkUnit workUnit : workUnits) {
-        resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.WRITER_STAGING_DIR));
-        resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
+        if (workUnit.contains(workUnit.getProp(ConfigurationKeys.WRITER_STAGING_DIR))) {
+          resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.WRITER_STAGING_DIR));
+        }
+        if (workUnit.contains(workUnit.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR))) {
+          resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
+        }
         if (workUnit.getPropAsBoolean(ConfigurationKeys.CLEAN_ERR_DIR, ConfigurationKeys.DEFAULT_CLEAN_ERR_DIR)) {
           resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE));
         }
