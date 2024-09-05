@@ -17,10 +17,16 @@
 
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
+import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.Set;
+import java.util.stream.Collectors;
 
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.ConfigFactory;
@@ -33,6 +39,7 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobState;
@@ -40,9 +47,10 @@ import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.temporal.ddm.work.CleanupResult;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
-import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitResult;
+import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow;
@@ -85,18 +93,18 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       .setStartToCloseTimeout(Duration.ofHours(1))
       .setRetryOptions(DELETE_WORK_DIRS_RETRY_OPTS)
       .build();
-  private final DeleteWorkDirsActivity _deleteWorkDirsActivityStub = Workflow.newActivityStub(DeleteWorkDirsActivity.class, DELETE_WORK_DIRS_ACTIVITY_OPTS);
+  private final DeleteWorkDirsActivity deleteWorkDirsActivityStub = Workflow.newActivityStub(DeleteWorkDirsActivity.class, DELETE_WORK_DIRS_ACTIVITY_OPTS);
 
   @Override
   public ExecGobblinStats execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
     timerFactory.create(TimingEvent.LauncherTimings.JOB_PREPARE).submit();
     EventTimer timer = timerFactory.createJobTimer();
-    GenerateWorkUnitResult generateWorkUnitResults = GenerateWorkUnitResult.createEmpty();
+    Optional<GenerateWorkUnitsResult> generateWorkUnitResultsOpt = Optional.empty();
     WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
     try {
-      generateWorkUnitResults = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
-      int numWUsGenerated = generateWorkUnitResults.getGeneratedWuCount();
+      generateWorkUnitResultsOpt = Optional.of(genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext));
+      int numWUsGenerated = generateWorkUnitResultsOpt.get().getGeneratedWuCount();
       int numWUsCommitted = 0;
       CommitStats commitStats = CommitStats.createEmpty();
       if (numWUsGenerated > 0) {
@@ -118,7 +126,13 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       );
     } finally {
       // TODO: Cleanup WorkUnit/Taskstate Directory for jobs cancelled mid flight
-      _deleteWorkDirsActivityStub.cleanup(wuSpec, eventSubmitterContext, generateWorkUnitResults.getCleanupResources());
+      try {
+        if (generateWorkUnitResultsOpt.isPresent()) {
+          cleanupWorkDirs(wuSpec, eventSubmitterContext, generateWorkUnitResultsOpt.get().getWorkDirPathsToCleanup());
+        }
+      } catch (IOException e) {
+        log.error("Failed to cleanup work dirs", e);
+      }
     }
   }
 
@@ -143,5 +157,47 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       wuSpec.setTuning(new WUProcessingSpec.Tuning(maxBranchesPerTree, maxSubTreesPerTree));
     }
     return wuSpec;
+  }
+
+  private void cleanupWorkDirs(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> resourcesToCleanUp)
+      throws IOException {
+    FileSystem fs = Help.loadFileSystem(workSpec);
+    JobState jobState = Help.loadJobState(workSpec, fs);
+    DeliverySemantics semantics = DeliverySemantics.parse(jobState);
+    // TODO: Avoid cleaning up if work is being checkpointed e.g. midway of a commit
+
+    if (!semantics.equals(DeliverySemantics.EXACTLY_ONCE)) {
+      log.info("Skipping cleanup of work dirs for job due to exactly once semantics");
+      return;
+    }
+    if (PropertiesUtils.getPropAsBoolean(jobState.getProperties(), ConfigurationKeys.CLEANUP_STAGING_DATA_BY_INITIALIZER, "false")) {
+      log.info("Skipping cleanup of work dirs for job due to initializer handling the cleanup");
+      return;
+    }
+
+    try {
+      CleanupResult cleanupResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,
+          calculateWorkDirsToDelete(jobState.getJobId(), resourcesToCleanUp));
+      for (Map.Entry<String, Long> directoryCleanedResult : cleanupResult.getCleanupSummary().entrySet()) {
+        log.info("Cleaned up directory {} with {} bytes deleted", directoryCleanedResult.getKey(), directoryCleanedResult.getValue());
+      }
+    } catch (Exception e) {
+      log.error("Failed to cleanup work dirs", e);
+    }
+  }
+
+  private Set<String> calculateWorkDirsToDelete(String jobId, Set<String> workDirsToClean) {
+    // We want to delete the job-level directory once the job completes as well, which is the parent of the task staging/output dirs
+    Set<String> allDirsToClean = workDirsToClean.stream().map(workDir -> (new Path(workDir).getParent()).toString()).collect(
+        Collectors.toSet());
+    allDirsToClean.addAll(workDirsToClean);
+
+    // Only delete directories that are associated with the current job, otherwise
+    return allDirsToClean.stream().filter(workDir -> {
+      if (!workDir.contains(jobId)) {
+        log.warn("Not deleting work dir {} as it does not contain the jobId {}", workDir, jobId);
+      }
+      return true;
+    }).collect(Collectors.toSet());
   }
 }

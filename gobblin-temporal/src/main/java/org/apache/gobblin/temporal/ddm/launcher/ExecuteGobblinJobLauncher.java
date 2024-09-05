@@ -29,6 +29,9 @@ import com.typesafe.config.ConfigFactory;
 import io.temporal.client.WorkflowOptions;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobContext;
@@ -36,7 +39,6 @@ import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
-import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow;
@@ -79,13 +81,7 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
   @Override
   public void submitJob(List<WorkUnit> workunits) {
     try {
-      Properties configOverridesProp = ConfigUtils.configToProperties(applyJobLauncherOverrides(ConfigUtils.propertiesToConfig(this.jobProps)));
-      configOverridesProp.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtils.newJobId(JobState.getJobNameFromProps(configOverridesProp),
-          PropertiesUtils.getPropAsLong(configOverridesProp, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis())));
-      JobState jobState = new JobState(jobProps);
-      JobContext jobContext = new JobContext(jobProps, log, JobStateUtils.getSharedResourcesBroker(jobState), null);
-      // Use JobContext initialization to set the temporary writer staging and output task states and keep it consistent with {@link AbstractJobLauncher}
-      Properties finalProps = jobContext.getJobState().getProperties();
+      Properties finalProps = adjustJobProperties(this.jobProps);
       WorkflowOptions options = WorkflowOptions.newBuilder()
           .setTaskQueue(this.queueName)
           .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(WORKFLOW_ID_BASE, ConfigFactory.parseProperties(finalProps)))
@@ -101,5 +97,16 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  // Generate properties such as Job ID, modifying task staging dirs and output dirs
+  protected Properties adjustJobProperties(Properties inputJobProps) throws Exception {
+    SharedResourcesBroker<GobblinScopeTypes> instanceBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(ConfigFactory.parseProperties(inputJobProps),
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    Properties configOverridesProp = ConfigUtils.configToProperties(applyJobLauncherOverrides(ConfigUtils.propertiesToConfig(inputJobProps)));
+    configOverridesProp.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtils.newJobId(JobState.getJobNameFromProps(configOverridesProp),
+        PropertiesUtils.getPropAsLong(configOverridesProp, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis())));
+    JobContext jobContext = new JobContext(configOverridesProp, log, instanceBroker, null);
+    return jobContext.getJobState().getProperties();
   }
 }

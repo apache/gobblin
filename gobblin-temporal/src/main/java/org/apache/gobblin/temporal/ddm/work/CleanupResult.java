@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.Hashtable;
 import java.util.Map;
 
 import lombok.Data;
@@ -27,18 +26,12 @@ import lombok.RequiredArgsConstructor;
 
 
 /**
- * Data structure representing the stats for a committed dataset, and the total number of committed workunits in the Gobblin Temporal job
- * Return type of {@link org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow#process(WUProcessingSpec)}
- * and {@link org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow#commit(WUProcessingSpec)}.
+ * Data structure representing the stats for a cleaned up work directory, where it returns a list of directories it cleaned up and their size
  */
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class CleanupResult {
-  @NonNull private Map<String, Long> cleanupSummary;
-  // Optional resources that the Temporal Job Launcher should clean up as a side effect of generating WUs
 
-  public static CleanupResult createEmpty() {
-    return new CleanupResult(new Hashtable<>());
-  }
+  @NonNull private Map<String, Long> cleanupSummary;
 }

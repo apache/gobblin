@@ -342,16 +342,7 @@ public class JobLauncherUtils {
     }
   }
 
-  /**
-   * Get a {@link ParallelRunner} for the given {@link FileSystem}.
-   *
-   * @param fs the {@link FileSystem} for which to get a {@link ParallelRunner}
-   * @param closer a {@link Closer} to register the {@link ParallelRunner} with
-   * @param parallelRunnerThreads the number of threads to use in the {@link ParallelRunner}
-   * @param parallelRunners a {@link Map} from {@link FileSystem} URI to {@link ParallelRunner}
-   * @return a {@link ParallelRunner} for the given {@link FileSystem}
-   */
-  public static ParallelRunner getParallelRunner(FileSystem fs, Closer closer, int parallelRunnerThreads,
+  private static ParallelRunner getParallelRunner(FileSystem fs, Closer closer, int parallelRunnerThreads,
       Map<String, ParallelRunner> parallelRunners) {
     String uriAndHomeDir = new Path(new Path(fs.getUri()), fs.getHomeDirectory()).toString();
     if (!parallelRunners.containsKey(uriAndHomeDir)) {

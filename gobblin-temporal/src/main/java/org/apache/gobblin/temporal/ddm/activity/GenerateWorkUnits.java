@@ -23,7 +23,7 @@ import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 
 import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitResult;
+import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
@@ -32,5 +32,5 @@ import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 public interface GenerateWorkUnits {
   /** @return the number of {@link WorkUnit}s generated and persisted */
   @ActivityMethod
-  GenerateWorkUnitResult generateWorkUnits(Properties jobProps, EventSubmitterContext eventSubmitterContext);
+  GenerateWorkUnitsResult generateWorkUnits(Properties jobProps, EventSubmitterContext eventSubmitterContext);
 }

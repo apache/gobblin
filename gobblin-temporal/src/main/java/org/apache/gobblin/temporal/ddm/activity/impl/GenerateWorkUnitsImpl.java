@@ -47,7 +47,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
-import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitResult;
+import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
@@ -57,7 +57,7 @@ import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
 
   @Override
-  public GenerateWorkUnitResult generateWorkUnits(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
+  public GenerateWorkUnitsResult generateWorkUnits(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     // TODO: decide whether to acquire a job lock (as MR did)!
     // TODO: provide for job cancellation (unless handling at the temporal-level of parent workflows)!
     JobState jobState = new JobState(jobProps);
@@ -77,11 +77,8 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       // before embarking on (potentially expensive) WU creation, first pre-check that the FS is available
       FileSystem fs = JobStateUtils.openFileSystem(jobState);
       fs.mkdirs(workDirRoot);
-      boolean canCleanUpTempDirs = false; // unlike `AbstractJobLauncher` running the job end-to-end, this is Work Discovery only, so WAY TOO SOON for cleanup
-      DestinationDatasetHandlerService datasetHandlerService = closer.register(
-          new DestinationDatasetHandlerService(jobState, canCleanUpTempDirs, eventSubmitterContext.create()));
 
-      List<WorkUnit> workUnits = generateWorkUnitsForJobState(jobState, datasetHandlerService, closer);
+      List<WorkUnit> workUnits = generateWorkUnitsForJobState(jobState, eventSubmitterContext, closer);
       Set<String> resourcesToCleanUp = new HashSet<>();
       // Validate every workunit if they have the temp dir props since some workunits may be commit steps
       for (WorkUnit workUnit : workUnits) {
@@ -98,7 +95,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       JobStateUtils.writeWorkUnits(workUnits, workDirRoot, jobState, fs);
       JobStateUtils.writeJobState(jobState, workDirRoot, fs);
 
-      return new GenerateWorkUnitResult(jobState.getTaskCount(), resourcesToCleanUp);
+      return new GenerateWorkUnitsResult(jobState.getTaskCount(), resourcesToCleanUp);
     } catch (ReflectiveOperationException roe) {
       String errMsg = "Unable to construct a source for generating workunits for job " + jobState.getJobId();
       log.error(errMsg, roe);
@@ -113,7 +110,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     }
   }
 
-  protected static List<WorkUnit> generateWorkUnitsForJobState(JobState jobState, DestinationDatasetHandlerService datasetHandlerService, Closer closer)
+  protected static List<WorkUnit> generateWorkUnitsForJobState(JobState jobState, EventSubmitterContext eventSubmitterContext, Closer closer)
       throws ReflectiveOperationException {
     Source<?, ?> source = JobStateUtils.createSource(jobState);
     WorkUnitStream workUnitStream = source instanceof WorkUnitStreamSource
@@ -135,6 +132,9 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
 
     // TODO: count total bytes for progress tracking!
 
+    boolean canCleanUpTempDirs = false; // unlike `AbstractJobLauncher` running the job end-to-end, this is Work Discovery only, so WAY TOO SOON for cleanup
+    DestinationDatasetHandlerService datasetHandlerService = closer.register(
+        new DestinationDatasetHandlerService(jobState, canCleanUpTempDirs, eventSubmitterContext.create()));
     WorkUnitStream handledWorkUnitStream = datasetHandlerService.executeHandlers(workUnitStream);
 
     // initialize writer and converter(s)
