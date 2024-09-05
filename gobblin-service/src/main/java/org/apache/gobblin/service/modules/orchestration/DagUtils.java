@@ -247,10 +247,10 @@ public class DagUtils {
   public static long getFlowFinishDeadline(DagNode<JobExecutionPlan> dagNode) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     TimeUnit slaTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
-        jobConfig, ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_SLA_TIME_UNIT));
+        jobConfig, ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigurationKeys.DEFAULT_GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT));
 
-    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME)
-        ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_SLA_TIME))
+    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME)
+        ? slaTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME))
         : (ServiceConfigKeys.DEFAULT_FLOW_FINISH_DEADLINE_MILLIS);
   }
 
@@ -263,11 +263,11 @@ public class DagUtils {
   public static long getJobStartDeadline(DagNode<JobExecutionPlan> dagNode, Long defaultJobStartDeadline) {
     Config jobConfig = dagNode.getValue().getJobSpec().getConfig();
     TimeUnit deadlineTimeUnit = TimeUnit.valueOf(ConfigUtils.getString(
-        jobConfig, ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME_UNIT, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_SLA_TIME_UNIT));
+        jobConfig, ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigurationKeys.FALLBACK_GOBBLIN_JOB_START_DEADLINE_TIME_UNIT));
 
 
-    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME)
-        ? deadlineTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_JOB_START_SLA_TIME))
+    return jobConfig.hasPath(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME)
+        ? deadlineTimeUnit.toMillis(jobConfig.getLong(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME))
         : defaultJobStartDeadline;
   }
 
