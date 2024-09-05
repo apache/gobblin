@@ -28,8 +28,6 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.util.InjectionNames;
-import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
-import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
@@ -38,45 +36,43 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * A factory implementation that returns a {@link DagManagementDagActionStoreChangeMonitor} instance.
+ * A factory implementation that returns a {@link DagActionStoreChangeMonitor} instance.
  */
 @Slf4j
-public class DagManagementDagActionStoreChangeMonitorFactory implements Provider<DagActionStoreChangeMonitor> {
+public class DagActionStoreChangeMonitorFactory implements Provider<DagActionStoreChangeMonitor> {
   static final String DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
-  private final FlowCatalog flowCatalog;
-  private final Orchestrator orchestrator;
-  private final DagManagementStateStore dagManagementStateStore;
-  private final boolean isMultiActiveSchedulerEnabled;
-  private final DagManagement dagManagement;
-  private final DagActionReminderScheduler dagActionReminderScheduler;
-  private final DagProcessingEngineMetrics dagProcEngineMetrics;
+  private DagManager dagManager;
+  private FlowCatalog flowCatalog;
+  private Orchestrator orchestrator;
+  private DagManagementStateStore dagManagementStateStore;
+  private boolean isMultiActiveSchedulerEnabled;
+  private DagProcessingEngineMetrics dagProcEngineMetrics;
 
   @Inject
-  public DagManagementDagActionStoreChangeMonitorFactory(Config config, DagManager dagManager, FlowCatalog flowCatalog,
-      Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore, DagManagement dagManagement,
+  public DagActionStoreChangeMonitorFactory(Config config, DagManager dagManager, FlowCatalog flowCatalog,
+      Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore,
       @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled,
-      DagActionReminderScheduler dagActionReminderScheduler, DagProcessingEngineMetrics dagProcEngineMetrics) {
+      DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = Objects.requireNonNull(config);
+    this.dagManager = dagManager;
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
     this.dagManagementStateStore = dagManagementStateStore;
     this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
-    this.dagManagement = dagManagement;
-    this.dagActionReminderScheduler = dagActionReminderScheduler;
     this.dagProcEngineMetrics = dagProcEngineMetrics;
   }
 
-  private DagManagementDagActionStoreChangeMonitor createDagActionStoreMonitor() {
+  private DagActionStoreChangeMonitor createDagActionStoreMonitor() {
     Config dagActionStoreChangeConfig = this.config.getConfig(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX);
     log.info("DagActionStore will be initialized with config {}", dagActionStoreChangeConfig);
 
+    String topic = ""; // Pass empty string because we expect underlying client to dynamically determine the Kafka topic
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
-    return new DagManagementDagActionStoreChangeMonitor(dagActionStoreChangeConfig,
-        numThreads, flowCatalog, orchestrator, dagManagementStateStore, isMultiActiveSchedulerEnabled, this.dagManagement,
-        this.dagActionReminderScheduler, dagProcEngineMetrics);
+    return new DagActionStoreChangeMonitor(topic, dagActionStoreChangeConfig, this.dagManager, numThreads, flowCatalog,
+        orchestrator, dagManagementStateStore, isMultiActiveSchedulerEnabled, dagProcEngineMetrics);
   }
 
   @Override
