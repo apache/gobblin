@@ -301,7 +301,7 @@ public class DagManagerTest {
 
   @Test (dependsOnMethods = "testEmitFlowMetricOnlyIfNotAdhoc", enabled = false)
   // todo re-write for dag proc
-  public void testJobSlaKilledMetrics() throws URISyntaxException {
+  public void testJobStartDeadlineKilledMetrics() throws URISyntaxException {
     long flowExecutionId = System.currentTimeMillis() - Duration.ofMinutes(20).toMillis();
     Config executorOneConfig = ConfigFactory.empty()
         .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef("executorOne"))

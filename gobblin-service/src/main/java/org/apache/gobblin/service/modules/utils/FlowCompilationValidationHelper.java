@@ -57,8 +57,8 @@ import org.apache.gobblin.util.ConfigUtils;
  * However, with launch executions now being stored in the DagActionStateStore, on restart, the LaunchDagProc has to
  * perform validations before executing any launch actions the previous LaunchDagProc was unable to complete.
  * Rather than duplicating the code or introducing a circular dependency between the LaunchDagProc and Orchestrator,
- * this class is utilized to store the common functionality. It is stateful, requiring all stateful pieces to be passed
- * as input from the caller upon instantiating the helper.
+ * this class is utilized to store the common functionality. It itself is stateless, requiring all stateful pieces to be
+ * passed as input from the caller upon instantiating the helper.
  */
 @Slf4j
 @Data

@@ -331,7 +331,7 @@ public class GobblinServiceManagerTest {
   /**
    * To test an existing flow in a spec store does not get deleted just because it is not compilable during service restarts
    */
-  @Test (enabled = false)
+  @Test
   public void testRestart() throws Exception {
     FlowConfig uncompilableFlowConfig = new FlowConfig().setId(UNCOMPILABLE_FLOW_ID).setTemplateUris(TEST_TEMPLATE_URI)
         .setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).setRunImmediately(true))

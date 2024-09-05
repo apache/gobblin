@@ -23,7 +23,6 @@ import java.util.Collection;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Properties;
-import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.cli.CommandLine;
 import org.apache.commons.cli.DefaultParser;
@@ -37,7 +36,6 @@ import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.inject.Guice;
@@ -55,10 +53,6 @@ import lombok.Setter;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.instrumented.Instrumented;
-import org.apache.gobblin.instrumented.StandardMetricsBridge;
-import org.apache.gobblin.metrics.ContextAwareHistogram;
-import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.api.TopologySpec;
 import org.apache.gobblin.runtime.app.ApplicationException;
@@ -70,6 +64,7 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigV2Client;
+import org.apache.gobblin.service.FlowConfigsResource;
 import org.apache.gobblin.service.FlowConfigsResourceHandler;
 import org.apache.gobblin.service.FlowConfigsV2Resource;
 import org.apache.gobblin.service.FlowConfigsV2ResourceHandler;
@@ -93,7 +88,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 @Alpha
-public class GobblinServiceManager implements ApplicationLauncher, StandardMetricsBridge {
+public class GobblinServiceManager implements ApplicationLauncher {
 
   // Command line options
   // These two options are required to launch GobblinServiceManager.
@@ -179,13 +174,11 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   @Inject(optional = true)
   protected D2Announcer d2Announcer;
 
-  private final Metrics metrics;
-
   @Inject(optional = true)
   protected SpecStoreChangeMonitor specStoreChangeMonitor;
 
   @Inject(optional = true)
-  protected DagManagementDagActionStoreChangeMonitor _dagManagementDagActionStoreChangeMonitor;
+  protected DagManagementDagActionStoreChangeMonitor dagManagementDagActionStoreChangeMonitor;
 
   @Inject(optional = true)
   protected DagProcessingEngine dagProcessingEngine;
@@ -203,9 +196,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
       appLauncherProperties.setProperty(ServiceBasedAppLauncher.APP_STOP_TIME_SECONDS, Long.toString(300));
     }
 
-    MetricContext metricContext =
-        Instrumented.getMetricContext(ConfigUtils.configToState(configuration.getInnerConfig()), this.getClass());
-    this.metrics = new Metrics(metricContext, configuration.getInnerConfig());
     this.serviceLauncher = new ServiceBasedAppLauncher(appLauncherProperties, configuration.getServiceName());
 
     this.fs = buildFileSystem(configuration.getInnerConfig());
@@ -293,13 +283,13 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     }
 
     this.serviceLauncher.addService(specStoreChangeMonitor);
-    this.serviceLauncher.addService(_dagManagementDagActionStoreChangeMonitor);
+    this.serviceLauncher.addService(dagManagementDagActionStoreChangeMonitor);
   }
 
   private void configureServices(){
     if (configuration.isRestLIServerEnabled()) {
       this.restliServer = EmbeddedRestliServer.builder()
-          .resources(Lists.newArrayList(FlowConfigsV2Resource.class, FlowConfigsV2Resource.class))
+          .resources(Lists.newArrayList(FlowConfigsResource.class, FlowConfigsV2Resource.class))
           .injector(injector)
           .build();
 
@@ -321,7 +311,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
     configureServices();
     this.serviceLauncher.start();
 
-    LOGGER.info("[Init] Gobblin Service is running in master instance mode, enabling Scheduler.");
+    LOGGER.info("[Init] Gobblin Service is running in multi-active mode, enabling Scheduler.");
     this.scheduler.setActive(true);
 
     if (configuration.isGitConfigMonitorEnabled()) {
@@ -356,7 +346,7 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
 
     // Activate both monitors last as they're dependent on the SpecCompiler and Scheduler being active
     this.specStoreChangeMonitor.setActive();
-    this._dagManagementDagActionStoreChangeMonitor.setActive();
+    this.dagManagementDagActionStoreChangeMonitor.setActive();
   }
 
   @Override
@@ -381,23 +371,6 @@ public class GobblinServiceManager implements ApplicationLauncher, StandardMetri
   @Override
   public void close() throws IOException {
     this.serviceLauncher.close();
-  }
-
-  @Override
-  public Collection<StandardMetrics> getStandardMetricsCollection() {
-    return ImmutableList.of(this.metrics);
-  }
-
-  private static class Metrics extends StandardMetrics {
-    public static final String SERVICE_LEADERSHIP_CHANGE = "serviceLeadershipChange";
-
-    public Metrics(final MetricContext metricContext, Config config) {
-      int timeWindowSizeInMinutes = ConfigUtils.getInt(config, ConfigurationKeys.METRIC_TIMER_WINDOW_SIZE_IN_MINUTES,
-          ConfigurationKeys.DEFAULT_METRIC_TIMER_WINDOW_SIZE_IN_MINUTES);
-      ContextAwareHistogram serviceLeadershipChange =
-          metricContext.contextAwareHistogram(SERVICE_LEADERSHIP_CHANGE, timeWindowSizeInMinutes, TimeUnit.MINUTES);
-      this.contextAwareMetrics.add(serviceLeadershipChange);
-    }
   }
 
   private static String getServiceId(CommandLine cmd) {

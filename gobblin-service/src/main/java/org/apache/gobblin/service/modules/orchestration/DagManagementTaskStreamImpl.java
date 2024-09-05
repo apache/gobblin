@@ -143,8 +143,19 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   private void createJobStartDeadlineTrigger(DagActionStore.LeaseParams leaseParams)
       throws SchedulerException, IOException {
-    long timeOutForJobStart = DagUtils.getJobStartDeadline(this.dagManagementStateStore.getDag(
-        leaseParams.getDagAction().getDagId()).get().getNodes().get(0), DagProcessingEngine.getDefaultJobStartDeadlineTimeMillis());
+    long timeOutForJobStart;
+
+    try {
+      timeOutForJobStart = DagUtils.getJobStartDeadline(
+          this.dagManagementStateStore.getDag(leaseParams.getDagAction().getDagId()).get().getNodes().get(0),
+          DagProcessingEngine.getDefaultJobStartDeadlineTimeMillis());
+    } catch (ConfigException e) {
+      log.warn("Job start deadline for flowGroup: {}, flowName: {} is given in invalid format, using default deadline of {}",
+          leaseParams.getDagAction().getFlowGroup(), leaseParams.getDagAction().getFlowName(),
+          ServiceConfigKeys.DEFAULT_FLOW_FINISH_DEADLINE_MILLIS);
+      timeOutForJobStart = DagProcessingEngine.getDefaultJobStartDeadlineTimeMillis();
+    }
+
     // todo - this timestamp is just an approximation, the real job submission has happened in past, and that is when a
     // ENFORCE_JOB_START_DEADLINE dag action was created; we are just processing that dag action here
     long jobSubmissionTime = System.currentTimeMillis();
@@ -161,7 +172,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
     try {
       timeOutForJobFinish = DagUtils.getFlowFinishDeadline(dagNode);
     } catch (ConfigException e) {
-      log.warn("Flow deadline for flowGroup: {}, flowName: {} is given in invalid format, using default deadline of {}",
+      log.warn("Flow finish deadline for flowGroup: {}, flowName: {} is given in invalid format, using default deadline of {}",
           dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_GROUP_KEY),
           dagNode.getValue().getJobSpec().getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY),
           ServiceConfigKeys.DEFAULT_FLOW_FINISH_DEADLINE_MILLIS);

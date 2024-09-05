@@ -312,7 +312,7 @@ public class OrchestratorTest {
     Assert.assertEquals(specs.size(), 1, "Spec store should contain 1 Spec after addition");
     // Orchestrator is a no-op listener for any new FlowSpecs
     Assert.assertEquals(sei.getProducer().get().listSpecs().get().size(), 0,
-        "SpecProducer should contain 0 " + "Spec after addition");
+        "SpecProducer should contain 0 Spec after addition");
   }
 
   @Test

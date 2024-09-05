@@ -64,14 +64,9 @@ public class ServiceMetricNames {
   public static final String RUNNING_STATUS = "RunningStatus";
   public static final String JOBS_SENT_TO_SPEC_EXECUTOR = "JobsSentToSpecExecutor";
 
-  public static final String HELIX_LEADER_STATE = "HelixLeaderState";
-
   public static final String FLOWGRAPH_UPDATE_FAILED_METER = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "FlowgraphUpdateFailed";
-
   public static final String DAG_COUNT_MYSQL_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "MysqlDagStateStore" + ".totalDagCount";
-
   public static final String DAG_COUNT_FS_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "FsDagStateStore" + ".totalDagCount";
-
   public static final String DAG_PROCESSING_EXCEPTION_METER = "DagProcessingException";
   public static final String DAG_ACTIONS_CREATE_EXCEPTIONS_IN_JOB_STATUS_MONITOR = "DagActionsCreateExceptionsInJobStatusMonitor";
 
