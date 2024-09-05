@@ -34,8 +34,6 @@ import com.google.common.cache.LoadingCache;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -72,9 +70,6 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
   protected ContextAwareMeter heartbeatMessagesMeter;
   protected ContextAwareMeter nullDagActionTypeMessagesMeter;
   protected volatile Long produceToConsumeDelayValue = -1L;
-
-  protected LaunchSubmissionMetricProxy ON_STARTUP = new NullLaunchSubmissionMetricProxy();
-  protected LaunchSubmissionMetricProxy POST_STARTUP = new NullLaunchSubmissionMetricProxy();
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
@@ -249,15 +244,6 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
     // Dag Action specific metrics
     this.killsInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_KILLS_INVOKED);
     this.resumesInvoked = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_RESUMES_INVOKED);
-    // TODO: rename this metrics to match the variable name after debugging launch related issues
-    ContextAwareMeter successfulLaunchSubmissions = this.getMetricContext()
-        .contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_SUCCESSFUL_LAUNCH_SUBMISSIONS);
-    ContextAwareMeter failedLaunchSubmissions = this.getMetricContext()
-        .contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_FAILED_FLOW_LAUNCHED_SUBMISSIONS);
-    ContextAwareMeter successfulLaunchSubmissionsOnStartup = this.getMetricContext()
-        .contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_SUCCESSFUL_LAUNCH_SUBMISSIONS_ON_STARTUP);
-    ContextAwareMeter failedLaunchSubmissionsOnStartup = this.getMetricContext()
-        .contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_FAILED_LAUNCH_SUBMISSIONS_ON_STARTUP);
     this.unexpectedErrors = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_UNEXPECTED_ERRORS);
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_MESSAGE_PROCESSED);
     this.duplicateMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_MONITOR_DUPLICATE_MESSAGES);
@@ -268,40 +254,10 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
         .newContextAwareGauge(RuntimeMetrics.GOBBLIN_DAG_ACTION_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS,
             () -> produceToConsumeDelayValue);
     this.getMetricContext().register(produceToConsumeDelayMillis);
-
-    // Setup proxy for launch submission metrics
-    this.ON_STARTUP = new LaunchSubmissionMetricProxy(successfulLaunchSubmissionsOnStartup,
-        failedLaunchSubmissionsOnStartup);
-    this.POST_STARTUP = new LaunchSubmissionMetricProxy(successfulLaunchSubmissions, failedLaunchSubmissions);
   }
 
   @Override
   protected String getMetricsPrefix() {
     return RuntimeMetrics.DAG_ACTION_STORE_MONITOR_PREFIX + ".";
-  }
-
-  @Data
-  @AllArgsConstructor
-  protected static class LaunchSubmissionMetricProxy {
-    private ContextAwareMeter successMeter;
-    private ContextAwareMeter failureMeter;
-
-    public LaunchSubmissionMetricProxy() {}
-
-    public void markSuccess() {
-      getSuccessMeter().mark();
-    }
-
-    public void markFailure() {
-      getFailureMeter().mark();
-    }
-  }
-
-  private static class NullLaunchSubmissionMetricProxy extends LaunchSubmissionMetricProxy {
-
-    @Override
-    public void markFailure() {
-      // do nothing
-    }
   }
 }
