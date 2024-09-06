@@ -33,5 +33,5 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CleanupResult {
 
-  @NonNull private Map<String, Boolean> attemptedCleanedDirectories;
+  @NonNull private Map<String, Boolean> deletionSuccessesByDirPath;
 }

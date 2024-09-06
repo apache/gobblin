@@ -70,7 +70,8 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
   }
 
   private static Map<String, Boolean> cleanupStagingDataPerTask(JobState jobState, Set<String> resourcesToClean) throws IOException {
-    log.warn("Clean up staging data by task is not supported, will clean up job level data instead");
+    log.error("Clean up staging data by task is not supported, will clean up job level data instead");
+
     return cleanupStagingDataForEntireJob(jobState, resourcesToClean);
   }
 

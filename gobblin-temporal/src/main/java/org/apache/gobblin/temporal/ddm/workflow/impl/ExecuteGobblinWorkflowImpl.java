@@ -20,6 +20,7 @@ package org.apache.gobblin.temporal.ddm.workflow.impl;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.util.HashSet;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -178,13 +179,9 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     try {
       CleanupResult cleanupResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,
           calculateWorkDirsToDelete(jobState.getJobId(), directoriesToClean));
-      if (directoriesToClean.size() != cleanupResult.getAttemptedCleanedDirectories().size()) {
-        log.warn("Expected to clean up {} directories, but only cleaned up {}", directoriesToClean.size(),
-            cleanupResult.getAttemptedCleanedDirectories().size());
-        for (String dir : directoriesToClean) {
-          if (cleanupResult.getAttemptedCleanedDirectories().get(dir)) {
-            log.error("Directory {} was not cleaned up, please clean up manually", dir);
-          }
+      for (String dir : directoriesToClean) {
+        if (!cleanupResult.getDeletionSuccessesByDirPath().get(dir)) {
+          log.error("Directory {} was not cleaned up, please clean up manually", dir);
         }
       }
     } catch (Exception e) {
@@ -192,18 +189,21 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     }
   }
 
-  private Set<String> calculateWorkDirsToDelete(String jobId, Set<String> workDirsToClean) {
+  protected static Set<String> calculateWorkDirsToDelete(String jobId, Set<String> workDirsToClean) {
     // We want to delete the job-level directory once the job completes as well, which is the parent of the task staging/output dirs
-    Set<String> allDirsToClean = workDirsToClean.stream().map(workDir -> (new Path(workDir).getParent()).toString()).collect(
-        Collectors.toSet());
-    allDirsToClean.addAll(workDirsToClean);
+    Set<Path> allDirsToClean =
+        workDirsToClean.stream().map(workDir -> (new Path(workDir).getParent())).collect(Collectors.toSet());
+    allDirsToClean.addAll(workDirsToClean.stream().map(workDir -> new Path(workDir)).collect(Collectors.toSet()));
 
     // Only delete directories that are associated with the current job, otherwise
-    return allDirsToClean.stream().filter(workDir -> {
-      if (!workDir.contains(jobId)) {
-        log.warn("Not deleting work dir {} as it does not contain the jobId {}", workDir, jobId);
+    Set<String> resultSet = new HashSet<>();
+    for (Path dir : allDirsToClean) {
+      if (dir.toString().contains(jobId)) {
+        resultSet.add(dir.toString());
+      } else {
+        log.warn("Skipping deletion of directory {} as it is not associated with job {}", dir, jobId);
       }
-      return true;
-    }).collect(Collectors.toSet());
+    }
+    return resultSet;
   }
 }
