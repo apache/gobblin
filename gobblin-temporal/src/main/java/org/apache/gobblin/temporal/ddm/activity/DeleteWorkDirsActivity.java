@@ -34,6 +34,6 @@ public interface DeleteWorkDirsActivity {
    * TODO: Generalize the input to support multiple platforms outside of just HDFS
    */
   @ActivityMethod
-  CleanupResult delete(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> resourcesToClean);
+  CleanupResult delete(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> workDirPaths);
 }
 

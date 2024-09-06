@@ -18,6 +18,7 @@
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
@@ -55,10 +56,10 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
       JobState jobState = Help.loadJobState(workSpec, fs);
       optJobName = Optional.ofNullable(jobState.getJobName());
 
-      Map<String, Long> cleanupMetrics = jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_STAGING_DATA_PER_TASK, ConfigurationKeys.DEFAULT_CLEANUP_STAGING_DATA_PER_TASK) ?
+      Map<String, Boolean> attemptedCleanedDirectories = jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_STAGING_DATA_PER_TASK, ConfigurationKeys.DEFAULT_CLEANUP_STAGING_DATA_PER_TASK) ?
           cleanupStagingDataPerTask(jobState, workDirPaths) : cleanupStagingDataForEntireJob(jobState, workDirPaths);
 
-      return new CleanupResult(cleanupMetrics);
+      return new CleanupResult(attemptedCleanedDirectories);
     } catch (Exception e) {
       throw ApplicationFailure.newNonRetryableFailureWithCause(
           String.format("Failed to cleanup temporary folders for job %s", optJobName.orElse(UNDEFINED_JOB_NAME)),
@@ -68,26 +69,30 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
     }
   }
 
-  private static Map<String, Long> cleanupStagingDataPerTask(JobState jobState, Set<String> resourcesToClean) throws IOException {
+  private static Map<String, Boolean> cleanupStagingDataPerTask(JobState jobState, Set<String> resourcesToClean) throws IOException {
     log.warn("Clean up staging data by task is not supported, will clean up job level data instead");
     return cleanupStagingDataForEntireJob(jobState, resourcesToClean);
   }
 
-  private static Map<String, Long> cleanupStagingDataForEntireJob(JobState state, Set<String> resourcesToClean) throws IOException {
+  private static Map<String, Boolean> cleanupStagingDataForEntireJob(JobState state, Set<String> resourcesToClean) throws IOException {
     if (!state.contains(ConfigurationKeys.WRITER_STAGING_DIR) || !state.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
       return Maps.newHashMap();
     }
     String writerFsUri = state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     FileSystem fs = JobLauncherUtils.getFsWithProxy(state, writerFsUri, WriterUtils.getFsConfiguration(state));
-    Map<String, Long> cleanupMetrics = Maps.newHashMap();
+    Map<String, Boolean> attemptedCleanedDirectories = new HashMap<>();
 
     for (String resource : resourcesToClean) {
       Path pathToClean = new Path(resource);
-      Long filesCleaned = fs.getContentSummary(pathToClean).getLength();
       log.info("Cleaning up resource directory " + pathToClean);
-      HadoopUtils.deletePath(fs, pathToClean, true);
-      cleanupMetrics.put(pathToClean.toString(), filesCleaned);
+      try {
+        HadoopUtils.deletePath(fs, pathToClean, true);
+        attemptedCleanedDirectories.put(resource, true);
+      } catch (IOException e) {
+        log.error("Failed to clean up resource directory " + pathToClean, e);
+        attemptedCleanedDirectories.put(resource, false);
+      }
     }
-    return cleanupMetrics;
+    return attemptedCleanedDirectories;
   }
 }

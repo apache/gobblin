@@ -20,7 +20,6 @@ package org.apache.gobblin.temporal.ddm.workflow.impl;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -159,8 +158,9 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     return wuSpec;
   }
 
-  private void cleanupWorkDirs(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> resourcesToCleanUp)
+  private void cleanupWorkDirs(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> directoriesToClean)
       throws IOException {
+    // TODO: Add configuration to support cleaning up historical work dirs from same job name
     FileSystem fs = Help.loadFileSystem(workSpec);
     JobState jobState = Help.loadJobState(workSpec, fs);
     DeliverySemantics semantics = DeliverySemantics.parse(jobState);
@@ -177,9 +177,15 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
 
     try {
       CleanupResult cleanupResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,
-          calculateWorkDirsToDelete(jobState.getJobId(), resourcesToCleanUp));
-      for (Map.Entry<String, Long> directoryCleanedResult : cleanupResult.getCleanupSummary().entrySet()) {
-        log.info("Cleaned up directory {} with {} bytes deleted", directoryCleanedResult.getKey(), directoryCleanedResult.getValue());
+          calculateWorkDirsToDelete(jobState.getJobId(), directoriesToClean));
+      if (directoriesToClean.size() != cleanupResult.getAttemptedCleanedDirectories().size()) {
+        log.warn("Expected to clean up {} directories, but only cleaned up {}", directoriesToClean.size(),
+            cleanupResult.getAttemptedCleanedDirectories().size());
+        for (String dir : directoriesToClean) {
+          if (cleanupResult.getAttemptedCleanedDirectories().get(dir)) {
+            log.error("Directory {} was not cleaned up, please clean up manually", dir);
+          }
+        }
       }
     } catch (Exception e) {
       log.error("Failed to cleanup work dirs", e);

@@ -26,12 +26,12 @@ import lombok.RequiredArgsConstructor;
 
 
 /**
- * Data structure representing the stats for a cleaned up work directory, where it returns a list of directories it cleaned up and their size
+ * Data structure representing the stats for a cleaned up work directory, where it returns a map of directories the result of their cleanup
  */
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class CleanupResult {
 
-  @NonNull private Map<String, Long> cleanupSummary;
+  @NonNull private Map<String, Boolean> attemptedCleanedDirectories;
 }
