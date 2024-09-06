@@ -82,10 +82,10 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       Set<String> resourcesToCleanUp = new HashSet<>();
       // Validate every workunit if they have the temp dir props since some workunits may be commit steps
       for (WorkUnit workUnit : workUnits) {
-        if (workUnit.contains(workUnit.getProp(ConfigurationKeys.WRITER_STAGING_DIR))) {
+        if (workUnit.contains(ConfigurationKeys.WRITER_STAGING_DIR)) {
           resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.WRITER_STAGING_DIR));
         }
-        if (workUnit.contains(workUnit.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR))) {
+        if (workUnit.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
           resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
         }
         if (workUnit.getPropAsBoolean(ConfigurationKeys.CLEAN_ERR_DIR, ConfigurationKeys.DEFAULT_CLEAN_ERR_DIR)) {
