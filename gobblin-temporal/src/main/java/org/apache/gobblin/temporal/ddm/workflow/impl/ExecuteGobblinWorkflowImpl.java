@@ -190,7 +190,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     // We want to delete the job-level directory once the job completes as well, which is the parent of the task staging/output dirs
     Set<Path> allDirsToClean =
         workDirsToClean.stream().map(workDir -> (new Path(workDir).getParent())).collect(Collectors.toSet());
-    allDirsToClean.addAll(workDirsToClean.stream().map(workDir -> new Path(workDir)).collect(Collectors.toSet()));
+    allDirsToClean.addAll(workDirsToClean.stream().map(Path::new).collect(Collectors.toSet()));
 
     // Only delete directories that are associated with the current job, otherwise
     Set<String> resultSet = new HashSet<>();
