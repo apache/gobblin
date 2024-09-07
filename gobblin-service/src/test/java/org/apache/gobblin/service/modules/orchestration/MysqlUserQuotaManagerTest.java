@@ -69,7 +69,7 @@ public class MysqlUserQuotaManagerTest {
 
   @Test
   public void testRunningDagStore() throws Exception {
-    String dagId = DagManagerUtils.generateDagId(DagManagerTest.buildDag("dagId", 1234L, "", 1).getNodes().get(0)).toString();
+    String dagId = DagUtils.generateDagId(DagTestUtils.buildDag("dagId", 1234L, "", 1).getNodes().get(0)).toString();
     Assert.assertFalse(this.quotaManager.containsDagId(dagId));
     this.quotaManager.addDagId(connection, dagId);
     connection.commit();

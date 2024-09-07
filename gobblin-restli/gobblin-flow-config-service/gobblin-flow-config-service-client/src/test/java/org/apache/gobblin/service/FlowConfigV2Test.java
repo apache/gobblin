@@ -109,7 +109,7 @@ public class FlowConfigV2Test {
     Config config = configBuilder.build();
     final FlowCatalog flowCatalog = new FlowCatalog(config);
     final SpecCatalogListener mockListener = mock(SpecCatalogListener.class);
-    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
+    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_ORCHESTRATOR_LISTENER_CLASS);
     // NOTE: more general `ArgumentMatchers` (indicating compilation unsuccessful) must precede the specific
     when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(null));
     when(mockListener.onAddSpec(ArgumentMatchers.argThat((FlowSpec flowSpec) -> {
@@ -487,7 +487,7 @@ public class FlowConfigV2Test {
     cleanUpDir(TEST_SPEC_STORE_DIR);
   }
 
-  public class TestRequesterService extends RequesterService {
+  public static class TestRequesterService extends RequesterService {
     @Setter
     private ServiceRequester requester;
 

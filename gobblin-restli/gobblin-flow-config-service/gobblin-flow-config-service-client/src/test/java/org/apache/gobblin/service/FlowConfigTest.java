@@ -83,7 +83,7 @@ public class FlowConfigTest {
     Config config = configBuilder.build();
     final FlowCatalog flowCatalog = new FlowCatalog(config);
     final SpecCatalogListener mockListener = mock(SpecCatalogListener.class);
-    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
+    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_ORCHESTRATOR_LISTENER_CLASS);
     when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
     flowCatalog.addListener(mockListener);
     flowCatalog.startAsync();

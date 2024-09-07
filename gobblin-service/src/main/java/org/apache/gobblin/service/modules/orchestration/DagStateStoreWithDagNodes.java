@@ -30,7 +30,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
  * An interface for storing and retrieving currently running {@link Dag.DagNode<JobExecutionPlan>}s.
  * Callers should use {@link DagStateStore#writeCheckpoint} to store dags. After that, to update individual
  * {@link Dag.DagNode}s, {@link DagStateStoreWithDagNodes#updateDagNode} should be used.
- * {@link DagStateStore#cleanUp(DagManager.DagId)} should be used to delete all the {@link Dag.DagNode}s for a {@link Dag}.
+ * {@link DagStateStore#cleanUp(Dag.DagId)} should be used to delete all the {@link Dag.DagNode}s for a {@link Dag}.
  */
 public interface DagStateStoreWithDagNodes extends DagStateStore {
 
@@ -42,9 +42,9 @@ public interface DagStateStoreWithDagNodes extends DagStateStore {
 
   /**
    * Returns all the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode}s for the given
-   * {@link org.apache.gobblin.service.modules.orchestration.DagManager.DagId}
+   * {@link Dag.DagId}
    */
-  Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(DagManager.DagId dagId) throws IOException;
+  Set<Dag.DagNode<JobExecutionPlan>> getDagNodes(Dag.DagId dagId) throws IOException;
 
   /**
    * Return the {@link org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} for the given {@link DagNodeId} or empty

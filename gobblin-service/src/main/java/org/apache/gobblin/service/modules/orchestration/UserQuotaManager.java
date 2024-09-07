@@ -26,9 +26,9 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
 /**
  * Manages the statically configured user quotas for the proxy user in user.to.proxy configuration, the API requester(s)
- * and the flow group.
- * It is used by the {@link DagManager} to ensure that the number of currently running jobs do not exceed the quota, if
- * the quota is exceeded, the execution will fail without running on the underlying executor.
+ * and the flow group. It is used by the {@link org.apache.gobblin.service.modules.orchestration.proc.DagProc} to ensure
+ * that the number of currently running jobs do not exceed the quota, if the quota is exceeded, the execution will fail
+ * without running on the underlying executor.
  */
 public interface UserQuotaManager {
 

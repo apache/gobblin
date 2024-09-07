@@ -23,6 +23,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.TimeUnit;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -38,6 +39,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProcUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -47,12 +49,12 @@ import org.apache.gobblin.util.ConfigUtils;
 import static org.apache.gobblin.service.ExecutionStatus.*;
 
 
-public class DagManagerUtilsTest {
+public class DagUtilsTest {
   static String id = "1";
   static String flowGroup = "fg";
   static String flowName = "fn";
   static long flowExecutionId = 12345L;
-  static String flowFailureOption = DagManager.FailureOption.FINISH_ALL_POSSIBLE.name();
+  static String flowFailureOption = DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name();
   static String proxyUser = "user5";
   static Config additionalConfig = ConfigFactory.empty()
       .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
@@ -62,9 +64,28 @@ public class DagManagerUtilsTest {
           MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI));
 
   @Test
+  void deadlineConfigCheck() throws Exception {
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("5", 123456783L, "FINISH_RUNNING", 1);
+    Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), ServiceConfigKeys.DEFAULT_FLOW_FINISH_DEADLINE_MILLIS);
+
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    jobConfig = jobConfig
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef("7"))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
+    dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
+    Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), TimeUnit.SECONDS.toMillis(7L));
+
+    jobConfig = jobConfig
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef("8"))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.name()));
+    dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
+    Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(8L));
+  }
+
+  @Test
   public void testGetJobSpecFromDag() throws Exception {
     Dag<JobExecutionPlan> testDag = DagTestUtils.buildDag("testDag", 1000L);
-    JobSpec jobSpec = DagManagerUtils.getJobSpec(testDag.getNodes().get(0));
+    JobSpec jobSpec = DagUtils.getJobSpec(testDag.getNodes().get(0));
     Assert.assertEquals(jobSpec.getConfigAsProperties().size(), jobSpec.getConfig().entrySet().size());
     for (String key : jobSpec.getConfigAsProperties().stringPropertyNames()) {
       Assert.assertTrue(jobSpec.getConfig().hasPath(key));
@@ -286,7 +307,7 @@ public class DagManagerUtilsTest {
     String flowGroup = "fg";
     String flowName = "fn";
     long flowExecutionId = 12345L;
-    String flowFailureOption = DagManager.FailureOption.FINISH_ALL_POSSIBLE.name();
+    String flowFailureOption = DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name();
     String proxyUser = "user5";
     Config additionalConfig = ConfigFactory.empty()
         .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
@@ -410,7 +431,7 @@ public class DagManagerUtilsTest {
           addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, flowExecutionId).
           addPrimitive(ConfigurationKeys.JOB_GROUP_KEY, "group" + id).
           addPrimitive(ConfigurationKeys.JOB_NAME_KEY, "job" + suffix).
-          addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, DagManager.FailureOption.FINISH_RUNNING.name()).
+          addPrimitive(ConfigurationKeys.FLOW_FAILURE_OPTION, DagProcessingEngine.FailureOption.FINISH_RUNNING.name()).
           addPrimitive(AzkabanProjectConfig.USER_TO_PROXY, proxyUser).build();
       jobConfig = additionalConfig.withFallback(jobConfig);
       if (i == 1) {

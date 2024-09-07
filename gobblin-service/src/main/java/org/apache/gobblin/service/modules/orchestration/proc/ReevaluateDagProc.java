@@ -30,7 +30,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -108,7 +108,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
 
     if (jobStatus.isShouldRetry()) {
       log.info("Retrying job: {}, current attempts: {}, max attempts: {}",
-          DagManagerUtils.getFullyQualifiedJobName(dagNode), jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+          DagUtils.getFullyQualifiedJobName(dagNode), jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
       // todo - be careful when unsetting this, it is possible that this is set to FAILED because some other job in the
       // dag failed and is also not retryable. in that case if this job's retry passes, overall status of the dag can be
       // set to PASS, which would be incorrect.
@@ -146,7 +146,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
    */
   private void onJobFinish(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode,
       Dag<JobExecutionPlan> dag) throws IOException {
-    String jobName = DagManagerUtils.getFullyQualifiedJobName(dagNode);
+    String jobName = DagUtils.getFullyQualifiedJobName(dagNode);
     ExecutionStatus executionStatus = dagNode.getValue().getExecutionStatus();
     log.info("Job {} of Dag {} has finished with status {}", jobName, getDagId(), executionStatus.name());
     // Only decrement counters and quota for jobs that actually ran on the executor, not from a GaaS side failure/skip event

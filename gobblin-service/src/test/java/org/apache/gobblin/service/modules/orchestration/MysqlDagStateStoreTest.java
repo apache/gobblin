@@ -50,25 +50,23 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 public class MysqlDagStateStoreTest {
 
-  private DagStateStore _dagStateStore;
-  private Map<URI, TopologySpec> topologySpecMap;
-
   private static final String TEST_USER = "testUser";
   private static final String TEST_PASSWORD = "testPassword";
   private static final String TEST_DAG_STATE_STORE = "TestDagStateStore";
   private static ITestMetastoreDatabase testDb;
+  private DagStateStore _dagStateStore;
 
   @BeforeClass
   public void setUp() throws Exception {
     testDb = TestMetastoreDatabaseFactory.get();
     ConfigBuilder configBuilder = ConfigBuilder.create();
     // Constructing TopologySpecMap.
-    this.topologySpecMap = new HashMap<>();
+    Map<URI, TopologySpec> topologySpecMap = new HashMap<>();
     String specExecInstance = "mySpecExecutor";
     TopologySpec topologySpec = DagTestUtils.buildNaiveTopologySpec(specExecInstance);
     URI specExecURI = new URI(specExecInstance);
-    this.topologySpecMap.put(specExecURI, topologySpec);
-    this._dagStateStore = new TestMysqlDagStateStore(configBuilder.build(), this.topologySpecMap);
+    topologySpecMap.put(specExecURI, topologySpec);
+    this._dagStateStore = new TestMysqlDagStateStore(configBuilder.build(), topologySpecMap);
   }
 
   @AfterClass(alwaysRun = true)
@@ -87,15 +85,15 @@ public class MysqlDagStateStoreTest {
     _dagStateStore.writeCheckpoint(dag_1);
 
     // Verify get one dag
-    Dag<JobExecutionPlan> dag = _dagStateStore.getDag(DagManagerUtils.generateDagId(dag_0).toString());
+    Dag<JobExecutionPlan> dag = _dagStateStore.getDag(DagUtils.generateDagId(dag_0).toString());
     Assert.assertEquals(dag.getNodes().get(0), dag_0.getNodes().get(0));
     Assert.assertEquals(dag.getNodes().get(1), dag_0.getNodes().get(1));
 
     // Verify get dagIds
     Set<String> dagIds = _dagStateStore.getDagIds();
     Assert.assertEquals(dagIds.size(), 2);
-    Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag_0).toString()));
-    Assert.assertTrue(dagIds.contains(DagManagerUtils.generateDagId(dag_1).toString()));
+    Assert.assertTrue(dagIds.contains(DagUtils.generateDagId(dag_0).toString()));
+    Assert.assertTrue(dagIds.contains(DagUtils.generateDagId(dag_1).toString()));
 
     // Verify get all dags
     List<Dag<JobExecutionPlan>> dags = _dagStateStore.getDags();
@@ -152,7 +150,7 @@ public class MysqlDagStateStoreTest {
     Assert.assertEquals(dags.size(), 2);
 
     _dagStateStore.cleanUp(dags.get(0));
-    _dagStateStore.cleanUp(DagManagerUtils.generateDagId(dags.get(1)).toString());
+    _dagStateStore.cleanUp(DagUtils.generateDagId(dags.get(1)).toString());
 
     dags = _dagStateStore.getDags();
     Assert.assertEquals(dags.size(), 0);

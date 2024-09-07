@@ -18,14 +18,11 @@
 package org.apache.gobblin.service;
 
 import java.time.Duration;
+import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.annotation.Alpha;
-
-@Alpha
 public class ServiceConfigKeys {
 
   public static final String GOBBLIN_SERVICE_PREFIX = "gobblin.service.";
-  public static final String GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS = "org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler";
   public static final String GOBBLIN_ORCHESTRATOR_LISTENER_CLASS = "org.apache.gobblin.service.modules.orchestration.Orchestrator";
 
   // Gobblin Service Manager Keys
@@ -37,8 +34,6 @@ public class ServiceConfigKeys {
   public static final String GOBBLIN_SERVICE_TOPOLOGY_SPEC_FACTORY_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "topologySpecFactory.enabled";
   public static final String GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "gitConfigMonitor.enabled";
   public static final String GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "jobStatusMonitor.enabled";
-  public static final String GOBBLIN_SERVICE_WARM_STANDBY_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "warmStandby.enabled";
-  public static final String GOBBLIN_SERVICE_MULTI_ACTIVE_SCHEDULER_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "multiActiveScheduler.enabled";
   // If true, will mark up/down d2 servers on leadership so that all requests will be routed to the leader node
   public static final String GOBBLIN_SERVICE_D2_ONLY_ANNOUNCE_LEADER = GOBBLIN_SERVICE_PREFIX + "d2.onlyAnnounceLeader";
 
@@ -68,7 +63,6 @@ public class ServiceConfigKeys {
   // Job Level Keys
   public static final String WORK_UNIT_SIZE = GOBBLIN_SERVICE_PREFIX + "work.unit.size";
   public static final String TOTAL_WORK_UNIT_SIZE = GOBBLIN_SERVICE_PREFIX + "total.work.unit.size";
-  public static final String TOTAL_WORK_UNIT_COUNT = GOBBLIN_SERVICE_PREFIX + "total.work.unit.count";
   /**
    * Directly use canonical class name here to avoid introducing additional dependency here.
    */
@@ -94,25 +88,12 @@ public class ServiceConfigKeys {
   public static final String DEFAULT_SPEC_EXECUTOR =
       "org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor";
   public static final String SPEC_EXECUTOR_KEY = "specExecutorInstance.class";
-  public static final String EDGE_SECURITY_KEY = "edge.secured";
 
   public static final String DATA_MOVEMENT_AUTHORIZER_CLASS = "dataMovementAuthorizer.class";
 
   // Template Catalog Keys
   public static final String TEMPLATE_CATALOGS_FULLY_QUALIFIED_PATH_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.fullyQualifiedPath";
   public static final String TEMPLATE_CATALOGS_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "templateCatalogs.class";
-
-  // Keys related to user-specified policy on route selection.
-  // Undesired connection to form an executable JobSpec.
-  // Formatted as a String list, each entry contains a string in the format of "Source1:Sink1:URI",
-  // which indicates that data movement from source1 to sink1 with specific URI of specExecutor should be avoided.
-  public static final String POLICY_BASED_BLOCKED_CONNECTION = GOBBLIN_SERVICE_PREFIX + "blockedConnections";
-
-  // Comma separated list of nodes that is blacklisted. Names put here will become the nodeName which is the ID of a serviceNode.
-  public static final String POLICY_BASED_BLOCKED_NODES = GOBBLIN_SERVICE_PREFIX + "blockedNodes";
-  // Complete path of how the data movement is executed from source to sink.
-  // Formatted as a String, each hop separated by comma, from source to sink in order.
-  public static final String POLICY_BASED_DATA_MOVEMENT_PATH = GOBBLIN_SERVICE_PREFIX + "fullDataPath";
 
   public static final String ATTRS_PATH_IN_CONFIG = "executorAttrs";
 
@@ -121,13 +102,6 @@ public class ServiceConfigKeys {
   // True means node is by default secure.
   public static final String DEFAULT_NODE_SECURITY = "true";
 
-
-  // Policy related configuration Keys
-  public static final String DEFAULT_SERVICE_POLICY = "static";
-  public static final String SERVICE_POLICY_NAME = GOBBLIN_SERVICE_PREFIX + "servicePolicy";
-  // Logging
-  public static final String GOBBLIN_SERVICE_LOG4J_CONFIGURATION_FILE = "log4j-service.properties";
-  // GAAS Listerning Port
   public static final String SERVICE_PORT = GOBBLIN_SERVICE_PREFIX + "port";
   public static final String SERVICE_NAME = GOBBLIN_SERVICE_PREFIX + "serviceName";
   public static final String SERVICE_URL_PREFIX = GOBBLIN_SERVICE_PREFIX + "serviceUrlPrefix";
@@ -171,9 +145,7 @@ public class ServiceConfigKeys {
   public static final String STATE_STORE_KEY_SEPARATION_CHARACTER = ".";
   public static final String DAG_STORE_KEY_SEPARATION_CHARACTER = "_";
 
-
   // Service database connection
-
   public static final String SERVICE_DB_URL_KEY = GOBBLIN_SERVICE_PREFIX + "db.url";
   public static final String SERVICE_DB_USERNAME = GOBBLIN_SERVICE_PREFIX + "db.username";
   public static final String SERVICE_DB_PASSWORD = GOBBLIN_SERVICE_PREFIX + "db.password";
@@ -203,12 +175,11 @@ public class ServiceConfigKeys {
   public static final int DEFAULT_MEMORY_ISSUE_REPO_MAX_ISSUE_PER_CONTEXT= 20;
 
   public static final String ISSUE_REPO_CLASS = GOBBLIN_SERVICE_PREFIX + "issueRepo.class";
+  public static final String QUOTA_MANAGER_PREFIX = "UserQuotaManagerPrefix.";
 
   public static final String GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "dagProcessingEngine.";
-  public static final String DAG_PROCESSING_ENGINE_ENABLED = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "enabled";
   public static final String NUM_DAG_PROC_THREADS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "numThreads";
   public static final String DAG_PROC_ENGINE_NON_RETRYABLE_EXCEPTIONS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "nonRetryableExceptions";
-
   public static final Integer DEFAULT_NUM_DAG_PROC_THREADS = 3;
-  public static final String GOBBLIN_SERVICE_MULTI_ACTIVE_EXECUTION_ENABLED = GOBBLIN_SERVICE_PREFIX + "multiActiveExecutionEnabled";
+  public static final long DEFAULT_FLOW_FINISH_DEADLINE_MILLIS = TimeUnit.HOURS.toMillis(24);
 }

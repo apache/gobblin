@@ -65,7 +65,6 @@ import static org.mockito.Mockito.when;
 
 public class GitConfigMonitorTest {
   private static final Logger logger = LoggerFactory.getLogger(GitConfigMonitorTest.class);
-  private Repository remoteRepo;
   private Git gitForPush;
   private static final String TEST_DIR = "/tmp/gitConfigTestDir/";
   private final File remoteDir = new File(TEST_DIR + "/remote");
@@ -79,50 +78,47 @@ public class GitConfigMonitorTest {
   private final File testFlowFile2 = new File(testGroupDir, TEST_FLOW_FILE2);
   private final File testFlowFile3 = new File(testGroupDir, TEST_FLOW_FILE3);
 
-  private RefSpec masterRefSpec = new RefSpec("master");
+  private final RefSpec masterRefSpec = new RefSpec("master");
   private FlowCatalog flowCatalog;
-  private SpecCatalogListener mockListener;
-  private Config config;
   private GitConfigMonitor gitConfigMonitor;
 
 
   @BeforeClass
   public void setup() throws Exception {
-    cleanUpDir(TEST_DIR);
+    cleanUpDir();
 
     // Create a bare repository
     RepositoryCache.FileKey fileKey = RepositoryCache.FileKey.exact(remoteDir, FS.DETECTED);
-    this.remoteRepo = fileKey.open(false);
-    this.remoteRepo.create(true);
+    Repository remoteRepo = fileKey.open(false);
+    remoteRepo.create(true);
 
-    this.gitForPush = Git.cloneRepository().setURI(this.remoteRepo.getDirectory().getAbsolutePath()).setDirectory(cloneDir).call();
+    this.gitForPush = Git.cloneRepository().setURI(remoteRepo.getDirectory().getAbsolutePath()).setDirectory(cloneDir).call();
 
     // push an empty commit as a base for detecting changes
     this.gitForPush.commit().setMessage("First commit").call();
     this.gitForPush.push().setRemote("origin").setRefSpecs(this.masterRefSpec).call();
 
-    this.config = ConfigBuilder.create()
+    Config config = ConfigBuilder.create()
         .addPrimitive(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_URI,
-            this.remoteRepo.getDirectory().getAbsolutePath())
-        .addPrimitive(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR, TEST_DIR + "/jobConfig")
-        .addPrimitive(FlowCatalog.FLOWSPEC_STORE_DIR_KEY, TEST_DIR + "flowCatalog")
-        .addPrimitive(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5)
-        .build();
+            remoteRepo.getDirectory().getAbsolutePath())
+        .addPrimitive(GitConfigMonitor.GIT_CONFIG_MONITOR_PREFIX + "." + ConfigurationKeys.GIT_MONITOR_REPO_DIR,
+            TEST_DIR + "/jobConfig").addPrimitive(FlowCatalog.FLOWSPEC_STORE_DIR_KEY, TEST_DIR + "flowCatalog")
+        .addPrimitive(ConfigurationKeys.GIT_MONITOR_POLLING_INTERVAL, 5).build();
 
     this.flowCatalog = new FlowCatalog(config);
 
-    this.mockListener = mock(SpecCatalogListener.class);
-    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
-    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
+    SpecCatalogListener mockListener = mock(SpecCatalogListener.class);
+    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_ORCHESTRATOR_LISTENER_CLASS);
+    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse<>(""));
 
     this.flowCatalog.addListener(mockListener);
     this.flowCatalog.startAsync().awaitRunning();
-    this.gitConfigMonitor = new GitConfigMonitor(this.config, this.flowCatalog);
+    this.gitConfigMonitor = new GitConfigMonitor(config, this.flowCatalog);
     this.gitConfigMonitor.setActive(true);
   }
 
-  private void cleanUpDir(String dir) {
-    File specStoreDir = new File(dir);
+  private void cleanUpDir() {
+    File specStoreDir = new File(GitConfigMonitorTest.TEST_DIR);
 
     // cleanup is flaky on Travis, so retry a few times and then suppress the error if unsuccessful
     for (int i = 0; i < 5; i++) {
@@ -133,7 +129,7 @@ public class GitConfigMonitorTest {
         // if delete succeeded then break out of loop
         break;
       } catch (IOException e) {
-        logger.warn("Cleanup delete directory failed for directory: " + dir, e);
+        logger.warn("Cleanup delete directory failed for directory: " + GitConfigMonitorTest.TEST_DIR, e);
       }
     }
   }
@@ -144,7 +140,7 @@ public class GitConfigMonitorTest {
       this.flowCatalog.stopAsync().awaitTerminated();
     }
 
-    cleanUpDir(TEST_DIR);
+    cleanUpDir();
   }
 
   private String formConfigFilePath(String groupDir, String fileName) {
@@ -168,7 +164,7 @@ public class GitConfigMonitorTest {
 
     Collection<Spec> specs = this.flowCatalog.getSpecs();
 
-    Assert.assertTrue(specs.size() == 1);
+    Assert.assertEquals(specs.size(), 1);
     FlowSpec spec = (FlowSpec) (specs.iterator().next());
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow");
@@ -191,7 +187,7 @@ public class GitConfigMonitorTest {
 
     Collection<Spec> specs = this.flowCatalog.getSpecs();
 
-    Assert.assertTrue(specs.size() == 1);
+    Assert.assertEquals(specs.size(), 1);
     FlowSpec spec = (FlowSpec) (specs.iterator().next());
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
     Assert.assertEquals(spec.getConfig().getString(ConfigurationKeys.FLOW_NAME_KEY), "testFlow");
@@ -200,13 +196,13 @@ public class GitConfigMonitorTest {
   }
 
   @Test(dependsOnMethods = "testUpdateConfig")
-  public void testDeleteConfig() throws IOException, GitAPIException, URISyntaxException {
+  public void testDeleteConfig() throws IOException, GitAPIException {
     // delete a config file
     testFlowFile.delete();
 
     // flow catalog has 1 entry before the config is deleted
     Collection<Spec> specs = this.flowCatalog.getSpecs();
-    Assert.assertTrue(specs.size() == 1);
+    Assert.assertEquals(specs.size(), 1);
 
     // add, commit, push
     DirCache ac = this.gitForPush.rm().addFilepattern(formConfigFilePath(this.testGroupDir.getName(), this.testFlowFile.getName()))
@@ -217,7 +213,7 @@ public class GitConfigMonitorTest {
     this.gitConfigMonitor.processGitConfigChanges();
 
     specs = this.flowCatalog.getSpecs();
-    Assert.assertTrue(specs.size() == 0);
+    Assert.assertTrue(specs.isEmpty());
   }
 
   @Test(dependsOnMethods = "testDeleteConfig")
@@ -241,14 +237,9 @@ public class GitConfigMonitorTest {
 
     Collection<Spec> specs = this.flowCatalog.getSpecs();
 
-    Assert.assertTrue(specs.size() == 2);
+    Assert.assertEquals(specs.size(), 2);
     List<Spec> specList = Lists.newArrayList(specs);
-    specList.sort(new Comparator<Spec>() {
-      @Override
-      public int compare(Spec o1, Spec o2) {
-        return o1.getUri().compareTo(o2.getUri());
-      }
-    });
+    specList.sort(Comparator.comparing(Spec::getUri));
 
     FlowSpec spec = (FlowSpec) specList.get(0);
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));
@@ -285,15 +276,10 @@ public class GitConfigMonitorTest {
 
     specs = this.flowCatalog.getSpecs();
 
-    Assert.assertTrue(specs.size() == 2);
+    Assert.assertEquals(specs.size(), 2);
 
     specList = Lists.newArrayList(specs);
-    specList.sort(new Comparator<Spec>() {
-      @Override
-      public int compare(Spec o1, Spec o2) {
-        return o1.getUri().compareTo(o2.getUri());
-      }
-    });
+    specList.sort(Comparator.comparing(Spec::getUri));
 
     spec = (FlowSpec) specList.get(0);
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow2"));
@@ -314,7 +300,7 @@ public class GitConfigMonitorTest {
     this.gitConfigMonitor.processGitConfigChanges();
     specs = this.flowCatalog.getSpecs();
 
-    Assert.assertTrue(specs.size() == 0);
+    Assert.assertTrue(specs.isEmpty());
   }
 
   @Test(dependsOnMethods = "testForcedPushConfig")
@@ -331,7 +317,7 @@ public class GitConfigMonitorTest {
     this.gitForPush.push().setRemote("origin").setRefSpecs(this.masterRefSpec).call();
 
     Collection<Spec> specs = this.flowCatalog.getSpecs();
-    Assert.assertTrue(specs.size() == 0);
+    Assert.assertEquals(specs.size(), 0);
 
     this.gitConfigMonitor.startAsync().awaitRunning();
 
@@ -339,7 +325,7 @@ public class GitConfigMonitorTest {
     TimeUnit.SECONDS.sleep(10);
 
     specs = this.flowCatalog.getSpecs();
-    Assert.assertTrue(specs.size() == 1);
+    Assert.assertEquals(specs.size(), 1);
 
     FlowSpec spec = (FlowSpec) (specs.iterator().next());
     Assert.assertEquals(spec.getUri(), new URI("gobblin-flow:/testGroup/testFlow"));

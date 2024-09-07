@@ -23,6 +23,7 @@ import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.text.StringEscapeUtils;
+import org.jetbrains.annotations.NotNull;
 
 import com.google.common.cache.CacheBuilder;
 import com.google.common.cache.CacheLoader;
@@ -50,7 +51,7 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
  * a connector between the API and execution layers of GaaS.
  */
 @Slf4j
-public class SpecStoreChangeMonitor extends HighLevelConsumer {
+public class SpecStoreChangeMonitor extends HighLevelConsumer<String, GenericStoreChangeEvent> {
   public static final String SPEC_STORE_CHANGE_MONITOR_PREFIX = "specStoreChangeMonitor";
 
   // Metrics
@@ -61,13 +62,12 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   private ContextAwareMeter unexpectedErrors;
   private ContextAwareMeter duplicateMessagesMeter;
   private ContextAwareMeter heartbeatMessagesMeter;
-  private ContextAwareGauge produceToConsumeDelayMillis; // Reports delay from all partitions in one gauge
 
   private volatile Long produceToConsumeDelayValue = -1L;
 
   protected CacheLoader<String, String> cacheLoader = new CacheLoader<String, String>() {
     @Override
-    public String load(String key) throws Exception {
+    public String load(@NotNull String key) {
       return key;
     }
   };
@@ -123,11 +123,11 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
   Note that although this class is multi-threaded and will call this message for multiple threads (each having a queue
   associated with it), a given message itself will be partitioned and assigned to only one queue.
    */
-  protected void processMessage(DecodeableKafkaRecord message) {
+  protected void processMessage(DecodeableKafkaRecord<String, GenericStoreChangeEvent> message) {
     // This will also include the heathCheck message so that we can rely on this to monitor the health of this Monitor
     messageProcessedMeter.mark();
-    String key = (String) message.getKey();
-    GenericStoreChangeEvent value = (GenericStoreChangeEvent) message.getValue();
+    String key = message.getKey();
+    GenericStoreChangeEvent value = message.getValue();
 
     String tid = value.getTxId();
     Long produceTimestamp = value.getProduceTimestampMillis();
@@ -144,7 +144,7 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     }
 
     Spec spec;
-    URI specAsUri = null;
+    URI specAsUri;
 
     try {
       specAsUri = new URI(key);
@@ -204,7 +204,9 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer {
     this.messageProcessedMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_MESSAGE_PROCESSED);
     this.duplicateMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_DUPLICATE_MESSAGES);
     this.heartbeatMessagesMeter = this.getMetricContext().contextAwareMeter(RuntimeMetrics.GOBBLIN_SPEC_STORE_HEARTBEAT_MESSAGES);
-    this.produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(RuntimeMetrics.GOBBLIN_SPEC_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
-    this.getMetricContext().register(this.produceToConsumeDelayMillis);
+   // Reports delay from all partitions in one gauge
+   ContextAwareGauge<Long> produceToConsumeDelayMillis = this.getMetricContext().newContextAwareGauge(
+       RuntimeMetrics.GOBBLIN_SPEC_STORE_PRODUCE_TO_CONSUME_DELAY_MILLIS, () -> produceToConsumeDelayValue);
+    this.getMetricContext().register(produceToConsumeDelayMillis);
   }
 }

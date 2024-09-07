@@ -50,16 +50,15 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Helper class with functionality meant to be re-used between the DagManager and Orchestrator when launching
+ * Helper class with functionality meant to be re-used between the LaunchDagProc and Orchestrator when launching
  * executions of a flow spec. In the common case, the Orchestrator receives a flow to orchestrate, performs necessary
- * validations, and forwards the execution responsibility to the DagManager. The DagManager's responsibility is to
- * carry out any flow action requests. However, with launch executions now being stored in the DagActionStateStore, on
- * restart or leadership change the DagManager has to perform validations before executing any launch actions the
- * previous leader was unable to complete. Rather than duplicating the code or introducing a circular dependency between
- * the DagManager and Orchestrator, this class is utilized to store the common functionality. It is stateful,
- * requiring all stateful pieces to be passed as input from the caller upon instantiating the helper.
- * Note: We expect further refactoring to be done to the DagManager in later stage of multi-active development, so we do
- * not attempt major reorganization as abstractions may change.
+ * validations, and creates {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.DagAction}s which the
+ * {@link org.apache.gobblin.service.modules.orchestration.DagProcessingEngine} is responsible for processing.
+ * However, with launch executions now being stored in the DagActionStateStore, on restart, the LaunchDagProc has to
+ * perform validations before executing any launch actions the previous LaunchDagProc was unable to complete.
+ * Rather than duplicating the code or introducing a circular dependency between the LaunchDagProc and Orchestrator,
+ * this class is utilized to store the common functionality. It itself is stateless, requiring all stateful pieces to be
+ * passed as input from the caller upon instantiating the helper.
  */
 @Slf4j
 @Data

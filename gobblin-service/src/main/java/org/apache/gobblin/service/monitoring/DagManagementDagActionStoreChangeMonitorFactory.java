@@ -22,17 +22,12 @@ import java.util.Objects;
 import com.typesafe.config.Config;
 
 import javax.inject.Inject;
-import javax.inject.Named;
 import javax.inject.Provider;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
-import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
-import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -41,28 +36,20 @@ import org.apache.gobblin.util.ConfigUtils;
  * A factory implementation that returns a {@link DagManagementDagActionStoreChangeMonitor} instance.
  */
 @Slf4j
-public class DagManagementDagActionStoreChangeMonitorFactory implements Provider<DagActionStoreChangeMonitor> {
+public class DagManagementDagActionStoreChangeMonitorFactory implements Provider<DagManagementDagActionStoreChangeMonitor> {
   static final String DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
-  private final FlowCatalog flowCatalog;
-  private final Orchestrator orchestrator;
   private final DagManagementStateStore dagManagementStateStore;
-  private final boolean isMultiActiveSchedulerEnabled;
   private final DagManagement dagManagement;
   private final DagActionReminderScheduler dagActionReminderScheduler;
   private final DagProcessingEngineMetrics dagProcEngineMetrics;
 
   @Inject
-  public DagManagementDagActionStoreChangeMonitorFactory(Config config, DagManager dagManager, FlowCatalog flowCatalog,
-      Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore, DagManagement dagManagement,
-      @Named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED) boolean isMultiActiveSchedulerEnabled,
-      DagActionReminderScheduler dagActionReminderScheduler, DagProcessingEngineMetrics dagProcEngineMetrics) {
+  public DagManagementDagActionStoreChangeMonitorFactory(Config config, DagManagementStateStore dagManagementStateStore,
+      DagManagement dagManagement, DagActionReminderScheduler dagActionReminderScheduler, DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.config = Objects.requireNonNull(config);
-    this.flowCatalog = flowCatalog;
-    this.orchestrator = orchestrator;
     this.dagManagementStateStore = dagManagementStateStore;
-    this.isMultiActiveSchedulerEnabled = isMultiActiveSchedulerEnabled;
     this.dagManagement = dagManagement;
     this.dagActionReminderScheduler = dagActionReminderScheduler;
     this.dagProcEngineMetrics = dagProcEngineMetrics;
@@ -74,14 +61,12 @@ public class DagManagementDagActionStoreChangeMonitorFactory implements Provider
 
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
-    return new DagManagementDagActionStoreChangeMonitor(dagActionStoreChangeConfig,
-        numThreads, flowCatalog, orchestrator, dagManagementStateStore, isMultiActiveSchedulerEnabled, this.dagManagement,
-        this.dagActionReminderScheduler, dagProcEngineMetrics);
+    return new DagManagementDagActionStoreChangeMonitor(dagActionStoreChangeConfig, numThreads, dagManagementStateStore,
+        this.dagManagement, this.dagActionReminderScheduler, dagProcEngineMetrics);
   }
 
   @Override
-  public DagActionStoreChangeMonitor get() {
-    DagActionStoreChangeMonitor changeMonitor = createDagActionStoreMonitor();
-    return changeMonitor;
+  public DagManagementDagActionStoreChangeMonitor get() {
+    return createDagActionStoreMonitor();
   }
 }

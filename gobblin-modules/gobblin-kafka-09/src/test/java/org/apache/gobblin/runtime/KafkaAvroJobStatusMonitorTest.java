@@ -27,6 +27,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicBoolean;
+import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.lang3.tuple.Pair;
@@ -74,7 +75,6 @@ import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueReposi
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.service.ExecutionStatus;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.monitoring.GaaSJobObservabilityEventProducer;
@@ -101,8 +101,6 @@ public class KafkaAvroJobStatusMonitorTest {
   private final String jobGroup = "myJobGroup";
   private final String jobName = "myJobName";
   private final long flowExecutionId = 1234L;
-  private final String jobExecutionId = "1111";
-  private final String message = "https://myServer:8143/1234/1111";
   private final String stateStoreDir = "/tmp/jobStatusMonitor/statestore";
   private MetricContext context;
   private KafkaAvroEventKeyValueReporter.Builder<?> builder;
@@ -110,7 +108,7 @@ public class KafkaAvroJobStatusMonitorTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    cleanUpDir(stateStoreDir);
+    cleanUpDir();
     kafkaTestHelper = new KafkaTestBase();
     kafkaTestHelper.startServers();
     kafkaTestHelper.provisionTopic(TOPIC);
@@ -220,7 +218,7 @@ public class KafkaAvroJobStatusMonitorTest {
     });
 
     try {
-      Thread.sleep(1000);
+      Thread.sleep(1000L);
     } catch(InterruptedException ex) {
       Thread.currentThread().interrupt();
     }
@@ -404,7 +402,7 @@ public class KafkaAvroJobStatusMonitorTest {
     // since `processMessage` hereafter effectively hangs, launch eventual re-toggling before calling again
     ScheduledExecutorService toggleManagementExecutor = Executors.newScheduledThreadPool(2);
     toggleManagementExecutor.scheduleAtFixedRate(() -> {
-      if (jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus() > minNumFakeExceptionsExpected) { // curtail faking: simulate resolution
+      if (jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus().intValue() > minNumFakeExceptionsExpected) { // curtail faking: simulate resolution
         shouldThrowFakeExceptionInParseJobStatusToggle.set(false);
       }
     }, 2, 2, TimeUnit.SECONDS);
@@ -414,9 +412,9 @@ public class KafkaAvroJobStatusMonitorTest {
 
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
 
-    Assert.assertTrue(jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus() > minNumFakeExceptionsExpected,
+    Assert.assertTrue(jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus().intValue() > minNumFakeExceptionsExpected,
         String.format("processMessage returned with only %d (faked) exceptions",
-            jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus()));
+            jobStatusMonitor.getNumFakeExceptionsFromParseJobStatus().intValue()));
 
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.ORCHESTRATED.name());
     Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
@@ -941,8 +939,10 @@ public class KafkaAvroJobStatusMonitorTest {
     metadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, String.valueOf(this.flowExecutionId));
     metadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, this.jobName);
     metadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, this.jobGroup);
-    metadata.put(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, this.jobExecutionId);
-    metadata.put(TimingEvent.METADATA_MESSAGE, this.message);
+    String jobExecutionId = "1111";
+    metadata.put(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, jobExecutionId);
+    String message = "https://myServer:8143/1234/1111";
+    metadata.put(TimingEvent.METADATA_MESSAGE, message);
     metadata.put(TimingEvent.METADATA_START_TIME, "7");
     metadata.put(TimingEvent.METADATA_END_TIME, "8");
     metadata.putAll(customMetadata);
@@ -955,7 +955,6 @@ public class KafkaAvroJobStatusMonitorTest {
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"))
-        .withValue(ServiceConfigKeys.DAG_PROCESSING_ENGINE_ENABLED, ConfigValueFactory.fromAnyRef("true"))
         .withFallback(additionalConfig);
     return new MockKafkaAvroJobStatusMonitor("test", config, 1, shouldThrowFakeExceptionInParseJobStatusToggle,
         eventProducer, dagManagementStateStore);
@@ -971,17 +970,16 @@ public class KafkaAvroJobStatusMonitorTest {
     metadata.put("k1", "v1");
     metadata.put("k2", "v2");
 
-    GobblinTrackingEvent event = new GobblinTrackingEvent(timestamp, namespace, name, metadata);
-    return event;
+    return new GobblinTrackingEvent(timestamp, namespace, name, metadata);
   }
 
-  private DecodeableKafkaRecord convertMessageAndMetadataToDecodableKafkaRecord(MessageAndMetadata messageAndMetadata) {
-    ConsumerRecord consumerRecord = new ConsumerRecord<>(TOPIC, messageAndMetadata.partition(), messageAndMetadata.offset(), messageAndMetadata.key(), messageAndMetadata.message());
-    return new Kafka09ConsumerClient.Kafka09ConsumerRecord(consumerRecord);
+  private DecodeableKafkaRecord<byte[], byte[]> convertMessageAndMetadataToDecodableKafkaRecord(MessageAndMetadata<byte[], byte[]> messageAndMetadata) {
+    ConsumerRecord<byte[], byte[]> consumerRecord = new ConsumerRecord<>(TOPIC, messageAndMetadata.partition(), messageAndMetadata.offset(), messageAndMetadata.key(), messageAndMetadata.message());
+    return new Kafka09ConsumerClient.Kafka09ConsumerRecord<>(consumerRecord);
   }
 
-  private void cleanUpDir(String dir) throws Exception {
-    File specStoreDir = new File(dir);
+  private void cleanUpDir() throws Exception {
+    File specStoreDir = new File(this.stateStoreDir);
     if (specStoreDir.exists()) {
       FileUtils.deleteDirectory(specStoreDir);
     }
@@ -990,7 +988,7 @@ public class KafkaAvroJobStatusMonitorTest {
   @AfterMethod
   public void cleanUpStateStore() {
     try {
-      cleanUpDir(stateStoreDir);
+      cleanUpDir();
     } catch(Exception e) {
       System.err.println("Failed to clean up the state store.");
     }
@@ -1008,7 +1006,7 @@ public class KafkaAvroJobStatusMonitorTest {
   static class MockKafkaAvroJobStatusMonitor extends KafkaAvroJobStatusMonitor {
     private final AtomicBoolean shouldThrowFakeExceptionInParseJobStatus;
     @Getter
-    private volatile int numFakeExceptionsFromParseJobStatus = 0;
+    private volatile AtomicInteger numFakeExceptionsFromParseJobStatus = new AtomicInteger(0);
 
     /**
      * @param shouldThrowFakeExceptionInParseJobStatusToggle - pass (and retain) to dial whether `parseJobStatus` throws
@@ -1041,7 +1039,7 @@ public class KafkaAvroJobStatusMonitorTest {
     @Override
     public org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event) {
       if (shouldThrowFakeExceptionInParseJobStatus.get()) {
-        int n = ++numFakeExceptionsFromParseJobStatus;
+        int n = numFakeExceptionsFromParseJobStatus.incrementAndGet();
         throw new RuntimeException(String.format("BOOM! Failure [%d] w/ event at %d", n, event.getTimestamp()));
       } else {
         return super.parseJobStatus(event);

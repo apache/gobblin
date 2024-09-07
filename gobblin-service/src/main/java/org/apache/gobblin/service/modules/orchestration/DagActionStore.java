@@ -25,6 +25,7 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 import org.apache.gobblin.service.FlowId;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 
 
@@ -87,10 +88,10 @@ public interface DagActionStore {
     }
 
     /**
-     * Creates and returns a {@link DagManager.DagId} for this DagAction.
+     * Creates and returns a {@link Dag.DagId} for this DagAction.
      */
-    public DagManager.DagId getDagId() {
-      return new DagManager.DagId(this.flowGroup, this.flowName, this.flowExecutionId);
+    public Dag.DagId getDagId() {
+      return new Dag.DagId(this.flowGroup, this.flowName, this.flowExecutionId);
     }
   }
 
@@ -196,5 +197,4 @@ public interface DagActionStore {
    * @throws IOException Exception in retrieving {@link DagAction}s.
    */
   Collection<DagAction> getDagActions() throws IOException;
-
 }

@@ -53,7 +53,7 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanListSerializer;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.service.ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX;
-import static org.apache.gobblin.service.modules.orchestration.DagManagerUtils.generateDagId;
+import static org.apache.gobblin.service.modules.orchestration.DagUtils.generateDagId;
 
 
 /**
@@ -80,11 +80,10 @@ public class MysqlDagStateStore implements DagStateStore {
    * - The 'storeName' is FlowId.
    * - The 'tableName' is FlowExecutionId.
    */
-  private MysqlStateStore<State> mysqlStateStore;
+  private final MysqlStateStore<State> mysqlStateStore;
   private final GsonSerDe<List<JobExecutionPlan>> serDe;
-  private JobExecutionPlanDagFactory jobExecPlanDagFactory;
-  private MetricContext metricContext;
-  private ContextAwareCounter totalDagCount;
+  private final JobExecutionPlanDagFactory jobExecPlanDagFactory;
+  private final ContextAwareCounter totalDagCount;
   public MysqlDagStateStore(Config config, Map<URI, TopologySpec> topologySpecMap) {
     if (config.hasPath(CONFIG_PREFIX)) {
       config = config.getConfig(CONFIG_PREFIX).withFallback(config);
@@ -98,9 +97,9 @@ public class MysqlDagStateStore implements DagStateStore {
     }.getType();
     this.serDe = new GsonSerDe<>(typeToken, serializer, deserializer);
     this.jobExecPlanDagFactory = new JobExecutionPlanDagFactory();
-    this.metricContext = Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(config)),
-        this.getClass());
-    this.totalDagCount = this.metricContext.contextAwareCounter(ServiceMetricNames.DAG_COUNT_MYSQL_DAG_STATE_COUNT);
+    MetricContext metricContext =
+        Instrumented.getMetricContext(new State(ConfigUtils.configToProperties(config)), this.getClass());
+    this.totalDagCount = metricContext.contextAwareCounter(ServiceMetricNames.DAG_COUNT_MYSQL_DAG_STATE_COUNT);
 
   }
 
@@ -134,11 +133,6 @@ public class MysqlDagStateStore implements DagStateStore {
     mysqlStateStore.delete(getStoreNameFromDagId(dagId), getTableNameFromDagId(dagId));
     // todo - decrease the count only if delete returned 1
     this.totalDagCount.dec();
-  }
-
-  @Override
-  public boolean existsDag(DagManager.DagId dagId) throws IOException {
-    return mysqlStateStore.exists(getStoreNameFromDagId(dagId.toString()), getTableNameFromDagId(dagId.toString()));
   }
 
   @Override

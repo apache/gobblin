@@ -63,7 +63,7 @@ public class PropertiesUtils {
   }
 
   public static boolean getPropAsBoolean(Properties properties, String key, String defaultValue) {
-    return Boolean.valueOf(properties.getProperty(key, defaultValue));
+    return Boolean.parseBoolean(properties.getProperty(key, defaultValue));
   }
 
   public static int getPropAsInt(Properties properties, String key, int defaultValue) {
@@ -191,5 +191,21 @@ public class PropertiesUtils {
     return properties.entrySet().stream()
         .map(entry -> "\"" + entry.getKey() + "\"" + " : " + "\"" + entry.getValue() + "\"")
         .collect(Collectors.joining(",\n"));
+  }
+
+
+  /**
+   * Returns a new {@link Properties} object with all the original property keys prefixed with the provided prefix.
+   * Prefix should not have a trailing `.`
+   */
+  public static Properties addPrefixToProperties(Properties originalProperties, String prefix) {
+    Properties newProperties = new Properties();
+
+    originalProperties.forEach((key, value) -> {
+      String newKey = prefix + "." + key;
+      newProperties.setProperty(newKey, (String) value);
+    });
+
+    return newProperties;
   }
 }
