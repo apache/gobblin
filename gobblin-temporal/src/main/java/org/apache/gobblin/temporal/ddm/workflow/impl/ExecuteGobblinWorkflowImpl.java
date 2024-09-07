@@ -39,7 +39,6 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobState;
@@ -131,7 +130,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         if (generateWorkUnitResultsOpt.isPresent()) {
           cleanupWorkDirs(wuSpec, eventSubmitterContext, generateWorkUnitResultsOpt.get().getWorkDirPathsToCleanup());
         } else {
-          log.warn("Skipping cleanup of work dirs for job due to missing work unit results");
+          log.warn("Skipping cleanup of work dirs for job due to no output from GenerateWorkUnits");
         }
       } catch (IOException e) {
         log.error("Failed to cleanup work dirs", e);
@@ -167,13 +166,8 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     // TODO: Add configuration to support cleaning up historical work dirs from same job name
     FileSystem fs = Help.loadFileSystem(workSpec);
     JobState jobState = Help.loadJobState(workSpec, fs);
-    DeliverySemantics semantics = DeliverySemantics.parse(jobState);
-    // TODO: Avoid cleaning up if work is being checkpointed e.g. midway of a commit
+    // TODO: Avoid cleaning up if work is being checkpointed e.g. midway of a commit for EXACTLY_ONCE
 
-    if (!semantics.equals(DeliverySemantics.EXACTLY_ONCE)) {
-      log.info("Skipping cleanup of work dirs for job due to exactly once semantics");
-      return;
-    }
     if (PropertiesUtils.getPropAsBoolean(jobState.getProperties(), ConfigurationKeys.CLEANUP_STAGING_DATA_BY_INITIALIZER, "false")) {
       log.info("Skipping cleanup of work dirs for job due to initializer handling the cleanup");
       return;
