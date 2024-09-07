@@ -127,8 +127,11 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     } finally {
       // TODO: Cleanup WorkUnit/Taskstate Directory for jobs cancelled mid flight
       try {
+        log.info("Cleaning up work dirs for job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
         if (generateWorkUnitResultsOpt.isPresent()) {
           cleanupWorkDirs(wuSpec, eventSubmitterContext, generateWorkUnitResultsOpt.get().getWorkDirPathsToCleanup());
+        } else {
+          log.warn("Skipping cleanup of work dirs for job due to missing work unit results");
         }
       } catch (IOException e) {
         log.error("Failed to cleanup work dirs", e);
