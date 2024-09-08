@@ -217,6 +217,8 @@ public class FlowCompilationValidationHelper {
       ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
       log.info("Verifying if {} is running...", flowStatus);
 
+      // these are the only four non-terminal statuses that a flow can have. jobs have two more non-terminal statuses
+      // ORCHESTRATED and PENDING_RETRY
       if (flowExecutionStatus == COMPILED || flowExecutionStatus == PENDING
           || flowExecutionStatus == PENDING_RESUME || flowExecutionStatus == RUNNING) {
         Dag.DagId dagIdOfOldExecution = new Dag.DagId(flowGroup, flowName, flowStatus.getFlowExecutionId());
@@ -232,10 +234,10 @@ public class FlowCompilationValidationHelper {
         long jobStartDeadline =
             DagUtils.getJobStartDeadline(dagNode, DagProcessingEngine.getDefaultJobStartDeadlineTimeMillis());
         long flowFinishDeadline = DagUtils.getFlowFinishDeadline(dagNode);
-        if (((flowExecutionStatus == COMPILED || flowExecutionStatus == PENDING)
-                && (System.currentTimeMillis() < flowStartTime + jobStartDeadline)) ||
-            ((flowExecutionStatus == RUNNING || flowExecutionStatus == ORCHESTRATED || flowExecutionStatus == PENDING_RESUME)
-                && System.currentTimeMillis() < flowStartTime + flowFinishDeadline)) {
+        if ((flowExecutionStatus == COMPILED || flowExecutionStatus == PENDING)
+              && System.currentTimeMillis() < flowStartTime + jobStartDeadline
+            || (flowExecutionStatus == RUNNING || flowExecutionStatus == PENDING_RESUME)
+              && System.currentTimeMillis() < flowStartTime + flowFinishDeadline) {
           log.info("{} is still running. Found a dag for this, flowStartTime {}, jobStartDeadline {}, flowFinishDeadline {}",
               flowStatus, flowStartTime, jobStartDeadline, flowFinishDeadline);
           return true;
