@@ -21,7 +21,7 @@ import org.testng.Assert;
 import org.testng.annotations.Test;
 
 
-public class FlowExecutionResourceLocalHandlerTest {
+public class FlowExecutionResourceHandlerTest {
 
   @Test
   public void testEstimateCopyTimeLeftSanityCheck() {

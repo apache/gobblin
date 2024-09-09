@@ -280,7 +280,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
   private void configureServices(){
     if (configuration.isRestLIServerEnabled()) {
       this.restliServer = EmbeddedRestliServer.builder()
-          .resources(Lists.newArrayList(FlowConfigsV2Resource.class, FlowConfigsV2Resource.class))
+          .resources(Lists.newArrayList(FlowConfigsV2Resource.class))
           .injector(injector)
           .build();
 

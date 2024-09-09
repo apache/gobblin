@@ -45,6 +45,9 @@ import org.apache.gobblin.service.monitoring.FlowStatus;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 
 
+/**
+ * This is associated with {@link FlowExecutionResource} and handles all the requests FlowExecutionResource get.
+ */
 @Slf4j
 public class FlowExecutionResourceHandler implements FlowExecutionResourceHandlerInterface {
   private final DagManagementStateStore dagManagementStateStore;

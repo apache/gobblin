@@ -32,7 +32,7 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
 
 
-public class FlowConfigResourceLocalHandlerTest {
+public class FlowConfigsV2ResourceHandlerTest {
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";

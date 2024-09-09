@@ -64,6 +64,25 @@ public class DagUtilsTest {
           MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI));
 
   @Test
+  void slaConfigCheck() throws Exception {
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("5", 123456783L, "FINISH_RUNNING", 1);
+    Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), ServiceConfigKeys.DEFAULT_FLOW_FINISH_DEADLINE_MILLIS);
+
+    Config jobConfig = dag.getStartNodes().get(0).getValue().getJobSpec().getConfig();
+    jobConfig = jobConfig
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef("7"))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.SECONDS.name()));
+    dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig);
+    Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), TimeUnit.SECONDS.toMillis(7L));
+
+    Config jobConfig2 = jobConfig
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef("8"))
+        .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MINUTES.name()));
+    dag.getStartNodes().get(0).getValue().getJobSpec().setConfig(jobConfig2);
+    Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), TimeUnit.MINUTES.toMillis(8L));
+  }
+
+  @Test
   void deadlineConfigCheck() throws Exception {
     Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("5", 123456783L, "FINISH_RUNNING", 1);
     Assert.assertEquals(DagUtils.getFlowFinishDeadline(dag.getStartNodes().get(0)), ServiceConfigKeys.DEFAULT_FLOW_FINISH_DEADLINE_MILLIS);

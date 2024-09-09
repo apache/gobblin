@@ -46,7 +46,7 @@ import static org.mockito.Mockito.mock;
 
 
 @Test(groups = { "gobblin.service" }, singleThreaded = true)
-public class FlowExecutionTest {
+public class FlowExecutionClientTest {
   private FlowExecutionClient client;
   private EmbeddedRestliServer _server;
   private List<List<org.apache.gobblin.service.monitoring.JobStatus>> _listOfJobStatusLists;
