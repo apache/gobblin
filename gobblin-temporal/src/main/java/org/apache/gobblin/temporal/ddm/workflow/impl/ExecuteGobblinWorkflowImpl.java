@@ -187,9 +187,10 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     try {
       DirDeletionResult dirDeletionResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,
           calculateWorkDirsToDelete(jobState.getJobId(), directoriesToClean));
+
       for (String dir : directoriesToClean) {
         if (!dirDeletionResult.getSuccessesByDirPath().get(dir)) {
-          log.error("Directory {} was not cleaned up, please clean up manually", dir);
+          throw new IOException("Unable to clean one of more directories in the clean up activity. Please clean up manually.");
         }
       }
     } catch (Exception e) {
