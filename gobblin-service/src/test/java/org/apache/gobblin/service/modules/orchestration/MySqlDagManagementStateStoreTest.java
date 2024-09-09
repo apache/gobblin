@@ -99,8 +99,8 @@ public class MySqlDagManagementStateStoreTest {
     Dag.DagNode<JobExecutionPlan> dagNode = dag.getNodes().get(0);
     Dag.DagNode<JobExecutionPlan> dagNode2 = dag.getNodes().get(1);
     Dag.DagNode<JobExecutionPlan> dagNode3 = dag2.getNodes().get(0);
-    DagManager.DagId dagId = DagManagerUtils.generateDagId(dag);
-    DagNodeId dagNodeId = DagManagerUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
+    Dag.DagId dagId = DagUtils.generateDagId(dag);
+    DagNodeId dagNodeId = DagUtils.calcJobId(dagNode.getValue().getJobSpec().getConfig());
 
     this.dagManagementStateStore.addDag(dag);
     this.dagManagementStateStore.addDag(dag2);

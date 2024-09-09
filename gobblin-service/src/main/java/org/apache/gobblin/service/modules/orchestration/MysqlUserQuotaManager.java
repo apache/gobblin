@@ -56,8 +56,8 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
   public final static String CONFIG_PREFIX= "MysqlUserQuotaManager";
   public final MysqlQuotaStore quotaStore;
   public final RunningDagIdsStore runningDagIds;
-  private Meter quotaExceedsRequests;
-  private Meter failedQuotaCheck;
+  private final Meter quotaExceedsRequests;
+  private final Meter failedQuotaCheck;
 
 
   @Inject
@@ -128,22 +128,22 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     StringBuilder requesterMessage = new StringBuilder();
 
     // Dag is already being tracked, no need to double increment for retries and multihop flows
-    if (containsDagId(DagManagerUtils.generateDagId(dagNode).toString())) {
+    if (containsDagId(DagUtils.generateDagId(dagNode).toString())) {
       return quotaCheck;
     } else {
-      addDagId(connection, DagManagerUtils.generateDagId(dagNode).toString());
+      addDagId(connection, DagUtils.generateDagId(dagNode).toString());
     }
 
     String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
     String flowGroup = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(),
         ConfigurationKeys.FLOW_GROUP_KEY, "");
-    String specExecutorUri = DagManagerUtils.getSpecExecutorUri(dagNode);
+    String specExecutorUri = DagUtils.getSpecExecutorUri(dagNode);
 
     boolean proxyUserCheck;
 
     if (proxyUser != null && dagNode.getValue().getCurrentAttempts() <= 1) {
       int proxyQuotaIncrement = incrementJobCountAndCheckQuota(connection,
-          DagManagerUtils.getUserQuotaKey(proxyUser, dagNode), getQuotaForUser(proxyUser), CountType.USER_COUNT);
+          DagUtils.getUserQuotaKey(proxyUser, dagNode), getQuotaForUser(proxyUser), CountType.USER_COUNT);
       proxyUserCheck = proxyQuotaIncrement >= 0;  // proxy user quota check succeeds
       quotaCheck.setProxyUserCheck(proxyUserCheck);
       if (!proxyUserCheck) {
@@ -154,13 +154,13 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
       }
     }
 
-    String serializedRequesters = DagManagerUtils.getSerializedRequesterList(dagNode);
+    String serializedRequesters = DagUtils.getSerializedRequesterList(dagNode);
     boolean requesterCheck = true;
 
     if (dagNode.getValue().getCurrentAttempts() <= 1) {
-      List<String> uniqueRequesters = DagManagerUtils.getDistinctUniqueRequesters(serializedRequesters);
+      List<String> uniqueRequesters = DagUtils.getDistinctUniqueRequesters(serializedRequesters);
       for (String requester : uniqueRequesters) {
-        int userQuotaIncrement = incrementJobCountAndCheckQuota(connection, DagManagerUtils.getUserQuotaKey(requester, dagNode),
+        int userQuotaIncrement = incrementJobCountAndCheckQuota(connection, DagUtils.getUserQuotaKey(requester, dagNode),
             getQuotaForUser(requester), CountType.REQUESTER_COUNT);
         boolean thisRequesterCheck = userQuotaIncrement >= 0;  // user quota check succeeds
         requesterCheck = requesterCheck && thisRequesterCheck;
@@ -176,7 +176,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
 
     if (dagNode.getValue().getCurrentAttempts() <= 1) {
       int flowGroupQuotaIncrement = incrementJobCountAndCheckQuota(connection,
-          DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode), getQuotaForFlowGroup(flowGroup), CountType.FLOWGROUP_COUNT);
+          DagUtils.getFlowGroupQuotaKey(flowGroup, dagNode), getQuotaForFlowGroup(flowGroup), CountType.FLOWGROUP_COUNT);
       flowGroupCheck = flowGroupQuotaIncrement >= 0;
       quotaCheck.setFlowGroupCheck(flowGroupCheck);
       if (!flowGroupCheck) {
@@ -215,21 +215,21 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
     }
 
     try {
-      boolean val = removeDagId(connection, DagManagerUtils.generateDagId(dagNode).toString());
+      boolean val = removeDagId(connection, DagUtils.generateDagId(dagNode).toString());
       if (!val) {
         return false;
       }
 
       String proxyUser = ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), AzkabanProjectConfig.USER_TO_PROXY, null);
       if (proxyUser != null) {
-        String proxyUserKey = DagManagerUtils.getUserQuotaKey(proxyUser, dagNode);
+        String proxyUserKey = DagUtils.getUserQuotaKey(proxyUser, dagNode);
         decrementJobCount(connection, proxyUserKey, CountType.USER_COUNT);
       }
 
-      String serializedRequesters = DagManagerUtils.getSerializedRequesterList(dagNode);
+      String serializedRequesters = DagUtils.getSerializedRequesterList(dagNode);
       try {
-        for (String requester : DagManagerUtils.getDistinctUniqueRequesters(serializedRequesters)) {
-          String requesterKey = DagManagerUtils.getUserQuotaKey(requester, dagNode);
+        for (String requester : DagUtils.getDistinctUniqueRequesters(serializedRequesters)) {
+          String requesterKey = DagUtils.getUserQuotaKey(requester, dagNode);
           decrementJobCount(connection, requesterKey, CountType.REQUESTER_COUNT);
         }
       } catch (IOException e) {
@@ -239,7 +239,7 @@ public class MysqlUserQuotaManager extends AbstractUserQuotaManager {
 
       String flowGroup =
           ConfigUtils.getString(dagNode.getValue().getJobSpec().getConfig(), ConfigurationKeys.FLOW_GROUP_KEY, "");
-      decrementJobCount(connection, DagManagerUtils.getFlowGroupQuotaKey(flowGroup, dagNode), CountType.FLOWGROUP_COUNT);
+      decrementJobCount(connection, DagUtils.getFlowGroupQuotaKey(flowGroup, dagNode), CountType.FLOWGROUP_COUNT);
       connection.commit();
     } catch (SQLException ex) {
       throw new IOException(ex);

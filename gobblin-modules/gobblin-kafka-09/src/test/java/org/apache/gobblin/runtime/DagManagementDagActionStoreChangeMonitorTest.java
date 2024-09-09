@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.quartz.SchedulerException;
 import org.testng.annotations.BeforeClass;
@@ -33,19 +32,21 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.Orchestrator;
+import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.monitoring.DagActionStoreChangeEvent;
 import org.apache.gobblin.service.monitoring.DagActionValue;
 import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.GenericStoreChangeEvent;
 import org.apache.gobblin.service.monitoring.OperationType;
 
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.anyBoolean;
+import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.mock;
 
 
 /**
@@ -74,9 +75,8 @@ public class DagManagementDagActionStoreChangeMonitorTest {
    */
   static class MockDagManagementDagActionStoreChangeMonitor extends DagManagementDagActionStoreChangeMonitor {
 
-    public MockDagManagementDagActionStoreChangeMonitor(Config config, int numThreads, boolean isMultiActiveSchedulerEnabled) {
-      super(config, numThreads, mock(FlowCatalog.class), mock(Orchestrator.class), mock(DagManagementStateStore.class),
-          isMultiActiveSchedulerEnabled, mock(DagManagement.class), dagActionReminderScheduler,
+    public MockDagManagementDagActionStoreChangeMonitor(Config config, int numThreads) {
+      super(config, numThreads, mock(DagManagementStateStore.class), mock(DagManagement.class), dagActionReminderScheduler,
           mock(DagProcessingEngineMetrics.class));
     }
     protected void processMessageForTest(DecodeableKafkaRecord<String, DagActionStoreChangeEvent> record) {
@@ -89,7 +89,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef("/tmp/fakeStateStore"))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"));
-    return new MockDagManagementDagActionStoreChangeMonitor(config, 5, true);
+    return new MockDagManagementDagActionStoreChangeMonitor(config, 5);
   }
 
   // Called at start of every test so the count of each method being called is reset to 0
@@ -127,7 +127,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
    */
   private DagActionStoreChangeEvent createDagActionStoreChangeEvent(OperationType operationType,
       String flowGroup, String flowName, String flowExecutionId, String jobName, DagActionValue dagAction) {
-    String key = DagActionStoreChangeMonitorTest.getKeyForFlow(flowGroup, flowName, flowExecutionId);
+    String key = getKeyForFlow(flowGroup, flowName, flowExecutionId);
     GenericStoreChangeEvent genericStoreChangeEvent =
         new GenericStoreChangeEvent(key, String.valueOf(txidCounter), System.currentTimeMillis(), operationType);
     txidCounter++;
@@ -149,7 +149,15 @@ public class DagManagementDagActionStoreChangeMonitorTest {
     }
     // TODO: handle partition and offset values better
     ConsumerRecord<String, DagActionStoreChangeEvent> consumerRecord = new ConsumerRecord<>(TOPIC, PARTITION, OFFSET,
-        DagActionStoreChangeMonitorTest.getKeyForFlow(flowGroup, flowName, flowExecutionId), eventToProcess);
+        getKeyForFlow(flowGroup, flowName, flowExecutionId), eventToProcess);
     return new Kafka09ConsumerClient.Kafka09ConsumerRecord<>(consumerRecord);
+  }
+
+  /**
+   * Form a key for events using the flow identifiers
+   * @return a key formed by adding an '_' delimiter between the flow identifiers
+   */
+  private static String getKeyForFlow(String flowGroup, String flowName, String flowExecutionId) {
+    return flowGroup + "_" + flowName + "_" + flowExecutionId;
   }
 }

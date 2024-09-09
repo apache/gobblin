@@ -25,7 +25,6 @@ import com.typesafe.config.Config;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagActionReminderScheduler;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagement;
@@ -35,8 +34,9 @@ import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngine
 
 
 /**
- * A {@link DagActionStoreChangeMonitor} that should be used {@link org.apache.gobblin.service.ServiceConfigKeys#DAG_PROCESSING_ENGINE_ENABLED}
- * is set.
+ A DagActionStore change monitor that uses {@link DagActionStoreChangeEvent} schema to process Kafka messages received
+ * from its corresponding consumer client. This monitor responds to requests to resume or delete a flow and acts as a
+ * connector between the API and execution layers of GaaS.
  */
 @Slf4j
 public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChangeMonitor {
@@ -46,14 +46,11 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
 
   // Note that the topic is an empty string (rather than null to avoid NPE) because this monitor relies on the consumer
   // client itself to determine all Kafka related information dynamically rather than through the config.
-  public DagManagementDagActionStoreChangeMonitor(Config config, int numThreads,
-      FlowCatalog flowCatalog, Orchestrator orchestrator, DagManagementStateStore dagManagementStateStore,
-      boolean isMultiActiveSchedulerEnabled, DagManagement dagManagement,
-      DagActionReminderScheduler dagActionReminderScheduler, DagProcessingEngineMetrics dagProcEngineMetrics) {
+  public DagManagementDagActionStoreChangeMonitor(Config config, int numThreads, DagManagementStateStore dagManagementStateStore,
+      DagManagement dagManagement, DagActionReminderScheduler dagActionReminderScheduler, DagProcessingEngineMetrics dagProcEngineMetrics) {
     // DagManager is only needed in the `handleDagAction` method of its parent class and not needed in this class,
     // so we are passing a null value for DagManager to its parent class.
-    super("", config, null, numThreads, flowCatalog, orchestrator, dagManagementStateStore,
-        isMultiActiveSchedulerEnabled, dagProcEngineMetrics);
+    super("", config, numThreads, null, null, dagManagementStateStore, dagProcEngineMetrics);
     this.dagManagement = dagManagement;
     this.dagActionReminderScheduler = dagActionReminderScheduler;
   }
@@ -107,7 +104,6 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
   protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
     log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",
         dagAction.getDagActionType(), dagAction);
-    LaunchSubmissionMetricProxy launchSubmissionMetricProxy = isStartup ? ON_STARTUP : POST_STARTUP;
     try {
       switch (dagAction.getDagActionType()) {
         case ENFORCE_FLOW_FINISH_DEADLINE:
@@ -124,7 +120,6 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
       }
     } catch (IOException e) {
       log.warn("Failed to addDagAction for flowId {} due to exception {}", dagAction.getFlowId(), e.getMessage());
-      launchSubmissionMetricProxy.markFailure();
     }
   }
 }

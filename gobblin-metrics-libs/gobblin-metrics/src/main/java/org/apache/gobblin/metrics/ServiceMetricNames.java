@@ -48,13 +48,6 @@ public class ServiceMetricNames {
   public static final String FLOW_TRIGGER_HANDLER_FAILED_TO_RECORD_LEASE_SUCCESS_COUNT = FLOW_TRIGGER_HANDLER_PREFIX + "failedToRecordLeaseSuccessCount";
   public static final String FLOW_TRIGGER_HANDLER_RECORDED_LEASE_SUCCESS_COUNT = FLOW_TRIGGER_HANDLER_PREFIX + "recordedLeaseSuccessCount";
 
-  // DagManager Related Metrics
-  public static final String DAG_MANAGER_PREFIX = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "dagManager";
-  public static final String FLOW_FAILED_FORWARD_TO_DAG_MANAGER_COUNT = DAG_MANAGER_PREFIX + ".flowFailedForwardToDagManagerCount";
-
-  //Job status poll timer
-  public static final String JOB_STATUS_POLLED_TIMER = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "jobStatusPoll.time";
-
   public static final String CREATE_FLOW_METER = "CreateFlow";
   public static final String DELETE_FLOW_METER = "DeleteFlow";
   public static final String RUN_IMMEDIATELY_FLOW_METER = "RunImmediatelyFlow";
@@ -71,14 +64,9 @@ public class ServiceMetricNames {
   public static final String RUNNING_STATUS = "RunningStatus";
   public static final String JOBS_SENT_TO_SPEC_EXECUTOR = "JobsSentToSpecExecutor";
 
-  public static final String HELIX_LEADER_STATE = "HelixLeaderState";
-
   public static final String FLOWGRAPH_UPDATE_FAILED_METER = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "FlowgraphUpdateFailed";
-
   public static final String DAG_COUNT_MYSQL_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "MysqlDagStateStore" + ".totalDagCount";
-
   public static final String DAG_COUNT_FS_DAG_STATE_COUNT = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "FsDagStateStore" + ".totalDagCount";
-
   public static final String DAG_PROCESSING_EXCEPTION_METER = "DagProcessingException";
   public static final String DAG_ACTIONS_CREATE_EXCEPTIONS_IN_JOB_STATUS_MONITOR = "DagActionsCreateExceptionsInJobStatusMonitor";
 

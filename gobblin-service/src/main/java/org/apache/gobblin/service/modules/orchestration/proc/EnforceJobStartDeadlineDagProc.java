@@ -30,7 +30,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.DagManagerUtils;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDeadlineDagTask;
@@ -42,7 +42,7 @@ import static org.apache.gobblin.service.ExecutionStatus.valueOf;
 
 /**
  * An implementation for {@link DagProc} that marks the {@link Dag} as failed and cancel the job if it does not start in
- * {@link org.apache.gobblin.service.modules.orchestration.DagManager#JOB_START_SLA_TIME} time.
+ * {@link org.apache.gobblin.configuration.ConfigurationKeys#GOBBLIN_JOB_START_DEADLINE_TIME} time.
  */
 @Slf4j
 public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
@@ -63,7 +63,7 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
     }
 
     Dag.DagNode<JobExecutionPlan> dagNode = dagNodeToCheckDeadline.getLeft().get();
-    long timeOutForJobStart = DagManagerUtils.getJobStartSla(dagNode, DagProcessingEngine.getDefaultJobStartSlaTimeMillis());
+    long timeOutForJobStart = DagUtils.getJobStartDeadline(dagNode, DagProcessingEngine.getDefaultJobStartDeadlineTimeMillis());
     Optional<org.apache.gobblin.service.monitoring.JobStatus> jobStatus = dagNodeToCheckDeadline.getRight();
     if (!jobStatus.isPresent()) {
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
@@ -76,7 +76,7 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
     // note that second condition should be true because the triggered dag action has waited enough before reaching here
     if (executionStatus == ORCHESTRATED && System.currentTimeMillis() > jobOrchestratedTime + timeOutForJobStart) {
       log.info("Job exceeded the job start deadline. Killing it now. Job - {}, jobOrchestratedTime - {}, timeOutForJobStart - {}",
-          DagManagerUtils.getJobName(dagNode), jobOrchestratedTime, timeOutForJobStart);
+          DagUtils.getJobName(dagNode), jobOrchestratedTime, timeOutForJobStart);
       dagManagementStateStore.getDagManagerMetrics().incrementCountsStartSlaExceeded(dagNode);
       DagProcUtils.cancelDagNode(dagNode, dagManagementStateStore);
       dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);

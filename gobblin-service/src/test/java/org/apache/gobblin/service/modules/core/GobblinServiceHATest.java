@@ -18,8 +18,8 @@ package org.apache.gobblin.service.modules.core;
 
 import java.io.File;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Properties;
-import java.util.UUID;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.curator.test.TestingServer;
@@ -43,13 +43,12 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.FlowConfig;
-import org.apache.gobblin.service.FlowConfigClient;
+import org.apache.gobblin.service.FlowConfigV2Client;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.GobblinServiceManagerTest;
 import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.TestServiceDatabaseConfig;
-import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 
 
@@ -75,8 +74,6 @@ public class GobblinServiceHATest {
   private static final String NODE_2_FLOW_SPEC_STORE_DIR = "/tmp/serviceCoreCommon/flowTestSpecStore";
   private static final String NODE_2_JOB_STATUS_STATE_STORE_DIR = "/tmp/serviceCoreNode2/fsJobStatusRetriever";
 
-  private static final String TEST_HELIX_CLUSTER_NAME = "testGobblinServiceCluster";
-
   private static final String TEST_GROUP_NAME_1 = "testGroup1";
   private static final String TEST_FLOW_NAME_1 = "testFlow1";
   private static final String TEST_SCHEDULE_1 = "0 1/0 * ? * *";
@@ -94,15 +91,15 @@ public class GobblinServiceHATest {
   private static final String TEST_SINK_NAME = "testSink";
 
   private GobblinServiceManager node1GobblinServiceManager;
-  private FlowConfigClient node1FlowConfigClient;
+  private FlowConfigV2Client node1FlowConfigClient;
 
   private GobblinServiceManager node2GobblinServiceManager;
-  private FlowConfigClient node2FlowConfigClient;
+  private FlowConfigV2Client node2FlowConfigClient;
 
   private TestingServer testingZKServer;
 
   private ITestMetastoreDatabase testMetastoreDatabase;
-  private MySQLContainer mysql;
+  private MySQLContainer<?> mysql;
 
   @BeforeClass
   public void setup() throws Exception {
@@ -120,21 +117,17 @@ public class GobblinServiceHATest {
     // Use a random ZK port
     this.testingZKServer = new TestingServer(-1);
     logger.info("Testing ZK Server listening on: " + testingZKServer.getConnectString());
-    HelixUtils.createGobblinHelixCluster(testingZKServer.getConnectString(), TEST_HELIX_CLUSTER_NAME);
 
     testMetastoreDatabase = TestMetastoreDatabaseFactory.get();
 
     Properties commonServiceCoreProperties = new Properties();
 
-    mysql = new MySQLContainer("mysql:" + TestServiceDatabaseConfig.MysqlVersion);
+    mysql = new MySQLContainer<>("mysql:" + TestServiceDatabaseConfig.MysqlVersion);
     mysql.start();
     commonServiceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_URL_KEY, mysql.getJdbcUrl());
     commonServiceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_USERNAME, mysql.getUsername());
     commonServiceCoreProperties.put(ServiceConfigKeys.SERVICE_DB_PASSWORD, mysql.getPassword());
 
-    commonServiceCoreProperties.put(ServiceConfigKeys.ZK_CONNECTION_STRING_KEY, testingZKServer.getConnectString());
-    commonServiceCoreProperties.put(ServiceConfigKeys.HELIX_CLUSTER_NAME_KEY, TEST_HELIX_CLUSTER_NAME);
-    commonServiceCoreProperties.put(ServiceConfigKeys.HELIX_INSTANCE_NAME_KEY, "GaaS_" + UUID.randomUUID().toString());
     commonServiceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_TOPOLOGY_NAMES_KEY , TEST_GOBBLIN_EXECUTOR_NAME);
     commonServiceCoreProperties.put(ServiceConfigKeys.TOPOLOGY_FACTORY_PREFIX +  TEST_GOBBLIN_EXECUTOR_NAME + ".description",
         "StandaloneTestExecutor");
@@ -153,7 +146,6 @@ public class GobblinServiceHATest {
     commonServiceCoreProperties.put(ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, MysqlJobStatusStateStoreFactory.class.getName());
     commonServiceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY, false);
     commonServiceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY, false);
-    commonServiceCoreProperties.put(ServiceConfigKeys.GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT, false);
 
     Properties node1ServiceCoreProperties = new Properties();
     node1ServiceCoreProperties.putAll(commonServiceCoreProperties);
@@ -173,22 +165,22 @@ public class GobblinServiceHATest {
 
     // Start Node 1
     this.node1GobblinServiceManager = GobblinServiceManagerTest.createTestGobblinServiceManager(
-        node1ServiceCoreProperties, "CoreService1", "1", NODE_1_SERVICE_WORK_DIR);
+        node1ServiceCoreProperties, "CoreService1", "1", NODE_1_SERVICE_WORK_DIR, testMetastoreDatabase);
     this.node1GobblinServiceManager.start();
 
     // Start Node 2
     this.node2GobblinServiceManager = GobblinServiceManagerTest.createTestGobblinServiceManager(
-        node2ServiceCoreProperties, "CoreService2", "2", NODE_2_SERVICE_WORK_DIR);
+        node2ServiceCoreProperties, "CoreService2", "2", NODE_2_SERVICE_WORK_DIR, testMetastoreDatabase);
     this.node2GobblinServiceManager.start();
 
     // Initialize Node 1 Client
     Map<String, String> transportClientProperties = Maps.newHashMap();
     transportClientProperties.put(HttpClientFactory.HTTP_REQUEST_TIMEOUT, "10000");
-    this.node1FlowConfigClient = new FlowConfigClient(String.format("http://localhost:%s/",
+    this.node1FlowConfigClient = new FlowConfigV2Client(String.format("http://localhost:%s/",
         this.node1GobblinServiceManager.restliServer.getPort()), transportClientProperties);
 
     // Initialize Node 2 Client
-    this.node2FlowConfigClient = new FlowConfigClient(String.format("http://localhost:%s/",
+    this.node2FlowConfigClient = new FlowConfigV2Client(String.format("http://localhost:%s/",
         this.node2GobblinServiceManager.restliServer.getPort()), transportClientProperties);
   }
 
@@ -280,50 +272,16 @@ public class GobblinServiceHATest {
         .setProperties(new StringMap(flowProperties));
 
     // Try create on both nodes
-    long schedulingStartTime = System.currentTimeMillis();
     this.node1FlowConfigClient.createFlowConfig(flowConfig1);
     this.node2FlowConfigClient.createFlowConfig(flowConfig2);
 
-    // Check if created on master
-    GobblinServiceManager master;
-    if (this.node1GobblinServiceManager.isLeader()) {
-      master = this.node1GobblinServiceManager;
-      logger.info("#### node 1 is manager");
-    } else if (this.node2GobblinServiceManager.isLeader()) {
-      master = this.node2GobblinServiceManager;
-      logger.info("#### node 2 is manager");
-    } else {
-      Assert.fail("No leader found in service cluster");
-      return;
-    }
-
-    int attempt = 0;
-    boolean assertSuccess = false;
-
-    // Below while-loop will read all flow specs, but some of them are being persisted.
-    // We have seen CRC file java.io.EOFException when reading and writing at the same time.
-    // Wait for a few seconds to guarantee all the flow specs are persisted.
-    Thread.sleep(3000);
-
-    while (attempt < 800) {
-      int masterJobs = master.flowCatalog.getSpecs().size();
-      if (masterJobs == 2) {
-        assertSuccess = true;
-        break;
-      }
-      Thread.sleep(5);
-      attempt ++;
-    }
-    long schedulingEndTime = System.currentTimeMillis();
-    logger.info("Total scheduling time in ms: " + (schedulingEndTime - schedulingStartTime));
-
-    Assert.assertTrue(assertSuccess, "Flow that was created is not reflecting in FlowCatalog");
+    Assert.assertEquals(2, this.node1GobblinServiceManager.getFlowCatalog().getSpecs().size());
+    Assert.assertEquals(2, this.node2GobblinServiceManager.getFlowCatalog().getSpecs().size());
     logger.info("+++++++++++++++++++ testCreate END");
   }
 
-
-  @Test (dependsOnMethods = "testCreate")
-  public void testCreateAgain() throws Exception {
+  @Test (dependsOnMethods = "testCreate", expectedExceptions = RestLiResponseException.class)
+  public void testCreateAgainFlow1() throws Exception {
     logger.info("+++++++++++++++++++ testCreateAgain START");
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
@@ -335,29 +293,42 @@ public class GobblinServiceHATest {
         .setTemplateUris(TEST_TEMPLATE_URI_1).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE_1).
             setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
+
+    // Try to create on both nodes
+    try {
+      this.node1FlowConfigClient.createFlowConfig(flowConfig1);
+    } catch (RestLiResponseException e) {
+      this.node2FlowConfigClient.createFlowConfig(flowConfig1);
+    }
+
+    Assert.fail("Create Again should fail without complaining that the spec already exists.");
+  }
+
+  @Test (dependsOnMethods = "testCreate", expectedExceptions = RestLiResponseException.class)
+  public void testCreateAgainFlow2() throws Exception {
+    logger.info("+++++++++++++++++++ testCreateAgain START");
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, TEST_SOURCE_NAME);
+    flowProperties.put(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, TEST_SINK_NAME);
+
     FlowConfig flowConfig2 = new FlowConfig()
         .setId(new FlowId().setFlowGroup(TEST_GROUP_NAME_2).setFlowName(TEST_FLOW_NAME_2))
         .setTemplateUris(TEST_TEMPLATE_URI_2).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE_2).
             setRunImmediately(true))
         .setProperties(new StringMap(flowProperties));
 
-    // Try create on both nodes
+    // Try to create on both nodes
     try {
-      this.node1FlowConfigClient.createFlowConfig(flowConfig1);
+      this.node1FlowConfigClient.createFlowConfig(flowConfig2);
     } catch (RestLiResponseException e) {
-      Assert.fail("Create Again should pass without complaining that the spec already exists.");
-    }
-
-    try {
       this.node2FlowConfigClient.createFlowConfig(flowConfig2);
-    } catch (RestLiResponseException e) {
-      Assert.fail("Create Again should pass without complaining that the spec already exists.");
     }
 
-    logger.info("+++++++++++++++++++ testCreateAgain END");
+    Assert.fail("Create Again should fail without complaining that the spec already exists.");
   }
 
-  @Test (dependsOnMethods = "testCreateAgain")
+  @Test (dependsOnMethods = {"testCreateAgainFlow1", "testCreateAgainFlow2"})
   public void testGet() throws Exception {
     logger.info("+++++++++++++++++++ testGet START");
     FlowId flowId1 = new FlowId().setFlowGroup(TEST_GROUP_NAME_1).setFlowName(TEST_FLOW_NAME_1);
@@ -404,7 +375,7 @@ public class GobblinServiceHATest {
 
     Assert.assertEquals(retrievedFlowConfig.getId().getFlowGroup(), TEST_GROUP_NAME_1);
     Assert.assertEquals(retrievedFlowConfig.getId().getFlowName(), TEST_FLOW_NAME_1);
-    Assert.assertEquals(retrievedFlowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE_1);
+    Assert.assertEquals(Objects.requireNonNull(retrievedFlowConfig.getSchedule()).getCronSchedule(), TEST_SCHEDULE_1);
     Assert.assertEquals(retrievedFlowConfig.getTemplateUris(), TEST_TEMPLATE_URI_1);
     Assert.assertFalse(retrievedFlowConfig.getSchedule().isRunImmediately());
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1b");
@@ -517,54 +488,16 @@ public class GobblinServiceHATest {
   @Test (dependsOnMethods = "testBadUpdate")
   public void testKillNode() throws Exception {
     logger.info("+++++++++++++++++++ testKillNode START");
-    GobblinServiceManager master, secondary;
-    if (this.node1GobblinServiceManager.isLeader()) {
-      master = this.node1GobblinServiceManager;
-      secondary = this.node2GobblinServiceManager;
-    } else {
-      master = this.node2GobblinServiceManager;
-      secondary = this.node1GobblinServiceManager;
-    }
 
-    int initialMasterJobs = master.getScheduler().getScheduledFlowSpecs().size();
-    int initialSecondaryJobs = secondary.getScheduler().getScheduledFlowSpecs().size();
+    int initialNode1Jobs = this.node1GobblinServiceManager.getFlowCatalog().getSpecs().size();
+    Assert.assertEquals(initialNode1Jobs, 1, "We have deleted oen of the two jobs we created in the tests.");
 
-    Assert.assertTrue(initialMasterJobs > 0, "Master initially should have a few jobs by now in test suite.");
-    Assert.assertTrue(initialSecondaryJobs == 0, "Secondary node should not schedule any jobs initially.");
+    // Stop node1
+    this.node1GobblinServiceManager.stop();
 
-    // Stop current master
-    long failOverStartTime = System.currentTimeMillis();
-    master.stop();
+    int initialNode2Jobs = this.node2GobblinServiceManager.getFlowCatalog().getSpecs().size();
+    Assert.assertEquals(initialNode2Jobs, 1, "We have deleted oen of the two jobs we created in the tests.");
 
-    // Wait until secondary becomes master, max 4 seconds
-    int attempt = 0;
-    while (!secondary.isLeader()) {
-      if (attempt > 800) {
-        Assert.fail("Timeout waiting for Secondary to become master.");
-      }
-      Thread.sleep(5);
-      attempt ++;
-    }
-    long failOverOwnerShipTransferTime = System.currentTimeMillis();
-
-    attempt = 0;
-    boolean assertSuccess = false;
-    while (attempt < 800) {
-      int newMasterJobs = secondary.getScheduler().getScheduledFlowSpecs().size();
-      if (newMasterJobs == initialMasterJobs) {
-        assertSuccess = true;
-        break;
-      }
-      Thread.sleep(5);
-      attempt ++;
-    }
-    long failOverEndTime = System.currentTimeMillis();
-    logger.info("Total ownership transfer time in ms: " + (failOverOwnerShipTransferTime - failOverStartTime));
-    logger.info("Total rescheduling time in ms: " + (failOverEndTime - failOverOwnerShipTransferTime));
-    logger.info("Total failover time in ms: " + (failOverEndTime - failOverStartTime));
-
-    Assert.assertTrue(assertSuccess, "New master should take over all old master jobs.");
     logger.info("+++++++++++++++++++ testKillNode END");
   }
-
 }

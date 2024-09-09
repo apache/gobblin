@@ -32,11 +32,13 @@ import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.Invocation;
 import org.mockito.stubbing.Answer;
 import org.testng.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
+import com.google.common.io.Closer;
 import com.google.common.io.Files;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -84,13 +86,24 @@ public class GobblinServiceJobSchedulerTest {
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
   private Config quotaConfig;
+  private SpecCatalogListener mockListener;
+  private Closer closer = Closer.create();
   @BeforeClass
   public void setUp() {
     this.quotaConfig = ConfigFactory.empty().withValue(AbstractUserQuotaManager.PER_FLOWGROUP_QUOTA, ConfigValueFactory.fromAnyRef("group1:1"));
+    this.mockListener = mock(SpecCatalogListener.class);
+    when(this.mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_ORCHESTRATOR_LISTENER_CLASS);
+    when(this.mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse<>(""));
   }
 
+  @AfterClass(alwaysRun = true)
+  public void tearDownClass() throws Exception {
+    closer.close();
+  }
+
+
   @Test
-  public void testIsNextRunWithinRangeToSchedule() throws Throwable {
+  public void testIsNextRunWithinRangeToSchedule() {
     int thresholdToSkipScheduling = 100;
     Assert.assertFalse(GobblinServiceJobScheduler.isWithinRange("0 0 0 ? 1 1 2050", thresholdToSkipScheduling));
     Assert.assertFalse(GobblinServiceJobScheduler.isWithinRange("0 0 0 ? 1 1 2030", thresholdToSkipScheduling));
@@ -118,11 +131,8 @@ public class GobblinServiceJobSchedulerTest {
     Properties properties = new Properties();
     properties.setProperty(FLOWSPEC_STORE_DIR_KEY, specDir.getAbsolutePath());
     FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
-    SpecCatalogListener mockListener = mock(SpecCatalogListener.class);
-    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
-    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
     flowCatalog.addListener(mockListener);
-    ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
+    ServiceBasedAppLauncher serviceLauncher = closer.register(new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest"));
 
     serviceLauncher.addService(flowCatalog);
     serviceLauncher.start();
@@ -139,8 +149,9 @@ public class GobblinServiceJobSchedulerTest {
     UserQuotaManager quotaManager = new InMemoryUserQuotaManager(quotaConfig);
 
     // Mock a GaaS scheduler.
-    TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.of(flowCatalog), mockOrchestrator, Optional.of(quotaManager), null, false);
+    TestGobblinServiceJobScheduler scheduler =
+        new TestGobblinServiceJobScheduler("testscheduler", ConfigFactory.empty(), flowCatalog,
+            mockOrchestrator, quotaManager, null);
 
     SpecCompiler mockCompiler = mock(SpecCompiler.class);
     Mockito.when(mockOrchestrator.getSpecCompiler()).thenReturn(mockCompiler);
@@ -152,16 +163,13 @@ public class GobblinServiceJobSchedulerTest {
     scheduler.setActive(true);
 
     AssertWithBackoff.create().timeoutMs(20000).maxSleepMs(2000).backoffFactor(2)
-        .assertTrue(new Predicate<Void>() {
-          @Override
-          public boolean apply(Void input) {
-            Map<String, FlowSpec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
-            if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
-              return scheduler.scheduledFlowSpecs.containsKey("spec0") &&
-                  scheduler.scheduledFlowSpecs.containsKey("spec1");
-            } else {
-              return false;
-            }
+        .assertTrue(input -> {
+          Map<String, FlowSpec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+          if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
+            return scheduler.scheduledFlowSpecs.containsKey("spec0") &&
+                scheduler.scheduledFlowSpecs.containsKey("spec1");
+          } else {
+            return false;
           }
         }, "Waiting all flowSpecs to be scheduled");
   }
@@ -199,14 +207,10 @@ public class GobblinServiceJobSchedulerTest {
     Properties properties = new Properties();
     properties.setProperty(FLOWSPEC_STORE_DIR_KEY, specDir.getAbsolutePath());
     FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
-    ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
+    ServiceBasedAppLauncher serviceLauncher = closer.register(new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest"));
 
     // Assume that the catalog can store corrupted flows
-    SpecCatalogListener mockListener = mock(SpecCatalogListener.class);
-    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
-    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
     flowCatalog.addListener(mockListener);
-
     serviceLauncher.addService(flowCatalog);
     serviceLauncher.start();
 
@@ -225,8 +229,9 @@ public class GobblinServiceJobSchedulerTest {
     Orchestrator mockOrchestrator = mock(Orchestrator.class);
 
     // Mock a GaaS scheduler.
-    TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.of(flowCatalog), mockOrchestrator, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), null, false);
+    TestGobblinServiceJobScheduler scheduler =
+        new TestGobblinServiceJobScheduler("testscheduler", ConfigFactory.empty(), flowCatalog,
+            mockOrchestrator, new InMemoryUserQuotaManager(quotaConfig), null);
 
     SpecCompiler mockCompiler = mock(SpecCompiler.class);
     Mockito.when(mockOrchestrator.getSpecCompiler()).thenReturn(mockCompiler);
@@ -238,16 +243,13 @@ public class GobblinServiceJobSchedulerTest {
     scheduler.setActive(true);
 
     AssertWithBackoff.create().timeoutMs(20000).maxSleepMs(2000).backoffFactor(2)
-        .assertTrue(new Predicate<Void>() {
-          @Override
-          public boolean apply(Void input) {
-            Map<String, FlowSpec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
-            if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
-              return scheduler.scheduledFlowSpecs.containsKey("spec1") &&
-                  scheduler.scheduledFlowSpecs.containsKey("spec2");
-            } else {
-              return false;
-            }
+        .assertTrue(input -> {
+          Map<String, FlowSpec> scheduledFlowSpecs = scheduler.scheduledFlowSpecs;
+          if (scheduledFlowSpecs != null && scheduledFlowSpecs.size() == 2) {
+            return scheduler.scheduledFlowSpecs.containsKey("spec1") &&
+                scheduler.scheduledFlowSpecs.containsKey("spec2");
+          } else {
+            return false;
           }
         }, "Waiting all flowSpecs to be scheduled");
   }
@@ -263,14 +265,10 @@ public class GobblinServiceJobSchedulerTest {
     Properties properties = new Properties();
     properties.setProperty(FLOWSPEC_STORE_DIR_KEY, specDir.getAbsolutePath());
     FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
-    ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
+    ServiceBasedAppLauncher serviceLauncher = closer.register(new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest"));
 
     // Assume that the catalog can store corrupted flows
-    SpecCatalogListener mockListener = mock(SpecCatalogListener.class);
-    when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_SERVICE_JOB_SCHEDULER_LISTENER_CLASS);
-    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(""));
     flowCatalog.addListener(mockListener);
-
     serviceLauncher.addService(flowCatalog);
     serviceLauncher.start();
 
@@ -288,8 +286,9 @@ public class GobblinServiceJobSchedulerTest {
     Orchestrator mockOrchestrator = mock(Orchestrator.class);
     SchedulerService schedulerService = new SchedulerService(new Properties());
     // Mock a GaaS scheduler.
-    TestGobblinServiceJobScheduler scheduler = new TestGobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.of(flowCatalog), mockOrchestrator, Optional.of(new InMemoryUserQuotaManager(quotaConfig)), schedulerService, false);
+    TestGobblinServiceJobScheduler scheduler =
+        new TestGobblinServiceJobScheduler("testscheduler", ConfigFactory.empty(), flowCatalog,
+            mockOrchestrator, new InMemoryUserQuotaManager(quotaConfig), schedulerService);
 
     schedulerService.startAsync().awaitRunning();
     scheduler.startUp();
@@ -323,7 +322,7 @@ public class GobblinServiceJobSchedulerTest {
 
     for (Invocation invocation: invocations) {
       // ensure that orchestrator is not calling remove
-      Assert.assertFalse(invocation.getMethod().getName().equals("remove"));
+      Assert.assertNotEquals(invocation.getMethod().getName(), "remove");
     }
 
     Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 0);
@@ -337,7 +336,7 @@ public class GobblinServiceJobSchedulerTest {
     Properties properties = new Properties();
     properties.setProperty(FLOWSPEC_STORE_DIR_KEY, specDir.getAbsolutePath());
     FlowCatalog flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(properties));
-    ServiceBasedAppLauncher serviceLauncher = new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest");
+    ServiceBasedAppLauncher serviceLauncher = closer.register(new ServiceBasedAppLauncher(properties, "GaaSJobSchedulerTest"));
 
     serviceLauncher.addService(flowCatalog);
     serviceLauncher.start();
@@ -357,64 +356,44 @@ public class GobblinServiceJobSchedulerTest {
     when(mockSpecCompiler.compileFlow(flowSpec1)).thenReturn(mockDag1);
 
     SchedulerService schedulerService = new SchedulerService(new Properties());
-    // Mock a GaaS scheduler not in warm standby mode
-    GobblinServiceJobScheduler scheduler = new GobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), mockOrchestrator, schedulerService,
-        Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), false, Optional.of(mock(
-        FlowLaunchHandler.class)));
-
     schedulerService.startAsync().awaitRunning();
+
+    GobblinServiceJobScheduler scheduler = new GobblinServiceJobScheduler("testscheduler",
+        ConfigFactory.empty(), flowCatalog, mockOrchestrator, schedulerService,
+        new InMemoryUserQuotaManager(quotaConfig), Optional.absent(),
+        Mockito.mock(FlowLaunchHandler.class));
+
     scheduler.startUp();
     scheduler.setActive(true);
-
-    scheduler.onAddSpec(flowSpec0); //Ignore the response for this request
-    Assert.assertThrows(RuntimeException.class, () -> scheduler.onAddSpec(flowSpec1));
-    // We don't check scheduledFlowSpecs size here because it results in a flaky timing issue where the spec may be
-    // deleted for adhoc flows before we assert the size.
-
-    // set scheduler to be inactive and unschedule flows
-    scheduler.setActive(false);
-    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 0);
-
-    //Mock a GaaS scheduler in warm standby mode, where we don't check quota
-    GobblinServiceJobScheduler schedulerWithWarmStandbyEnabled = new GobblinServiceJobScheduler("testscheduler",
-        ConfigFactory.empty(), Optional.absent(), Optional.of(flowCatalog), mockOrchestrator, schedulerService,
-        Optional.of(new InMemoryUserQuotaManager(quotaConfig)), Optional.absent(), true,
-        Optional.of(Mockito.mock(FlowLaunchHandler.class)));
-
-    schedulerWithWarmStandbyEnabled.startUp();
-    schedulerWithWarmStandbyEnabled.setActive(true);
 
     MockitoAnnotations.openMocks(this);
     Map<String, FlowSpec> mockMap = spy(new HashMap<>());
 
     // Use reflection to set the private map field to the spied one, so we can check the invocations
-    Field mapField = schedulerWithWarmStandbyEnabled.getClass().getDeclaredField("scheduledFlowSpecs");
+    Field mapField = scheduler.getClass().getDeclaredField("scheduledFlowSpecs");
     mapField.setAccessible(true);
-    mapField.set(schedulerWithWarmStandbyEnabled, mockMap);
+    mapField.set(scheduler, mockMap);
 
-    schedulerWithWarmStandbyEnabled.onAddSpec(flowSpec0); //Ignore the response for this request
+    scheduler.onAddSpec(flowSpec0); //Ignore the response for this request
     Mockito.verify(mockMap, Mockito.times(1)).put(eq(flowSpec0.getUri().toString()), eq(flowSpec0));
-    schedulerWithWarmStandbyEnabled.onAddSpec(flowSpec1);
+    scheduler.onAddSpec(flowSpec1);
     // Second flow should be added to scheduled flows since no quota check in this case
     // we need to check if map's put is called to check if the spec was ever scheduled. we cannot just check the size
     // because the spec is removed by NonScheduledJobRunner
     Mockito.verify(mockMap, Mockito.times(1)).put(eq(flowSpec1.getUri().toString()), eq(flowSpec1));
     // set scheduler to be inactive and unschedule flows
-    schedulerWithWarmStandbyEnabled.setActive(false);
-    Assert.assertEquals(schedulerWithWarmStandbyEnabled.scheduledFlowSpecs.size(), 0);
+    scheduler.setActive(false);
+    Assert.assertEquals(scheduler.scheduledFlowSpecs.size(), 0);
   }
 
-  class TestGobblinServiceJobScheduler extends GobblinServiceJobScheduler {
+  static class TestGobblinServiceJobScheduler extends GobblinServiceJobScheduler {
     public boolean isCompilerHealthy = false;
     private boolean hasScheduler = false;
 
-    public TestGobblinServiceJobScheduler(String serviceName, Config config,
-        Optional<FlowCatalog> flowCatalog, Orchestrator orchestrator, Optional<UserQuotaManager> quotaManager,
-        SchedulerService schedulerService, boolean isWarmStandbyEnabled) throws Exception {
-      super(serviceName, config, Optional.absent(), flowCatalog, orchestrator, schedulerService,
-          quotaManager, Optional.absent(), isWarmStandbyEnabled, Optional.of(mock(
-              FlowLaunchHandler.class)));
+    public TestGobblinServiceJobScheduler(String serviceName, Config config, FlowCatalog flowCatalog,
+        Orchestrator orchestrator, UserQuotaManager quotaManager, SchedulerService schedulerService) throws Exception {
+      super(serviceName, config, flowCatalog, orchestrator, schedulerService, quotaManager,
+          Optional.absent(), mock(FlowLaunchHandler.class));
       if (schedulerService != null) {
         hasScheduler = true;
       }
@@ -439,7 +418,7 @@ public class GobblinServiceJobSchedulerTest {
       }
       // Check that compiler is healthy at time of scheduling flows
       Assert.assertTrue(isCompilerHealthy);
-      return new AddSpecResponse(addedSpec.getDescription());
+      return new AddSpecResponse<>(addedSpec.getDescription());
     }
   }
 

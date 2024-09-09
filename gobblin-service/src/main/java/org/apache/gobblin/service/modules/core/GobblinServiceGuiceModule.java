@@ -70,7 +70,6 @@ import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementTaskStreamImpl;
-import org.apache.gobblin.service.modules.orchestration.DagManager;
 import org.apache.gobblin.service.modules.orchestration.DagProcFactory;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
@@ -84,9 +83,7 @@ import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProcUtils;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
-import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandler;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
-import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandler;
 import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
@@ -94,8 +91,7 @@ import org.apache.gobblin.service.modules.troubleshooter.MySqlMultiContextIssueR
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
-import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitor;
-import org.apache.gobblin.service.monitoring.DagActionStoreChangeMonitorFactory;
+import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitorFactory;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
@@ -162,33 +158,9 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bindConstant()
         .annotatedWith(Names.named(InjectionNames.FLOW_CATALOG_LOCAL_COMMIT))
         .to(serviceConfig.isFlowCatalogLocalCommit());
-    binder.bindConstant()
-        .annotatedWith(Names.named(InjectionNames.WARM_STANDBY_ENABLED))
-        .to(serviceConfig.isWarmStandbyEnabled());
-    binder.bindConstant()
-        .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_SCHEDULER_ENABLED))
-        .to(serviceConfig.isMultiActiveSchedulerEnabled());
-    binder.bindConstant()
-        .annotatedWith(Names.named(InjectionNames.DAG_PROC_ENGINE_ENABLED))
-        .to(serviceConfig.isDagProcessingEngineEnabled());
-    binder.bindConstant()
-        .annotatedWith(Names.named(InjectionNames.MULTI_ACTIVE_EXECUTION_ENABLED))
-        .to(serviceConfig.isMultiActiveExecutionEnabled());
-
-    OptionalBinder.newOptionalBinder(binder, DagActionStore.class);
-    if (serviceConfig.isWarmStandbyEnabled()) {
-      binder.bind(DagActionStore.class).to(MysqlDagActionStore.class);
-      binder.bind(DagManagementStateStore.class).to(MySqlDagManagementStateStore.class);
-      binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
-      binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby.class);
-      binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandlerWithWarmStandby.class);
-    } else {
-      binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
-      binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandler.class);
-      binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandler.class);
-    }
-
-    binder.bind(DagProcessingEngineMetrics.class);
+    binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
+    binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby.class);
+    binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandlerWithWarmStandby.class);
 
     /* Note that two instances of the same class can only be differentiated with an `annotatedWith` marker provided at
     binding time (optionally bound classes cannot have names associated with them), so both arbiters need to be
@@ -196,31 +168,23 @@ public class GobblinServiceGuiceModule implements Module {
     while the execution lease arbiter is used in single-active or multi-active execution. */
     binder.bind(MultiActiveLeaseArbiter.class).annotatedWith(Names.named(
         ConfigurationKeys.SCHEDULER_LEASE_ARBITER_NAME)).toProvider(
-        FlowLaunchMultiActiveLeaseArbiterFactory.class);
-    OptionalBinder.newOptionalBinder(binder, FlowLaunchHandler.class);
-    if (serviceConfig.isMultiActiveSchedulerEnabled()) {
-      binder.bind(FlowLaunchHandler.class);
-    }
+            FlowLaunchMultiActiveLeaseArbiterFactory.class);
+    binder.bind(MultiActiveLeaseArbiter.class).annotatedWith(Names.named(
+        ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME)).toProvider(
+            DagActionProcessingMultiActiveLeaseArbiterFactory.class);
 
-    OptionalBinder.newOptionalBinder(binder, DagManagement.class);
-    OptionalBinder.newOptionalBinder(binder, DagTaskStream.class);
-    OptionalBinder.newOptionalBinder(binder, DagManagementStateStore.class);
-    OptionalBinder.newOptionalBinder(binder, DagProcFactory.class);
-    OptionalBinder.newOptionalBinder(binder, DagProcessingEngine.class);
-    OptionalBinder.newOptionalBinder(binder, DagActionReminderScheduler.class);
-    if (serviceConfig.isDagProcessingEngineEnabled()) {
-      binder.bind(MultiActiveLeaseArbiter.class).
-              annotatedWith(Names.named(ConfigurationKeys.PROCESSING_LEASE_ARBITER_NAME))
-          .toProvider(
-              DagActionProcessingMultiActiveLeaseArbiterFactory.class);
-      binder.bind(DagActionReminderScheduler.class);
-
-      binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
-      binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
-      binder.bind(DagProcFactory.class);
-      binder.bind(DagProcessingEngine.class);
-    }
-
+    binder.bind(DagActionReminderScheduler.class);
+    binder.bind(DagActionStore.class).to(MysqlDagActionStore.class);
+    binder.bind(DagManagementDagActionStoreChangeMonitor.class).toProvider(
+        DagManagementDagActionStoreChangeMonitorFactory.class).in(Singleton.class);
+    binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
+    binder.bind(DagManagementStateStore.class).to(MySqlDagManagementStateStore.class);
+    binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
+    binder.bind(DagProcFactory.class);
+    binder.bind(DagProcessingEngine.class);
+    binder.bind(DagProcessingEngineMetrics.class);
+    binder.bind(FlowLaunchHandler.class);
+    binder.bind(SpecStoreChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
     binder.bind(FlowConfigsResource.class);
     binder.bind(FlowConfigsV2Resource.class);
     binder.bind(FlowStatusResource.class);
@@ -237,7 +201,6 @@ public class GobblinServiceGuiceModule implements Module {
 
     binder.bind(SharedFlowMetricsSingleton.class);
     binder.bind(FlowCompilationValidationHelper.class);
-
     binder.bind(TopologyCatalog.class);
 
     if (serviceConfig.isTopologySpecFactoryEnabled()) {
@@ -245,8 +208,6 @@ public class GobblinServiceGuiceModule implements Module {
           .to(getClassByNameOrAlias(TopologySpecFactory.class, serviceConfig.getInnerConfig(),
               ServiceConfigKeys.TOPOLOGYSPEC_FACTORY_KEY, ServiceConfigKeys.DEFAULT_TOPOLOGY_SPEC_FACTORY));
     }
-
-    binder.bind(DagManager.class);
 
     OptionalBinder.newOptionalBinder(binder, HelixManager.class);
     if (serviceConfig.isHelixManagerEnabled()) {
@@ -272,7 +233,6 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(Orchestrator.class);
       binder.bind(SchedulerService.class);
       binder.bind(GobblinServiceJobScheduler.class);
-      OptionalBinder.newOptionalBinder(binder, UserQuotaManager.class);
       binder.bind(UserQuotaManager.class)
           .to(getClassByNameOrAlias(UserQuotaManager.class, serviceConfig.getInnerConfig(),
               ServiceConfigKeys.QUOTA_MANAGER_CLASS, ServiceConfigKeys.DEFAULT_QUOTA_MANAGER));
@@ -294,31 +254,18 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(EmbeddedRestliServer.class).toProvider(EmbeddedRestliServerProvider.class);
     }
 
-    if (serviceConfig.isWarmStandbyEnabled()) {
-      binder.bind(SpecStoreChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
-      if (serviceConfig.isDagProcessingEngineEnabled()) {
-        binder.bind(DagActionStoreChangeMonitor.class)
-            .toProvider(DagManagementDagActionStoreChangeMonitorFactory.class).in(Singleton.class);
-      } else {
-        binder.bind(DagActionStoreChangeMonitor.class).toProvider(DagActionStoreChangeMonitorFactory.class).in(Singleton.class);
-      }
-    }
-
     binder.bind(GobblinServiceManager.class);
 
     binder.bind(ServiceDatabaseProvider.class).to(ServiceDatabaseProviderImpl.class);
     binder.bind(ServiceDatabaseProviderImpl.Configuration.class);
-
     binder.bind(ServiceDatabaseManager.class);
 
     binder.bind(MultiContextIssueRepository.class)
         .to(getClassByNameOrAlias(MultiContextIssueRepository.class, serviceConfig.getInnerConfig(),
                                   ServiceConfigKeys.ISSUE_REPO_CLASS,
                                   InMemoryMultiContextIssueRepository.class.getName()));
-
     binder.bind(MySqlMultiContextIssueRepository.Configuration.class);
     binder.bind(InMemoryMultiContextIssueRepository.Configuration.class);
-
     binder.bind(JobIssueEventHandler.class);
 
     binder.bind(D2Announcer.class).to(NoopD2Announcer.class);
@@ -364,7 +311,7 @@ public class GobblinServiceGuiceModule implements Module {
     @Override
     public EmbeddedRestliServer get() {
       return EmbeddedRestliServer.builder()
-          .resources(Lists.newArrayList(FlowConfigsResource.class, FlowConfigsV2Resource.class))
+          .resources(Lists.newArrayList(FlowConfigsV2Resource.class, FlowConfigsV2Resource.class))
           .injector(injector)
           .build();
     }

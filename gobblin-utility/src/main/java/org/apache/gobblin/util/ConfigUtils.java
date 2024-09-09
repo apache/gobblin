@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.util;
 
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.io.StringReader;
 import java.nio.file.Path;
@@ -30,13 +29,14 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 import java.util.TreeSet;
-
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+
 import org.apache.commons.lang3.StringUtils;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
+import com.google.common.base.Preconditions;
 import com.google.common.base.Splitter;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableMap;
@@ -305,7 +305,7 @@ public class ConfigUtils {
     Map<String, Object> res = Maps.newHashMapWithExpectedSize(srcProperties.size());
     for (Map.Entry<Object, Object> prop : srcProperties.entrySet()) {
       Object value = prop.getValue();
-      if (null != value && value instanceof String && !Strings.isNullOrEmpty(value.toString())) {
+      if (value instanceof String && !Strings.isNullOrEmpty(value.toString())) {
         try {
           value = Long.parseLong(value.toString());
         } catch (NumberFormatException e) {
@@ -370,7 +370,7 @@ public class ConfigUtils {
     if (config.hasPath(path)) {
       String timeUnit = config.getString(path).toUpperCase();
       Preconditions.checkArgument(validTimeUnits.contains(timeUnit),
-          "Passed invalid TimeUnit for documentTTLUnits: '%s'".format(timeUnit));
+          String.format("Passed invalid TimeUnit for documentTTLUnits: '%s'", timeUnit));
       return TimeUnit.valueOf(timeUnit);
     }
     return def;
@@ -385,7 +385,7 @@ public class ConfigUtils {
    */
   public static Long getLong(Config config, String path, Long def) {
     if (config.hasPath(path)) {
-      return Long.valueOf(config.getLong(path));
+      return config.getLong(path);
     }
     return def;
   }
@@ -399,7 +399,7 @@ public class ConfigUtils {
    */
   public static Integer getInt(Config config, String path, Integer def) {
     if (config.hasPath(path)) {
-      return Integer.valueOf(config.getInt(path));
+      return config.getInt(path);
     }
     return def;
   }
