@@ -46,7 +46,7 @@ import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
-import org.apache.gobblin.temporal.ddm.work.CleanupResult;
+import org.apache.gobblin.temporal.ddm.work.DirDeletionResult;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
@@ -101,6 +101,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     EventTimer timer = timerFactory.createJobTimer();
     Optional<GenerateWorkUnitsResult> generateWorkUnitResultsOpt = Optional.empty();
     WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
+    boolean isSuccessful = false;
     try {
       generateWorkUnitResultsOpt = Optional.of(genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext));
       int numWUsGenerated = generateWorkUnitResultsOpt.get().getGeneratedWuCount();
@@ -112,6 +113,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         numWUsCommitted = commitStats.getNumCommittedWorkUnits();
       }
       timer.stop();
+      isSuccessful = true;
       return new ExecGobblinStats(numWUsGenerated, numWUsCommitted, jobProps.getProperty(Help.USER_TO_PROXY_KEY),
           commitStats.getDatasetStats());
     } catch (Exception e) {
@@ -133,6 +135,15 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
           log.warn("Skipping cleanup of work dirs for job due to no output from GenerateWorkUnits");
         }
       } catch (IOException e) {
+        // Only fail the job with a new failure if the job was successful, otherwise keep the original error
+        if (isSuccessful) {
+          throw ApplicationFailure.newNonRetryableFailureWithCause(
+              String.format("Failed cleaning Gobblin job %s", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)),
+              e.getClass().getName(),
+              e,
+              null
+          );
+        }
         log.error("Failed to cleanup work dirs", e);
       }
     }
@@ -174,10 +185,10 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     }
 
     try {
-      CleanupResult cleanupResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,
+      DirDeletionResult dirDeletionResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,
           calculateWorkDirsToDelete(jobState.getJobId(), directoriesToClean));
       for (String dir : directoriesToClean) {
-        if (!cleanupResult.getDeletionSuccessesByDirPath().get(dir)) {
+        if (!dirDeletionResult.getSuccessesByDirPath().get(dir)) {
           log.error("Directory {} was not cleaned up, please clean up manually", dir);
         }
       }

@@ -31,7 +31,7 @@ import lombok.RequiredArgsConstructor;
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
-public class CleanupResult {
+public class DirDeletionResult {
 
-  @NonNull private Map<String, Boolean> deletionSuccessesByDirPath;
+  @NonNull private Map<String, Boolean> successesByDirPath;
 }

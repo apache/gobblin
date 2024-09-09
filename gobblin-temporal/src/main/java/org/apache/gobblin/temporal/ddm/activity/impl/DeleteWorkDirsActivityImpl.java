@@ -34,7 +34,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
-import org.apache.gobblin.temporal.ddm.work.CleanupResult;
+import org.apache.gobblin.temporal.ddm.work.DirDeletionResult;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
@@ -48,7 +48,7 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
   static String UNDEFINED_JOB_NAME = "<job_name_stub>";
 
   @Override
-  public CleanupResult delete(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> workDirPaths) {
+  public DirDeletionResult delete(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> workDirPaths) {
     //TODO: Emit timers to measure length of cleanup step
     Optional<String> optJobName = Optional.empty();
     try {
@@ -59,7 +59,7 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
       Map<String, Boolean> attemptedCleanedDirectories = jobState.getPropAsBoolean(ConfigurationKeys.CLEANUP_STAGING_DATA_PER_TASK, ConfigurationKeys.DEFAULT_CLEANUP_STAGING_DATA_PER_TASK) ?
           cleanupStagingDataPerTask(jobState, workDirPaths) : cleanupStagingDataForEntireJob(jobState, workDirPaths);
 
-      return new CleanupResult(attemptedCleanedDirectories);
+      return new DirDeletionResult(attemptedCleanedDirectories);
     } catch (Exception e) {
       throw ApplicationFailure.newNonRetryableFailureWithCause(
           String.format("Failed to cleanup temporary folders for job %s", optJobName.orElse(UNDEFINED_JOB_NAME)),
@@ -90,8 +90,12 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
         HadoopUtils.deletePath(fs, pathToClean, true);
         attemptedCleanedDirectories.put(resource, true);
       } catch (IOException e) {
-        log.error("Failed to clean up resource directory " + pathToClean, e);
-        attemptedCleanedDirectories.put(resource, false);
+        boolean doesExist = fs.exists(pathToClean);
+        if (doesExist) {
+          log.error("Failed to clean up resource directory " + pathToClean, e);
+          attemptedCleanedDirectories.put(resource, false);
+        }
+        attemptedCleanedDirectories.put(resource, !doesExist);
       }
     }
     return attemptedCleanedDirectories;

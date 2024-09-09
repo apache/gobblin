@@ -21,7 +21,7 @@ import java.util.Set;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 
-import org.apache.gobblin.temporal.ddm.work.CleanupResult;
+import org.apache.gobblin.temporal.ddm.work.DirDeletionResult;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
@@ -34,6 +34,6 @@ public interface DeleteWorkDirsActivity {
    * TODO: Generalize the input to support multiple platforms outside of just HDFS
    */
   @ActivityMethod
-  CleanupResult delete(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> workDirPaths);
+  DirDeletionResult delete(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> workDirPaths);
 }
 
