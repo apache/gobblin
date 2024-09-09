@@ -51,6 +51,7 @@ import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatus;
+import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 
@@ -215,17 +216,19 @@ public class FlowCompilationValidationHelper {
 
     for (FlowStatus flowStatus : flowStatusList) {
       ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
-      log.info("Verifying if {} is running...", flowStatus);
+      log.debug("Verifying if {} is running...", flowStatus);
 
-      // these are the only four non-terminal statuses that a flow can have. jobs have two more non-terminal statuses
-      // ORCHESTRATED and PENDING_RETRY
-      if (flowExecutionStatus == COMPILED || flowExecutionStatus == PENDING
+      if (FlowStatusGenerator.FINISHED_STATUSES.contains(flowExecutionStatus.name())) {
+        // ignore finished entries
+      } else if (flowExecutionStatus == COMPILED || flowExecutionStatus == PENDING
           || flowExecutionStatus == PENDING_RESUME || flowExecutionStatus == RUNNING) {
+        // these are the only four non-terminal statuses that a flow can have. jobs have two more non-terminal statuses
+        // ORCHESTRATED and PENDING_RETRY
         Dag.DagId dagIdOfOldExecution = new Dag.DagId(flowGroup, flowName, flowStatus.getFlowExecutionId());
         java.util.Optional<Dag<JobExecutionPlan>> dag = dagManagementStateStore.getDag(dagIdOfOldExecution);
 
         if (!dag.isPresent()) {
-          // dag is finished and cleaned up, job status monitor somehow did not receive/update the flow status; just ignore it...
+          log.error("Dag is finished and cleaned up, job status monitor somehow did not receive/update the flow status. Ignoring it here...");
           continue;
         }
 
@@ -234,19 +237,21 @@ public class FlowCompilationValidationHelper {
         long jobStartDeadline =
             DagUtils.getJobStartDeadline(dagNode, DagProcessingEngine.getDefaultJobStartDeadlineTimeMillis());
         long flowFinishDeadline = DagUtils.getFlowFinishDeadline(dagNode);
-        if ((flowExecutionStatus == COMPILED || flowExecutionStatus == PENDING)
-              && System.currentTimeMillis() < flowStartTime + jobStartDeadline
-            || (flowExecutionStatus == RUNNING || flowExecutionStatus == PENDING_RESUME)
-              && System.currentTimeMillis() < flowStartTime + flowFinishDeadline) {
-          log.info("{} is still running. Found a dag for this, flowStartTime {}, jobStartDeadline {}, flowFinishDeadline {}",
-              flowStatus, flowStartTime, jobStartDeadline, flowFinishDeadline);
-          return true;
+          if ((flowExecutionStatus == COMPILED || flowExecutionStatus == PENDING)
+                && System.currentTimeMillis() < flowStartTime + jobStartDeadline
+              || (flowExecutionStatus == RUNNING || flowExecutionStatus == PENDING_RESUME)
+                && System.currentTimeMillis() < flowStartTime + flowFinishDeadline) {
+            log.info("{} is still running. Found a dag for this, flowStartTime {}, jobStartDeadline {}, flowFinishDeadline {}",
+                flowStatus, flowStartTime, jobStartDeadline, flowFinishDeadline);
+            return true;
+          } else {
+            log.warn("Dag {} is still running beyond deadline! flowStartTime {}, jobStartDeadline {}, flowFinishDeadline {}",
+                dag, flowStartTime, jobStartDeadline, flowFinishDeadline);
+          }
         } else {
-          log.warn("Dag {} is still running beyond deadline! flowStartTime {}, jobStartDeadline {}, flowFinishDeadline {}",
-              dag, flowStartTime, jobStartDeadline, flowFinishDeadline);
+          log.error("Unknown status {}", flowExecutionStatus);
         }
       }
-    }
 
     return false;
   }
