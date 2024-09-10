@@ -45,6 +45,7 @@ import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.metrics.RuntimeMetrics;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
+import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
@@ -112,9 +113,8 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
 
   @Override
   protected void assignTopicPartitions() {
-    // Expects underlying consumer to handle initializing partitions and offset for the topic -
-    // subscribe to all partitions from latest offset
-    return;
+    // This implementation expects underlying consumer (HighLevelConsumer::GobblinKafkaConsumerClient) to handle
+    // initializing partitions and offset for the topic. It should subscribe to all partitions from latest offset
   }
 
   /**
@@ -139,6 +139,8 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
         this.unexpectedErrors.mark();
       }
     }
+    executorService.shutdown();
+
     try {
       boolean executedSuccessfully = executorService.awaitTermination(ConfigUtils.getInt(this.config, ConfigurationKeys.DAG_ACTION_STORE_MONITOR_EXECUTOR_TIMEOUT_SECONDS, 30), TimeUnit.SECONDS);
 
@@ -161,7 +163,7 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
   protected void startUp() {}
 
   /*
-   This method should be called once by the {@link GobblinServiceManager} only after the DagManager, FlowGraph and
+   This method should be called once by the {@link GobblinServiceManager} only after the FlowGraph and
    SpecCompiler are initialized and running.
    */
   public synchronized void setActive() {
@@ -233,8 +235,7 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
       String flowName, long flowExecutionId, DagActionStore.DagActionType dagActionType);
 
   /**
-   * For a given dagAction, calls the appropriate method in the DagManager to carry out the desired action.
-   * @param isStartup true if called for dagAction loaded directly from store upon startup, false otherwise
+   * This implementation passes on the {@link DagActionStore.DagAction} to {@link DagManagement}.
    */
   protected abstract void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup);
 

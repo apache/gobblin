@@ -19,12 +19,10 @@ package org.apache.gobblin.service.modules.core;
 
 import java.util.Objects;
 
-import org.apache.helix.HelixManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
-import com.google.common.eventbus.EventBus;
 import com.google.inject.Binder;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -47,15 +45,9 @@ import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.scheduler.SchedulerService;
-import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
-import org.apache.gobblin.service.FlowConfigV2ResourceLocalHandler;
-import org.apache.gobblin.service.FlowConfigsResource;
-import org.apache.gobblin.service.FlowConfigsResourceHandler;
 import org.apache.gobblin.service.FlowConfigsV2Resource;
-import org.apache.gobblin.service.FlowConfigsV2ResourceHandler;
 import org.apache.gobblin.service.FlowExecutionResource;
-import org.apache.gobblin.service.FlowExecutionResourceHandler;
-import org.apache.gobblin.service.FlowExecutionResourceLocalHandler;
+import org.apache.gobblin.service.FlowExecutionResourceHandlerInterface;
 import org.apache.gobblin.service.FlowStatusResource;
 import org.apache.gobblin.service.GroupOwnershipService;
 import org.apache.gobblin.service.NoopRequesterService;
@@ -82,14 +74,12 @@ import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.proc.DagProcUtils;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
-import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigResourceHandler;
-import org.apache.gobblin.service.modules.restli.GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby;
-import org.apache.gobblin.service.modules.restli.GobblinServiceFlowExecutionResourceHandlerWithWarmStandby;
+import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
+import org.apache.gobblin.service.modules.restli.FlowExecutionResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.modules.troubleshooter.MySqlMultiContextIssueRepository;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
-import org.apache.gobblin.service.modules.utils.HelixUtils;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
 import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitorFactory;
@@ -144,23 +134,14 @@ public class GobblinServiceGuiceModule implements Module {
 
     binder.bind(GobblinInstanceEnvironment.class).toInstance(gobblinInstanceEnvironment);
 
-    binder.bind(EventBus.class)
-        .annotatedWith(Names.named(GobblinServiceManager.SERVICE_EVENT_BUS_NAME))
-        .toInstance(new EventBus(GobblinServiceManager.class.getSimpleName()));
-
     binder.bindConstant().annotatedWith(Names.named(InjectionNames.SERVICE_NAME)).to(serviceConfig.getServiceName());
 
-    binder.bindConstant()
-        .annotatedWith(Names.named(InjectionNames.FORCE_LEADER))
-        .to(ConfigUtils.getBoolean(serviceConfig.getInnerConfig(), ServiceConfigKeys.FORCE_LEADER,
-            ServiceConfigKeys.DEFAULT_FORCE_LEADER));
-
-    binder.bindConstant()
-        .annotatedWith(Names.named(InjectionNames.FLOW_CATALOG_LOCAL_COMMIT))
-        .to(serviceConfig.isFlowCatalogLocalCommit());
-    binder.bind(FlowConfigsResourceHandler.class).to(GobblinServiceFlowConfigResourceHandler.class);
-    binder.bind(FlowConfigsV2ResourceHandler.class).to(GobblinServiceFlowConfigV2ResourceHandlerWithWarmStandby.class);
-    binder.bind(FlowExecutionResourceHandler.class).to(GobblinServiceFlowExecutionResourceHandlerWithWarmStandby.class);
+    binder.bind(FlowConfigsV2Resource.class);
+    binder.bind(FlowStatusResource.class);
+    binder.bind(FlowExecutionResource.class);
+    binder.bind(FlowConfigsV2ResourceHandler.class);
+    binder.bind(FlowExecutionResourceHandler.class);
+    binder.bind(FlowExecutionResourceHandlerInterface.class).to(FlowExecutionResourceHandler.class);
 
     /* Note that two instances of the same class can only be differentiated with an `annotatedWith` marker provided at
     binding time (optionally bound classes cannot have names associated with them), so both arbiters need to be
@@ -184,21 +165,10 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bind(DagProcessingEngine.class);
     binder.bind(DagProcessingEngineMetrics.class);
     binder.bind(FlowLaunchHandler.class);
+    binder.bind(MultiActiveLeaseArbiter.class).toProvider(DagActionProcessingMultiActiveLeaseArbiterFactory.class);
     binder.bind(SpecStoreChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
-    binder.bind(FlowConfigsResource.class);
-    binder.bind(FlowConfigsV2Resource.class);
-    binder.bind(FlowStatusResource.class);
-    binder.bind(FlowExecutionResource.class);
 
-    binder.bind(FlowConfigResourceLocalHandler.class);
-    binder.bind(FlowConfigV2ResourceLocalHandler.class);
-    binder.bind(FlowExecutionResourceLocalHandler.class);
-
-    binder.bindConstant().annotatedWith(Names.named(FlowConfigsResource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
-    binder.bindConstant().annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
-    binder.bind(RequesterService.class)
-        .to(NoopRequesterService.class);
-
+    binder.bind(RequesterService.class).to(NoopRequesterService.class);
     binder.bind(SharedFlowMetricsSingleton.class);
     binder.bind(FlowCompilationValidationHelper.class);
     binder.bind(TopologyCatalog.class);
@@ -207,15 +177,6 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(TopologySpecFactory.class)
           .to(getClassByNameOrAlias(TopologySpecFactory.class, serviceConfig.getInnerConfig(),
               ServiceConfigKeys.TOPOLOGYSPEC_FACTORY_KEY, ServiceConfigKeys.DEFAULT_TOPOLOGY_SPEC_FACTORY));
-    }
-
-    OptionalBinder.newOptionalBinder(binder, HelixManager.class);
-    if (serviceConfig.isHelixManagerEnabled()) {
-      binder.bind(HelixManager.class)
-          .toInstance(buildHelixManager(serviceConfig.getInnerConfig(),
-              serviceConfig.getInnerConfig().getString(ServiceConfigKeys.ZK_CONNECTION_STRING_KEY)));
-    } else {
-      LOGGER.info("No ZooKeeper connection string. Running in single instance mode.");
     }
 
     OptionalBinder.newOptionalBinder(binder, FlowCatalog.class);
@@ -274,17 +235,6 @@ public class GobblinServiceGuiceModule implements Module {
         DagProcUtils.getDefaultJobStartDeadline(serviceConfig.getInnerConfig()));
 
     LOGGER.info("Bindings configured");
-  }
-
-  protected HelixManager buildHelixManager(Config config, String zkConnectionString) {
-    String helixClusterName = config.getString(ServiceConfigKeys.HELIX_CLUSTER_NAME_KEY);
-    String helixInstanceName = HelixUtils.buildHelixInstanceName(config, GobblinServiceManager.class.getSimpleName());
-
-    LOGGER.info(
-        "Creating Helix cluster if not already present [overwrite = false]: " + zkConnectionString);
-    HelixUtils.createGobblinHelixCluster(zkConnectionString, helixClusterName, false);
-
-    return HelixUtils.buildHelixManager(helixInstanceName, helixClusterName, zkConnectionString);
   }
 
   protected static <T> Class<? extends T> getClassByNameOrAlias(Class<T> baseClass, Config config,

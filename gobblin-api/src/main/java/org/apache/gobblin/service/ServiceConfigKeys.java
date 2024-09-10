@@ -34,31 +34,14 @@ public class ServiceConfigKeys {
   public static final String GOBBLIN_SERVICE_TOPOLOGY_SPEC_FACTORY_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "topologySpecFactory.enabled";
   public static final String GOBBLIN_SERVICE_GIT_CONFIG_MONITOR_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "gitConfigMonitor.enabled";
   public static final String GOBBLIN_SERVICE_JOB_STATUS_MONITOR_ENABLED_KEY = GOBBLIN_SERVICE_PREFIX + "jobStatusMonitor.enabled";
-  // If true, will mark up/down d2 servers on leadership so that all requests will be routed to the leader node
-  public static final String GOBBLIN_SERVICE_D2_ONLY_ANNOUNCE_LEADER = GOBBLIN_SERVICE_PREFIX + "d2.onlyAnnounceLeader";
-
-  // Helix / ServiceScheduler Keys
-  public static final String HELIX_CLUSTER_NAME_KEY = GOBBLIN_SERVICE_PREFIX + "helix.cluster.name";
-  public static final String ZK_CONNECTION_STRING_KEY = GOBBLIN_SERVICE_PREFIX + "zk.connection.string";
-  public static final String HELIX_INSTANCE_NAME_OPTION_NAME = "helix_instance_name";
-  public static final String HELIX_INSTANCE_NAME_KEY = GOBBLIN_SERVICE_PREFIX + "helixInstanceName";
   public static final String GOBBLIN_SERVICE_FLOWSPEC = GOBBLIN_SERVICE_PREFIX + "flowSpec";
   public static final String GOBBLIN_SERVICE_FLOWGRAPH_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowGraph.class";
   public static final String GOBBLIN_SERVICE_FLOWGRAPH_HELPER_KEY = GOBBLIN_SERVICE_PREFIX + "flowGraphHelper.class";
-
-  // Helix message sub types for FlowSpec
-  public static final String HELIX_FLOWSPEC_ADD = "FLOWSPEC_ADD";
-  public static final String HELIX_FLOWSPEC_REMOVE = "FLOWSPEC_REMOVE";
-  public static final String HELIX_FLOWSPEC_UPDATE = "FLOWSPEC_UPDATE";
 
   // Flow Compiler Keys
   public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowCompiler.class";
   public static final String COMPILATION_SUCCESSFUL = "compilation.successful";
   public static final String COMPILATION_RESPONSE = "compilation.response";
-
-  // Flow Catalog Keys
-  public static final String GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT = GOBBLIN_SERVICE_PREFIX + "flowCatalog.localCommit";
-  public static final boolean DEFAULT_GOBBLIN_SERVICE_FLOW_CATALOG_LOCAL_COMMIT = true;
 
   // Job Level Keys
   public static final String WORK_UNIT_SIZE = GOBBLIN_SERVICE_PREFIX + "work.unit.size";
@@ -103,8 +86,6 @@ public class ServiceConfigKeys {
   public static final String DEFAULT_NODE_SECURITY = "true";
 
   public static final String SERVICE_PORT = GOBBLIN_SERVICE_PREFIX + "port";
-  public static final String SERVICE_NAME = GOBBLIN_SERVICE_PREFIX + "serviceName";
-  public static final String SERVICE_URL_PREFIX = GOBBLIN_SERVICE_PREFIX + "serviceUrlPrefix";
 
   // Prefix for config to ServiceBasedAppLauncher that will only be used by GaaS and not orchestrated jobs
   public static final String GOBBLIN_SERVICE_APP_LAUNCHER_PREFIX = "gobblinServiceAppLauncher";
@@ -114,9 +95,6 @@ public class ServiceConfigKeys {
   public static final Boolean DEFAULT_FLOW_CONCURRENCY_ALLOWED = true;
 
   public static final String LEADER_URL = "leaderUrl";
-
-  public static final String FORCE_LEADER = GOBBLIN_SERVICE_PREFIX + "forceLeader";
-  public static final boolean DEFAULT_FORCE_LEADER = false;
 
   public static final String QUOTA_MANAGER_CLASS = GOBBLIN_SERVICE_PREFIX + "quotaManager.class";
   public static final String DEFAULT_QUOTA_MANAGER = "org.apache.gobblin.service.modules.orchestration.InMemoryUserQuotaManager";
