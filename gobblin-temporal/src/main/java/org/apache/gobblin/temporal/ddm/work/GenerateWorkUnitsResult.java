@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
 
 /**
  * Data structure representing the result of generating work units, where it returns the number of generated work units and
- * the folders that the parent workflow should clean up as a side effect of generating WUs
+ * the folders should be cleaned up after the full job execution is completed
  */
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization

@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
+import java.io.IOException;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -26,19 +27,35 @@ import org.testng.annotations.Test;
 public class ExecuteGobblinWorkflowImplTest {
 
   @Test
-  public void testCalculateWorkDirsDeletion() {
+  public void testCalculateWorkDirsDeletion() throws Exception {
+    String jobId = "jobId";
+    Set<String> dirsToDelete = new HashSet<>();
+    dirsToDelete.add("/tmp/jobId/task-staging/");
+    dirsToDelete.add("/tmp/jobId/task-output/");
+    dirsToDelete.add("/tmp/jobId/task-output/file");
+    dirsToDelete.add("/tmp/jobId/otherDir");
+    Set<String> result = ExecuteGobblinWorkflowImpl.calculateWorkDirsToDelete(jobId, dirsToDelete);
+    Assert.assertEquals(result.size(), 5);
+    Assert.assertTrue(result.contains("/tmp/jobId/task-output/file"));
+    Assert.assertTrue(result.contains("/tmp/jobId/task-output"));
+    Assert.assertTrue(result.contains("/tmp/jobId/task-staging"));
+    Assert.assertTrue(result.contains("/tmp/jobId/otherDir"));
+    // Ensure parent is also cleaned up
+    Assert.assertTrue(result.contains("/tmp/jobId"));
+
+  }
+
+  @Test
+  public void testThrowsIfNonJobDirInWorkDirs() throws Exception {
     String jobId = "jobId";
     Set<String> dirsToDelete = new HashSet<>();
     dirsToDelete.add("/tmp/jobId/task-staging/");
     dirsToDelete.add("/tmp/jobId/task-output/");
     dirsToDelete.add("/tmp/jobId/task-output/file");
     dirsToDelete.add("/tmp/jobId");
+    // Add a non-job dir that should blow up the job
     dirsToDelete.add("/tmp");
-    Set<String> result = ExecuteGobblinWorkflowImpl.calculateWorkDirsToDelete(jobId, dirsToDelete);
-    Assert.assertEquals(result.size(), 4);
-    Assert.assertTrue(result.contains("/tmp/jobId/task-output/file"));
-    Assert.assertTrue(result.contains("/tmp/jobId/task-output"));
-    Assert.assertTrue(result.contains("/tmp/jobId/task-staging"));
-    Assert.assertTrue(result.contains("/tmp/jobId"));
+    Assert.assertThrows(IOException.class, () -> ExecuteGobblinWorkflowImpl.calculateWorkDirsToDelete(jobId, dirsToDelete));
+
   }
 }

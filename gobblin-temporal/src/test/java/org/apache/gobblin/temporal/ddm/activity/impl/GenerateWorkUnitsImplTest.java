@@ -45,7 +45,6 @@ public class GenerateWorkUnitsImplTest {
     }
     WorkUnitStream workUnitStream = new BasicWorkUnitStream.Builder(workUnits)
         .setFiniteStream(true)
-        .setFiniteStream(true)
         .build();
     Set<String> output = GenerateWorkUnitsImpl.calculateWorkDirsToCleanup(workUnitStream);
     Assert.assertEquals(output.size(), 11);
@@ -67,7 +66,6 @@ public class GenerateWorkUnitsImplTest {
       workUnits.add(multiWorkUnit);
     }
     WorkUnitStream workUnitStream = new BasicWorkUnitStream.Builder(workUnits)
-        .setFiniteStream(true)
         .setFiniteStream(true)
         .build();
     Set<String> output = GenerateWorkUnitsImpl.calculateWorkDirsToCleanup(workUnitStream);

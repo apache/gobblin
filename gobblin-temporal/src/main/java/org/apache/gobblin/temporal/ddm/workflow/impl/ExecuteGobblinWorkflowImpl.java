@@ -198,7 +198,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     }
   }
 
-  protected static Set<String> calculateWorkDirsToDelete(String jobId, Set<String> workDirsToClean) {
+  protected static Set<String> calculateWorkDirsToDelete(String jobId, Set<String> workDirsToClean) throws IOException {
     // We want to delete the job-level directory once the job completes as well, which is the parent of the task staging/output dirs
     Set<Path> allDirsToClean =
         workDirsToClean.stream().map(workDir -> (new Path(workDir).getParent())).collect(Collectors.toSet());
@@ -211,6 +211,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         resultSet.add(dir.toString());
       } else {
         log.warn("Skipping deletion of directory {} as it is not associated with job {}", dir, jobId);
+        throw new IOException("Not all work directories are contained within the current job execution, please validate the staging and output directories");
       }
     }
     return resultSet;

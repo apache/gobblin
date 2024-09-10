@@ -91,11 +91,11 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
         attemptedCleanedDirectories.put(resource, true);
       } catch (IOException e) {
         boolean doesExist = fs.exists(pathToClean);
+        // Only record failure to clean if the directory still exists, if it does not then we can assume it was already cleaned by another process
         if (doesExist) {
           log.error("Failed to delete resource directory " + pathToClean, e);
           attemptedCleanedDirectories.put(resource, false);
         }
-        attemptedCleanedDirectories.put(resource, !doesExist);
       }
     }
     return attemptedCleanedDirectories;
