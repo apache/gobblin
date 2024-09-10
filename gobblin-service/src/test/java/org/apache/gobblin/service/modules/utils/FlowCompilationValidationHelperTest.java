@@ -32,6 +32,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
@@ -119,91 +120,54 @@ public class FlowCompilationValidationHelperTest {
   @Test
   public void testConcurrentFlowPreviousFlowWithNonTerminalStatusRunningBeyondJobStartDeadline()
       throws IOException, URISyntaxException {
-    List<FlowStatus> list = new ArrayList<>();
     String flowGroup = "fg";
     String flowName = "fn";
-    long previousFlowExecutionId = 12345L;
     long jobStartDeadline = 10L;
+    // extra minus 1 because sometimes assertion reach within a millisecond and makes the flow running within the deadline
     long flowStartTime = System.currentTimeMillis() - jobStartDeadline - 1;
-    JobStatus jobStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(previousFlowExecutionId)
-        .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName(ExecutionStatus.PENDING.name()).build();
-    Iterator<JobStatus> jobStatusIterator = Lists.newArrayList(jobStatus).iterator();
-    list.add(new FlowStatus(flowName, flowGroup, previousFlowExecutionId, jobStatusIterator, ExecutionStatus.PENDING));
-    when(this.dagManagementStateStore.getAllFlowStatusesForFlow(anyString(), anyString())).thenReturn(list);
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", previousFlowExecutionId,
-        DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 5, "user5", ConfigFactory.empty()
-            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
-            .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
-            .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(jobStartDeadline))
-            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
-    dag.getNodes().forEach(node -> node.getValue().setFlowStartTime(flowStartTime));
-    this.dagManagementStateStore.addDag(dag);
+
+    insertFlowIntoDMSSMock(flowGroup, flowName, flowStartTime, ExecutionStatus.PENDING,
+        ConfigFactory.empty()
+        .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
+        .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(jobStartDeadline)));
 
     Assert.assertFalse(FlowCompilationValidationHelper.isFlowRunning(flowGroup, flowName, this.dagManagementStateStore));
   }
 
   @Test
-  public void testConcurrentFlowPreviousFlowWithNonTerminalStatusRunningBeyondFlowFinishDeadline()
+  public void testConcurrentFlowPreviousExecutionWithNonTerminalStatusRunningBeyondFlowFinishDeadline()
       throws IOException, URISyntaxException {
-    List<FlowStatus> list = new ArrayList<>();
     String flowGroup = "fg";
     String flowName = "fn";
-    long previousFlowExecutionId = 12345L;
     long flowFinishDeadline = 30L;
     long flowStartTime = System.currentTimeMillis() - flowFinishDeadline - 1;
-    JobStatus jobStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(previousFlowExecutionId)
-        .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName(ExecutionStatus.PENDING_RESUME.name())
-        .build();
-    Iterator<JobStatus> jobStatusIterator = Lists.newArrayList(jobStatus).iterator();
-    list.add(new FlowStatus(flowName, flowGroup, previousFlowExecutionId, jobStatusIterator, ExecutionStatus.PENDING_RESUME));
-    when(this.dagManagementStateStore.getAllFlowStatusesForFlow(anyString(), anyString())).thenReturn(list);
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", previousFlowExecutionId,
-        DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 5, "user5", ConfigFactory.empty()
-            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+
+    insertFlowIntoDMSSMock(flowGroup, flowName, flowStartTime, ExecutionStatus.PENDING_RESUME,
+        ConfigFactory.empty()
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
-            .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(flowFinishDeadline))
-            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
-    dag.getNodes().forEach(node -> node.getValue().setFlowStartTime(flowStartTime));
-    this.dagManagementStateStore.addDag(dag);
+            .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(flowFinishDeadline)));
 
     Assert.assertFalse(FlowCompilationValidationHelper.isFlowRunning(flowGroup, flowName, this.dagManagementStateStore));
   }
 
   @Test
-  public void testConcurrentFlowPreviousFlowWithNonTerminalStatusRunningWithinFlowFinishDeadline()
+  public void testConcurrentFlowPreviousExecutionWithNonTerminalStatusRunningWithinFlowFinishDeadline()
       throws IOException, URISyntaxException {
-    List<FlowStatus> list = new ArrayList<>();
     String flowGroup = "fg";
     String flowName = "fn";
-    long previousFlowExecutionId = 12345L;
     long flowFinishDeadline = 10000L;
     long flowStartTime = System.currentTimeMillis();  // giving test flowFinishDeadline to finish
-    JobStatus jobStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(previousFlowExecutionId)
-        .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName(ExecutionStatus.RUNNING.name())
-        .build();
-    Iterator<JobStatus> jobStatusIterator = Lists.newArrayList(jobStatus).iterator();
-    list.add(new FlowStatus(flowName, flowGroup, previousFlowExecutionId, jobStatusIterator, ExecutionStatus.RUNNING));
-    when(this.dagManagementStateStore.getAllFlowStatusesForFlow(anyString(), anyString())).thenReturn(list);
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", previousFlowExecutionId,
-        DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 5, "user5", ConfigFactory.empty()
-            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+
+    insertFlowIntoDMSSMock(flowGroup, flowName, flowStartTime, ExecutionStatus.RUNNING,
+        ConfigFactory.empty()
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
-            .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(flowFinishDeadline))
-            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
-    dag.getNodes().forEach(node -> node.getValue().setFlowStartTime(flowStartTime));
-    this.dagManagementStateStore.addDag(dag);
+            .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(flowFinishDeadline)));
 
     Assert.assertTrue(FlowCompilationValidationHelper.isFlowRunning(flowGroup, flowName, this.dagManagementStateStore));
   }
 
   @Test
-  public void testConcurrentFlowNoPreviousRunning() throws IOException, URISyntaxException {
+  public void testConcurrentFlowNoPreviousExecutionRunning() throws IOException, URISyntaxException {
     String flowGroup = "fg";
     String flowName = "fn";
     long currentFlowExecutionId = 67890L;
@@ -222,5 +186,24 @@ public class FlowCompilationValidationHelperTest {
     this.dagManagementStateStore.addDag(dag);
 
     Assert.assertFalse(FlowCompilationValidationHelper.isFlowRunning(flowGroup, flowName, this.dagManagementStateStore));
+  }
+
+  private void insertFlowIntoDMSSMock(String flowGroup, String flowName, long flowStartTime, ExecutionStatus executionStatus, Config config)
+      throws URISyntaxException, IOException {
+    List<FlowStatus> list = new ArrayList<>();
+    long previousFlowExecutionId = flowStartTime;
+    JobStatus jobStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(previousFlowExecutionId)
+        .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName(executionStatus.name()).build();
+    Iterator<JobStatus> jobStatusIterator = Lists.newArrayList(jobStatus).iterator();
+    list.add(new FlowStatus(flowName, flowGroup, previousFlowExecutionId, jobStatusIterator, executionStatus));
+    when(this.dagManagementStateStore.getAllFlowStatusesForFlow(anyString(), anyString())).thenReturn(list);
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", previousFlowExecutionId,
+        DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 5, "user5", config
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    dag.getNodes().forEach(node -> node.getValue().setFlowStartTime(flowStartTime));
+    this.dagManagementStateStore.addDag(dag);
   }
 }

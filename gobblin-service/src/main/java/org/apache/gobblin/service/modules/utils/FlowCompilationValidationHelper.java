@@ -218,8 +218,9 @@ public class FlowCompilationValidationHelper {
       ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
       log.debug("Verifying if {} is running...", flowStatus);
 
-      if (FlowStatusGenerator.FINISHED_STATUSES.contains(flowExecutionStatus.name())) {
+      if (FlowStatusGenerator.FINISHED_STATUSES.contains(flowExecutionStatus.name()) || flowExecutionStatus == $UNKNOWN) {
         // ignore finished entries
+        // todo - make changes so `getAllFlowStatusesForFlow` never returns $UNKNOWN flow status
       } else if (flowExecutionStatus == COMPILED || flowExecutionStatus == PENDING
           || flowExecutionStatus == PENDING_RESUME || flowExecutionStatus == RUNNING) {
         // these are the only four non-terminal statuses that a flow can have. jobs have two more non-terminal statuses
