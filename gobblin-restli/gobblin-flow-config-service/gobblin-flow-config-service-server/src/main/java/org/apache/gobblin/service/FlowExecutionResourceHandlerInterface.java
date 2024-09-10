@@ -25,8 +25,8 @@ import com.linkedin.restli.server.PagingContext;
 import com.linkedin.restli.server.UpdateResponse;
 
 
-// Unlike FlowConfigsV2ResourceHandler, this is an interface rather than a class because it's implementation needs
-// classes from gobblin-service module, and adding gobblin-service as a dependency will cause circular dependency
+// This is an interface rather than a class because implementation may need resources from the packages it cannot have
+// direct dependency on
 public interface FlowExecutionResourceHandlerInterface {
   /**
    * Get {@link FlowExecution}

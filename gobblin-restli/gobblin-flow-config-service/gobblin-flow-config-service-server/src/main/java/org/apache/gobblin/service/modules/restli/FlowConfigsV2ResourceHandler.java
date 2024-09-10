@@ -66,6 +66,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.util.InjectionNames;
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigLoggedException;
+import org.apache.gobblin.service.FlowConfigsResourceHandlerInterface;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.FlowStatusId;
 import org.apache.gobblin.service.RequesterService;
@@ -75,7 +76,7 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 @Slf4j
-public class FlowConfigsV2ResourceHandler {
+public class FlowConfigsV2ResourceHandler implements FlowConfigsResourceHandlerInterface {
 
   @Getter
   private String serviceName;
@@ -164,16 +165,14 @@ public class FlowConfigsV2ResourceHandler {
     return updateFlowConfig(flowId, flowConfig, modifiedWatermark);
   }
 
-  public UpdateResponse updateFlowConfig(FlowId flowId,
-      FlowConfig flowConfig) throws FlowConfigLoggedException {
+  public UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig) throws FlowConfigLoggedException {
     // We have modifiedWatermark here to avoid update config happens at the same time on different hosts overwrite each other
     // timestamp here will be treated as largest modifiedWatermark that we can update
     long version = System.currentTimeMillis() / 1000;
     return updateFlowConfig(flowId, flowConfig, version);
   }
 
-  public UpdateResponse updateFlowConfig(FlowId flowId,
-      FlowConfig flowConfig, long modifiedWatermark) throws FlowConfigLoggedException {
+  private UpdateResponse updateFlowConfig(FlowId flowId, FlowConfig flowConfig, long modifiedWatermark) throws FlowConfigLoggedException {
     String flowName = flowId.getFlowName();
     String flowGroup = flowId.getFlowGroup();
 
