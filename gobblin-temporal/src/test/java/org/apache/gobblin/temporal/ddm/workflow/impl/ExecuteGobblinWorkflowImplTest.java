@@ -35,14 +35,8 @@ public class ExecuteGobblinWorkflowImplTest {
     dirsToDelete.add("/tmp/jobId/task-output/file");
     dirsToDelete.add("/tmp/jobId/otherDir");
     Set<String> result = ExecuteGobblinWorkflowImpl.calculateWorkDirsToDelete(jobId, dirsToDelete);
-    Assert.assertEquals(result.size(), 5);
-    Assert.assertTrue(result.contains("/tmp/jobId/task-output/file"));
-    Assert.assertTrue(result.contains("/tmp/jobId/task-output"));
-    Assert.assertTrue(result.contains("/tmp/jobId/task-staging"));
-    Assert.assertTrue(result.contains("/tmp/jobId/otherDir"));
-    // Ensure parent is also cleaned up
-    Assert.assertTrue(result.contains("/tmp/jobId"));
-
+    Assert.assertEquals(result.size(), 4);
+    Assert.assertEquals(result, dirsToDelete);
   }
 
   @Test

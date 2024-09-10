@@ -24,7 +24,6 @@ import java.util.HashSet;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
-import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -46,8 +45,8 @@ import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
-import org.apache.gobblin.temporal.ddm.work.DirDeletionResult;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
+import org.apache.gobblin.temporal.ddm.work.DirDeletionResult;
 import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
@@ -184,31 +183,22 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       return;
     }
 
-    try {
-      DirDeletionResult dirDeletionResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,
-          calculateWorkDirsToDelete(jobState.getJobId(), directoriesToClean));
+    DirDeletionResult dirDeletionResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,
+        calculateWorkDirsToDelete(jobState.getJobId(), directoriesToClean));
 
-      for (String dir : directoriesToClean) {
-        if (!dirDeletionResult.getSuccessesByDirPath().get(dir)) {
-          throw new IOException("Unable to delete one of more directories in the DeleteWorkDirsActivity. Please clean up manually.");
-        }
+    for (String dir : directoriesToClean) {
+      if (!dirDeletionResult.getSuccessesByDirPath().get(dir)) {
+        throw new IOException("Unable to delete one of more directories in the DeleteWorkDirsActivity. Please clean up manually.");
       }
-    } catch (Exception e) {
-      log.error("Failed to cleanup work dirs", e);
     }
   }
 
   protected static Set<String> calculateWorkDirsToDelete(String jobId, Set<String> workDirsToClean) throws IOException {
-    // We want to delete the job-level directory once the job completes as well, which is the parent of the task staging/output dirs
-    Set<Path> allDirsToClean =
-        workDirsToClean.stream().map(workDir -> (new Path(workDir).getParent())).collect(Collectors.toSet());
-    allDirsToClean.addAll(workDirsToClean.stream().map(Path::new).collect(Collectors.toSet()));
-
     // Only delete directories that are associated with the current job, otherwise
     Set<String> resultSet = new HashSet<>();
-    for (Path dir : allDirsToClean) {
-      if (dir.toString().contains(jobId)) {
-        resultSet.add(dir.toString());
+    for (String dir : workDirsToClean) {
+      if (dir.contains(jobId)) {
+        resultSet.add(dir);
       } else {
         log.warn("Skipping deletion of directory {} as it is not associated with job {}", dir, jobId);
         throw new IOException("Not all work directories are contained within the current job execution, please validate the staging and output directories");
