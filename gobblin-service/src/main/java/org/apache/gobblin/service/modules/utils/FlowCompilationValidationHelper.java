@@ -204,6 +204,7 @@ public class FlowCompilationValidationHelper {
    * Returns true if any previous execution for the flow determined by the provided flowGroup, flowName is running.
    * We ignore the execution that has the provided flowExecutionId. We also ignore the flows that are running beyond
    * the job start deadline and flow finish deadline.
+   * If this method returns `false`, callers may start a flow and subsequent calls to this method may return `true`.
    */
   @VisibleForTesting
   static boolean isFlowRunning(String flowGroup, String flowName, DagManagementStateStore dagManagementStateStore)
