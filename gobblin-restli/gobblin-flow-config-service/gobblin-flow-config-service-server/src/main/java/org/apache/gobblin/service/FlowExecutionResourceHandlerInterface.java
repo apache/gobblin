@@ -27,6 +27,10 @@ import com.linkedin.restli.server.UpdateResponse;
 
 // This is an interface rather than a class because implementation may need resources from the packages it cannot have
 // direct dependency on
+
+/**
+ * It is closely coupled with {@link FlowExecutionResource} and handle all the requests it get.
+ */
 public interface FlowExecutionResourceHandlerInterface {
   /**
    * Get {@link FlowExecution}

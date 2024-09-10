@@ -30,6 +30,9 @@ import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
 
 // This is an interface rather than a class because implementation may need resources from the packages it cannot have
 // direct dependency on
+/**
+ * It is closely coupled with {@link FlowConfigsV2Resource} and handle all the requests it get.
+ */
 public interface FlowConfigsResourceHandlerInterface {
 
   FlowConfig getFlowConfig(FlowId flowId) throws FlowConfigLoggedException;
