@@ -74,7 +74,7 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
 
   //TODO: Support task level deletes if necessary, currently it is deemed redundant due to collecting temp dirs during generate work unit step
   private static Map<String, Boolean> cleanupStagingDataPerTask(JobState jobState, Set<String> workDirPaths) throws IOException {
-    throw new IOException("Clean up staging data by task is not supported");
+    throw new IOException("Clean up staging data by task is not supported. Please set " + ConfigurationKeys.CLEANUP_STAGING_DATA_PER_TASK + " to false.");
   }
 
   private static Map<String, Boolean> cleanupStagingDataForEntireJob(JobState state, Set<String> workDirPaths) throws IOException {

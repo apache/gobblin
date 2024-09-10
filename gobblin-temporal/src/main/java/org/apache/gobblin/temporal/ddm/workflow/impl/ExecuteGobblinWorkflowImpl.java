@@ -129,7 +129,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       try {
         log.info("Cleaning up work dirs for job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
         if (generateWorkUnitResultsOpt.isPresent()) {
-          cleanupWorkDirs(wuSpec, eventSubmitterContext, generateWorkUnitResultsOpt.get().getWorkDirPathsToCleanup());
+          cleanupWorkDirs(wuSpec, eventSubmitterContext, generateWorkUnitResultsOpt.get().getWorkDirPathsToDelete());
         } else {
           log.warn("Skipping cleanup of work dirs for job due to no output from GenerateWorkUnits");
         }
@@ -196,13 +196,17 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   protected static Set<String> calculateWorkDirsToDelete(String jobId, Set<String> workDirsToClean) throws IOException {
     // Only delete directories that are associated with the current job, otherwise
     Set<String> resultSet = new HashSet<>();
+    Set<String> nonJobDirs = new HashSet<>();
     for (String dir : workDirsToClean) {
       if (dir.contains(jobId)) {
         resultSet.add(dir);
       } else {
         log.warn("Skipping deletion of directory {} as it is not associated with job {}", dir, jobId);
-        throw new IOException("Not all work directories are contained within the current job execution, please validate the staging and output directories");
+        nonJobDirs.add(dir);
       }
+    }
+    if (!nonJobDirs.isEmpty()) {
+      throw new IOException("Found directories set to delete not associated with job " + jobId + ": " + nonJobDirs + ". Please validate staging and output directories");
     }
     return resultSet;
   }

@@ -49,7 +49,14 @@ public class ExecuteGobblinWorkflowImplTest {
     dirsToDelete.add("/tmp/jobId");
     // Add a non-job dir that should blow up the job
     dirsToDelete.add("/tmp");
-    Assert.assertThrows(IOException.class, () -> ExecuteGobblinWorkflowImpl.calculateWorkDirsToDelete(jobId, dirsToDelete));
+    dirsToDelete.add("/sharedDir");
 
+    Assert.assertThrows(IOException.class, () -> ExecuteGobblinWorkflowImpl.calculateWorkDirsToDelete(jobId, dirsToDelete));
+    try {
+      ExecuteGobblinWorkflowImpl.calculateWorkDirsToDelete(jobId, dirsToDelete);
+    } catch (IOException e) {
+      Assert.assertEquals(e.getMessage(),
+          "Found directories set to delete not associated with job jobId: [/tmp, /sharedDir]. Please validate staging and output directories");
+    }
   }
 }

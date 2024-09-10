@@ -35,5 +35,5 @@ import lombok.RequiredArgsConstructor;
 public class GenerateWorkUnitsResult {
   @NonNull private int generatedWuCount;
   // Resources that the Temporal Job Launcher should clean up for Gobblin temporary work directory paths in writers
-  @NonNull private Set<String> workDirPathsToCleanup;
+  @NonNull private Set<String> workDirPathsToDelete;
 }
