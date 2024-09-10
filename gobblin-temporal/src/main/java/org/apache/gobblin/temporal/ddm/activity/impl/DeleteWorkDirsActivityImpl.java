@@ -26,8 +26,6 @@ import java.util.Set;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import com.google.common.collect.Maps;
-
 import io.temporal.failure.ApplicationFailure;
 import lombok.extern.slf4j.Slf4j;
 
@@ -49,6 +47,11 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
 
   @Override
   public DirDeletionResult delete(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> workDirPaths) {
+    // Ensure that non HDFS writers exit early as they rely on a different cleanup process, can consider consolidation in the future
+    // through an abstracted cleanup method implemented at a writer level
+    if (workDirPaths.isEmpty()) {
+      return new DirDeletionResult();
+    }
     //TODO: Emit timers to measure length of cleanup step
     Optional<String> optJobName = Optional.empty();
     try {
@@ -69,30 +72,27 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
     }
   }
 
-  private static Map<String, Boolean> cleanupStagingDataPerTask(JobState jobState, Set<String> resourcesToClean) throws IOException {
-    log.error("Clean up staging data by task is not supported, will clean up job level data instead");
-
-    return cleanupStagingDataForEntireJob(jobState, resourcesToClean);
+  //TODO: Support task level deletes if necessary, currently it is deemed redundant due to collecting temp dirs during generate work unit step
+  private static Map<String, Boolean> cleanupStagingDataPerTask(JobState jobState, Set<String> workDirPaths) throws IOException {
+    throw new IOException("Clean up staging data by task is not supported");
   }
 
-  private static Map<String, Boolean> cleanupStagingDataForEntireJob(JobState state, Set<String> resourcesToClean) throws IOException {
-    if (!state.contains(ConfigurationKeys.WRITER_STAGING_DIR) || !state.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
-      return Maps.newHashMap();
-    }
+  private static Map<String, Boolean> cleanupStagingDataForEntireJob(JobState state, Set<String> workDirPaths) throws IOException {
+
     String writerFsUri = state.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     FileSystem fs = JobLauncherUtils.getFsWithProxy(state, writerFsUri, WriterUtils.getFsConfiguration(state));
     Map<String, Boolean> attemptedCleanedDirectories = new HashMap<>();
 
-    for (String resource : resourcesToClean) {
+    for (String resource : workDirPaths) {
       Path pathToClean = new Path(resource);
-      log.info("Cleaning up resource directory " + pathToClean);
+      log.info("Deleting resource directory " + pathToClean);
       try {
         HadoopUtils.deletePath(fs, pathToClean, true);
         attemptedCleanedDirectories.put(resource, true);
       } catch (IOException e) {
         boolean doesExist = fs.exists(pathToClean);
         if (doesExist) {
-          log.error("Failed to clean up resource directory " + pathToClean, e);
+          log.error("Failed to delete resource directory " + pathToClean, e);
           attemptedCleanedDirectories.put(resource, false);
         }
         attemptedCleanedDirectories.put(resource, !doesExist);

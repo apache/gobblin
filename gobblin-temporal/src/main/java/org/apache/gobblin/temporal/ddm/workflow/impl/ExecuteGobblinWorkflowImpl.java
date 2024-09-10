@@ -190,7 +190,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
 
       for (String dir : directoriesToClean) {
         if (!dirDeletionResult.getSuccessesByDirPath().get(dir)) {
-          throw new IOException("Unable to clean one of more directories in the clean up activity. Please clean up manually.");
+          throw new IOException("Unable to delete one of more directories in the DeleteWorkDirsActivity. Please clean up manually.");
         }
       }
     } catch (Exception e) {

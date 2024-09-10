@@ -26,7 +26,7 @@ import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
-/** Activity for cleaning up a list of resources */
+/** Activity for deleting up a list of temporary work directories */
 @ActivityInterface
 public interface DeleteWorkDirsActivity {
   /**
