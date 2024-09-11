@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.temporal.loadgen.launcher;
 
-import io.temporal.workflow.Workflow;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
