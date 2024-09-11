@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class HdfsJarUploadUtils {
 
-  private static final long WAITING_TIME_ON_IMCOMPLETE_UPLOAD = 3000;
+  private static final long WAITING_TIME_ON_INCOMPLETE_UPLOAD_MILLIS = 3000;
 
   /**
    * Calculate the target filePath of the jar file to be copied on HDFS,
@@ -55,16 +55,16 @@ public class HdfsJarUploadUtils {
    * @param fs
    * @param localJar
    * @param destJarFile
-   * @param jarFileMaximumRetry
+   * @param maxAttempts
    * @return
    * @throws IOException
    */
-  public static boolean uploadJarToHdfs(FileSystem fs, FileStatus localJar, int jarFileMaximumRetry, Path destJarFile) throws IOException {
+  public static boolean uploadJarToHdfs(FileSystem fs, FileStatus localJar, int maxAttempts, Path destJarFile) throws IOException {
     int retryCount = 0;
     while (!fs.exists(destJarFile) || fs.getFileStatus(destJarFile).getLen() != localJar.getLen()) {
       try {
         if (fs.exists(destJarFile) && fs.getFileStatus(destJarFile).getLen() != localJar.getLen()) {
-          Thread.sleep(WAITING_TIME_ON_IMCOMPLETE_UPLOAD);
+          Thread.sleep(WAITING_TIME_ON_INCOMPLETE_UPLOAD_MILLIS);
           throw new IOException("Waiting for file to complete on uploading ... ");
         }
         // Set the first parameter as false for not deleting sourceFile
@@ -74,7 +74,7 @@ public class HdfsJarUploadUtils {
       } catch (IOException | InterruptedException e) {
         log.warn("Path:" + destJarFile + " is not copied successfully. Will require retry.");
         retryCount += 1;
-        if (retryCount >= jarFileMaximumRetry) {
+        if (retryCount >= maxAttempts) {
           log.error("The jar file:" + destJarFile + "failed in being copied into hdfs", e);
           // If retry reaches upper limit, skip copying this file.
           return false;

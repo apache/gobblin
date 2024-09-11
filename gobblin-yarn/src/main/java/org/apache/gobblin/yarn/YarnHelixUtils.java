@@ -203,16 +203,36 @@ public class YarnHelixUtils {
     }
   }
 
-  public static Path getJarPathCacheAndCleanIfNeeded(Config config, FileSystem fs) throws IOException {
+  /**
+   * Calculate the path of a jar cache on HDFS, which is retained on a monthly basis.
+   * @param config
+   * @return
+   * @throws IOException
+   */
+  public static Path calculateJarCachePath(Config config) throws IOException {
     Path jarsCacheDirMonthly = new Path(config.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR));
     String monthSuffix = new SimpleDateFormat("yyyy-MM").format(config.getLong(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY));
-    // Cleanup old cache if necessary
-    List<FileStatus> jarDirs = Arrays.stream(fs.exists(jarsCacheDirMonthly)
-        ? fs.listStatus(jarsCacheDirMonthly) : new FileStatus[0]).sorted().collect(Collectors.toList());
-    if (jarDirs.size() > 2) {
-      fs.delete(jarDirs.get(0).getPath(), true);
-    }
     return new Path(jarsCacheDirMonthly, monthSuffix);
+
+  }
+
+  /**
+   * Retain the latest k jar cache paths that are children of the parent cache path.
+   * @param parentCachePath
+   * @param k the number of latest jar cache paths to retain
+   * @param fs
+   * @return
+   * @throws IllegalAccessException
+   * @throws IOException
+   */
+  public static boolean retainKLatestJarCachePaths(Path parentCachePath, int k, FileSystem fs) throws IOException {
+    // Cleanup old cache if necessary
+    List<FileStatus> jarDirs =
+        Arrays.stream(fs.exists(parentCachePath) ? fs.listStatus(parentCachePath) : new FileStatus[0]).sorted().collect(Collectors.toList());
+    if (jarDirs.size() > k) {
+      return fs.delete(jarDirs.get(0).getPath(), true);
+    }
+    return true;
   }
 
   public static void addRemoteFilesToLocalResources(String hdfsFileList, Map<String, LocalResource> resourceMap, Configuration yarnConfiguration) throws IOException {

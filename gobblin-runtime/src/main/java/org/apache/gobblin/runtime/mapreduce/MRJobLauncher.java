@@ -155,8 +155,6 @@ public class MRJobLauncher extends AbstractJobLauncher {
   // Configuration that make uploading of jar files more reliable,
   // since multiple Gobblin Jobs are sharing the same jar directory.
   private static final int MAXIMUM_JAR_COPY_RETRY_TIMES_DEFAULT = 5;
-  private static final int WAITING_TIME_ON_IMCOMPLETE_UPLOAD = 3000;
-
   public static final String MR_TYPE_KEY = ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX + "mr.type";
   public static final String MAPPER_TASK_NUM_KEY = ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX + "reporting.mapper.task.num";
   public static final String MAPPER_TASK_ATTEMPT_NUM_KEY = ConfigurationKeys.METRICS_CONFIGURATIONS_PREFIX + "reporting.mapper.task.attempt.num";

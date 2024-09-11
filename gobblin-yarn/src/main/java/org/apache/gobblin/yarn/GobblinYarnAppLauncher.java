@@ -307,7 +307,7 @@ public class GobblinYarnAppLauncher {
         .getBoolean(this.config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_DETACH_ON_EXIT_ENABLED,
             GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_DETACH_ON_EXIT);
     this.appLauncherMode = ConfigUtils.getString(this.config, GOBBLIN_YARN_APP_LAUNCHER_MODE, DEFAULT_GOBBLIN_YARN_APP_LAUNCHER_MODE);
-    this.jarCacheEnabled = ConfigUtils.getBoolean(config, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED_DEFAULT);
+    this.jarCacheEnabled = ConfigUtils.getBoolean(this.config, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED_DEFAULT);
 
     try {
       config = addDynamicConfig(config);
@@ -590,6 +590,15 @@ public class GobblinYarnAppLauncher {
     amContainerLaunchContext.setEnvironment(YarnHelixUtils.getEnvironmentVariables(this.yarnConfiguration));
     amContainerLaunchContext.setCommands(Lists.newArrayList(buildApplicationMasterCommand(applicationId.toString(), resource.getMemory())));
 
+    if (this.jarCacheEnabled) {
+      Path jarCachePath = YarnHelixUtils.calculateJarCachePath(this.config);
+      // Retain at least the current and last month's jars to handle executions running for ~30 days max
+      boolean cleanedSuccessfully = YarnHelixUtils.retainKLatestJarCachePaths(jarCachePath, 2, this.fs);
+      if (!cleanedSuccessfully) {
+        LOGGER.warn("Failed to delete older jar cache directories");
+      }
+    }
+
     Map<ApplicationAccessType, String> acls = new HashMap<>(1);
     acls.put(ApplicationAccessType.VIEW_APP, this.appViewAcl);
     amContainerLaunchContext.setApplicationACLs(acls);
@@ -643,7 +652,7 @@ public class GobblinYarnAppLauncher {
 
   private Map<String, LocalResource> addAppMasterLocalResources(ApplicationId applicationId) throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, applicationId.toString());
-    Path jarsRootDir = this.jarCacheEnabled ? YarnHelixUtils.getJarPathCacheAndCleanIfNeeded(this.config, this.fs) : appWorkDir;
+    Path jarsRootDir = this.jarCacheEnabled ? YarnHelixUtils.calculateJarCachePath(this.config, this.fs) : appWorkDir;
 
     Path appMasterWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
     Path appMasterJarsCacheDir = new Path(jarsRootDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
@@ -659,14 +668,14 @@ public class GobblinYarnAppLauncher {
       Path unsharedJarsDestDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.LIB_JARS_DIR_NAME);
       addLibJars(new Path(this.config.getString(GobblinYarnConfigurationKeys.LIB_JARS_DIR_KEY)),
           Optional.of(appMasterResources), libJarsDestDir, unsharedJarsDestDir, localFs);
-      LOGGER.info("Added lib jars to directory: {}", libJarsDestDir);
+      LOGGER.info("Added lib jars to directory: {} and execution-private directory: {}", libJarsDestDir, unsharedJarsDestDir);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_JARS_KEY)) {
       Path appJarsDestDir = new Path(appMasterJarsCacheDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME);
       Path unsharedJarsDestDir = new Path(appMasterWorkDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME);
       addAppJars(this.config.getString(GobblinYarnConfigurationKeys.APP_MASTER_JARS_KEY),
           Optional.of(appMasterResources), appJarsDestDir, unsharedJarsDestDir, localFs);
-      LOGGER.info("Added app jars to directory: {}", appJarsDestDir);
+      LOGGER.info("Added app jars to directory: {} and execution-private directory: {}", appJarsDestDir, unsharedJarsDestDir);
     }
     if (this.config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_FILES_LOCAL_KEY)) {
       Path appFilesDestDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_FILES_DIR_NAME);
@@ -697,7 +706,7 @@ public class GobblinYarnAppLauncher {
   private void addContainerLocalResources(ApplicationId applicationId) throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName,
         applicationId.toString());
-    Path jarsRootDir = this.jarCacheEnabled ? YarnHelixUtils.getJarPathCacheAndCleanIfNeeded(this.config, this.fs) : appWorkDir;
+    Path jarsRootDir = this.jarCacheEnabled ? YarnHelixUtils.calculateJarCachePath(this.config) : appWorkDir;
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
     Path containerJarsRootDir = new Path(jarsRootDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
     LOGGER.info("Configured Container work directory to: {}", containerWorkDir);

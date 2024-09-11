@@ -487,24 +487,25 @@ class YarnService extends AbstractIdleService {
   protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
       throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, this.applicationId);
+    // Used for -SNAPSHOT versions of jars
     Path containerJarsUnsharedDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
-    Path jarCacheDir = this.jarCacheEnabled ? YarnHelixUtils.getJarPathCacheAndCleanIfNeeded(this.config, this.fs) : appWorkDir;
+    Path jarCacheDir = this.jarCacheEnabled ? YarnHelixUtils.calculateJarCachePath(this.config) : appWorkDir;
     Path containerJarsCachedDir = new Path(jarCacheDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
     LOGGER.info("Container cached jars root dir: " + containerJarsCachedDir);
-    LOGGER.info("Container uncached jars root dir: " + containerJarsUnsharedDir);
+    LOGGER.info("Container execution-private jars root dir: " + containerJarsUnsharedDir);
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
 
 
     Map<String, LocalResource> resourceMap = Maps.newHashMap();
     // Always fetch any jars from the appWorkDir for any potential snapshot jars
     addContainerLocalResources(new Path(appWorkDir, GobblinYarnConfigurationKeys.LIB_JARS_DIR_NAME), resourceMap);
-    if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_FILES_LOCAL_KEY)) {
+    if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY)) {
       addContainerLocalResources(new Path(containerJarsUnsharedDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME),
           resourceMap);
     }
     if (this.jarCacheEnabled) {
       addContainerLocalResources(new Path(jarCacheDir, GobblinYarnConfigurationKeys.LIB_JARS_DIR_NAME), resourceMap);
-      if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_FILES_LOCAL_KEY)) {
+      if (this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY)) {
         addContainerLocalResources(new Path(containerJarsCachedDir, GobblinYarnConfigurationKeys.APP_JARS_DIR_NAME),
             resourceMap);
       }
