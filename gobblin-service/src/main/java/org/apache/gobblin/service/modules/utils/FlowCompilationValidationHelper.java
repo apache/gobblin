@@ -165,7 +165,8 @@ public class FlowCompilationValidationHelper {
     }
     addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
 
-    if (isExecutionPermitted(flowGroup, flowName, allowConcurrentExecution)) {
+    if (isExecutionPermitted(flowGroup, flowName,
+        Long.parseLong(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)), allowConcurrentExecution)) {
       return Optional.of(jobExecutionPlanDag);
     } else {
       log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
@@ -195,19 +196,19 @@ public class FlowCompilationValidationHelper {
    * @param allowConcurrentExecution
    * @return true if the {@link FlowSpec} allows concurrent executions or if no other instance of the flow is currently RUNNING.
    */
-  private boolean isExecutionPermitted(String flowGroup, String flowName, boolean allowConcurrentExecution)
+  private boolean isExecutionPermitted(String flowGroup, String flowName, long flowExecutionId, boolean allowConcurrentExecution)
       throws IOException {
-    return allowConcurrentExecution || !isFlowRunning(flowGroup, flowName, dagManagementStateStore);
+    return allowConcurrentExecution || !isFlowBeforeThisExecutionRunning(flowGroup, flowName, flowExecutionId, dagManagementStateStore);
   }
 
   /**
-   * Returns true if any previous execution for the flow determined by the provided flowGroup, flowName is running.
+   * Returns true if any previous execution for the flow determined by the provided flowGroup, flowName, flowExecutionId is running.
    * We ignore the execution that has the provided flowExecutionId. We also ignore the flows that are running beyond
    * the job start deadline and flow finish deadline.
    * If this method returns `false`, callers may start a flow and subsequent calls to this method may return `true`.
    */
   @VisibleForTesting
-  static boolean isFlowRunning(String flowGroup, String flowName, DagManagementStateStore dagManagementStateStore)
+  static boolean isFlowBeforeThisExecutionRunning(String flowGroup, String flowName, long flowExecutionId, DagManagementStateStore dagManagementStateStore)
       throws IOException {
     List<FlowStatus> flowStatusList = dagManagementStateStore.getAllFlowStatusesForFlow(flowGroup, flowName);
 
@@ -216,6 +217,12 @@ public class FlowCompilationValidationHelper {
     }
 
     for (FlowStatus flowStatus : flowStatusList) {
+      if (flowStatus.getFlowExecutionId() == flowExecutionId) {
+        // a duplicate call to this method indicate that the prior caller of this method could not complete the required action,
+        // so we ignore any flow status for the current execution to give the caller another chance to complete them
+        continue;
+      }
+
       ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
       log.debug("Verifying if {} is running...", flowStatus);
 

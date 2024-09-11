@@ -114,24 +114,27 @@ public class FlowCompilationValidationHelperTest {
     list.add(new FlowStatus(flowName, flowGroup, previousFlowExecutionId, jobStatusIterator, ExecutionStatus.COMPILED));
     when(this.dagManagementStateStore.getAllFlowStatusesForFlow(anyString(), anyString())).thenReturn(list);
 
-    Assert.assertFalse(FlowCompilationValidationHelper.isFlowRunning(flowGroup, flowName, this.dagManagementStateStore));
+    Assert.assertFalse(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+        previousFlowExecutionId, this.dagManagementStateStore));
   }
 
   @Test
-  public void testConcurrentFlowPreviousFlowWithNonTerminalStatusRunningBeyondJobStartDeadline()
+  public void testConcurrentFlowPreviousExecutionWithNonTerminalStatusRunningBeyondJobStartDeadline()
       throws IOException, URISyntaxException {
     String flowGroup = "fg";
     String flowName = "fn";
     long jobStartDeadline = 10L;
     // extra minus 1 because sometimes assertion reach within a millisecond and makes the flow running within the deadline
     long flowStartTime = System.currentTimeMillis() - jobStartDeadline - 1;
+    long currentFlowExecutionId = System.currentTimeMillis() ;
 
     insertFlowIntoDMSSMock(flowGroup, flowName, flowStartTime, ExecutionStatus.PENDING,
         ConfigFactory.empty()
         .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
         .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(jobStartDeadline)));
 
-    Assert.assertFalse(FlowCompilationValidationHelper.isFlowRunning(flowGroup, flowName, this.dagManagementStateStore));
+    Assert.assertFalse(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+        currentFlowExecutionId, this.dagManagementStateStore));
   }
 
   @Test
@@ -141,13 +144,15 @@ public class FlowCompilationValidationHelperTest {
     String flowName = "fn";
     long flowFinishDeadline = 30L;
     long flowStartTime = System.currentTimeMillis() - flowFinishDeadline - 1;
+    long currentFlowExecutionId = System.currentTimeMillis() ;
 
     insertFlowIntoDMSSMock(flowGroup, flowName, flowStartTime, ExecutionStatus.PENDING_RESUME,
         ConfigFactory.empty()
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(flowFinishDeadline)));
 
-    Assert.assertFalse(FlowCompilationValidationHelper.isFlowRunning(flowGroup, flowName, this.dagManagementStateStore));
+    Assert.assertFalse(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+        currentFlowExecutionId, this.dagManagementStateStore));
   }
 
   @Test
@@ -156,48 +161,61 @@ public class FlowCompilationValidationHelperTest {
     String flowGroup = "fg";
     String flowName = "fn";
     long flowFinishDeadline = 10000L;
-    long flowStartTime = System.currentTimeMillis();  // giving test flowFinishDeadline to finish
+    long flowStartTime = System.currentTimeMillis() - 1 ;  // giving test flowFinishDeadline + 1 ms to finish
+    long currentFlowExecutionId = System.currentTimeMillis() ;
 
     insertFlowIntoDMSSMock(flowGroup, flowName, flowStartTime, ExecutionStatus.RUNNING,
         ConfigFactory.empty()
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(flowFinishDeadline)));
 
-    Assert.assertTrue(FlowCompilationValidationHelper.isFlowRunning(flowGroup, flowName, this.dagManagementStateStore));
+    Assert.assertTrue(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+        currentFlowExecutionId, this.dagManagementStateStore));
   }
 
   @Test
   public void testConcurrentFlowNoPreviousExecutionRunning() throws IOException, URISyntaxException {
     String flowGroup = "fg";
     String flowName = "fn";
-    long currentFlowExecutionId = 67890L;
-    long flowFinishDeadline = 10000L;
     long flowStartTime = System.currentTimeMillis();  // giving test flowFinishDeadline to finish
-    when(this.dagManagementStateStore.getAllFlowStatusesForFlow(anyString(), anyString())).thenReturn(Collections.emptyList());
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", currentFlowExecutionId,
-        DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 5, "user5", ConfigFactory.empty()
-            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
-            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
-            .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
-            .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(flowFinishDeadline))
-            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
-                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
-    dag.getNodes().forEach(node -> node.getValue().setFlowStartTime(flowStartTime));
-    this.dagManagementStateStore.addDag(dag);
+    insertFlowIntoDMSSMock(flowGroup, flowName, flowStartTime, ExecutionStatus.PENDING,
+        ConfigFactory.empty()
+            .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
+            .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(flowStartTime)));
 
-    Assert.assertFalse(FlowCompilationValidationHelper.isFlowRunning(flowGroup, flowName, this.dagManagementStateStore));
+    // change the mock to not return any previous flow status
+    when(this.dagManagementStateStore.getAllFlowStatusesForFlow(anyString(), anyString())).thenReturn(Collections.emptyList());
+
+    Assert.assertFalse(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+        flowStartTime, this.dagManagementStateStore));
+  }
+
+  @Test
+  public void testConcurrentFlowCurrentExecutionWithNonTerminalStatusRunningWithinJobStartDeadline() throws IOException, URISyntaxException {
+    String flowGroup = "fg";
+    String flowName = "fn";
+    long jobStartDeadline = 10000L;
+    long flowStartTime = System.currentTimeMillis();
+
+    insertFlowIntoDMSSMock(flowGroup, flowName, flowStartTime, ExecutionStatus.PENDING,
+        ConfigFactory.empty()
+            .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
+            .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(jobStartDeadline)));
+
+    // flowStartTime = currentFlowExecutionId
+    Assert.assertFalse(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+        flowStartTime, this.dagManagementStateStore));
   }
 
   private void insertFlowIntoDMSSMock(String flowGroup, String flowName, long flowStartTime, ExecutionStatus executionStatus, Config config)
       throws URISyntaxException, IOException {
     List<FlowStatus> list = new ArrayList<>();
-    long previousFlowExecutionId = flowStartTime;
-    JobStatus jobStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(previousFlowExecutionId)
+    JobStatus jobStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(flowStartTime)
         .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName(executionStatus.name()).build();
     Iterator<JobStatus> jobStatusIterator = Lists.newArrayList(jobStatus).iterator();
-    list.add(new FlowStatus(flowName, flowGroup, previousFlowExecutionId, jobStatusIterator, executionStatus));
+    list.add(new FlowStatus(flowName, flowGroup, flowStartTime, jobStatusIterator, executionStatus));
     when(this.dagManagementStateStore.getAllFlowStatusesForFlow(anyString(), anyString())).thenReturn(list);
-    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", previousFlowExecutionId,
+    Dag<JobExecutionPlan> dag = DagManagerTest.buildDag("1", flowStartTime,
         DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 5, "user5", config
             .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
             .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
