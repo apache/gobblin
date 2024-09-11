@@ -228,7 +228,7 @@ public class FlowCompilationValidationHelper {
           log.info("A previous execution with the same flowExecutionId found {}. Previous execution may not be "
               + "successfully submitted.", flowStatus);
         } else if (flowExecutionStatus == RUNNING) {
-          log.error("A previous execution with the same flowExecutionId found {}. This is a rare case of previous "
+          log.warn("A previous execution with the same flowExecutionId found {}. This is a rare case of previous "
               + "execution getting submitted but then LaunchDagProc failed to complete the lease", flowStatus);
         }
         continue;
