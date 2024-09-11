@@ -198,17 +198,19 @@ public class FlowCompilationValidationHelper {
    */
   private boolean isExecutionPermitted(String flowGroup, String flowName, long flowExecutionId, boolean allowConcurrentExecution)
       throws IOException {
-    return allowConcurrentExecution || !isFlowBeforeThisExecutionRunning(flowGroup, flowName, flowExecutionId, dagManagementStateStore);
+    return allowConcurrentExecution || !isPriorFlowExecutionRunning(flowGroup, flowName, flowExecutionId, dagManagementStateStore);
   }
 
   /**
    * Returns true if any previous execution for the flow determined by the provided flowGroup, flowName, flowExecutionId is running.
-   * We ignore the execution that has the provided flowExecutionId. We also ignore the flows that are running beyond
-   * the job start deadline and flow finish deadline.
+   * We ignore the execution that has the provided flowExecutionId so that if first attempt of some LaunchDagProc fails
+   * to complete the lease after create a Dag and storing it, the second attempt can continue the unfinished work without
+   * thinking that the flow is already running.
+   * We also ignore the flows that are running beyond the job start deadline and flow finish deadline.
    * If this method returns `false`, callers may start a flow and subsequent calls to this method may return `true`.
    */
   @VisibleForTesting
-  static boolean isFlowBeforeThisExecutionRunning(String flowGroup, String flowName, long flowExecutionId, DagManagementStateStore dagManagementStateStore)
+  static boolean isPriorFlowExecutionRunning(String flowGroup, String flowName, long flowExecutionId, DagManagementStateStore dagManagementStateStore)
       throws IOException {
     List<FlowStatus> flowStatusList = dagManagementStateStore.getAllFlowStatusesForFlow(flowGroup, flowName);
 
@@ -217,13 +219,21 @@ public class FlowCompilationValidationHelper {
     }
 
     for (FlowStatus flowStatus : flowStatusList) {
+      ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
       if (flowStatus.getFlowExecutionId() == flowExecutionId) {
         // a duplicate call to this method indicate that the prior caller of this method could not complete the required action,
         // so we ignore any flow status for the current execution to give the caller another chance to complete them
+        // but this should be rate, so lets log it
+        if (flowExecutionStatus == COMPILED) {
+          log.info("A previous execution with the same flowExecutionId found {}. Previous execution may not be "
+              + "successfully submitted.", flowStatus);
+        } else if (flowExecutionStatus == RUNNING) {
+          log.error("A previous execution with the same flowExecutionId found {}. This is a rare case of previous "
+              + "execution getting submitted but then LaunchDagProc failed to complete the lease", flowStatus);
+        }
         continue;
       }
 
-      ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
       log.debug("Verifying if {} is running...", flowStatus);
 
       if (FlowStatusGenerator.FINISHED_STATUSES.contains(flowExecutionStatus.name()) || flowExecutionStatus == $UNKNOWN) {

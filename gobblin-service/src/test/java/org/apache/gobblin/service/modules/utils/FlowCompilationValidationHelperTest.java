@@ -114,7 +114,7 @@ public class FlowCompilationValidationHelperTest {
     list.add(new FlowStatus(flowName, flowGroup, previousFlowExecutionId, jobStatusIterator, ExecutionStatus.COMPILED));
     when(this.dagManagementStateStore.getAllFlowStatusesForFlow(anyString(), anyString())).thenReturn(list);
 
-    Assert.assertFalse(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+    Assert.assertFalse(FlowCompilationValidationHelper.isPriorFlowExecutionRunning(flowGroup, flowName,
         previousFlowExecutionId, this.dagManagementStateStore));
   }
 
@@ -133,7 +133,7 @@ public class FlowCompilationValidationHelperTest {
         .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
         .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(jobStartDeadline)));
 
-    Assert.assertFalse(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+    Assert.assertFalse(FlowCompilationValidationHelper.isPriorFlowExecutionRunning(flowGroup, flowName,
         currentFlowExecutionId, this.dagManagementStateStore));
   }
 
@@ -151,7 +151,7 @@ public class FlowCompilationValidationHelperTest {
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(flowFinishDeadline)));
 
-    Assert.assertFalse(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+    Assert.assertFalse(FlowCompilationValidationHelper.isPriorFlowExecutionRunning(flowGroup, flowName,
         currentFlowExecutionId, this.dagManagementStateStore));
   }
 
@@ -169,7 +169,7 @@ public class FlowCompilationValidationHelperTest {
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
             .withValue(ConfigurationKeys.GOBBLIN_FLOW_FINISH_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(flowFinishDeadline)));
 
-    Assert.assertTrue(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+    Assert.assertTrue(FlowCompilationValidationHelper.isPriorFlowExecutionRunning(flowGroup, flowName,
         currentFlowExecutionId, this.dagManagementStateStore));
   }
 
@@ -186,24 +186,24 @@ public class FlowCompilationValidationHelperTest {
     // change the mock to not return any previous flow status
     when(this.dagManagementStateStore.getAllFlowStatusesForFlow(anyString(), anyString())).thenReturn(Collections.emptyList());
 
-    Assert.assertFalse(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+    Assert.assertFalse(FlowCompilationValidationHelper.isPriorFlowExecutionRunning(flowGroup, flowName,
         flowStartTime, this.dagManagementStateStore));
   }
 
   @Test
-  public void testConcurrentFlowCurrentExecutionWithNonTerminalStatusRunningWithinJobStartDeadline() throws IOException, URISyntaxException {
+  public void testSameFlowExecAlreadyCompiledWithinJobStartDeadline() throws IOException, URISyntaxException {
     String flowGroup = "fg";
     String flowName = "fn";
     long jobStartDeadline = 10000L;
     long flowStartTime = System.currentTimeMillis();
 
-    insertFlowIntoDMSSMock(flowGroup, flowName, flowStartTime, ExecutionStatus.PENDING,
+    insertFlowIntoDMSSMock(flowGroup, flowName, flowStartTime, ExecutionStatus.COMPILED,
         ConfigFactory.empty()
             .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
             .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(jobStartDeadline)));
 
     // flowStartTime = currentFlowExecutionId
-    Assert.assertFalse(FlowCompilationValidationHelper.isFlowBeforeThisExecutionRunning(flowGroup, flowName,
+    Assert.assertFalse(FlowCompilationValidationHelper.isPriorFlowExecutionRunning(flowGroup, flowName,
         flowStartTime, this.dagManagementStateStore));
   }
 
