@@ -13,9 +13,10 @@ import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 
 @UtilityClass
 public class TemporalWorkFlowUtils {
+
   public static Map<String, Object> generateGaasSearchAttributes(@NonNull Properties jobProps) {
     Map<String, Object> attributes = new HashMap<>();
-    attributes.put(Help.GAAS_FLOW_ID, String.format("%s.%s", jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY),
+    attributes.put(Help.GAAS_FLOW_KEY, String.format("%s.%s", jobProps.getProperty(ConfigurationKeys.FLOW_GROUP_KEY),
         jobProps.getProperty(ConfigurationKeys.FLOW_NAME_KEY)));
     attributes.put(Help.USER_TO_PROXY_KEY, jobProps.getProperty(Help.USER_TO_PROXY_KEY));
     return attributes;

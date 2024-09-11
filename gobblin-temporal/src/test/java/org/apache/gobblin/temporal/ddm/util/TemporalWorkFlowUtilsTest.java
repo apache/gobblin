@@ -26,8 +26,8 @@ public class TemporalWorkFlowUtilsTest {
 
     // Expected attributes
     Map<String, Object> expectedAttributes = new HashMap<>();
-    expectedAttributes.put(Help.GAAS_FLOW_ID, "group.name");
-    expectedAttributes.put(Help.USER_TO_PROXY_KEY, "userProxy");
+    expectedAttributes.put(Help.GAAS_FLOW_KEY, "group.name");
+    expectedAttributes.put(Help.USER_TO_PROXY_SEARCH_KEY, "userProxy");
 
     // Actual attributes
     Map<String, Object> actualAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(jobProps);
