@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.loadgen.launcher;
 
+import io.temporal.workflow.Workflow;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -86,7 +87,6 @@ public class GenArbitraryLoadJobLauncher extends GobblinTemporalJobLauncher {
     // WARNING: although type param must agree w/ that of `workload`, it's entirely unverified by type checker!
     // ...and more to the point, mismatch would occur at runtime (`performWorkload` on the workflow type given to the stub)!
     NestingExecWorkflow<IllustrationItem> workflow = this.client.newWorkflowStub(NestingExecWorkflow.class, options);
-
     workflow.performWorkload(WorkflowAddr.ROOT, workload, 0, maxBranchesPerTree, maxSubTreesPerTree, Optional.empty());
   }
 }

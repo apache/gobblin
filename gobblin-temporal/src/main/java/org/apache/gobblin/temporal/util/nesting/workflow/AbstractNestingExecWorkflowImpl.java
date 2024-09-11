@@ -21,6 +21,8 @@ import java.time.Duration;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
+import java.util.Map;
+import java.util.HashMap;
 import java.util.Optional;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
@@ -111,6 +113,7 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_TERMINATE)
         .setWorkflowId(childWorkflowId)
+        .setSearchAttributes(convertSearchAttributesValuesFromListToObject())
         .build();
     return Workflow.newChildWorkflowStub(NestingExecWorkflow.class, childOpts);
   }
@@ -160,5 +163,13 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
   /** @return whether `maxSubTrees` == `Math.sqrt(maxBranches)` */
   private static boolean isSqrt(int maxSubTrees, int maxBranches) {
     return maxSubTrees > 0 && maxSubTrees * maxSubTrees == maxBranches;
+  }
+
+  private Map<String, Object> convertSearchAttributesValuesFromListToObject() {
+    Map<String, Object> convertedAttributes = new HashMap<>();
+
+    convertedAttributes.putAll(Workflow.getSearchAttributes());
+
+    return convertedAttributes;
   }
 }
