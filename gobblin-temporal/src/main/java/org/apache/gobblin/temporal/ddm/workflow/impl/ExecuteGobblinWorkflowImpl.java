@@ -21,6 +21,7 @@ import java.net.URI;
 import java.time.Duration;
 import java.util.Properties;
 
+import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.hadoop.fs.Path;
 
 import com.typesafe.config.ConfigFactory;
@@ -105,6 +106,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_TERMINATE)
         .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(PROCESS_WORKFLOW_ID_BASE, ConfigFactory.parseProperties(jobProps)))
+        .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(jobProps))
         .build();
     return Workflow.newChildWorkflowStub(ProcessWorkUnitsWorkflow.class, childOpts);
   }
