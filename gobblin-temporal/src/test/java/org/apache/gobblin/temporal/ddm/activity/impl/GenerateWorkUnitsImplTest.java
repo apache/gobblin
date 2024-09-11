@@ -71,4 +71,27 @@ public class GenerateWorkUnitsImplTest {
     Set<String> output = GenerateWorkUnitsImpl.calculateWorkDirsToCleanup(workUnitStream);
     Assert.assertEquals(output.size(), 3);
   }
+
+  @Test
+  public void testFetchesUniqueWorkDirsFromMultiWorkUnits() {
+    List<WorkUnit> workUnits = new ArrayList<>();
+    for (int i = 0; i < 5; i++) {
+      MultiWorkUnit multiWorkUnit = new MultiWorkUnit();
+      for (int j = 0; j < 3; j++) {
+        WorkUnit workUnit = new WorkUnit();
+        // Each MWU will have its own staging and output dir
+        workUnit.setProp("writer.staging.dir", "/tmp/jobId/" + i + "/task-staging/");
+        workUnit.setProp("writer.output.dir", "/tmp/jobId/" + i + "task-output/");
+        workUnit.setProp("qualitychecker.row.err.file", "/tmp/jobId/row-err/file");
+        workUnit.setProp("qualitychecker.clean.err.dir", "true");
+        multiWorkUnit.addWorkUnit(workUnit);
+      }
+      workUnits.add(multiWorkUnit);
+    }
+    WorkUnitStream workUnitStream = new BasicWorkUnitStream.Builder(workUnits)
+        .setFiniteStream(true)
+        .build();
+    Set<String> output = GenerateWorkUnitsImpl.calculateWorkDirsToCleanup(workUnitStream);
+    Assert.assertEquals(output.size(), 11);
+  }
 }
