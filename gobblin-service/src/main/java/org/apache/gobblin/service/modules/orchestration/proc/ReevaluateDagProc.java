@@ -122,7 +122,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     } else if (DagProcUtils.isDagFinished(dag)) {
       String flowEvent = DagProcUtils.calcFlowStatus(dag);
       dag.setFlowEvent(flowEvent);
-      DagProcUtils.setAndEmitFlowEvent(dag, flowEvent);
+      DagProcUtils.setAndEmitFlowEvent(DagProc.eventSubmitter, dag, flowEvent);
       if (flowEvent.equals(TimingEvent.FlowTimings.FLOW_SUCCEEDED)) {
         // todo - verify if work from PR#3641 is required
         dagManagementStateStore.deleteDag(getDagId());
@@ -167,7 +167,6 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         DagProcUtils.sendSkippedEventForDependentJobs(dag, dagNode);
         break;
       case CANCELLED:
-      case SKIPPED:
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
         DagProcUtils.sendSkippedEventForDependentJobs(dag, dagNode);
         break;
@@ -176,6 +175,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         if (!DagProcUtils.isDagFinished(dag)) { // this may fail when dag failure option is finish_running and some dag node has failed
           DagProcUtils.submitNextNodes(dagManagementStateStore, dag, getDagId());
         }
+        break;
+      case SKIPPED:
+        // no action needed for a skipped job
         break;
       default:
         log.warn("It should not reach here. Job status {} is unexpected.", executionStatus);
