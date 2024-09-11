@@ -153,7 +153,7 @@ public class CommitActivityImpl implements CommitActivity {
               }).iterator(), numCommitThreads,
           // TODO: Rewrite executorUtils to use java util optional
           ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log), com.google.common.base.Optional.of("Commit-thread-%d")))
-              .executeAndGetResults();
+          .executeAndGetResults();
 
       IteratorExecutor.logFailures(result, null, 10);
 
@@ -192,8 +192,8 @@ public class CommitActivityImpl implements CommitActivity {
                 // `TaskState extends WorkUnit` serialization will include its constituent `WorkUnit`, but not the constituent `JobState`.
                 // given some `JobState` props may be essential for commit/publish, deserialization must re-associate each `TaskState` w/ `JobState`
                 taskState.setJobState(jobState)
-                // TODO - decide whether something akin necessary to streamline cumulative in-memory size of all issues: consumeTaskIssues(taskState);
-            ).collect(Collectors.toList())
+            // TODO - decide whether something akin necessary to streamline cumulative in-memory size of all issues: consumeTaskIssues(taskState);
+        ).collect(Collectors.toList())
     ).orElseGet(() -> {
       log.error("TaskStateStore successfully opened, but no task states found under (name) '{}'", jobIdPathName);
       return Lists.newArrayList();

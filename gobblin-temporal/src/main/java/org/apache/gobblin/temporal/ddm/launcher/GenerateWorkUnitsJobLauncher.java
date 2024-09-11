@@ -17,24 +17,24 @@
 
 package org.apache.gobblin.temporal.ddm.launcher;
 
-import com.typesafe.config.Config;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
 
-import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.fs.Path;
 
 import com.google.common.eventbus.EventBus;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.client.WorkflowOptions;
-
-import org.apache.hadoop.fs.Path;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
+import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.workflow.GenerateWorkUnitsWorkflow;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
@@ -80,9 +80,8 @@ public class GenerateWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
 
       Help.propagateGaaSFlowExecutionContext(this.jobProps);
       EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder(this.eventSubmitter).build();
-
-      int numWorkUnits = workflow.generate(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
-      log.info("FINISHED - GenerateWorkUnitsWorkflow.generate = {}", numWorkUnits);
+      GenerateWorkUnitsResult generateWorkUnitStats = workflow.generate(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
+      log.info("FINISHED - GenerateWorkUnitsWorkflow.generate = {}", generateWorkUnitStats.getGeneratedWuCount());
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

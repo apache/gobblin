@@ -20,11 +20,13 @@ package org.apache.gobblin.temporal.ddm.worker;
 import java.util.concurrent.TimeUnit;
 
 import com.typesafe.config.Config;
+
 import io.temporal.client.WorkflowClient;
 import io.temporal.worker.WorkerOptions;
 
 import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
 import org.apache.gobblin.temporal.ddm.activity.impl.CommitActivityImpl;
+import org.apache.gobblin.temporal.ddm.activity.impl.DeleteWorkDirsActivityImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.GenerateWorkUnitsImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl;
 import org.apache.gobblin.temporal.ddm.workflow.impl.CommitStepWorkflowImpl;
@@ -52,7 +54,8 @@ public class WorkFulfillmentWorker extends AbstractTemporalWorker {
 
     @Override
     protected Object[] getActivityImplInstances() {
-        return new Object[] { new CommitActivityImpl(), new GenerateWorkUnitsImpl(), new ProcessWorkUnitImpl(), new SubmitGTEActivityImpl() };
+        return new Object[] { new CommitActivityImpl(), new DeleteWorkDirsActivityImpl(),new GenerateWorkUnitsImpl(),
+            new ProcessWorkUnitImpl(), new SubmitGTEActivityImpl()};
     }
 
     @Override

@@ -15,22 +15,23 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.ddm.workflow;
+package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.Properties;
+import java.util.Map;
 
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
-
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
-import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 
-/** Workflow simply to generate {@link WorkUnit}s from a {@link org.apache.gobblin.source.Source} (and persist them for subsequent processing) */
-@WorkflowInterface
-public interface GenerateWorkUnitsWorkflow {
-  /** @return the number of {@link WorkUnit}s generated and persisted */
-  @WorkflowMethod
-  GenerateWorkUnitsResult generate(Properties props, EventSubmitterContext eventSubmitterContext);
+/**
+ * Data structure representing the stats for a cleaned up work directory, where it returns a map of directories the result of their cleanup
+ */
+@Data
+@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
+@RequiredArgsConstructor
+public class DirDeletionResult {
+
+  @NonNull private Map<String, Boolean> successesByDirPath;
 }
