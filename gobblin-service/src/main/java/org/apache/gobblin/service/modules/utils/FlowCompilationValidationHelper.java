@@ -19,10 +19,12 @@ package org.apache.gobblin.service.modules.utils;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.inject.Inject;
 import com.google.inject.Singleton;
@@ -38,15 +40,22 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.FlowStatus;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+
+import static org.apache.gobblin.service.ExecutionStatus.*;
 
 
 /**
@@ -69,12 +78,12 @@ public class FlowCompilationValidationHelper {
   private final SpecCompiler specCompiler;
   private final UserQuotaManager quotaManager;
   private final EventSubmitter eventSubmitter;
-  private final FlowStatusGenerator flowStatusGenerator;
+  private final DagManagementStateStore dagManagementStateStore;
   private final boolean isFlowConcurrencyEnabled;
 
   @Inject
   public FlowCompilationValidationHelper(Config config, SharedFlowMetricsSingleton sharedFlowMetricsSingleton,
-      UserQuotaManager userQuotaManager, FlowStatusGenerator flowStatusGenerator) {
+      UserQuotaManager userQuotaManager, DagManagementStateStore dagManagementStateStore) {
     try {
       String specCompilerClassName = ConfigUtils.getString(config, ServiceConfigKeys.GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY,
           ServiceConfigKeys.DEFAULT_GOBBLIN_SERVICE_FLOWCOMPILER_CLASS);
@@ -88,7 +97,7 @@ public class FlowCompilationValidationHelper {
     this.quotaManager = userQuotaManager;
     MetricContext metricContext = Instrumented.getMetricContext(ConfigUtils.configToState(config), this.specCompiler.getClass());
     this.eventSubmitter = new EventSubmitter.Builder(metricContext, "org.apache.gobblin.service").build();
-    this.flowStatusGenerator = flowStatusGenerator;
+    this.dagManagementStateStore = dagManagementStateStore;
     this.isFlowConcurrencyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
         ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
   }
@@ -156,9 +165,9 @@ public class FlowCompilationValidationHelper {
     }
     addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
 
-    if (isExecutionPermitted(flowStatusGenerator, flowGroup, flowName, allowConcurrentExecution,
-        Long.parseLong(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)))) {
-      return Optional.fromNullable(jobExecutionPlanDag);
+    if (isExecutionPermitted(flowGroup, flowName,
+        Long.parseLong(flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD)), allowConcurrentExecution)) {
+      return Optional.of(jobExecutionPlanDag);
     } else {
       log.warn("Another instance of flowGroup: {}, flowName: {} running; Skipping flow execution since "
           + "concurrent executions are disabled for this flow.", flowGroup, flowName);
@@ -167,7 +176,7 @@ public class FlowCompilationValidationHelper {
       Instrumented.markMeter(sharedFlowMetricsSingleton.getSkippedFlowsMeter());
       if (!flowSpec.isScheduled()) {
         // For ad-hoc flow, we might already increase quota, we need to decrease here
-        for (Dag.DagNode dagNode : jobExecutionPlanDag.getStartNodes()) {
+        for (Dag.DagNode<JobExecutionPlan> dagNode : jobExecutionPlanDag.getStartNodes()) {
           quotaManager.releaseQuota(dagNode);
         }
       }
@@ -187,9 +196,85 @@ public class FlowCompilationValidationHelper {
    * @param allowConcurrentExecution
    * @return true if the {@link FlowSpec} allows concurrent executions or if no other instance of the flow is currently RUNNING.
    */
-  private boolean isExecutionPermitted(FlowStatusGenerator flowStatusGenerator, String flowGroup, String flowName,
-      boolean allowConcurrentExecution, long flowExecutionId) {
-    return allowConcurrentExecution || !flowStatusGenerator.isFlowRunning(flowName, flowGroup, flowExecutionId);
+  private boolean isExecutionPermitted(String flowGroup, String flowName, long flowExecutionId, boolean allowConcurrentExecution)
+      throws IOException {
+    return allowConcurrentExecution || !isPriorFlowExecutionRunning(flowGroup, flowName, flowExecutionId, dagManagementStateStore);
+  }
+
+  /**
+   * Returns true if any previous execution for the flow determined by the provided flowGroup, flowName, flowExecutionId is running.
+   * We ignore the execution that has the provided flowExecutionId so that if first attempt of some LaunchDagProc fails
+   * to complete the lease after create a Dag and storing it, the second attempt can continue the unfinished work without
+   * thinking that the flow is already running.
+   * We also ignore the flows that are running beyond the job start deadline and flow finish deadline.
+   * If this method returns `false`, callers may start a flow and subsequent calls to this method may return `true`.
+   */
+  @VisibleForTesting
+  static boolean isPriorFlowExecutionRunning(String flowGroup, String flowName, long flowExecutionId, DagManagementStateStore dagManagementStateStore)
+      throws IOException {
+    List<FlowStatus> flowStatusList = dagManagementStateStore.getAllFlowStatusesForFlow(flowGroup, flowName);
+
+    if (flowStatusList == null || flowStatusList.isEmpty()) {
+      return false;
+    }
+
+    for (FlowStatus flowStatus : flowStatusList) {
+      ExecutionStatus flowExecutionStatus = flowStatus.getFlowExecutionStatus();
+      if (flowStatus.getFlowExecutionId() == flowExecutionId) {
+        // a duplicate call to this method indicate that the prior caller of this method could not complete the required action,
+        // so we ignore any flow status for the current execution to give the caller another chance to complete them
+        // but this should be rate, so lets log it
+        if (flowExecutionStatus == COMPILED) {
+          log.info("A previous execution with the same flowExecutionId found {}. Previous execution may not be "
+              + "successfully submitted.", flowStatus);
+        } else if (flowExecutionStatus == RUNNING) {
+          log.error("A previous execution with the same flowExecutionId found {}. This is a rare case of previous "
+              + "execution getting submitted but then LaunchDagProc failed to complete the lease", flowStatus);
+        } else {
+          log.warn("A previous execution with the same flowExecutionId and an unexpected status is found {}.", flowStatus);
+        }
+        continue;
+      }
+
+      log.debug("Verifying if {} is running...", flowStatus);
+
+      if (FlowStatusGenerator.FINISHED_STATUSES.contains(flowExecutionStatus.name()) || flowExecutionStatus == $UNKNOWN) {
+        // ignore finished entries
+        // todo - make changes so `getAllFlowStatusesForFlow` never returns $UNKNOWN flow status
+      } else if (flowExecutionStatus == COMPILED || flowExecutionStatus == PENDING
+          || flowExecutionStatus == PENDING_RESUME || flowExecutionStatus == RUNNING) {
+        // these are the only four non-terminal statuses that a flow can have. jobs have two more non-terminal statuses
+        // ORCHESTRATED and PENDING_RETRY
+        Dag.DagId dagIdOfOldExecution = new Dag.DagId(flowGroup, flowName, flowStatus.getFlowExecutionId());
+        java.util.Optional<Dag<JobExecutionPlan>> dag = dagManagementStateStore.getDag(dagIdOfOldExecution);
+
+        if (!dag.isPresent()) {
+          log.error("Dag is finished and cleaned up, job status monitor somehow did not receive/update the flow status. Ignoring it here...");
+          continue;
+        }
+
+        Dag.DagNode<JobExecutionPlan> dagNode = dag.get().getNodes().get(0);
+        long flowStartTime = DagUtils.getFlowStartTime(dagNode);
+        long jobStartDeadline =
+            DagUtils.getJobStartDeadline(dagNode, DagProcessingEngine.getDefaultJobStartDeadlineTimeMillis());
+        long flowFinishDeadline = DagUtils.getFlowFinishDeadline(dagNode);
+          if ((flowExecutionStatus == COMPILED || flowExecutionStatus == PENDING)
+                && System.currentTimeMillis() < flowStartTime + jobStartDeadline
+              || (flowExecutionStatus == RUNNING || flowExecutionStatus == PENDING_RESUME)
+                && System.currentTimeMillis() < flowStartTime + flowFinishDeadline) {
+            log.info("{} is still running. Found a dag for this, flowStartTime {}, jobStartDeadline {}, flowFinishDeadline {}",
+                flowStatus, flowStartTime, jobStartDeadline, flowFinishDeadline);
+            return true;
+          } else {
+            log.warn("Dag {} is still running beyond deadline! flowStartTime {}, jobStartDeadline {}, flowFinishDeadline {}",
+                dag, flowStartTime, jobStartDeadline, flowFinishDeadline);
+          }
+        } else {
+          log.error("Unknown status {}", flowExecutionStatus);
+        }
+      }
+
+    return false;
   }
 
   /**
