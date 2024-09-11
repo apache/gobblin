@@ -593,7 +593,7 @@ public class GobblinYarnAppLauncher {
     if (this.jarCacheEnabled) {
       Path jarCachePath = YarnHelixUtils.calculateJarCachePath(this.config);
       // Retain at least the current and last month's jars to handle executions running for ~30 days max
-      boolean cleanedSuccessfully = YarnHelixUtils.retainKLatestJarCachePaths(jarCachePath, 2, this.fs);
+      boolean cleanedSuccessfully = YarnHelixUtils.retainKLatestJarCachePaths(jarCachePath.getParent(), 2, this.fs);
       if (!cleanedSuccessfully) {
         LOGGER.warn("Failed to delete older jar cache directories");
       }
@@ -652,7 +652,7 @@ public class GobblinYarnAppLauncher {
 
   private Map<String, LocalResource> addAppMasterLocalResources(ApplicationId applicationId) throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, applicationId.toString());
-    Path jarsRootDir = this.jarCacheEnabled ? YarnHelixUtils.calculateJarCachePath(this.config, this.fs) : appWorkDir;
+    Path jarsRootDir = this.jarCacheEnabled ? YarnHelixUtils.calculateJarCachePath(this.config) : appWorkDir;
 
     Path appMasterWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
     Path appMasterJarsCacheDir = new Path(jarsRootDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
