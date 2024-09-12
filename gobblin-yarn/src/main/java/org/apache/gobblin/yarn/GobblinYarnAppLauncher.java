@@ -591,7 +591,7 @@ public class GobblinYarnAppLauncher {
     amContainerLaunchContext.setCommands(Lists.newArrayList(buildApplicationMasterCommand(applicationId.toString(), resource.getMemory())));
 
     if (this.jarCacheEnabled) {
-      Path jarCachePath = YarnHelixUtils.calculateJarCachePath(this.config);
+      Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(this.config);
       // Retain at least the current and last month's jars to handle executions running for ~30 days max
       boolean cleanedSuccessfully = YarnHelixUtils.retainKLatestJarCachePaths(jarCachePath.getParent(), 2, this.fs);
       if (!cleanedSuccessfully) {
@@ -652,7 +652,7 @@ public class GobblinYarnAppLauncher {
 
   private Map<String, LocalResource> addAppMasterLocalResources(ApplicationId applicationId) throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, applicationId.toString());
-    Path jarsRootDir = this.jarCacheEnabled ? YarnHelixUtils.calculateJarCachePath(this.config) : appWorkDir;
+    Path jarsRootDir = this.jarCacheEnabled ? YarnHelixUtils.calculatePerMonthJarCachePath(this.config) : appWorkDir;
 
     Path appMasterWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
     Path appMasterJarsCacheDir = new Path(jarsRootDir, GobblinYarnConfigurationKeys.APP_MASTER_WORK_DIR_NAME);
@@ -706,7 +706,7 @@ public class GobblinYarnAppLauncher {
   private void addContainerLocalResources(ApplicationId applicationId) throws IOException {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName,
         applicationId.toString());
-    Path jarsRootDir = this.jarCacheEnabled ? YarnHelixUtils.calculateJarCachePath(this.config) : appWorkDir;
+    Path jarsRootDir = this.jarCacheEnabled ? YarnHelixUtils.calculatePerMonthJarCachePath(this.config) : appWorkDir;
     Path containerWorkDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
     Path containerJarsRootDir = new Path(jarsRootDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
     LOGGER.info("Configured Container work directory to: {}", containerWorkDir);

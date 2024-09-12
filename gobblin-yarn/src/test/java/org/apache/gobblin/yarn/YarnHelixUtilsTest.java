@@ -73,7 +73,7 @@ public class YarnHelixUtilsTest {
     Config config = ConfigFactory.empty()
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, ConfigValueFactory.fromAnyRef(1726074000013L))
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef("/tmp"));
-    Path jarCachePath = YarnHelixUtils.calculateJarCachePath(config);
+    Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config);
 
     Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09"));
   }
@@ -84,10 +84,11 @@ public class YarnHelixUtilsTest {
     Config config = ConfigFactory.empty()
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, ConfigValueFactory.fromAnyRef(1726074000013L))
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(this.tempDir + "/tmp"));
-    Path jarCachePath = YarnHelixUtils.calculateJarCachePath(config);
+    Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config);
     fs.mkdirs(jarCachePath);
     fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08"));
     fs.mkdirs(new Path(jarCachePath.getParent(), "2024-07"));
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-06"));
 
     YarnHelixUtils.retainKLatestJarCachePaths(jarCachePath.getParent(), 2, fs);
 
@@ -95,5 +96,7 @@ public class YarnHelixUtilsTest {
     Assert.assertTrue(fs.exists(new Path(this.tempDir, "tmp/2024-08")));
     // Should be cleaned up
     Assert.assertFalse(fs.exists(new Path(this.tempDir, "tmp/2024-07")));
+    Assert.assertFalse(fs.exists(new Path(this.tempDir, "tmp/2024-06")));
+
   }
 }

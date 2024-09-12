@@ -209,7 +209,7 @@ public class YarnHelixUtils {
    * @return
    * @throws IOException
    */
-  public static Path calculateJarCachePath(Config config) throws IOException {
+  public static Path calculatePerMonthJarCachePath(Config config) throws IOException {
     Path jarsCacheDirMonthly = new Path(config.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR));
     String monthSuffix = new SimpleDateFormat("yyyy-MM").format(config.getLong(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY));
     return new Path(jarsCacheDirMonthly, monthSuffix);
@@ -229,10 +229,11 @@ public class YarnHelixUtils {
     // Cleanup old cache if necessary
     List<FileStatus> jarDirs =
         Arrays.stream(fs.exists(parentCachePath) ? fs.listStatus(parentCachePath) : new FileStatus[0]).sorted().collect(Collectors.toList());
-    if (jarDirs.size() > k) {
-      return fs.delete(jarDirs.get(0).getPath(), true);
+    boolean deletesSuccessful = true;
+    for (int i = 0; i < jarDirs.size() - k; i++) {
+      deletesSuccessful = deletesSuccessful && fs.delete(jarDirs.get(i).getPath(), true);
     }
-    return true;
+    return deletesSuccessful;
   }
 
   public static void addRemoteFilesToLocalResources(String hdfsFileList, Map<String, LocalResource> resourceMap, Configuration yarnConfiguration) throws IOException {
