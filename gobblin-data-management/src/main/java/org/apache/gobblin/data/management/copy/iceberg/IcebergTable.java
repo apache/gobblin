@@ -20,20 +20,32 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestReader;
+import org.apache.iceberg.PartitionData;
+import org.apache.iceberg.PartitionField;
+import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.ReplacePartitions;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.StructLike;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.io.FileIO;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -77,10 +89,16 @@ public class IcebergTable {
   private final String datasetDescriptorPlatform;
   private final TableOperations tableOps;
   private final String catalogUri;
+  private final Table table;
 
   @VisibleForTesting
   IcebergTable(TableIdentifier tableId, TableOperations tableOps, String catalogUri) {
-    this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri);
+    this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri, null);
+  }
+
+  @VisibleForTesting
+  IcebergTable(TableIdentifier tableId, TableOperations tableOps, String catalogUri, Table table) {
+    this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri, table);
   }
 
   /** @return metadata info limited to the most recent (current) snapshot */
@@ -217,4 +235,57 @@ public class IcebergTable {
       this.tableOps.commit(dstMetadata, srcMetadata);
     }
   }
+
+  public List<IcebergDataFileInfo> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate) throws IOException {
+    List<IcebergDataFileInfo> partitionDataFiles = new ArrayList<>();
+    TableMetadata tableMetadata = accessTableMetadata();
+    Snapshot currentSnapshot = tableMetadata.currentSnapshot();
+    List<ManifestFile> dataManifestFiles = currentSnapshot.dataManifests(this.tableOps.io());
+    for (ManifestFile manifestFile : dataManifestFiles) {
+      ManifestReader<DataFile> manifestReader = ManifestFiles.read(manifestFile, this.tableOps.io());
+      CloseableIterator<DataFile> dataFiles = manifestReader.iterator();
+      dataFiles.forEachRemaining(dataFile -> {
+        if (icebergPartitionFilterPredicate.test(dataFile.partition())) {
+          try {
+            partitionDataFiles.add(IcebergDataFileInfo.builder()
+                .srcFilePath(dataFile.path().toString())
+                .destFilePath(dataFile.path().toString())
+                .fileFormat(dataFile.format())
+                .recordCount(dataFile.recordCount())
+                .fileSize(dataFile.fileSizeInBytes())
+                .partitionData(recreatePartitionData(dataFile.partition()))
+                .build()
+            );
+          } catch (TableNotFoundException e) {
+            throw new RuntimeException(e);
+          }
+        }
+      });
+    }
+    return partitionDataFiles;
+  }
+
+  private StructLike recreatePartitionData(StructLike partition) throws TableNotFoundException {
+    TableMetadata tableMetadata = accessTableMetadata();
+    Schema tableSchema = tableMetadata.schema();
+    PartitionSpec partitionSpec = tableMetadata.spec();
+    PartitionData partitionData = new PartitionData(partitionSpec.partitionType());
+    List<PartitionField> partitionFields = tableMetadata.spec().fields();
+    for (int idx = 0; idx < partitionFields.size(); idx++) {
+      int srcId = partitionFields.get(idx).sourceId();
+      partitionData.set(idx, partition.get(idx, tableSchema.findField(srcId).type().typeId().javaClass()));
+    }
+    return partitionData;
+  }
+
+  protected void replacePartitions(List<DataFile> dataFiles) {
+    if (dataFiles.isEmpty()) {
+      return;
+    }
+    ReplacePartitions replacePartitions = this.table.newReplacePartitions();
+    dataFiles.forEach(replacePartitions::addFile);
+    replacePartitions.commit();
+    this.tableOps.refresh();
+  }
+
 }

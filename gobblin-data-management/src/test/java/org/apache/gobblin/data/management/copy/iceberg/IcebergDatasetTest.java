@@ -41,6 +41,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -120,7 +121,10 @@ public class IcebergDatasetTest {
     TableIdentifier tableId = TableIdentifier.of(testDbName, testTblName);
     String qualifiedTableName = "foo_prefix." + tableId.toString();
     String platformName = "Floe";
-    IcebergTable table = new IcebergTable(tableId, qualifiedTableName, platformName, Mockito.mock(TableOperations.class), SRC_CATALOG_URI);
+    IcebergTable table = new IcebergTable(tableId, qualifiedTableName, platformName,
+        Mockito.mock(TableOperations.class),
+        SRC_CATALOG_URI,
+        Mockito.mock(Table.class));
     FileSystem mockFs = Mockito.mock(FileSystem.class);
     Mockito.when(mockFs.getUri()).thenReturn(SRC_FS_URI);
     DatasetDescriptor expected = new DatasetDescriptor(platformName, URI.create(SRC_CATALOG_URI), qualifiedTableName);

@@ -21,6 +21,7 @@ import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.hive.HiveCatalog;
@@ -60,5 +61,10 @@ public class IcebergHiveCatalog extends BaseIcebergCatalog {
   @Override
   public boolean tableAlreadyExists(IcebergTable icebergTable) {
     return hc.tableExists(icebergTable.getTableId());
+  }
+
+  @Override
+  protected Table loadTableInstance(TableIdentifier tableId) {
+    return hc.loadTable(tableId);
   }
 }
