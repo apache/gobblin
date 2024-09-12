@@ -25,7 +25,6 @@ import com.typesafe.config.ConfigFactory;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
@@ -70,7 +69,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     } catch (Exception ignored) {
       log.error("Exception occured during loading jobState and generating searchAttributes", ignored);
     }
-    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec, searchAttributes);
+    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec,searchAttributes);
     int workunitsProcessed =
         processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0, workSpec.getTuning().getMaxBranchesPerTree(),
             workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty());

@@ -14,23 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.temporal.ddm.activity;
 
-package org.apache.gobblin.temporal.ddm.workflow;
+import java.util.Set;
 
-import java.util.Properties;
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityMethod;
 
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
-
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
+import org.apache.gobblin.temporal.ddm.work.DirDeletionResult;
+import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
-/** Workflow simply to generate {@link WorkUnit}s from a {@link org.apache.gobblin.source.Source} (and persist them for subsequent processing) */
-@WorkflowInterface
-public interface GenerateWorkUnitsWorkflow {
-  /** @return the number of {@link WorkUnit}s generated and persisted */
-  @WorkflowMethod
-  GenerateWorkUnitsResult generate(Properties props, EventSubmitterContext eventSubmitterContext);
+/** Activity for deleting up a list of temporary work directories */
+@ActivityInterface
+public interface DeleteWorkDirsActivity {
+  /**
+   * Clean the list of resources specified in the input
+   * TODO: Generalize the input to support multiple platforms outside of just HDFS
+   */
+  @ActivityMethod
+  DirDeletionResult delete(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> workDirPaths);
 }
+

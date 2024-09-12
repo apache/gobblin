@@ -18,8 +18,11 @@
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -30,6 +33,7 @@ import com.google.common.io.Closer;
 import io.temporal.failure.ApplicationFailure;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -40,10 +44,12 @@ import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
@@ -53,7 +59,7 @@ import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
 
   @Override
-  public int generateWorkUnits(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
+  public GenerateWorkUnitsResult generateWorkUnits(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     // TODO: decide whether to acquire a job lock (as MR did)!
     // TODO: provide for job cancellation (unless handling at the temporal-level of parent workflows)!
     JobState jobState = new JobState(jobProps);
@@ -74,12 +80,12 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       FileSystem fs = JobStateUtils.openFileSystem(jobState);
       fs.mkdirs(workDirRoot);
 
-      List<WorkUnit> workUnits = generateWorkUnitsForJobState(jobState, eventSubmitterContext, closer);
-
+      Set<String> resourcesToCleanUp = new HashSet<>();
+      List<WorkUnit> workUnits = generateWorkUnitsForJobStateAndCollectCleanupPaths(jobState, eventSubmitterContext, closer, resourcesToCleanUp);
       JobStateUtils.writeWorkUnits(workUnits, workDirRoot, jobState, fs);
       JobStateUtils.writeJobState(jobState, workDirRoot, fs);
 
-      return jobState.getTaskCount();
+      return new GenerateWorkUnitsResult(jobState.getTaskCount(), resourcesToCleanUp);
     } catch (ReflectiveOperationException roe) {
       String errMsg = "Unable to construct a source for generating workunits for job " + jobState.getJobId();
       log.error(errMsg, roe);
@@ -94,7 +100,8 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     }
   }
 
-  protected static List<WorkUnit> generateWorkUnitsForJobState(JobState jobState, EventSubmitterContext eventSubmitterContext, Closer closer)
+  protected List<WorkUnit> generateWorkUnitsForJobStateAndCollectCleanupPaths(JobState jobState, EventSubmitterContext eventSubmitterContext, Closer closer,
+      Set<String> resourcesToCleanUp)
       throws ReflectiveOperationException {
     Source<?, ?> source = JobStateUtils.createSource(jobState);
     WorkUnitStream workUnitStream = source instanceof WorkUnitStreamSource
@@ -120,7 +127,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     DestinationDatasetHandlerService datasetHandlerService = closer.register(
         new DestinationDatasetHandlerService(jobState, canCleanUpTempDirs, eventSubmitterContext.create()));
     WorkUnitStream handledWorkUnitStream = datasetHandlerService.executeHandlers(workUnitStream);
-
+    resourcesToCleanUp.addAll(calculateWorkDirsToCleanup(handledWorkUnitStream));
     // initialize writer and converter(s)
     // TODO: determine whether registration here is effective, or the lifecycle of this activity is too brief (as is likely!)
     closer.register(WriterInitializerFactory.newInstace(jobState, handledWorkUnitStream)).initialize();
@@ -141,5 +148,39 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     WorkUnitStream trackedWorkUnitStream = AbstractJobLauncher.addWorkUnitTrackingPerConfig(preparedWorkUnitStream, jobState, log);
 
     return AbstractJobLauncher.materializeWorkUnitList(trackedWorkUnitStream);
+  }
+
+  protected static Set<String> calculateWorkDirsToCleanup(WorkUnitStream workUnitStream) {
+    Set<String> resourcesToCleanUp = new HashSet<>();
+    // Validate every workunit if they have the temp dir props since some workunits may be commit steps
+    Iterator<WorkUnit> workUnitIterator = workUnitStream.getWorkUnits();
+    while (workUnitIterator.hasNext()) {
+      WorkUnit workUnit = workUnitIterator.next();
+      if (workUnit.isMultiWorkUnit()) {
+        List<WorkUnit> workUnitList = ((MultiWorkUnit) workUnit).getWorkUnits();
+        for (WorkUnit wu : workUnitList) {
+          resourcesToCleanUp.addAll(collectTaskStagingAndOutputDirsFromWorkUnit(wu));
+        }
+      } else {
+        resourcesToCleanUp.addAll(collectTaskStagingAndOutputDirsFromWorkUnit(workUnit));
+      }
+    }
+    return resourcesToCleanUp;
+  }
+
+
+  private static Set<String> collectTaskStagingAndOutputDirsFromWorkUnit(WorkUnit workUnit) {
+    Set<String> resourcesToCleanUp = new HashSet<>();
+    if (workUnit.contains(ConfigurationKeys.WRITER_STAGING_DIR)) {
+      resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.WRITER_STAGING_DIR));
+    }
+    if (workUnit.contains(ConfigurationKeys.WRITER_OUTPUT_DIR)) {
+      resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.WRITER_OUTPUT_DIR));
+    }
+    if (workUnit.getPropAsBoolean(ConfigurationKeys.CLEAN_ERR_DIR, ConfigurationKeys.DEFAULT_CLEAN_ERR_DIR)
+        && workUnit.contains(ConfigurationKeys.ROW_LEVEL_ERR_FILE)) {
+      resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE));
+    }
+    return resourcesToCleanUp;
   }
 }

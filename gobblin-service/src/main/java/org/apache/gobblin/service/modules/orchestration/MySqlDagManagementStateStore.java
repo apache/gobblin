@@ -21,6 +21,7 @@ import java.net.URI;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
@@ -43,6 +44,7 @@ import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
+import org.apache.gobblin.service.monitoring.FlowStatus;
 import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
@@ -209,6 +211,11 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
     } else {
       return java.util.Optional.empty();
     }
+  }
+
+  @Override
+  public List<FlowStatus> getAllFlowStatusesForFlow(String flowGroup, String flowName) {
+    return this.jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(flowGroup, flowName);
   }
 
   @Override

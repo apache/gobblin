@@ -15,22 +15,25 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.ddm.workflow;
+package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.Properties;
+import java.util.Set;
 
-import io.temporal.workflow.WorkflowInterface;
-import io.temporal.workflow.WorkflowMethod;
-
-import org.apache.gobblin.source.workunit.WorkUnit;
-import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
-import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
 
 
-/** Workflow simply to generate {@link WorkUnit}s from a {@link org.apache.gobblin.source.Source} (and persist them for subsequent processing) */
-@WorkflowInterface
-public interface GenerateWorkUnitsWorkflow {
-  /** @return the number of {@link WorkUnit}s generated and persisted */
-  @WorkflowMethod
-  GenerateWorkUnitsResult generate(Properties props, EventSubmitterContext eventSubmitterContext);
+/**
+ * Data structure representing the result of generating work units, where it returns the number of generated work units and
+ * the folders should be cleaned up after the full job execution is completed
+ */
+@Data
+@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
+@RequiredArgsConstructor
+public class GenerateWorkUnitsResult {
+  @NonNull private int generatedWuCount;
+  // Resources that the Temporal Job Launcher should clean up for Gobblin temporary work directory paths in writers
+  @NonNull private Set<String> workDirPathsToDelete;
 }

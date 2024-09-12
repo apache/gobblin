@@ -98,7 +98,7 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
   @Override
   public List<FlowStatus> getAllFlowStatusesForFlowExecutionsOrdered(String flowGroup, String flowName) {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
-    List<State> jobStatusStates = timeOpAndWrapIOException(() -> this.stateStore.getAllWithPrefix(storeName),
+    List<State> jobStatusStates = timeOpAndWrapIOException(() -> this.stateStore.getAll(storeName),
         GET_LATEST_FLOW_GROUP_STATUS_METRIC);
     return asFlowStatuses(groupByFlowExecutionAndRetainLatest(flowGroup, jobStatusStates,null));
   }
