@@ -64,7 +64,7 @@ public class Help {
   public static final String AZKABAN_FLOW_EXEC_ID_KEY = "azkaban.flow.execid";
   public static final String USER_TO_PROXY_KEY = "user.to.proxy";
   public static final String USER_TO_PROXY_SEARCH_KEY = "userToProxy";
-  public static final String GAAS_FLOW_KEY = "gaasFlowKey";
+  public static final String GAAS_FLOW_ID_SEARCH_KEY = "gaasFlowIdSearchKey";
 
   // treat `JobState` as immutable and cache, for reuse among activities executed by the same worker
   private static final transient Cache<Path, JobState> jobStateByPath = CacheBuilder.newBuilder().recordStats().build();

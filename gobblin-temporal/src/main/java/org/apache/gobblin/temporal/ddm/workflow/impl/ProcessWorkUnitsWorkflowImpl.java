@@ -16,6 +16,8 @@
  */
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
+import java.util.HashMap;
+import java.util.Map;
 import java.util.Optional;
 
 import com.typesafe.config.ConfigFactory;
@@ -59,25 +61,28 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   private CommitStats performWork(WUProcessingSpec workSpec) {
+
+    Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
+    Map<String, Object> searchAttributes = new HashMap<>();
     try {
-      Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
       JobState jobState = Help.loadJobState(workSpec, Help.loadFileSystem(workSpec));
-      NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec, jobState);
-      int workunitsProcessed = processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0,
-          workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty());
-      if (workunitsProcessed > 0) {
-        CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(jobState);
-        CommitStats result = commitWorkflow.commit(workSpec);
-        if (result.getNumCommittedWorkUnits() == 0) {
-          log.warn("No work units committed at the job level. They could have been committed at the task level.");
-        }
-        return result;
-      } else {
-        log.error("No work units processed, so no commit attempted.");
-        return CommitStats.createEmpty();
-      }
+      searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties());
     } catch (Exception ignored) {
-      log.error("Exception occured during performing Work", ignored);
+      log.error("Exception occured during loading jobState and generating searchAttributes", ignored);
+    }
+    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec, searchAttributes);
+    int workunitsProcessed =
+        processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0, workSpec.getTuning().getMaxBranchesPerTree(),
+            workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty());
+    if (workunitsProcessed > 0) {
+      CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
+      CommitStats result = commitWorkflow.commit(workSpec);
+      if (result.getNumCommittedWorkUnits() == 0) {
+        log.warn("No work units committed at the job level. They could have been committed at the task level.");
+      }
+      return result;
+    } else {
+      log.error("No work units processed, so no commit attempted.");
       return CommitStats.createEmpty();
     }
   }
@@ -93,28 +98,28 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   protected Workload<WorkUnitClaimCheck> createWorkload(WUProcessingSpec workSpec) {
-    return new EagerFsDirBackedWorkUnitClaimCheckWorkload(
-        workSpec.getFileSystemUri(),
-        workSpec.getWorkUnitsDir(),
-        workSpec.getEventSubmitterContext()
-    );
+    return new EagerFsDirBackedWorkUnitClaimCheckWorkload(workSpec.getFileSystemUri(), workSpec.getWorkUnitsDir(),
+        workSpec.getEventSubmitterContext());
   }
 
-  protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow(FileSystemJobStateful f,JobState jobState) {
+  protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow(FileSystemJobStateful f,
+      Map<String, Object> searchAttributes) {
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_TERMINATE)
-        .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties()))
-        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(CHILD_WORKFLOW_ID_BASE, f, WorkerConfig.of(this).orElse(ConfigFactory.empty())))
+        .setSearchAttributes(searchAttributes)
+        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(CHILD_WORKFLOW_ID_BASE, f,
+            WorkerConfig.of(this).orElse(ConfigFactory.empty())))
         .build();
     // TODO: to incorporate multiple different concrete `NestingExecWorkflow` sub-workflows in the same super-workflow... shall we use queues?!?!?
     return Workflow.newChildWorkflowStub(NestingExecWorkflow.class, childOpts);
   }
 
-  protected CommitStepWorkflow createCommitStepWorkflow(JobState jobState) {
+  protected CommitStepWorkflow createCommitStepWorkflow(Map<String, Object> searchAttributes) {
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
-        .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties()))
-        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE, WorkerConfig.of(this).orElse(ConfigFactory.empty())))
+        .setSearchAttributes(searchAttributes)
+        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE,
+            WorkerConfig.of(this).orElse(ConfigFactory.empty())))
         .build();
 
     return Workflow.newChildWorkflowStub(CommitStepWorkflow.class, childOpts);
