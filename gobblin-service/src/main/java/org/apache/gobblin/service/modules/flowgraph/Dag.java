@@ -27,6 +27,7 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import com.google.common.base.Joiner;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
 
@@ -318,10 +319,10 @@ public class Dag<T> {
     private final String flowName;
     private final long flowExecutionId;
 
-//    @Override
-//    public String toString() {
-//      return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
-//    }
+    @Override
+    public String toString() {
+      return Joiner.on("_").join(flowGroup, flowName, flowExecutionId);
+    }
 
     public FlowId getFlowId() {
       return new FlowId().setFlowGroup(this.flowGroup).setFlowName(this.flowName);
