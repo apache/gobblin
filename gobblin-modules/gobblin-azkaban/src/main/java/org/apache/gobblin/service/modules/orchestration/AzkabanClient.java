@@ -17,19 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.github.rholder.retry.AttemptTimeLimiters;
-import com.github.rholder.retry.RetryException;
-import com.github.rholder.retry.Retryer;
-import com.github.rholder.retry.RetryerBuilder;
-import com.github.rholder.retry.StopStrategies;
-import com.github.rholder.retry.WaitStrategies;
-import com.google.common.base.Preconditions;
-import com.google.common.base.Throwables;
-import com.google.common.io.Closer;
-import com.google.gson.Gson;
-import com.google.gson.JsonElement;
-import com.google.gson.JsonObject;
-import com.google.gson.JsonParser;
 import java.io.Closeable;
 import java.io.File;
 import java.io.IOException;
@@ -42,7 +29,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
-import lombok.Builder;
+
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang3.ObjectUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -60,6 +47,24 @@ import org.apache.http.ssl.TrustStrategy;
 import org.apache.http.util.EntityUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import com.github.rholder.retry.Attempt;
+import com.github.rholder.retry.AttemptTimeLimiters;
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.RetryListener;
+import com.github.rholder.retry.Retryer;
+import com.github.rholder.retry.RetryerBuilder;
+import com.github.rholder.retry.StopStrategies;
+import com.github.rholder.retry.WaitStrategies;
+import com.google.common.base.Preconditions;
+import com.google.common.base.Throwables;
+import com.google.common.io.Closer;
+import com.google.gson.Gson;
+import com.google.gson.JsonElement;
+import com.google.gson.JsonObject;
+import com.google.gson.JsonParser;
+
+import lombok.Builder;
 
 
 /**
@@ -80,9 +85,9 @@ public class AzkabanClient implements Closeable {
   protected CloseableHttpClient httpClient;
   private ExecutorService executorService;
   private Closer closer = Closer.create();
-  private Retryer<AzkabanClientStatus> retryer;
-  private static Logger log = LoggerFactory.getLogger(AzkabanClient.class);
-  private Duration requestTimeout;
+  private Retryer<AzkabanClientStatus<?>> retryer;
+  private static final Logger log = LoggerFactory.getLogger(AzkabanClient.class);
+  private final Duration requestTimeout;
 
   /**
    * Child class should have a different builderMethodName.
@@ -109,13 +114,25 @@ public class AzkabanClient implements Closeable {
     this.initializeClient();
     this.initializeSessionManager();
     this.intializeExecutorService();
+    RetryListener retryListener = new RetryListener() {
+      @Override
+      public <V> void onRetry(Attempt<V> attempt) {
+        if (attempt.hasException()) {
+          String msg = String.format("(Likely retryable) failure running Azkaban API [attempt: %d; %s after start]",
+                  attempt.getAttemptNumber(), Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());
+          log.warn(msg, attempt.getExceptionCause());
+        }
+      }
+    };
 
-    this.retryer = RetryerBuilder.<AzkabanClientStatus>newBuilder()
+
+    this.retryer = RetryerBuilder.<AzkabanClientStatus<?>>newBuilder()
         .retryIfExceptionOfType(InvalidSessionException.class)
         .withAttemptTimeLimiter(AttemptTimeLimiters.fixedTimeLimit(this.requestTimeout.toMillis(), TimeUnit.MILLISECONDS,
             this.executorService))
         .withWaitStrategy(WaitStrategies.exponentialWait(60, TimeUnit.SECONDS))
         .withStopStrategy(StopStrategies.stopAfterAttempt(3))
+        .withRetryListener(retryListener)
         .build();
     try {
       this.sessionId = this.sessionManager.fetchSession();
