@@ -249,11 +249,6 @@ public class IcebergTableTest extends HiveMetastoreTest {
     System.err.println("calculated metadata base path: '" + basePath + "'");
     return basePath;
   }
-  protected String calcMetadataBasePathNew(String theDbName, String theTableName) {
-    String basePath = String.format("%s/%s/new/metadata", metastore.getDatabasePath(theDbName), theTableName);
-    System.err.println("calculated metadata base path: '" + basePath + "'");
-    return basePath;
-  }
 
   /** Add one snapshot per sub-list of `perSnapshotFilesets`, in order, with the sub-list contents as the data files */
   protected static void initializeSnapshots(Table table, List<List<String>> perSnapshotFilesets) {
