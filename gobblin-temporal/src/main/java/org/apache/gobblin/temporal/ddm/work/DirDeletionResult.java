@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import lombok.Data;
@@ -34,4 +35,9 @@ import lombok.RequiredArgsConstructor;
 public class DirDeletionResult {
 
   @NonNull private Map<String, Boolean> successesByDirPath;
+
+  // Needed to support jackson (de)serialization
+  public static DirDeletionResult createEmpty() {
+    return new DirDeletionResult(new HashMap<>());
+  }
 }
