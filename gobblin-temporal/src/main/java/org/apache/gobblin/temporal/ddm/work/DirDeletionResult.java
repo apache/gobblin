@@ -36,7 +36,14 @@ public class DirDeletionResult {
 
   @NonNull private Map<String, Boolean> successesByDirPath;
 
-  // Needed to support jackson (de)serialization
+  /**
+   * Empty result that should be used instead of empty constructor and needed to support jackson (de)serialization, otherwise will face the following error
+   * Caused by: io.temporal.common.converter.DataConverterException: com.fasterxml.jackson.databind.JsonMappingException: successesByDirPath is marked non-null but is null
+   *  at [Source: (byte[])"{"successesByDirPath":null}"; line: 1, column: 23] (through reference chain: org.apache.gobblin.temporal.ddm.work.DirDeletionResult["successesByDirPath"])
+   * 	at io.temporal.common.converter.JacksonJsonPayloadConverter.fromData(JacksonJsonPayloadConverter.java:101)
+   * 	at io.temporal.common.converter.DefaultDataConverter.fromPayload(DefaultDataConverter.java:145)
+   * @return
+   */
   public static DirDeletionResult createEmpty() {
     return new DirDeletionResult(new HashMap<>());
   }
