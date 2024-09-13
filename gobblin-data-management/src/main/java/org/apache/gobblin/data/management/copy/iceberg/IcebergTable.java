@@ -217,6 +217,8 @@ public class IcebergTable {
       // use current destination metadata as 'base metadata' and source as 'updated metadata' while committing
       Map<String, String> combinedMetadataProperties = Maps.newHashMap();
       combinedMetadataProperties.putAll(dstMetadata.properties());
+      // Presume that the source metadata properties are more up-to-date than the destination metadata properties
+      // but maintain any dest properties that are not in the src table
       combinedMetadataProperties.putAll(srcMetadata.properties());
       this.tableOps.commit(dstMetadata, srcMetadata.replaceProperties(combinedMetadataProperties));
     }
