@@ -22,6 +22,7 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -39,6 +40,7 @@ import org.apache.iceberg.io.FileIO;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import lombok.AllArgsConstructor;
@@ -213,7 +215,10 @@ public class IcebergTable {
   protected void registerIcebergTable(TableMetadata srcMetadata, TableMetadata dstMetadata) {
     if (dstMetadata != null) {
       // use current destination metadata as 'base metadata' and source as 'updated metadata' while committing
-      this.tableOps.commit(dstMetadata, srcMetadata.replaceProperties(dstMetadata.properties()));
+      Map<String, String> combinedMetadataProperties = Maps.newHashMap();
+      combinedMetadataProperties.putAll(dstMetadata.properties());
+      combinedMetadataProperties.putAll(srcMetadata.properties());
+      this.tableOps.commit(dstMetadata, srcMetadata.replaceProperties(combinedMetadataProperties));
     }
   }
 }
