@@ -63,13 +63,16 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
 
     Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
     Map<String, Object> searchAttributes = new HashMap<>();
+    JobState jobState;
     try {
-      JobState jobState = Help.loadJobState(workSpec, Help.loadFileSystem(workSpec));
-      searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties());
-    } catch (Exception ignored) {
-      log.error("Exception occured during loading jobState and generating searchAttributes", ignored);
+      jobState = Help.loadJobState(workSpec, Help.loadFileSystem(workSpec));
+    } catch (Exception e) {
+      log.error("Exception occured during loading jobState", e);
+      throw new RuntimeException("Exception occured during loading jobState", e);
     }
-    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec,searchAttributes);
+    searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties());
+
+    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec, searchAttributes);
     int workunitsProcessed =
         processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0, workSpec.getTuning().getMaxBranchesPerTree(),
             workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty());
