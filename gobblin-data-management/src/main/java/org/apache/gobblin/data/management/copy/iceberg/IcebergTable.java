@@ -22,7 +22,6 @@ import java.net.URI;
 import java.time.Instant;
 import java.util.Iterator;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -40,7 +39,6 @@ import org.apache.iceberg.io.FileIO;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
-import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import lombok.AllArgsConstructor;
@@ -214,13 +212,9 @@ public class IcebergTable {
    * @param dstMetadata is null if destination {@link IcebergTable} is absent, in which case registration is skipped */
   protected void registerIcebergTable(TableMetadata srcMetadata, TableMetadata dstMetadata) {
     if (dstMetadata != null) {
-      // use current destination metadata as 'base metadata' and source as 'updated metadata' while committing
-      Map<String, String> combinedMetadataProperties = Maps.newHashMap();
-      combinedMetadataProperties.putAll(dstMetadata.properties());
-      // Presume that the source metadata properties are more up-to-date than the destination metadata properties
-      // but maintain any dest properties that are not in the src table
-      combinedMetadataProperties.putAll(srcMetadata.properties());
-      this.tableOps.commit(dstMetadata, srcMetadata.replaceProperties(combinedMetadataProperties));
+      // Use current destination metadata as 'base metadata' and but update to source metadata when committing
+      // If any of the source table properties are deleted, they will be reflected in the destination table
+      this.tableOps.commit(dstMetadata, srcMetadata);
     }
   }
 }

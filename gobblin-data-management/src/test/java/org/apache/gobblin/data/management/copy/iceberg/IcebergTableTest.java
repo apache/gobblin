@@ -195,7 +195,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     srcTableProperties.put("testKey", "testValueNew");
     destTableProperties.put("testKey", "testValueOld");
     // Expect existing property values to be maintained if it does not exist on the source
-    destTableProperties.put("existingTableProperty", "existingTablePropertyValue");
+    destTableProperties.put("deletedTableProperty", "deletedTablePropertyValue");
 
     TableIdentifier destTableId = TableIdentifier.of(dbName, "destTable");
     catalog.createTable(destTableId, icebergSchema, null, destTableProperties);
@@ -205,10 +205,10 @@ public class IcebergTableTest extends HiveMetastoreTest {
     TableMetadata newSourceTableProperties = destIcebergTable.accessTableMetadata().replaceProperties(srcTableProperties);
 
     destIcebergTable.registerIcebergTable(newSourceTableProperties, destIcebergTable.accessTableMetadata());
-    Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().size(), 3);
+    Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().size(), 2);
     Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().get("newKey"), "newValue");
     Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().get("testKey"), "testValueNew");
-    Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().get("existingTableProperty"), "existingTablePropertyValue");
+    Assert.assertNull(destIcebergTable.accessTableMetadata().properties().get("deletedTableProperty"));
   }
 
   /** full validation for a particular {@link IcebergSnapshotInfo} */
