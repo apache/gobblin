@@ -572,7 +572,7 @@ public class MRJobLauncher extends AbstractJobLauncher {
       Path srcJarFile = new Path(jarFile);
       FileStatus[] fileStatusList = lfs.globStatus(srcJarFile);
       for (FileStatus status : fileStatusList) {
-        Path destJarFile = HdfsJarUploadUtils.calculateDestJarFile(fs, status, this.unsharedJarsDir, jarFileDir);
+        Path destJarFile = HdfsJarUploadUtils.calculateDestJarFilePath(fs, status.getPath().getName(), this.unsharedJarsDir, jarFileDir);
         // For each FileStatus there are chances it could fail in copying at the first attempt, due to file-existence
         // or file-copy is ongoing by other job instance since all Gobblin jobs share the same jar file directory.
         // the retryCount is to avoid cases (if any) where retry is going too far and causes job hanging.

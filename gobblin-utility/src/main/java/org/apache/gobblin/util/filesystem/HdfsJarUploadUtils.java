@@ -39,15 +39,15 @@ public class HdfsJarUploadUtils {
    * given the {@link FileStatus} of a jarFile and the path of directory that contains jar.
    * Snapshot dirs should not be shared, as different jobs may be using different versions of it.
    * @param fs
-   * @param localJar
+   * @param localJarPath
    * @param unsharedJarsDir
    * @param jarCacheDir
    * @return
    * @throws IOException
    */
-  public static Path calculateDestJarFile(FileSystem fs, FileStatus localJar, Path unsharedJarsDir, Path jarCacheDir) throws IOException {
-    Path uploadDir = localJar.getPath().getName().contains("SNAPSHOT") ? unsharedJarsDir : jarCacheDir;
-    Path destJarFile = new Path(fs.makeQualified(uploadDir), localJar.getPath().getName());
+  public static Path calculateDestJarFilePath(FileSystem fs, String localJarPath, Path unsharedJarsDir, Path jarCacheDir) throws IOException {
+    Path uploadDir = localJarPath.contains("SNAPSHOT") ? unsharedJarsDir : jarCacheDir;
+    Path destJarFile = new Path(fs.makeQualified(uploadDir), localJarPath);
     return destJarFile;
   }
   /**
@@ -67,10 +67,9 @@ public class HdfsJarUploadUtils {
           Thread.sleep(WAITING_TIME_ON_INCOMPLETE_UPLOAD_MILLIS);
           throw new IOException("Waiting for file to complete on uploading ... ");
         }
-        // Set the first parameter as false for not deleting sourceFile
-        // Set the second parameter as false for not overwriting existing file on the target, by default it is true.
-        // If the file is preExisted but overwrite flag set to false, then an IOException if thrown.
-        fs.copyFromLocalFile(false, false, localJar.getPath(), destJarFile);
+        boolean deleteSourceFile = false;
+        boolean overwriteAnyExistingDestFile = false; // IOException will be thrown if does already exist
+        fs.copyFromLocalFile(deleteSourceFile, overwriteAnyExistingDestFile, localJar.getPath(), destJarFile);
       } catch (IOException | InterruptedException e) {
         log.warn("Path:" + destJarFile + " is not copied successfully. Will require retry.");
         retryCount += 1;

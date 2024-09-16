@@ -740,7 +740,7 @@ public class GobblinYarnAppLauncher {
     }
 
     for (FileStatus libJarFile : libJarFiles) {
-      Path destFilePath = HdfsJarUploadUtils.calculateDestJarFile(this.fs, libJarFile, unsharedDir, destCacheDir);
+      Path destFilePath = HdfsJarUploadUtils.calculateDestJarFilePath(this.fs, libJarFile.getPath().getName(), unsharedDir, destCacheDir);
       if (HdfsJarUploadUtils.uploadJarToHdfs(fs, libJarFile, MAXIMUM_JAR_COPY_RETRY_TIMES_DEFAULT, destFilePath) && resourceMap.isPresent()) {
         YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
       } else {
@@ -753,7 +753,7 @@ public class GobblinYarnAppLauncher {
     for (String jarFilePath : SPLITTER.split(jarFilePathList)) {
       Path srcFilePath = new Path(jarFilePath);
       FileStatus localJar = localFs.getFileStatus(srcFilePath);
-      Path destFilePath = HdfsJarUploadUtils.calculateDestJarFile(this.fs, localJar, unsharedDir, destCacheDir);
+      Path destFilePath = HdfsJarUploadUtils.calculateDestJarFilePath(this.fs, localJar.getPath().getName(), unsharedDir, destCacheDir);
       if (HdfsJarUploadUtils.uploadJarToHdfs(fs, localJar, MAXIMUM_JAR_COPY_RETRY_TIMES_DEFAULT, destFilePath)) {
         if (resourceMap.isPresent()) {
           YarnHelixUtils.addFileAsLocalResource(this.fs, destFilePath, LocalResourceType.FILE, resourceMap.get());
