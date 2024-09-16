@@ -31,6 +31,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.StructLike;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableProperties;
 
 import com.google.common.collect.Lists;
@@ -45,30 +46,42 @@ import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicate;
+import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergDateTimePartitionFilterPredicate;
+
 
 @Slf4j
 public class IcebergPartitionDataset extends IcebergDataset {
 
   private static final String ICEBERG_PARTITION_NAME_KEY = "partition.name";
-  private static final String ICEBERG_PARTITION_VALUES_KEY = "partition.values";
-  private final Predicate<StructLike> partitionFilterPredicate;
+  private static final String ICEBERG_PARTITION_TYPE_KEY = "partition.type";
+  private static final String DATETIME_PARTITION_TYPE = "datetime";
+  private Predicate<StructLike> partitionFilterPredicate;
 
   public IcebergPartitionDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable, Properties properties,
       FileSystem sourceFs, boolean shouldIncludeMetadataPath) throws IcebergTable.TableNotFoundException {
     super(srcIcebergTable, destIcebergTable, properties, sourceFs, shouldIncludeMetadataPath);
+
+    initializePartitionFilterPredicate();
+  }
+
+  private void initializePartitionFilterPredicate() throws IcebergTable.TableNotFoundException {
+    //TODO: Move this to a factory class of some sort
     String partitionColumnName =
         IcebergDatasetFinder.getLocationQualifiedProperty(properties, IcebergDatasetFinder.CatalogLocation.SOURCE,
             ICEBERG_PARTITION_NAME_KEY);
-    String partitionColumnValues =
-        IcebergDatasetFinder.getLocationQualifiedProperty(properties, IcebergDatasetFinder.CatalogLocation.SOURCE,
-            ICEBERG_PARTITION_VALUES_KEY);
     Preconditions.checkArgument(StringUtils.isNotEmpty(partitionColumnName),
         "Partition column name cannot be empty");
-    Preconditions.checkArgument(StringUtils.isNotEmpty(partitionColumnValues),
-        "Partition column values cannot be empty");
-    this.partitionFilterPredicate = new IcebergPartitionFilterPredicate(partitionColumnName, partitionColumnValues,
-        getSrcIcebergTable().accessTableMetadata()
-    );
+
+    TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
+
+    if (DATETIME_PARTITION_TYPE.equals(IcebergDatasetFinder.getLocationQualifiedProperty(properties,
+        IcebergDatasetFinder.CatalogLocation.SOURCE, ICEBERG_PARTITION_TYPE_KEY))) {
+      this.partitionFilterPredicate = new IcebergDateTimePartitionFilterPredicate(partitionColumnName,
+          srcTableMetadata, properties);
+    } else {
+      this.partitionFilterPredicate = new IcebergPartitionFilterPredicate(partitionColumnName,
+          srcTableMetadata, properties);
+    }
   }
 
   @Data
@@ -107,6 +120,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
 
+      //TODO: Remove this logging later
       log.info("Iteration : {}", cnt++);
       log.info("Source Path : {}", srcPath);
       log.info("Destination Path : {}", destPath);

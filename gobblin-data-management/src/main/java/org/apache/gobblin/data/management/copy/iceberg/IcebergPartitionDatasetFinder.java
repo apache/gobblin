@@ -38,21 +38,26 @@ public class IcebergPartitionDatasetFinder extends IcebergDatasetFinder {
     IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(destDbName, destTableName);
     Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(destIcebergTable),
         String.format("Missing Destination Iceberg Table: {%s}.{%s}", destDbName, destTableName));
-    Preconditions.checkArgument(validateSchema(srcIcebergTable, destIcebergTable),
+    TableMetadata srcTableMetadata = srcIcebergTable.accessTableMetadata();
+    TableMetadata destTableMetadata = destIcebergTable.accessTableMetadata();
+    Preconditions.checkArgument(validateSchema(srcTableMetadata, destTableMetadata),
         String.format("Schema Mismatch between Source {%s}.{%s} and Destination {%s}.{%s} Iceberg Tables\n"
-            + "Currently, only supporting copying between iceberg tables with same schema and same partition spec",
+            + "Currently, only supporting copying between iceberg tables with same schema",
+            srcDbName, srcTableName, destDbName, destTableName));
+    Preconditions.checkArgument(validatePartitionSpec(srcTableMetadata, destTableMetadata),
+        String.format("Partition Spec Mismatch between Source {%s}.{%s} and Destination {%s}.{%s} Iceberg Tables\n"
+            + "Currently, only supporting copying between iceberg tables with same partition spec",
             srcDbName, srcTableName, destDbName, destTableName));
     return new IcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, fs, getConfigShouldCopyMetadataPath(properties));
   }
 
-  private boolean validateSchema(IcebergTable srcIcebergTable, IcebergTable destIcebergTable)
-      throws IcebergTable.TableNotFoundException {
-    TableMetadata srcTableMetadata = srcIcebergTable.accessTableMetadata();
-    TableMetadata destTableMetadata = destIcebergTable.accessTableMetadata();
-
-    // Currently, only supporting copying between iceberg tables with same schema and same partition spec
-    return srcTableMetadata.schema().sameSchema(destTableMetadata.schema()) &&
-        srcTableMetadata.spec().compatibleWith(destTableMetadata.spec());
+  private boolean validateSchema(TableMetadata srcTableMetadata, TableMetadata destTableMetadata) {
+    // Currently, only supporting copying between iceberg tables with same schema
+    return srcTableMetadata.schema().sameSchema(destTableMetadata.schema());
   }
 
+  private boolean validatePartitionSpec(TableMetadata srcTableMetadata, TableMetadata destTableMetadata) {
+    // Currently, only supporting copying between iceberg tables with same partition spec
+    return srcTableMetadata.spec().compatibleWith(destTableMetadata.spec());
+  }
 }

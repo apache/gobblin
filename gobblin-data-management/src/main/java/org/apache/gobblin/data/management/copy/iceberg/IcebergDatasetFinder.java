@@ -170,7 +170,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   }
 
   /** @return property value or `null` */
-  protected static String getLocationQualifiedProperty(Properties properties, CatalogLocation location, String relativePropName) {
+  public static String getLocationQualifiedProperty(Properties properties, CatalogLocation location, String relativePropName) {
     return properties.getProperty(calcLocationQualifiedPropName(location, relativePropName));
   }
 

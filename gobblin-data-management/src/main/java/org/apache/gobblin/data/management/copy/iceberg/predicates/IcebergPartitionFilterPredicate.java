@@ -18,39 +18,40 @@
 package org.apache.gobblin.data.management.copy.iceberg.predicates;
 
 import java.util.List;
+import java.util.Properties;
 import java.util.function.Predicate;
 
-import org.apache.iceberg.PartitionField;
+import org.apache.commons.lang3.StringUtils;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.TableMetadata;
 
 import com.google.common.base.Splitter;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.ImmutableList;
 
+import org.apache.gobblin.data.management.copy.iceberg.IcebergDatasetFinder;
 
 public class IcebergPartitionFilterPredicate implements Predicate<StructLike> {
-  private static final List<String> allowedTransforms = ImmutableList.of("identity", "truncate");
-
-  private int partitionColumnIndex;
+  private static final List<String> supportedTransforms = ImmutableList.of("identity", "truncate");
+  private static final String ICEBERG_PARTITION_VALUES_KEY = "partition.values";
+  private final int partitionColumnIndex;
   private final List<String> partitionValues;
 
   private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
 
-  public IcebergPartitionFilterPredicate(String partitionColumnName, String partitionColumnValues, TableMetadata tableMetadata) {
-    List<PartitionField> partitionFields = tableMetadata.spec().fields();
-    for (int idx = 0; idx < partitionFields.size(); idx++) {
-      PartitionField partitionField = partitionFields.get(idx);
-      if (partitionField.name().equals(partitionColumnName)) {
-        String transform = partitionField.transform().toString().toLowerCase();
-        if (!allowedTransforms.contains(transform)) {
-          throw new IllegalArgumentException(
-              String.format("Partition transform %s is not supported. Supported transforms are %s", transform,
-                  allowedTransforms));
-        }
-        this.partitionColumnIndex = idx;
-        break;
-      }
-    }
+  public IcebergPartitionFilterPredicate(String partitionColumnName, TableMetadata tableMetadata,
+      Properties properties) {
+    this.partitionColumnIndex = IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex(partitionColumnName,
+        tableMetadata, supportedTransforms);
+    Preconditions.checkArgument(this.partitionColumnIndex != -1,
+        String.format("Partition column %s not found", partitionColumnName));
+
+    String partitionColumnValues =
+        IcebergDatasetFinder.getLocationQualifiedProperty(properties, IcebergDatasetFinder.CatalogLocation.SOURCE,
+            ICEBERG_PARTITION_VALUES_KEY);;
+    Preconditions.checkArgument(StringUtils.isNotBlank(partitionColumnValues),
+        "Partition column values cannot be empty");
+
     this.partitionValues = LIST_SPLITTER.splitToList(partitionColumnValues);
   }
 
