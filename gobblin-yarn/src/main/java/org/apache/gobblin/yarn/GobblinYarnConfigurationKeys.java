@@ -49,6 +49,15 @@ public class GobblinYarnConfigurationKeys {
   public static final String YARN_RESOURCE_MANAGER_IDS = YARN_RESOURCE_MANAGER_PREFIX + "ids";
   public static final String OTHER_YARN_RESOURCE_MANAGER_ADDRESSES= "other.yarn.resourcemanager.addresses";
 
+  public static final String JAR_CACHE_ENABLED = GOBBLIN_YARN_PREFIX + "jar.cache.enabled";
+
+  public static final boolean JAR_CACHE_ENABLED_DEFAULT = false;
+
+  public static final String JAR_CACHE_DIR = GOBBLIN_YARN_PREFIX + "jar.cache.dir";
+
+  // Used to store the start time of the app launcher to propagate to workers and appmaster
+  public static final String YARN_APPLICATION_LAUNCHER_START_TIME_KEY = GOBBLIN_YARN_PREFIX + "application.start.time";
+
   // Gobblin Yarn ApplicationMaster configuration properties.
   public static final String APP_MASTER_MEMORY_MBS_KEY = GOBBLIN_YARN_PREFIX + "app.master.memory.mbs";
   public static final String APP_MASTER_CORES_KEY = GOBBLIN_YARN_PREFIX + "app.master.cores";

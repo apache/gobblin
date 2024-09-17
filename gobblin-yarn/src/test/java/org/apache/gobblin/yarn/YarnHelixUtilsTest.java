@@ -18,13 +18,21 @@ package org.apache.gobblin.yarn;
 
 import java.io.IOException;
 
+import org.apache.hadoop.conf.Configuration;
+import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.io.Text;
 import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.junit.Assert;
+import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
+
+import com.google.common.io.Files;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
 
 
 public class YarnHelixUtilsTest {
@@ -33,6 +41,14 @@ public class YarnHelixUtilsTest {
    * added to the resources folder.
    * @throws IOException
    */
+  String tempDir = Files.createTempDir().getPath();
+
+  @AfterClass
+  public void tearDown() throws IOException{
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    fs.delete(new Path(this.tempDir), true);
+  }
+
   @Test
   public void testUpdateToken()
       throws IOException {
@@ -50,5 +66,37 @@ public class YarnHelixUtilsTest {
     credentials = UserGroupInformation.getCurrentUser().getCredentials();
     Token<?> readToken = credentials.getToken(new Text("testService"));
     Assert.assertNotNull(readToken);
+  }
+
+  @Test
+  public void testGetJarCachePath() throws IOException {
+    Config config = ConfigFactory.empty()
+        .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, ConfigValueFactory.fromAnyRef(1726074000013L))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef("/tmp"));
+    Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config);
+
+    Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09"));
+  }
+
+  @Test
+  public void retainLatestKJarCachePaths() throws IOException {
+    FileSystem fs = FileSystem.getLocal(new Configuration());
+    Config config = ConfigFactory.empty()
+        .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, ConfigValueFactory.fromAnyRef(1726074000013L))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(this.tempDir + "/tmp"));
+    Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config);
+    fs.mkdirs(jarCachePath);
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08"));
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-07"));
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-06"));
+
+    YarnHelixUtils.retainKLatestJarCachePaths(jarCachePath.getParent(), 2, fs);
+
+    Assert.assertTrue(fs.exists(new Path(this.tempDir, "tmp/2024-09")));
+    Assert.assertTrue(fs.exists(new Path(this.tempDir, "tmp/2024-08")));
+    // Should be cleaned up
+    Assert.assertFalse(fs.exists(new Path(this.tempDir, "tmp/2024-07")));
+    Assert.assertFalse(fs.exists(new Path(this.tempDir, "tmp/2024-06")));
+
   }
 }
