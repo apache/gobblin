@@ -194,7 +194,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     // Expect the old value to be overwritten by the new value
     srcTableProperties.put("testKey", "testValueNew");
     destTableProperties.put("testKey", "testValueOld");
-    // Expect existing property values to be maintained if it does not exist on the source
+    // Expect existing property values to be deleted if it does not exist on the source
     destTableProperties.put("deletedTableProperty", "deletedTablePropertyValue");
 
     TableIdentifier destTableId = TableIdentifier.of(dbName, "destTable");
