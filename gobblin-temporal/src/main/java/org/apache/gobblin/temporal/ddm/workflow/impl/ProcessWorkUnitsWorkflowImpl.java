@@ -16,7 +16,6 @@
  */
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
-import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 
@@ -62,7 +61,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   private CommitStats performWork(WUProcessingSpec workSpec) {
 
     Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
-    Map<String, Object> searchAttributes = new HashMap<>();
+    Map<String, Object> searchAttributes;
     JobState jobState;
     try {
       jobState = Help.loadJobState(workSpec, Help.loadFileSystem(workSpec));
