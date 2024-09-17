@@ -50,7 +50,7 @@ public class DeleteWorkDirsActivityImpl implements DeleteWorkDirsActivity {
     // Ensure that non HDFS writers exit early as they rely on a different cleanup process, can consider consolidation in the future
     // through an abstracted cleanup method implemented at a writer level
     if (workDirPaths.isEmpty()) {
-      return new DirDeletionResult();
+      return DirDeletionResult.createEmpty();
     }
     //TODO: Emit timers to measure length of cleanup step
     Optional<String> optJobName = Optional.empty();
