@@ -39,15 +39,15 @@ public class HdfsJarUploadUtils {
    * given the {@link FileStatus} of a jarFile and the path of directory that contains jar.
    * Snapshot dirs should not be shared, as different jobs may be using different versions of it.
    * @param fs
-   * @param localJarPath
+   * @param jarName
    * @param unsharedJarsDir
    * @param jarCacheDir
    * @return
    * @throws IOException
    */
-  public static Path calculateDestJarFilePath(FileSystem fs, String localJarPath, Path unsharedJarsDir, Path jarCacheDir) throws IOException {
-    Path uploadDir = localJarPath.contains("SNAPSHOT") ? unsharedJarsDir : jarCacheDir;
-    Path destJarFile = new Path(fs.makeQualified(uploadDir), localJarPath);
+  public static Path calculateDestJarFilePath(FileSystem fs, String jarName, Path unsharedJarsDir, Path jarCacheDir) throws IOException {
+    Path uploadDir = jarName.contains("SNAPSHOT") ? unsharedJarsDir : jarCacheDir;
+    Path destJarFile = new Path(fs.makeQualified(uploadDir), jarName);
     return destJarFile;
   }
   /**

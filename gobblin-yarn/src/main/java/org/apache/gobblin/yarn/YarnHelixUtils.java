@@ -205,6 +205,7 @@ public class YarnHelixUtils {
 
   /**
    * Calculate the path of a jar cache on HDFS, which is retained on a monthly basis.
+   * Should be used in conjunction with {@link #retainKLatestJarCachePaths(Path, int, FileSystem)}. to clean up the cache on a periodic basis
    * @param config
    * @return
    * @throws IOException
@@ -231,7 +232,7 @@ public class YarnHelixUtils {
         Arrays.stream(fs.exists(parentCachePath) ? fs.listStatus(parentCachePath) : new FileStatus[0]).sorted().collect(Collectors.toList());
     boolean deletesSuccessful = true;
     for (int i = 0; i < jarDirs.size() - k; i++) {
-      deletesSuccessful = deletesSuccessful && fs.delete(jarDirs.get(i).getPath(), true);
+      deletesSuccessful &= fs.delete(jarDirs.get(i).getPath(), true);
     }
     return deletesSuccessful;
   }

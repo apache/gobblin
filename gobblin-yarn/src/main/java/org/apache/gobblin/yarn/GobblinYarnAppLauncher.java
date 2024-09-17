@@ -564,7 +564,7 @@ public class GobblinYarnAppLauncher {
 
   /**
    * Setup and submit the Gobblin Yarn application.
-   *
+   * Retain at least the current and last month's jars in the cache (if configured) to handle executions running for ~30 days max
    * @throws IOException if there's anything wrong setting up and submitting the Yarn application
    * @throws YarnException if there's anything wrong setting up and submitting the Yarn application
    */
