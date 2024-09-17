@@ -36,6 +36,8 @@ import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobScheduler;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
+
 
 
 /**
@@ -57,7 +59,7 @@ public class HelloWorldJobLauncher extends GobblinTemporalJobLauncher {
 
   @Override
   public void submitJob(List<WorkUnit> workunits) {
-    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(queueName).build();
+    WorkflowOptions options = WorkflowOptions.newBuilder().setTaskQueue(queueName).setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(this.jobProps)).build();
     GreetingWorkflow greetingWorkflow = this.client.newWorkflowStub(GreetingWorkflow.class, options);
     EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder(eventSubmitter).build();
     String greeting = greetingWorkflow.getGreeting("Gobblin", eventSubmitterContext);
