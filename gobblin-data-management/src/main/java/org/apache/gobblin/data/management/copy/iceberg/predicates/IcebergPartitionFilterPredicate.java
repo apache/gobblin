@@ -57,7 +57,7 @@ public class IcebergPartitionFilterPredicate implements Predicate<StructLike> {
 
   @Override
   public boolean test(StructLike partition) {
-    String partitionVal = partition.get(this.partitionColumnIndex, String.class);
-    return this.partitionValues.contains(partitionVal);
+    Object partitionVal = partition.get(this.partitionColumnIndex, Object.class);
+    return this.partitionValues.contains(partitionVal.toString());
   }
 }
