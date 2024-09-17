@@ -22,6 +22,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
 import com.google.gson.Gson;
+import com.google.gson.GsonBuilder;
 
 import org.apache.gobblin.util.test.BaseClass;
 import org.apache.gobblin.util.test.TestClass;
@@ -40,6 +41,23 @@ public class GsonInterfaceAdapterTest {
     String ser = gson.toJson(test);
     BaseClass deser = gson.fromJson(ser, BaseClass.class);
     Assert.assertEquals(test, deser);
+
+  }
+
+  @Test
+  public void testObjectToIntegerDeserialize() {
+    Gson gson = new GsonBuilder().create();
+    Integer test = 5;
+    String ser = gson.toJson(test);
+    Object deser = gson.fromJson(ser, Object.class);
+    Assert.assertNotEquals(test, deser);
+
+    Gson customGson = new GsonBuilder()
+        .setObjectToNumberStrategy(GsonInterfaceAdapter.INTEGERNUMBERPOLICY.INTEGER_OR_LONG_OR_DOUBLE)
+        .create();
+
+    Object deser2 = customGson.fromJson(ser, Object.class);
+    Assert.assertEquals(test, deser2);
 
   }
 

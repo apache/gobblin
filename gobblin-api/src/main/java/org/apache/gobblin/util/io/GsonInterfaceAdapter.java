@@ -40,6 +40,9 @@ import com.google.gson.internal.Streams;
 import com.google.gson.reflect.TypeToken;
 import com.google.gson.stream.JsonReader;
 import com.google.gson.stream.JsonWriter;
+import com.google.gson.JsonParseException;
+import com.google.gson.ToNumberStrategy;
+import com.google.gson.stream.MalformedJsonException;
 
 
 /**
@@ -189,7 +192,38 @@ public class GsonInterfaceAdapter implements TypeAdapterFactory {
   }
 
   public static <T> Gson getGson(Class<T> clazz) {
-    Gson gson = new GsonBuilder().registerTypeAdapterFactory(new GsonInterfaceAdapter(clazz)).create();
+    Gson gson = new GsonBuilder()
+        .setObjectToNumberStrategy(INTEGERNUMBERPOLICY.INTEGER_OR_LONG_OR_DOUBLE)
+        .registerTypeAdapterFactory(new GsonInterfaceAdapter(clazz))
+        .create();
     return gson;
   }
+
+  public enum INTEGERNUMBERPOLICY implements ToNumberStrategy {
+    INTEGER_OR_LONG_OR_DOUBLE {
+      @Override
+      public Number readNumber(JsonReader in) throws IOException {
+        String value = in.nextString();
+        try {
+          return Integer.parseInt(value);
+        } catch (NumberFormatException var3) {
+          try {
+            return Long.parseLong(value);
+          } catch (NumberFormatException var2) {
+            try {
+              Double d = Double.valueOf(value);
+              if ((d.isInfinite() || d.isNaN()) && !in.isLenient()) {
+                throw new MalformedJsonException("JSON forbids NaN and infinities: " + d + "; at path " + in.getPath());
+              } else {
+                return d;
+              }
+            } catch (NumberFormatException var1) {
+              throw new JsonParseException("Cannot parse " + value + "; at path " + in.getPath(), var1);
+            }
+          }
+        }
+      }
+    }
+  }
+
 }
