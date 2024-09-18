@@ -20,6 +20,8 @@ package org.apache.gobblin.temporal.joblauncher;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
@@ -29,6 +31,7 @@ import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Workflow;
@@ -148,13 +151,26 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
         log.info("Temporal workflow {} cancelled successfully", this.workflowId);
         return;
       }
-      
+
       // Check if the workflow is not finished
       if (status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED &&
           status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED &&
           status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CANCELED &&
           status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TERMINATED) {
         workflowStub.cancel();
+        try {
+          // Check workflow status, if it is cancelled, will throw WorkflowFailedException else TimeoutException
+          workflowStub.getResult(3, TimeUnit.SECONDS, String.class, String.class);
+        }
+        catch (TimeoutException te) {
+          // Workflow is still running, terminate it.
+          log.info("Workflow is still running, will attempt termination", te);
+          workflowStub.terminate("Job cancel invoked");
+        }
+        catch (WorkflowFailedException wfe) {
+          // Do nothing as exception is expected.
+          log.info("Workflow cancellation successful", wfe);
+        }
         log.info("Temporal workflow {} cancelled successfully", this.workflowId);
       } else {
         log.info("Workflow {} is already finished with status {}", this.workflowId, status);

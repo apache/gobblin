@@ -22,6 +22,10 @@ import java.net.URI;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ExecutionException;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -87,7 +91,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   protected final StateStores stateStores;
   protected JobListener jobListener;
   protected volatile boolean jobSubmitted = false;
-
+  private final ExecutorService executor;
 
   public GobblinJobLauncher(Properties jobProps, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap, EventBus eventbus)
@@ -122,6 +126,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
     this.taskStateCollectorService =
         new TaskStateCollectorService(jobProps, this.jobContext.getJobState(), this.eventBus, this.eventSubmitter,
             this.stateStores.getTaskStateStore(), this.outputTaskStateDir, this.getIssueRepository());
+    this.executor = Executors.newSingleThreadExecutor();
   }
 
   @Override
@@ -150,17 +155,23 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
       // Start the output TaskState collector service
       this.taskStateCollectorService.startAsync().awaitRunning();
 
+      Future<?> submitJobFuture = null;
       synchronized (this.cancellationRequest) {
         if (!this.cancellationRequested) {
-          submitJob(workUnits);
+          submitJobFuture = executor.submit(() -> {
+            try {
+              submitJob(workUnits);
+            } catch (Exception e) {
+              throw new RuntimeException(e);
+            }
+          });
           log.info(String.format("Submitted job %s", this.jobContext.getJobId()));
           this.jobSubmitted = true;
         } else {
           log.warn("Job {} not submitted as it was requested to be cancelled.", this.jobContext.getJobId());
         }
       }
-
-      waitJob();
+      waitJob(submitJobFuture);
       log.info(String.format("Job %s completed", this.jobContext.getJobId()));
     } finally {
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
@@ -172,7 +183,11 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   protected void submitJob(List<WorkUnit> workUnits) throws Exception {
   }
 
-  protected void waitJob() throws InterruptedException {
+  protected void waitJob(Future<?> submitJobFuture)
+      throws InterruptedException, ExecutionException {
+    if (submitJobFuture != null) {
+      submitJobFuture.get();
+    }
   }
 
   @Override
