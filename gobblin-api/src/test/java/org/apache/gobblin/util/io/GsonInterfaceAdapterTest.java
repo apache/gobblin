@@ -51,14 +51,51 @@ public class GsonInterfaceAdapterTest {
     String ser = gson.toJson(test);
     Object deser = gson.fromJson(ser, Object.class);
     Assert.assertNotEquals(test, deser);
+    Assert.assertTrue(deser instanceof Double);
 
     Gson customGson = new GsonBuilder()
-        .setObjectToNumberStrategy(GsonInterfaceAdapter.INTEGERNUMBERPOLICY.INTEGER_OR_LONG_OR_DOUBLE)
+        .setObjectToNumberStrategy(GsonInterfaceAdapter.CustomToNumberPolicy.INTEGER_OR_LONG_OR_DOUBLE)
         .create();
 
     Object deser2 = customGson.fromJson(ser, Object.class);
     Assert.assertEquals(test, deser2);
+    Assert.assertTrue(deser2 instanceof Integer);
+  }
 
+  @Test
+  public void testObjectToLongDeserialize() {
+    Gson gson = new GsonBuilder().create();
+    Long test = 1234567890123456789L;
+    String ser = gson.toJson(test);
+    Object deser = gson.fromJson(ser, Object.class);
+    Assert.assertNotEquals(test, deser);
+    Assert.assertTrue(deser instanceof Double);
+
+    Gson customGson = new GsonBuilder()
+        .setObjectToNumberStrategy(GsonInterfaceAdapter.CustomToNumberPolicy.INTEGER_OR_LONG_OR_DOUBLE)
+        .create();
+
+    Object deser2 = customGson.fromJson(ser, Object.class);
+    Assert.assertEquals(test, deser2);
+    Assert.assertTrue(deser2 instanceof Long);
+  }
+
+  @Test
+  public void testObjectToDoubleDeserialize() {
+    Gson gson = new GsonBuilder().create();
+    Double test = 5.0;
+    String ser = gson.toJson(test);
+    Object deser = gson.fromJson(ser, Object.class);
+    Assert.assertEquals(test, deser);
+    Assert.assertTrue(deser instanceof Double);
+
+    Gson customGson = new GsonBuilder()
+        .setObjectToNumberStrategy(GsonInterfaceAdapter.CustomToNumberPolicy.INTEGER_OR_LONG_OR_DOUBLE)
+        .create();
+
+    Object deser2 = customGson.fromJson(ser, Object.class);
+    Assert.assertEquals(test, deser2);
+    Assert.assertTrue(deser2 instanceof Double);
   }
 
 }

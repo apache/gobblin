@@ -193,13 +193,13 @@ public class GsonInterfaceAdapter implements TypeAdapterFactory {
 
   public static <T> Gson getGson(Class<T> clazz) {
     Gson gson = new GsonBuilder()
-        .setObjectToNumberStrategy(INTEGERNUMBERPOLICY.INTEGER_OR_LONG_OR_DOUBLE)
+        .setObjectToNumberStrategy(CustomToNumberPolicy.INTEGER_OR_LONG_OR_DOUBLE)
         .registerTypeAdapterFactory(new GsonInterfaceAdapter(clazz))
         .create();
     return gson;
   }
 
-  public enum INTEGERNUMBERPOLICY implements ToNumberStrategy {
+  public enum CustomToNumberPolicy implements ToNumberStrategy {
     INTEGER_OR_LONG_OR_DOUBLE {
       @Override
       public Number readNumber(JsonReader in) throws IOException {
