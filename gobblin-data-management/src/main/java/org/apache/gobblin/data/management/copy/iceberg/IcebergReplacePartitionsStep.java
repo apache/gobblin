@@ -18,28 +18,24 @@
 package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Properties;
-import java.util.stream.Collectors;
 
 import org.apache.gobblin.commit.CommitStep;
-import org.apache.iceberg.DataFile;
-import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.util.SerializationUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
 
 @Slf4j
 public class IcebergReplacePartitionsStep implements CommitStep {
-
   private final String destTableIdStr;
-  private final List<IcebergDataFileInfo> destTableDataFiles;
   private final Properties properties;
+  private final byte[] serializedDataFiles;
 
-  public IcebergReplacePartitionsStep(String destTableIdStr, List<IcebergDataFileInfo> dataFiles, Properties properties) {
+  public IcebergReplacePartitionsStep(String destTableIdStr, byte[] serializedDataFiles, Properties properties) {
     this.destTableIdStr = destTableIdStr;
-    this.destTableDataFiles = dataFiles;
+    this.serializedDataFiles = serializedDataFiles;
     this.properties = properties;
   }
   @Override
@@ -50,19 +46,13 @@ public class IcebergReplacePartitionsStep implements CommitStep {
   @Override
   public void execute() throws IOException {
     IcebergTable destTable = createDestinationCatalog().openTable(TableIdentifier.parse(destTableIdStr));
-    PartitionSpec partitionSpec = destTable.accessTableMetadata().spec();
     try {
       log.info("Replacing partitions for table " + destTableIdStr);
-      destTable.replacePartitions(getDataFiles(partitionSpec));
+      destTable.replacePartitions(SerializationUtil.deserializeFromBytes(this.serializedDataFiles));
+      log.info("Replaced partitions for table " + destTableIdStr);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
-  }
-
-  private List<DataFile> getDataFiles(PartitionSpec partitionSpec) {
-    return this.destTableDataFiles.stream()
-        .map(dataFileInfo -> dataFileInfo.getDataFile(partitionSpec))
-        .collect(Collectors.toList());
   }
 
   protected IcebergCatalog createDestinationCatalog() throws IOException {
