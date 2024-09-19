@@ -212,8 +212,9 @@ public class IcebergTable {
    * @param dstMetadata is null if destination {@link IcebergTable} is absent, in which case registration is skipped */
   protected void registerIcebergTable(TableMetadata srcMetadata, TableMetadata dstMetadata) {
     if (dstMetadata != null) {
-      // use current destination metadata as 'base metadata' and source as 'updated metadata' while committing
-      this.tableOps.commit(dstMetadata, srcMetadata.replaceProperties(dstMetadata.properties()));
+      // Use current destination metadata as 'base metadata', but commit the source-side metadata
+      // to synchronize source-side property deletion over to the destination
+      this.tableOps.commit(dstMetadata, srcMetadata);
     }
   }
 }
