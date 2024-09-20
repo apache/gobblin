@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableProperties;
@@ -121,15 +122,14 @@ public class IcebergPartitionDataset extends IcebergDataset {
     }
 
     copyEntities.add(createPostPublishStep(destDataFiles));
-
     log.info("~{}~ generated {} copy--entities", fileSet, copyEntities.size());
-
     return copyEntities;
   }
 
   private List<DataFile> getDestDataFiles(List<DataFile> srcDataFiles) throws IcebergTable.TableNotFoundException {
     TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
     TableMetadata destTableMetadata = getDestIcebergTable().accessTableMetadata();
+    PartitionSpec partitionSpec = destTableMetadata.spec();
     String prefixToBeReplaced = srcTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "");
     String prefixToReplaceWith = destTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "");
     if (StringUtils.isEmpty(prefixToBeReplaced) || StringUtils.isEmpty(prefixToReplaceWith)) {
@@ -145,7 +145,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
       String curDestFilePath = dataFile.path().toString();
       String newDestFilePath = curDestFilePath.replace(prefixToBeReplaced, prefixToReplaceWith);
       String updatedDestFilePath = addUUIDToPath(newDestFilePath);
-      destDataFiles.add(DataFiles.builder(destTableMetadata.spec())
+      destDataFiles.add(DataFiles.builder(partitionSpec)
           .copy(dataFile)
           .withPath(updatedDestFilePath)
           .build());

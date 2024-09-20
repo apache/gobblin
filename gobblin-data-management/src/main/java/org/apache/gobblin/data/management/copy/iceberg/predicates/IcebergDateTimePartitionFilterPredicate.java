@@ -74,6 +74,7 @@ public class IcebergDateTimePartitionFilterPredicate implements Predicate<Struct
     this.startDate = this.dateTimeFormatter.parseDateTime(startDateVal);
     this.endDate = this.dateTimeFormatter.parseDateTime(endDateVal);
   }
+
   @Override
   public boolean test(StructLike partition) {
     String partitionVal = partition.get(this.partitionColumnIndex, String.class);

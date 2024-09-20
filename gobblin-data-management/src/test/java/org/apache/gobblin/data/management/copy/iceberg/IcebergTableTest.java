@@ -23,6 +23,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,8 +34,11 @@ import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.PartitionData;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.avro.AvroSchemaUtil;
@@ -333,4 +337,46 @@ public class IcebergTableTest extends HiveMetastoreTest {
   protected static <T, C extends Collection<T>> List<T> flatten(Collection<C> cc) {
     return cc.stream().flatMap(x -> x.stream()).collect(Collectors.toList());
   }
+
+  @Test
+  public void testGetPartitionSpecificDataFiles() throws IOException {
+    List<String> paths = Arrays.asList(
+        "/path/tableName/data/id=1/file1.orc",
+        "/path/tableName/data/id=1/file3.orc",
+        "/path/tableName/data/id=1/file5.orc",
+        "/path/tableName/data/id=1/file4.orc",
+        "/path/tableName/data/id=1/file2.orc"
+    );
+    // Using the schema defined in start of this class
+    PartitionData partitionData = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData.set(0, 1L);
+    List<PartitionData> partitionDataList = Collections.nCopies(5, partitionData);
+
+    addPartitionDataFiles(table, paths, partitionDataList);
+
+    IcebergTable icebergTable = new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri, catalog.loadTable(tableId));
+    Predicate<StructLike> alwaysTruePredicate = partition -> true;
+    Predicate<StructLike> alwaysFalsePredicate = partition -> false;
+    Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysTruePredicate).size(), 5);
+    Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysFalsePredicate).size(), 0);
+  }
+
+  private static void addPartitionDataFiles(Table table, List<String> paths, List<PartitionData> partitionDataList) {
+    Assert.assertEquals(paths.size(), partitionDataList.size());
+    for (int i = 0; i < paths.size(); i++) {
+      DataFile dataFile = createDataFileWithPartition(paths.get(i), partitionDataList.get(i));
+      table.newAppend().appendFile(dataFile).commit();
+    }
+  }
+
+  private static DataFile createDataFileWithPartition(String path, PartitionData partitionData) {
+    return DataFiles.builder(icebergPartitionSpec)
+        .withPath(path)
+        .withFileSizeInBytes(0)
+        .withRecordCount(1)
+        .withPartition(partitionData)
+        .withFormat(FileFormat.ORC)
+        .build();
+  }
+
 }
