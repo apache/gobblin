@@ -90,7 +90,6 @@ public class IcebergPartitionDataset extends IcebergDataset {
 
   @Data
   protected static final class FilePathsWithStatus {
-    private final Path srcPath;
     private final Path destPath;
     private final FileStatus srcFileStatus;
   }
@@ -100,18 +99,11 @@ public class IcebergPartitionDataset extends IcebergDataset {
     String fileSet = this.getFileSetId();
     List<CopyEntity> copyEntities = Lists.newArrayList();
     IcebergTable srcIcebergTable = getSrcIcebergTable();
-//    List<IcebergDataFileInfo> dataFileInfos = srcIcebergTable.getPartitionSpecificDataFiles(this.partitionFilterPredicate);
     List<DataFile> srcDataFiles = srcIcebergTable.getPartitionSpecificDataFiles(this.partitionFilterPredicate);
     List<DataFile> destDataFiles = getDestDataFiles(srcDataFiles);
-//    log.info("Data File Infos - 0 : {}", dataFileInfos);
-//    fixDestFilePaths(dataFileInfos);
-//    log.info("Data File Infos - 1 : {}", dataFileInfos);
     Configuration defaultHadoopConfiguration = new Configuration();
 
-    int cnt = 0;
-
     for (FilePathsWithStatus filePathsWithStatus : getFilePathsStatus(srcDataFiles, destDataFiles, this.sourceFs)) {
-      Path srcPath = filePathsWithStatus.getSrcPath();
       Path destPath = filePathsWithStatus.getDestPath();
       FileStatus srcFileStatus = filePathsWithStatus.getSrcFileStatus();
       FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
@@ -126,47 +118,14 @@ public class IcebergPartitionDataset extends IcebergDataset {
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
 
-      //TODO: Remove this logging later
-      log.info("Iteration : {}", cnt++);
-      log.info("Source Path : {}", srcPath);
-      log.info("Destination Path : {}", destPath);
-      log.info("Actual Source FileSystem : {}", actualSourceFs.toString());
-      log.info("Src Path Parent : {}", srcPath.getParent());
-      log.info("Src File Status : {}", srcFileStatus);
-      log.info("Destination : {}", targetFs.makeQualified(destPath));
-      log.info("Dataset Output Path : {}", targetFs.getUri().getPath());
-      log.info("Source Dataset : {}", getSourceDataset(this.sourceFs).toString());
-      log.info("Destination Dataset : {}", getDestinationDataset(targetFs).toString());
-
     }
 
     copyEntities.add(createPostPublishStep(destDataFiles));
 
     log.info("~{}~ generated {} copy--entities", fileSet, copyEntities.size());
-    log.info("Copy Entities : {}", copyEntities);
 
     return copyEntities;
   }
-
-//  private void fixDestFilePaths(List<IcebergDataFileInfo> dataFileInfos) throws IOException {
-//    String prefixToBeReplaced = getSrcIcebergTable().accessTableMetadata().property(TableProperties.WRITE_DATA_LOCATION, "");
-//    String prefixToReplaceWith = getDestIcebergTable().accessTableMetadata().property(TableProperties.WRITE_DATA_LOCATION, "");
-//    if (StringUtils.isEmpty(prefixToBeReplaced) || StringUtils.isEmpty(prefixToReplaceWith)) {
-//      log.warn(
-//          String.format("Cannot fix dest file paths as either source or destination table does not have write data location : "
-//              + "source table write data location : {%s} , destination table write data location : {%s}",
-//              prefixToBeReplaced,
-//              prefixToReplaceWith
-//          )
-//      );
-//      return;
-//    }
-//    for (IcebergDataFileInfo dataFileInfo : dataFileInfos) {
-//      String curDestFilePath = dataFileInfo.getDestFilePath();
-//      String newDestFilePath = curDestFilePath.replace(prefixToBeReplaced, prefixToReplaceWith);
-//      dataFileInfo.setDestFilePath(newDestFilePath);
-//    }
-//  }
 
   private List<DataFile> getDestDataFiles(List<DataFile> srcDataFiles) throws IcebergTable.TableNotFoundException {
     TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
@@ -207,30 +166,14 @@ public class IcebergPartitionDataset extends IcebergDataset {
     List<FilePathsWithStatus> filePathsStatus = new ArrayList<>();
     for (int i = 0; i < srcDataFiles.size(); i++) {
       Path srcPath = new Path(srcDataFiles.get(i).path().toString());
-      Path destPath = new Path(destDataFiles.get(i).toString());
+      Path destPath = new Path(destDataFiles.get(i).path().toString());
       FileStatus srcFileStatus = fs.getFileStatus(srcPath);
-      filePathsStatus.add(new FilePathsWithStatus(srcPath, destPath, srcFileStatus));
+      filePathsStatus.add(new FilePathsWithStatus(destPath, srcFileStatus));
     }
     return filePathsStatus;
   }
 
-//  private List<FilePathsWithStatus> getFilePathsStatus(List<IcebergDataFileInfo> dataFileInfos, FileSystem fs) throws IOException {
-//    List<FilePathsWithStatus> filePathsStatus = new ArrayList<>();
-//    for (IcebergDataFileInfo dataFileInfo : dataFileInfos) {
-//      Path srcPath = new Path(dataFileInfo.getSrcFilePath());
-//      Path destPath = new Path(dataFileInfo.getDestFilePath());
-//      FileStatus arcFileStatus = fs.getFileStatus(srcPath);
-//      filePathsStatus.add(new FilePathsWithStatus(srcPath, destPath, arcFileStatus));
-//    }
-//    return filePathsStatus;
-//  }
-
   private PostPublishStep createPostPublishStep(List<DataFile> destDataFiles) {
-//    IcebergTable destIcebergTable = getDestIcebergTable();
-//    PartitionSpec partitionSpec = destIcebergTable.accessTableMetadata().spec();
-//    List<DataFile> dataFiles = fileInfos.stream()
-//        .map(dataFileInfo -> dataFileInfo.getDataFile(partitionSpec))
-//        .collect(Collectors.toList());
 
     byte[] serializedDataFiles = SerializationUtil.serializeToBytes(destDataFiles);
 

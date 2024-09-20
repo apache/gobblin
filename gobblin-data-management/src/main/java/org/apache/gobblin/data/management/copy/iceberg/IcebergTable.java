@@ -33,11 +33,7 @@ import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
-import org.apache.iceberg.PartitionData;
-import org.apache.iceberg.PartitionField;
-import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.ReplacePartitions;
-import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
@@ -237,38 +233,6 @@ public class IcebergTable {
     }
   }
 
-//  public List<IcebergDataFileInfo> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate) throws IOException {
-//    List<IcebergDataFileInfo> partitionDataFiles = new ArrayList<>();
-//    TableMetadata tableMetadata = accessTableMetadata();
-//    Snapshot currentSnapshot = tableMetadata.currentSnapshot();
-//    List<ManifestFile> dataManifestFiles = currentSnapshot.dataManifests(this.tableOps.io());
-//    List<DataFile> dataFileList = new ArrayList<>();
-//    for (ManifestFile manifestFile : dataManifestFiles) {
-//      ManifestReader<DataFile> manifestReader = ManifestFiles.read(manifestFile, this.tableOps.io());
-//      CloseableIterator<DataFile> dataFiles = manifestReader.iterator();
-//      dataFiles.forEachRemaining(dataFile -> {
-//        if (icebergPartitionFilterPredicate.test(dataFile.partition())) {
-//          try {
-//            partitionDataFiles.add(IcebergDataFileInfo.builder()
-//                .srcFilePath(dataFile.path().toString())
-//                .destFilePath(dataFile.path().toString())
-//                .fileFormat(dataFile.format())
-//                .recordCount(dataFile.recordCount())
-//                .fileSize(dataFile.fileSizeInBytes())
-//                .partitionData(recreatePartitionData(dataFile.partition()))
-//                .build()
-//            );
-//            dataFileList.add(dataFile.copy());
-//          } catch (TableNotFoundException e) {
-//            throw new RuntimeException(e);
-//          }
-//        }
-//      });
-//    }
-//
-//    return partitionDataFiles;
-//  }
-
   public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate) throws IOException {
     TableMetadata tableMetadata = accessTableMetadata();
     Snapshot currentSnapshot = tableMetadata.currentSnapshot();
@@ -285,19 +249,6 @@ public class IcebergTable {
     }
     return dataFileList;
   }
-
-//  private StructLike recreatePartitionData(StructLike partition) throws TableNotFoundException {
-//    TableMetadata tableMetadata = accessTableMetadata();
-//    Schema tableSchema = tableMetadata.schema();
-//    PartitionSpec partitionSpec = tableMetadata.spec();
-//    PartitionData partitionData = new PartitionData(partitionSpec.partitionType());
-//    List<PartitionField> partitionFields = tableMetadata.spec().fields();
-//    for (int idx = 0; idx < partitionFields.size(); idx++) {
-//      int srcId = partitionFields.get(idx).sourceId();
-//      partitionData.set(idx, partition.get(idx, tableSchema.findField(srcId).type().typeId().javaClass()));
-//    }
-//    return partitionData;
-//  }
 
   protected void replacePartitions(List<DataFile> dataFiles) {
     if (dataFiles.isEmpty()) {
