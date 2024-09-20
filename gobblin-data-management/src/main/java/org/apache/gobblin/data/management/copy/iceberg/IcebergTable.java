@@ -85,7 +85,6 @@ public class IcebergTable {
   private final String datasetDescriptorPlatform;
   private final TableOperations tableOps;
   private final String catalogUri;
-  @Getter
   private final Table table;
 
   @VisibleForTesting

@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
@@ -340,6 +341,9 @@ public class IcebergTableTest extends HiveMetastoreTest {
 
   @Test
   public void testGetPartitionSpecificDataFiles() throws IOException {
+    TableIdentifier testTableId = TableIdentifier.of(dbName, "testTable");
+    Table testTable = catalog.createTable(testTableId, icebergSchema, icebergPartitionSpec);
+
     List<String> paths = Arrays.asList(
         "/path/tableName/data/id=1/file1.orc",
         "/path/tableName/data/id=1/file3.orc",
@@ -352,13 +356,75 @@ public class IcebergTableTest extends HiveMetastoreTest {
     partitionData.set(0, 1L);
     List<PartitionData> partitionDataList = Collections.nCopies(5, partitionData);
 
-    addPartitionDataFiles(table, paths, partitionDataList);
+    addPartitionDataFiles(testTable, paths, partitionDataList);
 
-    IcebergTable icebergTable = new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri, catalog.loadTable(tableId));
+    IcebergTable icebergTable = new IcebergTable(testTableId,
+        catalog.newTableOps(testTableId),
+        catalogUri,
+        catalog.loadTable(testTableId));
+    // Using AlwaysTrue & AlwaysFalse Predicate to avoid mocking of predicate class
     Predicate<StructLike> alwaysTruePredicate = partition -> true;
     Predicate<StructLike> alwaysFalsePredicate = partition -> false;
     Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysTruePredicate).size(), 5);
     Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysFalsePredicate).size(), 0);
+
+    catalog.dropTable(testTableId);
+  }
+
+  @Test
+  public void testReplacePartitions() throws IOException {
+    TableIdentifier testTableId = TableIdentifier.of(dbName, "testTable");
+    Table testTable = catalog.createTable(testTableId, icebergSchema, icebergPartitionSpec);
+
+    List<String> paths = Arrays.asList(
+        "/path/tableName/data/id=1/file1.orc",
+        "/path/tableName/data/id=1/file2.orc"
+    );
+    // Using the schema defined in start of this class
+    PartitionData partitionData = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData.set(0, 1L);
+    PartitionData partitionData2 = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData2.set(0, 1L);
+    List<PartitionData> partitionDataList = Arrays.asList(partitionData, partitionData2);
+
+    addPartitionDataFiles(testTable, paths, partitionDataList);
+
+    IcebergTable icebergTable = new IcebergTable(testTableId,
+        catalog.newTableOps(testTableId),
+        catalogUri,
+        catalog.loadTable(testTableId));
+
+    List<String> paths2 = Arrays.asList(
+        "/path/tableName/data/id=2/file3.orc",
+        "/path/tableName/data/id=2/file4.orc"
+    );
+    // Using the schema defined in start of this class
+    PartitionData partitionData3 = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData3.set(0, 2L);
+    PartitionData partitionData4 = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData4.set(0, 2L);
+    List<PartitionData> partitionDataList2 = Arrays.asList(partitionData3, partitionData4);
+
+    List<DataFile> dataFiles = getDataFiles(paths2, partitionDataList2);
+    // here, since partition data with value 2 doesn't exist yet, we expect it to get added to the table
+    icebergTable.replacePartitions(dataFiles);
+    List<String> expectedPaths = new ArrayList<>(paths);
+    expectedPaths.addAll(paths2);
+    verifyAnyOrder(expectedPaths, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
+
+    List<String> paths3 = Arrays.asList(
+      "/path/tableName/data/id=1/file5.orc",
+      "/path/tableName/data/id=1/file6.orc"
+    );
+    // Reusing same partition dats to create data file with different paths
+    List<DataFile> dataFiles2 = getDataFiles(paths3, partitionDataList);
+    // here, since partition data with value 1 already exists, we expect it to get updated in the table with newer path
+    icebergTable.replacePartitions(dataFiles2);
+    List<String> updExpectedPaths = new ArrayList<>(paths2);
+    updExpectedPaths.addAll(paths3);
+    verifyAnyOrder(updExpectedPaths, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
+
+    catalog.dropTable(testTableId);
   }
 
   private static void addPartitionDataFiles(Table table, List<String> paths, List<PartitionData> partitionDataList) {
@@ -369,10 +435,19 @@ public class IcebergTableTest extends HiveMetastoreTest {
     }
   }
 
+  private static List<DataFile> getDataFiles(List<String> paths, List<PartitionData> partitionDataList) {
+    Assert.assertEquals(paths.size(), partitionDataList.size());
+    List<DataFile> dataFiles = Lists.newArrayList();
+    for (int i = 0; i < paths.size(); i++) {
+      dataFiles.add(createDataFileWithPartition(paths.get(i), partitionDataList.get(i)));
+    }
+    return dataFiles;
+  }
+
   private static DataFile createDataFileWithPartition(String path, PartitionData partitionData) {
     return DataFiles.builder(icebergPartitionSpec)
         .withPath(path)
-        .withFileSizeInBytes(0)
+        .withFileSizeInBytes(8)
         .withRecordCount(1)
         .withPartition(partitionData)
         .withFormat(FileFormat.ORC)
