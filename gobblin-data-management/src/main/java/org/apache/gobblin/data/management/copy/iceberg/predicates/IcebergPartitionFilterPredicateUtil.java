@@ -22,10 +22,29 @@ import java.util.List;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.TableMetadata;
 
+/**
+ * Utility class for creating and managing partition filter predicates for Iceberg tables.
+ * <p>
+ * This class provides methods to retrieve the index of a partition column in the table metadata
+ * and ensures that the partition transform is supported.
+ * </p>
+ * <p>
+ * Note: This class is not meant to be instantiated.
+ * </p>
+ */
 public class IcebergPartitionFilterPredicateUtil {
   private IcebergPartitionFilterPredicateUtil() {
   }
 
+  /**
+   * Retrieves the index of the partition column from the partition spec in the table metadata.
+   *
+   * @param partitionColumnName the name of the partition column to find
+   * @param tableMetadata the metadata of the Iceberg table
+   * @param supportedTransforms a list of supported partition transforms
+   * @return the index of the partition column if found, otherwise -1
+   * @throws IllegalArgumentException if the partition transform is not supported
+   */
   public static int getPartitionColumnIndex(
       String partitionColumnName,
       TableMetadata tableMetadata,
@@ -46,5 +65,4 @@ public class IcebergPartitionFilterPredicateUtil {
     }
     return -1;
   }
-
 }

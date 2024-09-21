@@ -34,6 +34,17 @@ import com.google.common.collect.ImmutableList;
 
 import org.apache.gobblin.data.management.copy.iceberg.IcebergDatasetFinder;
 
+/**
+ * Predicate implementation for filtering Iceberg partitions based on datetime values.
+ * <p>
+ *   This class filters partitions by checking if the partition datetime falls within a specified range.
+ * </p>
+ * <ul>
+ *   <li>The datetime partition column is expected to be a string column.</li>
+ *   <li>The datetime partition column values are expected to be in the format specified by the pattern in the properties.</li>
+ *   <li>The start and end dates are also specified in the properties.</li>
+ * </ul>
+ */
 public class IcebergDateTimePartitionFilterPredicate implements Predicate<StructLike> {
 
   private static final List<String> supportedTransforms = ImmutableList.of("identity");
@@ -46,6 +57,14 @@ public class IcebergDateTimePartitionFilterPredicate implements Predicate<Struct
   private final DateTime startDate;
   private final DateTime endDate;
 
+  /**
+   * Constructs an {@code IcebergDateTimePartitionFilterPredicate} with the specified parameters.
+   *
+   * @param partitionColumnName the name of the partition column
+   * @param tableMetadata the metadata of the Iceberg table
+   * @param properties the properties containing partition configuration
+   * @throws IllegalArgumentException if the partition column is not found or required properties are missing
+   */
   public IcebergDateTimePartitionFilterPredicate(String partitionColumnName, TableMetadata tableMetadata,
       Properties properties) {
 
@@ -75,6 +94,12 @@ public class IcebergDateTimePartitionFilterPredicate implements Predicate<Struct
     this.endDate = this.dateTimeFormatter.parseDateTime(endDateVal);
   }
 
+  /**
+   * Check if the partition datetime falls within the specified range.
+   *
+   * @param partition the datetime partition to check
+   * @return {@code true} if the datetime partition value is within the range, otherwise {@code false}
+   */
   @Override
   public boolean test(StructLike partition) {
     String partitionVal = partition.get(this.partitionColumnIndex, String.class);

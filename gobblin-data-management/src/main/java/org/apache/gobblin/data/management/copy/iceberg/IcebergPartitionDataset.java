@@ -50,8 +50,16 @@ import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
+import org.apache.gobblin.data.management.copy.CopyableDataset;
 import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicateFactory;
 
+/**
+ * Iceberg Partition dataset implementing {@link CopyableDataset}
+ * <p>
+ * This class extends {@link IcebergDataset} and provides functionality to filter partitions
+ * and generate copy entities for partition based data movement.
+ * </p>
+ */
 @Slf4j
 public class IcebergPartitionDataset extends IcebergDataset {
 
@@ -73,12 +81,27 @@ public class IcebergPartitionDataset extends IcebergDataset {
         srcTableMetadata, properties);
   }
 
+  /**
+   * Represents the destination file paths and the corresponding file status in source file system.
+   * These both properties are used in creating {@link CopyEntity}
+   */
   @Data
   protected static final class FilePathsWithStatus {
     private final Path destPath;
     private final FileStatus srcFileStatus;
   }
 
+  /**
+   * Generates copy entities for partition based data movement.
+   * It finds files specific to the partition and create destination data files based on the source data files.
+   * Also updates the destination data files with destination table write data location and add UUID to the file path
+   * to avoid conflicts.
+   *
+   * @param targetFs the target file system
+   * @param copyConfig the copy configuration
+   * @return a collection of copy entities
+   * @throws IOException if an I/O error occurs
+   */
   @Override
   Collection<CopyEntity> generateCopyEntities(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
     String fileSet = this.getFileSetId();

@@ -232,6 +232,13 @@ public class IcebergTable {
     }
   }
 
+  /**
+   * Retrieves a list of data files from the current snapshot that match the specified partition filter predicate.
+   *
+   * @param icebergPartitionFilterPredicate the predicate to filter partitions
+   * @return a list of data files that match the partition filter predicate
+   * @throws IOException if an I/O error occurs while accessing the table metadata or reading manifest files
+   */
   public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate) throws IOException {
     TableMetadata tableMetadata = accessTableMetadata();
     Snapshot currentSnapshot = tableMetadata.currentSnapshot();
@@ -249,6 +256,11 @@ public class IcebergTable {
     return dataFileList;
   }
 
+  /**
+   * Replaces partitions in the table with the specified list of data files.
+   *
+   * @param dataFiles the list of data files to replace partitions with
+   */
   protected void replacePartitions(List<DataFile> dataFiles) {
     if (dataFiles.isEmpty()) {
       return;

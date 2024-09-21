@@ -26,13 +26,26 @@ import org.apache.iceberg.util.SerializationUtil;
 
 import lombok.extern.slf4j.Slf4j;
 
-
+/**
+ * Commit step for replacing partitions in an Iceberg table.
+ * <p>
+ * This class implements the {@link CommitStep} interface and provides functionality to replace
+ * partitions in the destination Iceberg table using serialized data files.
+ * </p>
+ */
 @Slf4j
 public class IcebergReplacePartitionsStep implements CommitStep {
   private final String destTableIdStr;
   private final Properties properties;
   private final byte[] serializedDataFiles;
 
+  /**
+   * Constructs an {@code IcebergReplacePartitionsStep} with the specified parameters.
+   *
+   * @param destTableIdStr the identifier of the destination table as a string
+   * @param serializedDataFiles the serialized data files to be used for replacing partitions
+   * @param properties the properties containing configuration
+   */
   public IcebergReplacePartitionsStep(String destTableIdStr, byte[] serializedDataFiles, Properties properties) {
     this.destTableIdStr = destTableIdStr;
     this.serializedDataFiles = serializedDataFiles;
@@ -44,6 +57,11 @@ public class IcebergReplacePartitionsStep implements CommitStep {
     return false;
   }
 
+  /**
+   * Executes the partition replacement in the destination Iceberg table.
+   *
+   * @throws IOException if an I/O error occurs during execution
+   */
   @Override
   public void execute() throws IOException {
     IcebergTable destTable = createDestinationCatalog().openTable(TableIdentifier.parse(destTableIdStr));

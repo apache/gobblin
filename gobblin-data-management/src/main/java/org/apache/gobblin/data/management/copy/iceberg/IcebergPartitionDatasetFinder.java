@@ -25,11 +25,21 @@ import org.apache.iceberg.TableMetadata;
 
 import com.google.common.base.Preconditions;
 
+/**
+ * Finder class for locating and creating partitioned Iceberg datasets.
+ * <p>
+ * This class extends {@link IcebergDatasetFinder} and provides functionality to create
+ * {@link IcebergPartitionDataset} instances based on the specified source and destination Iceberg catalogs.
+ * </p>
+ */
 public class IcebergPartitionDatasetFinder extends IcebergDatasetFinder {
   public IcebergPartitionDatasetFinder(FileSystem sourceFs, Properties properties) {
     super(sourceFs, properties);
   }
 
+/**
+ * Creates an {@link IcebergPartitionDataset} instance for the specified source and destination Iceberg tables.
+ */
   @Override
   protected IcebergDataset createIcebergDataset(IcebergCatalog sourceIcebergCatalog, String srcDbName, String srcTableName, IcebergCatalog destinationIcebergCatalog, String destDbName, String destTableName, Properties properties, FileSystem fs) throws IOException {
     IcebergTable srcIcebergTable = sourceIcebergCatalog.openTable(srcDbName, srcTableName);

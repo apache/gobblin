@@ -31,14 +31,27 @@ import com.google.common.collect.ImmutableList;
 
 import org.apache.gobblin.data.management.copy.iceberg.IcebergDatasetFinder;
 
+/**
+ * Predicate implementation for filtering Iceberg partitions based on specified partition values.
+ * <p>
+ * This class filters partitions by checking if the partition value matches any of the specified values.
+ * </p>
+ */
 public class IcebergPartitionFilterPredicate implements Predicate<StructLike> {
   private static final List<String> supportedTransforms = ImmutableList.of("identity", "truncate");
   private static final String ICEBERG_PARTITION_VALUES_KEY = "partition.values";
   private final int partitionColumnIndex;
   private final List<String> partitionValues;
-
   private static final Splitter LIST_SPLITTER = Splitter.on(",").trimResults().omitEmptyStrings();
 
+  /**
+   * Constructs an {@code IcebergPartitionFilterPredicate} with the specified parameters.
+   *
+   * @param partitionColumnName the name of the partition column
+   * @param tableMetadata the metadata of the Iceberg table
+   * @param properties the properties containing partition configuration
+   * @throws IllegalArgumentException if the partition column is not found or required properties are missing
+   */
   public IcebergPartitionFilterPredicate(String partitionColumnName, TableMetadata tableMetadata,
       Properties properties) {
     this.partitionColumnIndex = IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex(partitionColumnName,
@@ -55,10 +68,17 @@ public class IcebergPartitionFilterPredicate implements Predicate<StructLike> {
     this.partitionValues = LIST_SPLITTER.splitToList(partitionColumnValues);
   }
 
+  /**
+   * Check if the partition value matches any of the specified partition values.
+   *
+   * @param partition the partition to check
+   * @return {@code true} if the partition value matches any of the specified values, otherwise {@code false}
+   */
   @Override
   public boolean test(StructLike partition) {
     //TODO: decide how to handle null partition values - keep throwing NPE or return false
     // FIx test too testPartitionValueNULL()
+    // Fix other filter predicate too
     Object partitionVal = partition.get(this.partitionColumnIndex, Object.class);
     return this.partitionValues.contains(partitionVal.toString());
   }
