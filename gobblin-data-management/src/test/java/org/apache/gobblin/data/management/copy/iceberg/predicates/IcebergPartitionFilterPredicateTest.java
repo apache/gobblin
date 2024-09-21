@@ -31,7 +31,6 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 
-
 /** Tests for {@link org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicate} */
 public class IcebergPartitionFilterPredicateTest {
 
@@ -150,5 +149,4 @@ public class IcebergPartitionFilterPredicateTest {
     });
     Assert.assertTrue(exception.getMessage().startsWith(TEST_ICEBERG_PARTITION_VALUES_EXCEPTION_MESSAGE));
   }
-
 }

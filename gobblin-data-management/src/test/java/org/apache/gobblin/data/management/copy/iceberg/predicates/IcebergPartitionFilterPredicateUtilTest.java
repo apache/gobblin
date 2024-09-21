@@ -29,12 +29,9 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 
-
 /** Tests for {@link org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicateUtil} */
 public class IcebergPartitionFilterPredicateUtilTest {
-
   private TableMetadata mockTableMetadata;
-
   private final List<String> supportedTransforms = ImmutableList.of("supported1", "supported2");
 
   private void setupMockData(String name, String transform) {
@@ -99,5 +96,4 @@ public class IcebergPartitionFilterPredicateUtilTest {
     int result = IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex("col2", mockTableMetadata, supportedTransforms);
     Assert.assertEquals(result, 1);
   }
-
 }

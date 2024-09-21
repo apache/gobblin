@@ -86,6 +86,4 @@ public class IcebergPartitionFilterPredicateFactoryTest {
 
     Assert.assertTrue(predicate instanceof IcebergPartitionFilterPredicate);
   }
-
-
 }

@@ -33,18 +33,15 @@ import com.google.common.collect.ImmutableList;
 
 /** Tests for {@link org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergDateTimePartitionFilterPredicate} */
 public class IcebergDateTimePartitionFilterPredicateTest {
-
   private static final String TEST_ICEBERG_PARTITION_DATETTIME = "iceberg.dataset.source.partition.datetime";
   private static final String TEST_ICEBERG_PARTITION_DATETTIME_PATTERN = TEST_ICEBERG_PARTITION_DATETTIME + ".pattern";
   private static final String TEST_ICEBERG_PARTITION_DATETTIME_STARTDATE = TEST_ICEBERG_PARTITION_DATETTIME + ".startdate";
   private static final String TEST_ICEBERG_PARTITION_DATETTIME_ENDDATE = TEST_ICEBERG_PARTITION_DATETTIME + ".enddate";
-
   private static final String PARTITION_COLUMN_NAME = "partitionColumn";
   private static final String PARTITION_COLUMN_TRANSFORM = "identity";
   private static final String PARTITION_PATTERN = "yyyy-MM-dd";
   private static final String START_DATE = "2024-01-01";
   private static final String END_DATE = "2024-12-31";
-
   private TableMetadata mockTableMetadata;
   private Properties mockProperties;
   private StructLike mockPartition;
@@ -189,5 +186,4 @@ public class IcebergDateTimePartitionFilterPredicateTest {
     });
     Assert.assertTrue(exception.getMessage().startsWith(expectedMessageStart));
   }
-
 }
