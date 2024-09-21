@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.copy.iceberg.predicates;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.function.Predicate;
 
@@ -76,10 +77,17 @@ public class IcebergPartitionFilterPredicate implements Predicate<StructLike> {
    */
   @Override
   public boolean test(StructLike partition) {
-    //TODO: decide how to handle null partition values - keep throwing NPE or return false
-    // FIx test too testPartitionValueNULL()
-    // Fix other filter predicate too
+    // Just a cautious check to avoid NPE, ideally partition shouldn't be null if table is partitioned
+    if (Objects.isNull(partition)) {
+      return false;
+    }
+
     Object partitionVal = partition.get(this.partitionColumnIndex, Object.class);
+    // Need this check to avoid NPE on partitionVal.toString()
+    if (Objects.isNull(partitionVal)) {
+      return false;
+    }
+
     return this.partitionValues.contains(partitionVal.toString());
   }
 }

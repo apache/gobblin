@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.copy.iceberg.predicates;
 
 import java.util.List;
+import java.util.Objects;
 import java.util.Properties;
 import java.util.function.Predicate;
 
@@ -102,8 +103,12 @@ public class IcebergDateTimePartitionFilterPredicate implements Predicate<Struct
    */
   @Override
   public boolean test(StructLike partition) {
-    String partitionVal = partition.get(this.partitionColumnIndex, String.class);
+    // Just a cautious check to avoid NPE, ideally partition shouldn't be null if table is partitioned
+    if (Objects.isNull(partition)) {
+      return false;
+    }
 
+    String partitionVal = partition.get(this.partitionColumnIndex, String.class);
     if (StringUtils.isBlank(partitionVal)) {
       return false;
     }

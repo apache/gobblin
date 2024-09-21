@@ -20,16 +20,13 @@ package org.apache.gobblin.data.management.copy.iceberg.predicates;
 import java.util.Properties;
 
 import org.apache.iceberg.StructLike;
-import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.TableMetadata;
-import org.apache.iceberg.PartitionField;
-import org.apache.iceberg.transforms.Transform;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
-
-import com.google.common.collect.ImmutableList;
 
 /** Tests for {@link org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergDateTimePartitionFilterPredicate} */
 public class IcebergDateTimePartitionFilterPredicateTest {
@@ -38,7 +35,6 @@ public class IcebergDateTimePartitionFilterPredicateTest {
   private static final String TEST_ICEBERG_PARTITION_DATETTIME_STARTDATE = TEST_ICEBERG_PARTITION_DATETTIME + ".startdate";
   private static final String TEST_ICEBERG_PARTITION_DATETTIME_ENDDATE = TEST_ICEBERG_PARTITION_DATETTIME + ".enddate";
   private static final String PARTITION_COLUMN_NAME = "partitionColumn";
-  private static final String PARTITION_COLUMN_TRANSFORM = "identity";
   private static final String PARTITION_PATTERN = "yyyy-MM-dd";
   private static final String START_DATE = "2024-01-01";
   private static final String END_DATE = "2024-12-31";
@@ -46,19 +42,15 @@ public class IcebergDateTimePartitionFilterPredicateTest {
   private Properties mockProperties;
   private StructLike mockPartition;
   private IcebergDateTimePartitionFilterPredicate mockDateTimePartitionFilterPredicate;
+  private MockedStatic<IcebergPartitionFilterPredicateUtil> icebergPartitionFilterPredicateUtilMockedStatic;
 
   @BeforeMethod
   public void setup() {
     mockTableMetadata = Mockito.mock(TableMetadata.class);
-    PartitionSpec mockPartitionSpec = Mockito.mock(PartitionSpec.class);
-    PartitionField mockPartitionField = Mockito.mock(PartitionField.class);
-    Transform mockTransform = Mockito.mock(Transform.class);
-
-    Mockito.when(mockTableMetadata.spec()).thenReturn(mockPartitionSpec);
-    Mockito.when(mockPartitionSpec.fields()).thenReturn(ImmutableList.of(mockPartitionField));
-    Mockito.when(mockPartitionField.name()).thenReturn(PARTITION_COLUMN_NAME);
-    Mockito.when(mockPartitionField.transform()).thenReturn(mockTransform);
-    Mockito.when(mockTransform.toString()).thenReturn(PARTITION_COLUMN_TRANSFORM);
+    icebergPartitionFilterPredicateUtilMockedStatic = Mockito.mockStatic(IcebergPartitionFilterPredicateUtil.class);
+    icebergPartitionFilterPredicateUtilMockedStatic.when(
+            () -> IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex(Mockito.anyString(), Mockito.any(TableMetadata.class), Mockito.anyList()))
+        .thenReturn(0);
 
     mockProperties = new Properties();
     mockProperties.setProperty(TEST_ICEBERG_PARTITION_DATETTIME_PATTERN, PARTITION_PATTERN);
@@ -72,6 +64,24 @@ public class IcebergDateTimePartitionFilterPredicateTest {
     );
 
     mockPartition = Mockito.mock(StructLike.class);
+  }
+
+  @AfterMethod
+  public void cleanup() {
+    icebergPartitionFilterPredicateUtilMockedStatic.close();
+  }
+
+  @Test
+  public void testWhenPartitionIsNull() {
+    Assert.assertFalse(mockDateTimePartitionFilterPredicate.test(null));
+  }
+
+  @Test
+  public void testPartitionColumnNotFound() {
+    icebergPartitionFilterPredicateUtilMockedStatic.when(
+            () -> IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex(Mockito.anyString(), Mockito.any(TableMetadata.class), Mockito.anyList()))
+        .thenReturn(-1);
+    verifyIllegalArgumentExceptionWithMessage("Partition column partitionColumn not found");
   }
 
   @Test
