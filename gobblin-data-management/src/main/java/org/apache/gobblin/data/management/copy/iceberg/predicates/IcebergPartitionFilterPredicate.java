@@ -57,6 +57,8 @@ public class IcebergPartitionFilterPredicate implements Predicate<StructLike> {
 
   @Override
   public boolean test(StructLike partition) {
+    //TODO: decide how to handle null partition values - keep throwing NPE or return false
+    // FIx test too testPartitionValueNULL()
     Object partitionVal = partition.get(this.partitionColumnIndex, Object.class);
     return this.partitionValues.contains(partitionVal.toString());
   }

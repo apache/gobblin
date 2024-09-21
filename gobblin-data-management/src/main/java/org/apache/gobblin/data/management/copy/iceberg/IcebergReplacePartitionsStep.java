@@ -38,6 +38,7 @@ public class IcebergReplacePartitionsStep implements CommitStep {
     this.serializedDataFiles = serializedDataFiles;
     this.properties = properties;
   }
+
   @Override
   public boolean isCompleted() {
     return false;
@@ -58,5 +59,4 @@ public class IcebergReplacePartitionsStep implements CommitStep {
   protected IcebergCatalog createDestinationCatalog() throws IOException {
     return IcebergDatasetFinder.createIcebergCatalog(this.properties, IcebergDatasetFinder.CatalogLocation.DESTINATION);
   }
-
 }

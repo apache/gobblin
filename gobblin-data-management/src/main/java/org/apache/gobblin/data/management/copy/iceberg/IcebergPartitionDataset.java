@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -26,6 +25,7 @@ import java.util.Properties;
 import java.util.UUID;
 import java.util.function.Predicate;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -50,27 +50,18 @@ import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
-import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicate;
-import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergDateTimePartitionFilterPredicate;
-
+import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicateFactory;
 
 @Slf4j
 public class IcebergPartitionDataset extends IcebergDataset {
 
   private static final String ICEBERG_PARTITION_NAME_KEY = "partition.name";
-  private static final String ICEBERG_PARTITION_TYPE_KEY = "partition.type";
-  private static final String DATETIME_PARTITION_TYPE = "datetime";
-  private Predicate<StructLike> partitionFilterPredicate;
+  private final Predicate<StructLike> partitionFilterPredicate;
 
   public IcebergPartitionDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable, Properties properties,
       FileSystem sourceFs, boolean shouldIncludeMetadataPath) throws IcebergTable.TableNotFoundException {
     super(srcIcebergTable, destIcebergTable, properties, sourceFs, shouldIncludeMetadataPath);
 
-    initializePartitionFilterPredicate();
-  }
-
-  private void initializePartitionFilterPredicate() throws IcebergTable.TableNotFoundException {
-    //TODO: Move this to a factory class of some sort
     String partitionColumnName =
         IcebergDatasetFinder.getLocationQualifiedProperty(properties, IcebergDatasetFinder.CatalogLocation.SOURCE,
             ICEBERG_PARTITION_NAME_KEY);
@@ -78,15 +69,8 @@ public class IcebergPartitionDataset extends IcebergDataset {
         "Partition column name cannot be empty");
 
     TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
-
-    if (DATETIME_PARTITION_TYPE.equals(IcebergDatasetFinder.getLocationQualifiedProperty(properties,
-        IcebergDatasetFinder.CatalogLocation.SOURCE, ICEBERG_PARTITION_TYPE_KEY))) {
-      this.partitionFilterPredicate = new IcebergDateTimePartitionFilterPredicate(partitionColumnName,
-          srcTableMetadata, properties);
-    } else {
-      this.partitionFilterPredicate = new IcebergPartitionFilterPredicate(partitionColumnName,
-          srcTableMetadata, properties);
-    }
+    this.partitionFilterPredicate = IcebergPartitionFilterPredicateFactory.getFilterPredicate(partitionColumnName,
+        srcTableMetadata, properties);
   }
 
   @Data
@@ -118,29 +102,39 @@ public class IcebergPartitionDataset extends IcebergDataset {
       fileEntity.setSourceData(getSourceDataset(this.sourceFs));
       fileEntity.setDestinationData(getDestinationDataset(targetFs));
       copyEntities.add(fileEntity);
-
     }
 
-    copyEntities.add(createPostPublishStep(destDataFiles));
+    // Adding this check to avoid adding post publish step when there are no files to copy.
+    if (CollectionUtils.isNotEmpty(destDataFiles)) {
+      copyEntities.add(createPostPublishStep(destDataFiles));
+    }
+
     log.info("~{}~ generated {} copy--entities", fileSet, copyEntities.size());
     return copyEntities;
   }
 
   private List<DataFile> getDestDataFiles(List<DataFile> srcDataFiles) throws IcebergTable.TableNotFoundException {
+    List<DataFile> destDataFiles = new ArrayList<>();
+    if (srcDataFiles.isEmpty()) {
+      return destDataFiles;
+    }
     TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
     TableMetadata destTableMetadata = getDestIcebergTable().accessTableMetadata();
     PartitionSpec partitionSpec = destTableMetadata.spec();
-    String prefixToBeReplaced = srcTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "");
-    String prefixToReplaceWith = destTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "");
-    if (StringUtils.isEmpty(prefixToBeReplaced) || StringUtils.isEmpty(prefixToReplaceWith)) {
+    String srcWriteDataLocation = srcTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "");
+    String destWriteDataLocation = destTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "");
+    if (StringUtils.isEmpty(srcWriteDataLocation) || StringUtils.isEmpty(destWriteDataLocation)) {
       log.warn(
           String.format("Either source or destination table does not have write data location : source table write data location : {%s} , destination table write data location : {%s}",
-              prefixToBeReplaced,
-              prefixToReplaceWith
+              srcWriteDataLocation,
+              destWriteDataLocation
           )
       );
     }
-    List<DataFile> destDataFiles = new ArrayList<>();
+    // tableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "") returns null if the property is not set and
+    // doesn't respect passed default value, so to avoid NPE in .replace() we are setting it to empty string.
+    String prefixToBeReplaced = (srcWriteDataLocation != null) ? srcWriteDataLocation : "";
+    String prefixToReplaceWith = (destWriteDataLocation != null) ? destWriteDataLocation : "";
     srcDataFiles.forEach(dataFile -> {
       String curDestFilePath = dataFile.path().toString();
       String newDestFilePath = curDestFilePath.replace(prefixToBeReplaced, prefixToReplaceWith);
@@ -158,8 +152,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
     String fileDir = filePath.getParent().toString();
     String fileName = filePath.getName();
     String newFileName = UUID.randomUUID() + "-" + fileName;
-    Path newFilePath = new Path(fileDir, newFileName);
-    return newFilePath.toString();
+    return String.join("/", fileDir, newFileName);
   }
 
   private List<FilePathsWithStatus> getFilePathsStatus(List<DataFile> srcDataFiles, List<DataFile> destDataFiles, FileSystem fs) throws IOException {
