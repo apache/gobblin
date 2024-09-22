@@ -18,13 +18,34 @@
 package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
+import java.time.Duration;
+import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.ExecutionException;
 
-import org.apache.gobblin.commit.CommitStep;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.util.SerializationUtil;
 
+import com.github.rholder.retry.Attempt;
+import com.github.rholder.retry.RetryException;
+import com.github.rholder.retry.RetryListener;
+import com.github.rholder.retry.Retryer;
+import com.google.common.collect.ImmutableMap;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.util.retry.RetryerFactory;
+
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIMES;
+import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
+import static org.apache.gobblin.util.retry.RetryerFactory.RetryType;
 
 /**
  * Commit step for replacing partitions in an Iceberg table.
@@ -38,6 +59,11 @@ public class IcebergReplacePartitionsStep implements CommitStep {
   private final String destTableIdStr;
   private final Properties properties;
   private final byte[] serializedDataFiles;
+  public static final String REPLACE_PARTITIONS_RETRYER_CONFIG_PREFIX = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".catalog.replace.partitions.retries";
+  private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
+      RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(3L),
+      RETRY_TIMES, 3,
+      RETRY_TYPE, RetryType.FIXED_ATTEMPT.name()));
 
   /**
    * Constructs an {@code IcebergReplacePartitionsStep} with the specified parameters.
@@ -59,22 +85,61 @@ public class IcebergReplacePartitionsStep implements CommitStep {
 
   /**
    * Executes the partition replacement in the destination Iceberg table.
+   * Also, have retry mechanism as done in {@link IcebergRegisterStep#execute()}
    *
    * @throws IOException if an I/O error occurs during execution
    */
   @Override
   public void execute() throws IOException {
-    IcebergTable destTable = createDestinationCatalog().openTable(TableIdentifier.parse(destTableIdStr));
+    IcebergTable destTable = createDestinationCatalog().openTable(TableIdentifier.parse(this.destTableIdStr));
+    List<DataFile> dataFiles = SerializationUtil.deserializeFromBytes(this.serializedDataFiles);
     try {
-      log.info("Replacing partitions for table " + destTableIdStr);
-      destTable.replacePartitions(SerializationUtil.deserializeFromBytes(this.serializedDataFiles));
-      log.info("Replaced partitions for table " + destTableIdStr);
-    } catch (Exception e) {
-      throw new RuntimeException(e);
+      log.info(String.format("Replacing partitions for destination table : {%s} ", this.destTableIdStr));
+      Retryer<Void> replacePartitionsRetryer = createReplacePartitionsRetryer();
+      replacePartitionsRetryer.call(() -> {
+        destTable.replacePartitions(dataFiles);
+        return null;
+      });
+      log.info(String.format("Replaced partitions for destination table : {%s} ", this.destTableIdStr));
+    } catch (ExecutionException executionException) {
+      String msg = String.format("Failed to replace partitions for destination iceberg table : {%s}", this.destTableIdStr);
+      log.error(msg, executionException);
+      throw new RuntimeException(msg, executionException.getCause());
+    } catch (RetryException retryException) {
+      String interruptedNote = Thread.currentThread().isInterrupted() ? "... then interrupted" : "";
+      String msg = String.format("Failed to replace partition for destination table : {%s} : (retried %d times) %s ",
+          this.destTableIdStr,
+          retryException.getNumberOfFailedAttempts(),
+          interruptedNote);
+      Throwable informativeException = retryException.getLastFailedAttempt().hasException()
+          ? retryException.getLastFailedAttempt().getExceptionCause()
+          : retryException;
+      log.error(msg, informativeException);
+      throw new RuntimeException(msg, informativeException);
     }
   }
 
   protected IcebergCatalog createDestinationCatalog() throws IOException {
     return IcebergDatasetFinder.createIcebergCatalog(this.properties, IcebergDatasetFinder.CatalogLocation.DESTINATION);
+  }
+
+  private Retryer<Void> createReplacePartitionsRetryer() {
+    Config config = ConfigFactory.parseProperties(this.properties);
+    Config retryerOverridesConfig = config.hasPath(IcebergReplacePartitionsStep.REPLACE_PARTITIONS_RETRYER_CONFIG_PREFIX)
+        ? config.getConfig(IcebergReplacePartitionsStep.REPLACE_PARTITIONS_RETRYER_CONFIG_PREFIX)
+        : ConfigFactory.empty();
+
+    return RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
+      @Override
+      public <V> void onRetry(Attempt<V> attempt) {
+        if (attempt.hasException()) {
+          String msg = String.format("Exception caught while replacing partitions for destination table : {%s} : [attempt: %d; %s after start]",
+              destTableIdStr,
+              attempt.getAttemptNumber(),
+              Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());
+          log.warn(msg, attempt.getExceptionCause());
+        }
+      }
+    }));
   }
 }
