@@ -151,6 +151,17 @@ public class IcebergPartitionDatasetTest {
   }
 
   @Test
+  public void testPartitionColumnNameMissing() throws IOException {
+    properties.remove(TEST_ICEBERG_PARTITION_COLUMN_KEY);
+    try {
+      icebergPartitionDataset = new IcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs, true);
+      Assert.fail("Expected IllegalArgumentException");
+    } catch (IllegalArgumentException e) {
+      Assert.assertEquals(e.getMessage(), "Partition column name cannot be empty");
+    }
+  }
+
+  @Test
   public void testGenerateCopyEntities() throws IOException {
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file1.orc");
     List<DataFile> srcDataFiles = getDataFiles();
@@ -256,8 +267,11 @@ public class IcebergPartitionDatasetTest {
         String destFilepath = getDestinationFilePathAsStringFromJson(json);
         Assert.assertTrue(originFilepath.startsWith(srcWriteLocationStart), srcErrorMsg);
         Assert.assertTrue(destFilepath.startsWith(destWriteLocationStart), destErrorMsg);
-        String fileName = originFilepath.substring(srcWriteLocationStart.length() + 1);
-        Assert.assertTrue(destFilepath.endsWith(fileName), "Incorrect file name in destination path");
+        String originFileName = originFilepath.substring(srcWriteLocationStart.length() + 1);
+        String destFileName = destFilepath.substring(destWriteLocationStart.length() + 1);
+        Assert.assertTrue(destFileName.endsWith(originFileName), "Incorrect file name in destination path");
+        Assert.assertTrue(destFileName.length() > originFileName.length() + 1,
+            "Destination file name should be longer than source file name as UUID is appended");
       } else{
         verifyPostPublishStep(json);
       }
