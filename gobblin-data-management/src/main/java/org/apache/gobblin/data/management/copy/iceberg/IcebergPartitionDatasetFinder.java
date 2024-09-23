@@ -18,12 +18,17 @@
 package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
+import java.util.Collections;
+import java.util.List;
 import java.util.Properties;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.TableMetadata;
 
 import com.google.common.base.Preconditions;
+
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * Finder class for locating and creating partitioned Iceberg datasets.
@@ -32,12 +37,47 @@ import com.google.common.base.Preconditions;
  * {@link IcebergPartitionDataset} instances based on the specified source and destination Iceberg catalogs.
  * </p>
  */
+@Slf4j
 public class IcebergPartitionDatasetFinder extends IcebergDatasetFinder {
   public IcebergPartitionDatasetFinder(FileSystem sourceFs, Properties properties) {
     super(sourceFs, properties);
   }
 
-/**
+  /**
+   * Finds the {@link IcebergPartitionDataset}s in the file system using the Iceberg Catalog. Both Iceberg database name and table
+   * name are mandatory based on current implementation.
+   * <p>
+   * Overriding this method to put a check whether source and destination db & table names are passed in the properties as separate values
+   * </p>
+   * @return List of {@link IcebergPartitionDataset}s in the file system.
+   * @throws IOException if there is an error while finding the datasets.
+   */
+  @Override
+  public List<IcebergDataset> findDatasets() throws IOException {
+    String srcDbName = getLocationQualifiedProperty(this.properties, CatalogLocation.SOURCE, ICEBERG_DB_NAME_KEY);
+    String destDbName = getLocationQualifiedProperty(this.properties, CatalogLocation.DESTINATION, ICEBERG_DB_NAME_KEY);
+    String srcTableName = getLocationQualifiedProperty(this.properties, CatalogLocation.SOURCE, ICEBERG_TABLE_NAME_KEY);
+    String destTableName = getLocationQualifiedProperty(this.properties, CatalogLocation.DESTINATION, ICEBERG_TABLE_NAME_KEY);
+
+    if (StringUtils.isBlank(srcDbName) || StringUtils.isBlank(destDbName) || StringUtils.isBlank(srcTableName)
+        || StringUtils.isBlank(destTableName)) {
+      String errorMsg = String.format("Missing (at least some) IcebergDataset properties - source: ('%s' and '%s') and destination: ('%s' and '%s') ",
+          srcDbName, srcTableName, destDbName, destTableName);
+      log.error(errorMsg);
+      throw new IllegalArgumentException(errorMsg);
+    }
+
+    IcebergCatalog srcIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.SOURCE);
+    IcebergCatalog destIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.DESTINATION);
+
+    return Collections.singletonList(createIcebergDataset(
+        srcIcebergCatalog, srcDbName, srcTableName,
+        destIcebergCatalog, destDbName, destTableName,
+        this.properties, this.sourceFs
+    ));
+  }
+
+ /**
  * Creates an {@link IcebergPartitionDataset} instance for the specified source and destination Iceberg tables.
  */
   @Override
@@ -50,24 +90,7 @@ public class IcebergPartitionDatasetFinder extends IcebergDatasetFinder {
         String.format("Missing Destination Iceberg Table: {%s}.{%s}", destDbName, destTableName));
     TableMetadata srcTableMetadata = srcIcebergTable.accessTableMetadata();
     TableMetadata destTableMetadata = destIcebergTable.accessTableMetadata();
-    Preconditions.checkArgument(validateSchema(srcTableMetadata, destTableMetadata),
-        String.format("Schema Mismatch between Source {%s}.{%s} and Destination {%s}.{%s} Iceberg Tables\n"
-            + "Currently, only supporting copying between iceberg tables with same schema",
-            srcDbName, srcTableName, destDbName, destTableName));
-    Preconditions.checkArgument(validatePartitionSpec(srcTableMetadata, destTableMetadata),
-        String.format("Partition Spec Mismatch between Source {%s}.{%s} and Destination {%s}.{%s} Iceberg Tables\n"
-            + "Currently, only supporting copying between iceberg tables with same partition spec",
-            srcDbName, srcTableName, destDbName, destTableName));
+    IcebergTableMetadataValidator.validateSourceAndDestinationTablesMetadata(srcTableMetadata, destTableMetadata);
     return new IcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, fs, getConfigShouldCopyMetadataPath(properties));
-  }
-
-  private boolean validateSchema(TableMetadata srcTableMetadata, TableMetadata destTableMetadata) {
-    // Currently, only supporting copying between iceberg tables with same schema
-    return srcTableMetadata.schema().sameSchema(destTableMetadata.schema());
-  }
-
-  private boolean validatePartitionSpec(TableMetadata srcTableMetadata, TableMetadata destTableMetadata) {
-    // Currently, only supporting copying between iceberg tables with same partition spec
-    return srcTableMetadata.spec().compatibleWith(destTableMetadata.spec());
   }
 }

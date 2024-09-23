@@ -85,7 +85,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   }
 
   protected final FileSystem sourceFs;
-  private final Properties properties;
+  protected final Properties properties;
 
   /**
    * Finds all {@link IcebergDataset}s in the file system using the Iceberg Catalog.
