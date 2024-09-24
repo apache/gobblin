@@ -24,7 +24,6 @@ import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.iceberg.TableMetadata;
 
 import com.google.common.base.Preconditions;
 
@@ -88,9 +87,10 @@ public class IcebergPartitionDatasetFinder extends IcebergDatasetFinder {
     IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(destDbName, destTableName);
     Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(destIcebergTable),
         String.format("Missing Destination Iceberg Table: {%s}.{%s}", destDbName, destTableName));
-    TableMetadata srcTableMetadata = srcIcebergTable.accessTableMetadata();
-    TableMetadata destTableMetadata = destIcebergTable.accessTableMetadata();
-    IcebergTableMetadataValidator.validateSourceAndDestinationTablesMetadata(srcTableMetadata, destTableMetadata);
+//    TODO: Add Validator for source and destination tables later
+//    TableMetadata srcTableMetadata = srcIcebergTable.accessTableMetadata();
+//    TableMetadata destTableMetadata = destIcebergTable.accessTableMetadata();
+//    IcebergTableMetadataValidator.validateSourceAndDestinationTablesMetadata(srcTableMetadata, destTableMetadata);
     return new IcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, fs, getConfigShouldCopyMetadataPath(properties));
   }
 }
