@@ -34,6 +34,9 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.common.annotations.VisibleForTesting;
+
+
 import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 
@@ -115,8 +118,9 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
     return Workflow.newChildWorkflowStub(NestingExecWorkflow.class, childOpts);
   }
 
+  @VisibleForTesting
   /** @return how long to pause prior to creating a child workflow, based on `numDirectLeavesChildMayHave` */
-  protected Duration calcPauseDurationBeforeCreatingSubTree(int numDirectLeavesChildMayHave) {
+  public Duration calcPauseDurationBeforeCreatingSubTree(int numDirectLeavesChildMayHave) {
     // (only pause when an appreciable number of leaves)
     // TODO: use a configuration value, for simpler adjustment, rather than hard-code
     return numDirectLeavesChildMayHave > MAX_CHILD_SUB_TREE_LEAVES_BEFORE_SHOULD_PAUSE_DEFAULT
@@ -130,11 +134,9 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
    *     List<Integer> naiveUniformity = Collections.nCopies(numSubTreesPerSubTree, numSubTreeChildren);
    * @return each sub-tree's desired size, in ascending sub-tree order
    */
-  protected static List<Integer> consolidateSubTreeGrandChildren(
-      final int numSubTreesPerSubTree,
-      final int numChildrenTotal,
-      final int numSubTreeChildren
-  ) {
+  @VisibleForTesting
+  public static List<Integer> consolidateSubTreeGrandChildren(final int numSubTreesPerSubTree,
+      final int numChildrenTotal, final int numSubTreeChildren) {
     if (numSubTreesPerSubTree <= 0) {
       return Lists.newArrayList();
     } else if (isSqrt(numSubTreeChildren, numChildrenTotal)) {
