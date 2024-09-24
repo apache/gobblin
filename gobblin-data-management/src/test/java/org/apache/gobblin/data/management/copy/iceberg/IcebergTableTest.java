@@ -333,4 +333,12 @@ public class IcebergTableTest extends HiveMetastoreTest {
   protected static <T, C extends Collection<T>> List<T> flatten(Collection<C> cc) {
     return cc.stream().flatMap(x -> x.stream()).collect(Collectors.toList());
   }
+
+  @Test
+  public void randomTest() {
+    TableIdentifier testTableID = TableIdentifier.of(dbName, "testTable");
+    Table testTable = catalog.createTable(testTableID, icebergSchema, icebergPartitionSpec);
+    System.out.println(testTable.spec());
+    catalog.dropTable(testTableID);
+  }
 }
