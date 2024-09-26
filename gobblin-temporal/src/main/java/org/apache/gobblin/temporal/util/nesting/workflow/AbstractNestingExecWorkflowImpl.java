@@ -34,6 +34,7 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 
@@ -111,6 +112,7 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_TERMINATE)
         .setWorkflowId(childWorkflowId)
+        .setSearchAttributes(TemporalWorkFlowUtils.convertSearchAttributesValuesFromListToObject(Workflow.getSearchAttributes()))
         .build();
     return Workflow.newChildWorkflowStub(NestingExecWorkflow.class, childOpts);
   }

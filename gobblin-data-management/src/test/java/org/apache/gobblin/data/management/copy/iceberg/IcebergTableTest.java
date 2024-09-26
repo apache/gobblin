@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -35,6 +36,7 @@ import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
 import org.apache.iceberg.Table;
+import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -47,6 +49,7 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 
@@ -179,6 +182,33 @@ public class IcebergTableTest extends HiveMetastoreTest {
       }).collect(Collectors.toList());
       verifySnapshotInfo(snapshotInfos.get(i), Arrays.asList(fileset), snapshotInfos.size());
     }
+  }
+
+  /** Verify that registerIcebergTable will update existing table properties */
+  @Test
+  public void testNewTablePropertiesAreRegistered() throws Exception {
+    Map<String, String> srcTableProperties = Maps.newHashMap();
+    Map<String, String> destTableProperties = Maps.newHashMap();
+
+    srcTableProperties.put("newKey", "newValue");
+    // Expect the old value to be overwritten by the new value
+    srcTableProperties.put("testKey", "testValueNew");
+    destTableProperties.put("testKey", "testValueOld");
+    // Expect existing property values to be deleted if it does not exist on the source
+    destTableProperties.put("deletedTableProperty", "deletedTablePropertyValue");
+
+    TableIdentifier destTableId = TableIdentifier.of(dbName, "destTable");
+    catalog.createTable(destTableId, icebergSchema, null, destTableProperties);
+
+    IcebergTable destIcebergTable = new IcebergTable(destTableId, catalog.newTableOps(destTableId), catalogUri);
+    // Mock a source table with the same table UUID copying new properties
+    TableMetadata newSourceTableProperties = destIcebergTable.accessTableMetadata().replaceProperties(srcTableProperties);
+
+    destIcebergTable.registerIcebergTable(newSourceTableProperties, destIcebergTable.accessTableMetadata());
+    Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().size(), 2);
+    Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().get("newKey"), "newValue");
+    Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().get("testKey"), "testValueNew");
+    Assert.assertNull(destIcebergTable.accessTableMetadata().properties().get("deletedTableProperty"));
   }
 
   /** full validation for a particular {@link IcebergSnapshotInfo} */

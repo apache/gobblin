@@ -93,9 +93,8 @@ public class SpecStoreChangeMonitor extends HighLevelConsumer<String, GenericSto
 
   @Override
   protected void assignTopicPartitions() {
-    // Expects underlying consumer to handle initializing partitions and offset for the topic -
-    // subscribe to all partitions from latest offset
-    return;
+    // This implementation expects underlying consumer (HighLevelConsumer::GobblinKafkaConsumerClient) to handle
+    // initializing partitions and offset for the topic. It should subscribe to all partitions from latest offset
   }
 
   /*

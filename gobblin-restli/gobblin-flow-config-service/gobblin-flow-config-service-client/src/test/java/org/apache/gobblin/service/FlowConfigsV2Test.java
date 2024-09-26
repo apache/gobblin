@@ -20,12 +20,11 @@ package org.apache.gobblin.service;
 import java.io.File;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
-import org.mortbay.jetty.HttpStatus;
-import org.mockito.ArgumentMatchers;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -35,15 +34,13 @@ import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 import com.google.common.io.Files;
-import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.Module;
-import com.google.inject.name.Names;
 import com.linkedin.data.DataMap;
 import com.linkedin.data.template.StringMap;
 import com.linkedin.r2.transport.http.client.HttpClientFactory;
 import com.linkedin.restli.client.RestLiResponseException;
+import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.common.PatchRequest;
 import com.linkedin.restli.internal.server.util.DataMapUtils;
 import com.linkedin.restli.server.resources.BaseResource;
@@ -60,23 +57,25 @@ import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
+import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
 
-import static org.mockito.Mockito.any;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 
 @Test(groups = { "gobblin.service" }, singleThreaded = true)
-public class FlowConfigV2Test {
+public class FlowConfigsV2Test {
   private FlowConfigV2Client _client;
   private EmbeddedRestliServer _server;
   private File _testDirectory;
   private TestRequesterService _requesterService;
   private GroupOwnershipService groupOwnershipService;
-  private File groupConfigFile;
-  private Set<String> _compilationFailureFlowPaths = Sets.newHashSet();
+  private final Set<String> _compilationFailureFlowPaths = Sets.newHashSet();
 
   private static final String TEST_SPEC_STORE_DIR = "/tmp/flowConfigV2Test/";
+  private static final String TEST_DUMMY_GROUP_NAME = "dummyGroup";
+  private static final String TEST_DUMMY_FLOW_NAME = "dummyFlow";
   private static final String TEST_GROUP_NAME = "testGroup1";
   private static final String TEST_FLOW_NAME = "testFlow1";
   private static final String TEST_FLOW_NAME_2 = "testFlow2";
@@ -89,6 +88,7 @@ public class FlowConfigV2Test {
   private static final String TEST_FLOW_NAME_9 = "testFlow9";
   private static final String TEST_FLOW_NAME_10 = "testFlow10";
   private static final String TEST_FLOW_NAME_11 = "testFlow11";
+  private static final String TEST_FLOW_NAME_12 = "testFlow12";
   private static final String TEST_SCHEDULE = "0 1/0 * ? * *";
   private static final String TEST_TEMPLATE_URI = "FS:///templates/test.template";
 
@@ -97,53 +97,42 @@ public class FlowConfigV2Test {
 
   @BeforeClass
   public void setUp() throws Exception {
-    ConfigBuilder configBuilder = ConfigBuilder.create();
-
     _testDirectory = Files.createTempDir();
-
-    configBuilder
-        .addPrimitive(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, _testDirectory.getAbsolutePath())
-        .addPrimitive(FSSpecStore.SPECSTORE_FS_DIR_KEY, TEST_SPEC_STORE_DIR);
     cleanUpDir(TEST_SPEC_STORE_DIR);
 
-    Config config = configBuilder.build();
+    Config config = ConfigBuilder.create()
+        .addPrimitive(ConfigurationKeys.JOB_CONFIG_FILE_DIR_KEY, _testDirectory.getAbsolutePath())
+        .addPrimitive(FSSpecStore.SPECSTORE_FS_DIR_KEY, TEST_SPEC_STORE_DIR).build();
+
     final FlowCatalog flowCatalog = new FlowCatalog(config);
     final SpecCatalogListener mockListener = mock(SpecCatalogListener.class);
     when(mockListener.getName()).thenReturn(ServiceConfigKeys.GOBBLIN_ORCHESTRATOR_LISTENER_CLASS);
-    // NOTE: more general `ArgumentMatchers` (indicating compilation unsuccessful) must precede the specific
-    when(mockListener.onAddSpec(any())).thenReturn(new AddSpecResponse(null));
-    when(mockListener.onAddSpec(ArgumentMatchers.argThat((FlowSpec flowSpec) -> {
-      return !_compilationFailureFlowPaths.contains(flowSpec.getUri().getPath());
-    }))).thenReturn(new AddSpecResponse(""));
+    when(mockListener.onAddSpec(any())).thenAnswer(invocation -> new AddSpecResponse(_compilationFailureFlowPaths
+        .contains(invocation.<FlowSpec>getArgument(0).getUri().getPath()) ? null : "")
+    );
+
     flowCatalog.addListener(mockListener);
     flowCatalog.startAsync();
     flowCatalog.awaitRunning();
 
     _requesterService = new TestRequesterService(ConfigFactory.empty());
 
-    this.groupConfigFile = new File(_testDirectory + "/TestGroups.json");
+    File groupConfigFile = new File(_testDirectory + "/TestGroups.json");
     String groups ="{\"testGroup\": \"testName,testName2\"}";
-    Files.write(groups.getBytes(), this.groupConfigFile);
+    Files.write(groups.getBytes(), groupConfigFile);
     Config groupServiceConfig = ConfigBuilder.create()
-        .addPrimitive(LocalGroupOwnershipService.GROUP_MEMBER_LIST, this.groupConfigFile.getAbsolutePath())
+        .addPrimitive(LocalGroupOwnershipService.GROUP_MEMBER_LIST, groupConfigFile.getAbsolutePath())
         .build();
 
     groupOwnershipService = new LocalGroupOwnershipService(groupServiceConfig);
 
-    Injector injector = Guice.createInjector(new Module() {
-      @Override
-      public void configure(Binder binder) {
-        binder.bind(FlowConfigsV2ResourceHandler.class).toInstance(new FlowConfigV2ResourceLocalHandler(flowCatalog));
-        // indicate that we are in unit testing since the resource is being blocked until flow catalog changes have
-        // been made
-        binder.bindConstant().annotatedWith(Names.named(FlowConfigsV2Resource.INJECT_READY_TO_USE)).to(Boolean.TRUE);
-        binder.bind(RequesterService.class).toInstance(_requesterService);
-        binder.bind(GroupOwnershipService.class).toInstance(groupOwnershipService);
-      }
+    Injector injector = Guice.createInjector(binder -> {
+      binder.bind(FlowConfigsV2ResourceHandler.class).toInstance(new FlowConfigsV2ResourceHandler("service_name", flowCatalog));
+      binder.bind(RequesterService.class).toInstance(_requesterService);
+      binder.bind(GroupOwnershipService.class).toInstance(groupOwnershipService);
     });
 
-    _server = EmbeddedRestliServer.builder().resources(
-        Lists.<Class<? extends BaseResource>>newArrayList(FlowConfigsV2Resource.class)).injector(injector).build();
+    _server = EmbeddedRestliServer.builder().resources(Lists.newArrayList(FlowConfigsV2Resource.class)).injector(injector).build();
 
     _server.startAsync();
     _server.awaitRunning();
@@ -159,6 +148,194 @@ public class FlowConfigV2Test {
     if (specStoreDir.exists()) {
       FileUtils.deleteDirectory(specStoreDir);
     }
+  }
+
+  @Test
+  public void testCreateBadSchedule() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule("bad schedule").
+            setRunImmediately(true))
+        .setProperties(new StringMap(flowProperties));
+
+    try {
+      _client.createFlowConfig(flowConfig);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_422_UNPROCESSABLE_ENTITY.getCode());
+      return;
+    }
+
+    Assert.fail("Get should have gotten a 422 error");
+  }
+
+  @Test
+  public void testCreateBadTemplateUri() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME))
+        .setTemplateUris("FILE://bad/uri").setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(true))
+        .setProperties(new StringMap(flowProperties));
+
+    try {
+      _client.createFlowConfig(flowConfig);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_422_UNPROCESSABLE_ENTITY.getCode());
+      return;
+    }
+
+    Assert.fail("Get should have gotten a 422 error");
+  }
+
+  @Test
+  public void testCreate() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    _requesterService.setRequester(TEST_REQUESTER);
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_12))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(true))
+        .setProperties(new StringMap(flowProperties));
+
+    _client.createFlowConfig(flowConfig);
+  }
+
+  @Test (dependsOnMethods = "testCreate")
+  public void testGet() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_12);
+    FlowConfig flowConfig = _client.getFlowConfig(flowId);
+
+    Assert.assertEquals(flowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
+    Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME_12);
+    Assert.assertEquals(flowConfig.getSchedule().getCronSchedule(), TEST_SCHEDULE );
+    Assert.assertEquals(flowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
+    Assert.assertTrue(flowConfig.getSchedule().isRunImmediately());
+    // Add this assert back when getFlowSpec() is changed to return the raw flow spec
+    //Assert.assertEquals(flowConfig.getProperties().size(), 1);
+    Assert.assertEquals(flowConfig.getProperties().get("param1"), "value1");
+  }
+
+  @Test (dependsOnMethods = "testGet")
+  public void testUpdate() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_12);
+    _requesterService.setRequester(TEST_REQUESTER);
+
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1b");
+    flowProperties.put("param2", "value2b");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_12))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
+        .setProperties(new StringMap(flowProperties));
+
+    _client.updateFlowConfig(flowConfig);
+
+    FlowConfig retrievedFlowConfig = _client.getFlowConfig(flowId);
+
+    Assert.assertEquals(retrievedFlowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
+    Assert.assertEquals(retrievedFlowConfig.getId().getFlowName(), TEST_FLOW_NAME_12);
+    Assert.assertEquals(Objects.requireNonNull(retrievedFlowConfig.getSchedule()).getCronSchedule(), TEST_SCHEDULE);
+    Assert.assertEquals(retrievedFlowConfig.getTemplateUris(), TEST_TEMPLATE_URI);
+    // Add this asssert when getFlowSpec() is changed to return the raw flow spec
+    //Assert.assertEquals(flowConfig.getProperties().size(), 2);
+    Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1b");
+    Assert.assertEquals(retrievedFlowConfig.getProperties().get("param2"), "value2b");
+    Assert.assertEquals(RequesterService.deserialize(retrievedFlowConfig.getProperties().get(RequesterService.REQUESTER_LIST)),
+        Lists.newArrayList(TEST_REQUESTER));
+  }
+
+  @Test (dependsOnMethods = "testUpdate")
+  public void testUnschedule() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_12);
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1");
+    flowProperties.put(ConfigurationKeys.FLOW_UNSCHEDULE_KEY, "true");
+
+    FlowConfig flowConfig = new FlowConfig().setId(flowId)
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE).
+            setRunImmediately(true))
+        .setProperties(new StringMap(flowProperties));
+
+    _client.updateFlowConfig(flowConfig);
+
+    FlowConfig persistedFlowConfig = _client.getFlowConfig(flowId);
+
+    Assert.assertFalse(persistedFlowConfig.getProperties().containsKey(ConfigurationKeys.FLOW_UNSCHEDULE_KEY));
+    Assert.assertEquals(Objects.requireNonNull(persistedFlowConfig.getSchedule()).getCronSchedule(), FlowConfigsV2ResourceHandler.NEVER_RUN_CRON_SCHEDULE.getCronSchedule());
+  }
+
+  @Test (dependsOnMethods = "testUnschedule")
+  public void testDelete() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_12);
+
+    // make sure flow config exists
+    FlowConfig flowConfig = _client.getFlowConfig(flowId);
+    Assert.assertEquals(flowConfig.getId().getFlowGroup(), TEST_GROUP_NAME);
+    Assert.assertEquals(flowConfig.getId().getFlowName(), TEST_FLOW_NAME_12);
+
+    _client.deleteFlowConfig(flowId);
+
+    try {
+      _client.getFlowConfig(flowId);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_404_NOT_FOUND.getCode());
+      return;
+    }
+
+    Assert.fail("Get should have gotten a 404 error");
+  }
+
+  @Test
+  public void testBadGet() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
+
+    try {
+      _client.getFlowConfig(flowId);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_404_NOT_FOUND.getCode());
+      return;
+    }
+
+    Assert.fail("Get should have raised a 404 error");
+  }
+
+  @Test
+  public void testBadDelete() throws Exception {
+    FlowId flowId = new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME).setFlowName(TEST_DUMMY_FLOW_NAME);
+
+    try {
+      _client.getFlowConfig(flowId);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_404_NOT_FOUND.getCode());
+      return;
+    }
+
+    Assert.fail("Get should have raised a 404 error");
+  }
+
+  @Test
+  public void testBadUpdate() throws Exception {
+    Map<String, String> flowProperties = Maps.newHashMap();
+    flowProperties.put("param1", "value1b");
+    flowProperties.put("param2", "value2b");
+
+    FlowConfig flowConfig = new FlowConfig().setId(new FlowId().setFlowGroup(TEST_DUMMY_GROUP_NAME)
+            .setFlowName(TEST_DUMMY_FLOW_NAME))
+        .setTemplateUris(TEST_TEMPLATE_URI).setSchedule(new Schedule().setCronSchedule(TEST_SCHEDULE))
+        .setProperties(new StringMap(flowProperties));
+
+    try {
+      _client.updateFlowConfig(flowConfig);
+    } catch (RestLiResponseException e) {
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_404_NOT_FOUND.getCode());
+      return;
+    }
+
+    Assert.fail("Update should have raised a 404 error");
   }
 
   @Test
@@ -179,7 +356,7 @@ public class FlowConfigV2Test {
     Assert.assertEquals(_client.createFlowConfig(flowConfig).getFlowExecutionId().longValue(), -1L);
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testCreateRejectedWhenFailsCompilation() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_10);
     _requesterService.setRequester(TEST_REQUESTER);
@@ -199,12 +376,12 @@ public class FlowConfigV2Test {
       _client.createFlowConfig(flowConfig);
       Assert.fail("create seemingly accepted (despite anticipated flow compilation failure)");
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_400_Bad_Request);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_400_BAD_REQUEST.getCode());
       Assert.assertTrue(e.getMessage().contains("Flow was not compiled successfully."));
     }
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testPartialUpdate() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_3);
     _requesterService.setRequester(TEST_REQUESTER);
@@ -231,15 +408,16 @@ public class FlowConfigV2Test {
 
     FlowConfig retrievedFlowConfig = _client.getFlowConfig(flowId);
 
-    Assert.assertTrue(retrievedFlowConfig.getSchedule().isRunImmediately());
+    Assert.assertTrue(Objects.requireNonNull(retrievedFlowConfig.getSchedule()).isRunImmediately());
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1");
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param2"), "value4");
     Assert.assertFalse(retrievedFlowConfig.getProperties().containsKey("param3"));
   }
 
-  @Test (expectedExceptions = RestLiResponseException.class)
+  @Test (expectedExceptions = RestLiResponseException.class, dependsOnMethods = "testDelete")
   public void testPartialUpdateNotPossibleWithoutCreateFirst() throws Exception {
-    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME);
+    String flowName = TEST_FLOW_NAME + 3;
+    FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(flowName);
 
     String patchJson = "{\"schedule\":{\"$set\":{\"runImmediately\":true}},"
         + "\"properties\":{\"$set\":{\"param2\":\"value4\"},\"$delete\":[\"param3\"]}}";
@@ -250,7 +428,7 @@ public class FlowConfigV2Test {
     _client.partialUpdateFlowConfig(flowId, flowConfigPatch);
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testPartialUpdateRejectedWhenFailsCompilation() throws Exception {
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_11);
     _requesterService.setRequester(TEST_REQUESTER);
@@ -279,21 +457,21 @@ public class FlowConfigV2Test {
       _client.partialUpdateFlowConfig(flowId, flowConfigPatch);
       Assert.fail("update seemingly accepted (despite anticipated flow compilation failure)");
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_400_Bad_Request);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_400_BAD_REQUEST.getCode());
       Assert.assertTrue(e.getMessage().contains("Flow was not compiled successfully."));
     }
 
     // verify that prior state of flow config still retained: that updates had no effect
     FlowConfig retrievedFlowConfig = _client.getFlowConfig(flowId);
 
-    Assert.assertTrue(!retrievedFlowConfig.getSchedule().isRunImmediately());
+    Assert.assertFalse(retrievedFlowConfig.getSchedule().isRunImmediately());
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param1"), "value1");
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param2"), "value2");
     Assert.assertEquals(retrievedFlowConfig.getProperties().get("param3"), "value3");
     Assert.assertFalse(retrievedFlowConfig.getProperties().containsKey("param5"));
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testDisallowedRequester() throws Exception {
     try {
       ServiceRequester testRequester = new ServiceRequester("testName", "testType", "testFrom");
@@ -310,11 +488,11 @@ public class FlowConfigV2Test {
       testRequester.setName("testName2");
       _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_4));
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_401_UNAUTHORIZED.getCode());
     }
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testGroupRequesterAllowed() throws Exception {
     ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
     _requesterService.setRequester(testRequester);
@@ -331,7 +509,7 @@ public class FlowConfigV2Test {
     _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_5));
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testGroupRequesterRejected() throws Exception {
     try {
       ServiceRequester testRequester = new ServiceRequester("testName", "USER_PRINCIPAL", "testFrom");
@@ -348,11 +526,11 @@ public class FlowConfigV2Test {
       testRequester.setName("testName3");
       _client.deleteFlowConfig(new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(TEST_FLOW_NAME_6));
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_401_UNAUTHORIZED.getCode());
     }
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testGroupUpdateRejected() throws Exception {
    _requesterService.setRequester(TEST_REQUESTER);
    Map<String, String> flowProperties = Maps.newHashMap();
@@ -370,11 +548,11 @@ public class FlowConfigV2Test {
      _client.updateFlowConfig(flowConfig);
      Assert.fail("Expected update to be rejected");
    } catch (RestLiResponseException e) {
-     Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+     Assert.assertEquals(e.getStatus(), HttpStatus.S_401_UNAUTHORIZED.getCode());
    }
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testRequesterUpdate() throws Exception {
     _requesterService.setRequester(TEST_REQUESTER);
     Map<String, String> flowProperties = Maps.newHashMap();
@@ -399,7 +577,7 @@ public class FlowConfigV2Test {
         Lists.newArrayList(TEST_REQUESTER2));
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testRequesterUpdateRejected() throws Exception {
     _requesterService.setRequester(TEST_REQUESTER);
     Map<String, String> flowProperties = Maps.newHashMap();
@@ -417,11 +595,11 @@ public class FlowConfigV2Test {
       _client.updateFlowConfig(flowConfig);
       Assert.fail("Expected update to be rejected");
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_401_Unauthorized);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_401_UNAUTHORIZED.getCode());
     }
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testInvalidFlowId() throws Exception {
     Map<String, String> flowProperties = Maps.newHashMap();
     flowProperties.put("param1", "value1");
@@ -443,7 +621,7 @@ public class FlowConfigV2Test {
     try {
       _client.createFlowConfig(flowConfig);
     } catch (RestLiResponseException e) {
-      Assert.assertEquals(e.getStatus(), HttpStatus.ORDINAL_422_Unprocessable_Entity);
+      Assert.assertEquals(e.getStatus(), HttpStatus.S_422_UNPROCESSABLE_ENTITY.getCode());
       Assert.assertTrue(e.getMessage().contains("is out of range"));
       return;
     }
@@ -451,7 +629,7 @@ public class FlowConfigV2Test {
     Assert.fail();
   }
 
-  @Test
+  @Test (dependsOnMethods = "testDelete")
   public void testRunFlow() throws Exception {
     String flowName = "testRunFlow";
     FlowId flowId = new FlowId().setFlowGroup(TEST_GROUP_NAME).setFlowName(flowName);

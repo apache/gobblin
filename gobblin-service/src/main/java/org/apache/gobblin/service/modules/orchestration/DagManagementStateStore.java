@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
@@ -99,7 +100,6 @@ public interface DagManagementStateStore {
    * {@link DagManagementStateStore#addDag}. This call is just an additional identifier which may be used
    * for DagNode level operations. In the future, it may be merged with checkpointDag.
    * @param dagNode dag node to be added
-   * @param dagId dag id of the dag this dag node belongs to
    */
   void updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
@@ -142,6 +142,11 @@ public interface DagManagementStateStore {
    * @return {@link JobStatus} or {@link Optional#empty} if not present in the Job-Status Store
    */
   Optional<JobStatus> getJobStatus(DagNodeId dagNodeId);
+
+  /**
+   * @return list of {@link org.apache.gobblin.service.monitoring.FlowStatus} for the provided flow group and flow name.
+   */
+  List<org.apache.gobblin.service.monitoring.FlowStatus> getAllFlowStatusesForFlow(String flowGroup, String flowName);
 
   /**
    * Check if an action exists in dagAction store by flow group, flow name, flow execution id, and job name.

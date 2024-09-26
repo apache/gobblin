@@ -46,6 +46,8 @@ import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobScheduler;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
+
 
 import static org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX;
 
@@ -103,6 +105,7 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
       this.workflowId = Help.qualifyNamePerExecWithFlowExecId(WORKFLOW_ID_BASE, wuSpec, ConfigFactory.parseProperties(jobProps));
       WorkflowOptions options = WorkflowOptions.newBuilder()
           .setTaskQueue(this.queueName)
+          .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(this.jobProps))
           .setWorkflowId(this.workflowId)
           .build();
 

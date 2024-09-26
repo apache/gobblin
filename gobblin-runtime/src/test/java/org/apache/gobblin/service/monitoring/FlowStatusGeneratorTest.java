@@ -58,7 +58,7 @@ public class FlowStatusGeneratorTest {
     JobStatus jobStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(flowExecutionId)
         .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName(ExecutionStatus.COMPILED.name()).build();
     Iterator<JobStatus> jobStatusIterator = Lists.newArrayList(jobStatus).iterator();
-    FlowStatus flowStatus = new FlowStatus(flowName,flowGroup,flowExecutionId,jobStatusIterator,ExecutionStatus.COMPILED);
+    FlowStatus flowStatus = new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator, ExecutionStatus.COMPILED);
     when(jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(flowGroup, flowName)).thenReturn(
         Lists.newArrayList(flowStatus));
     FlowStatusGenerator flowStatusGenerator = new FlowStatusGenerator(jobStatusRetriever);
@@ -77,7 +77,7 @@ public class FlowStatusGeneratorTest {
     JobStatus jobStatus = JobStatus.builder().flowGroup(flowGroup).flowName(flowName).flowExecutionId(flowExecutionId)
         .jobName(JobStatusRetriever.NA_KEY).jobGroup(JobStatusRetriever.NA_KEY).eventName(ExecutionStatus.COMPILED.name()).build();
     Iterator<JobStatus> jobStatusIterator = Lists.newArrayList(jobStatus).iterator();
-    FlowStatus flowStatus = new FlowStatus(flowName,flowGroup,flowExecutionId,jobStatusIterator,ExecutionStatus.COMPILED);
+    FlowStatus flowStatus = new FlowStatus(flowName, flowGroup, flowExecutionId, jobStatusIterator, ExecutionStatus.COMPILED);
     when(jobStatusRetriever.getAllFlowStatusesForFlowExecutionsOrdered(flowGroup, flowName)).thenReturn(
         Lists.newArrayList(flowStatus));
     FlowStatusGenerator flowStatusGenerator = new FlowStatusGenerator(jobStatusRetriever);

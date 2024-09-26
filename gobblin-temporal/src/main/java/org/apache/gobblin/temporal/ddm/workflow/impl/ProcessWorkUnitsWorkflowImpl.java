@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
+import java.util.Map;
 import java.util.Optional;
 
 import com.typesafe.config.ConfigFactory;
@@ -23,10 +24,10 @@ import com.typesafe.config.ConfigFactory;
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
+import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.EagerFsDirBackedWorkUnitClaimCheckWorkload;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
@@ -41,6 +42,7 @@ import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
+import org.apache.gobblin.runtime.JobState;
 
 
 @Slf4j
@@ -57,14 +59,24 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   private CommitStats performWork(WUProcessingSpec workSpec) {
+
     Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
-    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec);
-    int workunitsProcessed = processingWorkflow.performWorkload(
-        WorkflowAddr.ROOT, workload, 0,
-        workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty()
-    );
+    Map<String, Object> searchAttributes;
+    JobState jobState;
+    try {
+      jobState = Help.loadJobState(workSpec, Help.loadFileSystem(workSpec));
+    } catch (Exception e) {
+      log.error("Exception occured during loading jobState", e);
+      throw new RuntimeException("Exception occured during loading jobState", e);
+    }
+    searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties());
+
+    NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec, searchAttributes);
+    int workunitsProcessed =
+        processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0, workSpec.getTuning().getMaxBranchesPerTree(),
+            workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty());
     if (workunitsProcessed > 0) {
-      CommitStepWorkflow commitWorkflow = createCommitStepWorkflow();
+      CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
       CommitStats result = commitWorkflow.commit(workSpec);
       if (result.getNumCommittedWorkUnits() == 0) {
         log.warn("No work units committed at the job level. They could have been committed at the task level.");
@@ -87,26 +99,28 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   protected Workload<WorkUnitClaimCheck> createWorkload(WUProcessingSpec workSpec) {
-    return new EagerFsDirBackedWorkUnitClaimCheckWorkload(
-        workSpec.getFileSystemUri(),
-        workSpec.getWorkUnitsDir(),
-        workSpec.getEventSubmitterContext()
-    );
+    return new EagerFsDirBackedWorkUnitClaimCheckWorkload(workSpec.getFileSystemUri(), workSpec.getWorkUnitsDir(),
+        workSpec.getEventSubmitterContext());
   }
 
-  protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow(FileSystemJobStateful f) {
+  protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow(FileSystemJobStateful f,
+      Map<String, Object> searchAttributes) {
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_TERMINATE)
-        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(CHILD_WORKFLOW_ID_BASE, f, WorkerConfig.of(this).orElse(ConfigFactory.empty())))
+        .setSearchAttributes(searchAttributes)
+        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(CHILD_WORKFLOW_ID_BASE, f,
+            WorkerConfig.of(this).orElse(ConfigFactory.empty())))
         .build();
     // TODO: to incorporate multiple different concrete `NestingExecWorkflow` sub-workflows in the same super-workflow... shall we use queues?!?!?
     return Workflow.newChildWorkflowStub(NestingExecWorkflow.class, childOpts);
   }
 
-  protected CommitStepWorkflow createCommitStepWorkflow() {
+  protected CommitStepWorkflow createCommitStepWorkflow(Map<String, Object> searchAttributes) {
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
-        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE, WorkerConfig.of(this).orElse(ConfigFactory.empty())))
+        .setSearchAttributes(searchAttributes)
+        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE,
+            WorkerConfig.of(this).orElse(ConfigFactory.empty())))
         .build();
 
     return Workflow.newChildWorkflowStub(CommitStepWorkflow.class, childOpts);

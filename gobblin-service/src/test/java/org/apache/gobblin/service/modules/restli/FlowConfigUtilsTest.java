@@ -29,7 +29,6 @@ import com.linkedin.data.template.StringMap;
 
 import org.apache.gobblin.service.FlowConfig;
 import org.apache.gobblin.service.FlowConfigLoggedException;
-import org.apache.gobblin.service.FlowConfigResourceLocalHandler;
 import org.apache.gobblin.service.FlowId;
 import org.apache.gobblin.service.Schedule;
 
@@ -38,7 +37,7 @@ import org.apache.gobblin.service.Schedule;
 public class FlowConfigUtilsTest {
   private void testFlowSpec(FlowConfig flowConfig) {
     try {
-      FlowConfigResourceLocalHandler.createFlowSpecForConfig(flowConfig);
+      FlowConfigsV2ResourceHandler.createFlowSpecForConfig(flowConfig);
     } catch (FlowConfigLoggedException e) {
       Assert.fail("Should not get to here");
     }
@@ -155,7 +154,7 @@ public class FlowConfigUtilsTest {
     flowConfig.setProperties(new StringMap(Maps.fromProperties(properties)));
 
     try {
-      FlowConfigResourceLocalHandler.createFlowSpecForConfig(flowConfig);
+      FlowConfigsV2ResourceHandler.createFlowSpecForConfig(flowConfig);
       Assert.fail("Should not get to here");
     } catch (RequiredFieldNotPresentException e) {
       Assert.assertTrue(true, "templateUri cannot be empty");

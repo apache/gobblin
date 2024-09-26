@@ -1,9 +1,12 @@
 {
+  "annotations" : {
+    "deprecated" : { }
+  },
   "name" : "flowstatuses",
   "namespace" : "org.apache.gobblin.service",
   "path" : "/flowstatuses",
   "schema" : "org.apache.gobblin.service.FlowStatus",
-  "doc" : "Resource for handling flow status requests\n\ngenerated from: org.apache.gobblin.service.FlowStatusResource",
+  "doc" : "Deprecated, use {@link FlowExecutionResource}\n\nResource for handling flow status requests. generated from: org.apache.gobblin.service.FlowStatusResource",
   "collection" : {
     "identifier" : {
       "name" : "id",

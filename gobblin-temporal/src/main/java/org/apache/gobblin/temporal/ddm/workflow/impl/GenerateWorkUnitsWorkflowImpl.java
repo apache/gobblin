@@ -27,6 +27,7 @@ import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
+import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
 import org.apache.gobblin.temporal.ddm.workflow.GenerateWorkUnitsWorkflow;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
@@ -50,7 +51,7 @@ public class GenerateWorkUnitsWorkflowImpl implements GenerateWorkUnitsWorkflow 
   private final GenerateWorkUnits activityStub = Workflow.newActivityStub(GenerateWorkUnits.class, ACTIVITY_OPTS);
 
   @Override
-  public int generate(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
+  public GenerateWorkUnitsResult generate(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     return activityStub.generateWorkUnits(jobProps, eventSubmitterContext);
   }
 }

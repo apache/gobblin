@@ -30,15 +30,15 @@ import org.testng.annotations.Test;
 
 import com.google.common.base.Suppliers;
 import com.google.common.collect.Lists;
-import com.google.inject.Binder;
 import com.google.inject.Guice;
 import com.google.inject.Injector;
-import com.google.inject.Module;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
+import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.restli.FlowExecutionResourceHandler;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
@@ -46,13 +46,12 @@ import static org.mockito.Mockito.mock;
 
 
 @Test(groups = { "gobblin.service" }, singleThreaded = true)
-public class FlowStatusTest {
-  private FlowStatusClient _client;
+public class FlowExecutionClientTest {
+  private FlowExecutionClient client;
   private EmbeddedRestliServer _server;
   private List<List<org.apache.gobblin.service.monitoring.JobStatus>> _listOfJobStatusLists;
 
   class TestJobStatusRetriever extends JobStatusRetriever {
-
     protected TestJobStatusRetriever(MultiContextIssueRepository issueRepository) {
       super(issueRepository);
     }
@@ -104,22 +103,19 @@ public class FlowStatusTest {
     JobStatusRetriever jobStatusRetriever = new TestJobStatusRetriever(mock(MultiContextIssueRepository.class));
     final FlowStatusGenerator flowStatusGenerator = new FlowStatusGenerator(jobStatusRetriever);
 
-    Injector injector = Guice.createInjector(new Module() {
-       @Override
-       public void configure(Binder binder) {
-         binder.bind(FlowStatusGenerator.class)
-             .toInstance(flowStatusGenerator);
-       }
+    Injector injector = Guice.createInjector(binder -> {
+      binder.bind(FlowStatusGenerator.class).toInstance(flowStatusGenerator);
+      binder.bind(FlowExecutionResourceHandlerInterface.class)
+          .toInstance(new FlowExecutionResourceHandler(flowStatusGenerator, mock(DagManagementStateStore.class)));
     });
 
     _server = EmbeddedRestliServer.builder().resources(
-        Lists.newArrayList(FlowStatusResource.class)).injector(injector).build();
+        Lists.newArrayList(FlowExecutionResource.class)).injector(injector).build();
 
     _server.startAsync();
     _server.awaitRunning();
 
-    _client =
-        new FlowStatusClient(String.format("http://localhost:%s/", _server.getPort()));
+    client = new FlowExecutionClient(String.format("http://localhost:%s/", _server.getPort()));
   }
 
   /**
@@ -165,16 +161,16 @@ public class FlowStatusTest {
     _listOfJobStatusLists.add(jobStatusList2);
 
     FlowId flowId = new FlowId().setFlowGroup("fgroup1").setFlowName("flow1");
-    FlowStatus flowStatus = _client.getLatestFlowStatus(flowId);
+    FlowExecution flowExecution = client.getLatestFlowExecution(flowId);
 
-    Assert.assertEquals(flowStatus.getId().getFlowGroup(), "fgroup1");
-    Assert.assertEquals(flowStatus.getId().getFlowName(), "flow1");
-    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionStartTime().longValue(), 1L);
-    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 7000L);
-    Assert.assertEquals(flowStatus.getMessage(), fs2.getMessage());
-    Assert.assertEquals(flowStatus.getExecutionStatus(), ExecutionStatus.COMPLETE);
+    Assert.assertEquals(flowExecution.getId().getFlowGroup(), "fgroup1");
+    Assert.assertEquals(flowExecution.getId().getFlowName(), "flow1");
+    Assert.assertEquals(flowExecution.getExecutionStatistics().getExecutionStartTime().longValue(), 1L);
+    Assert.assertEquals(flowExecution.getExecutionStatistics().getExecutionEndTime().longValue(), 7000L);
+    Assert.assertEquals(flowExecution.getMessage(), fs2.getMessage());
+    Assert.assertEquals(flowExecution.getExecutionStatus(), ExecutionStatus.COMPLETE);
 
-    JobStatusArray jobStatuses = flowStatus.getJobStatuses();
+    JobStatusArray jobStatuses = flowExecution.getJobStatuses();
 
     Assert.assertEquals(jobStatusList2.size(), jobStatuses.size() + 1);
 
@@ -185,15 +181,15 @@ public class FlowStatusTest {
       compareJobStatus(js, mjs);
     }
 
-    List<FlowStatus> flowStatusList = _client.getLatestFlowStatus(flowId, 2, null);
-    Assert.assertEquals(flowStatusList.size(), 2);
-    Assert.assertEquals(flowStatusList.get(0).getId().getFlowExecutionId(), (Long) 1L);
-    Assert.assertEquals(flowStatusList.get(1).getId().getFlowExecutionId(), (Long) 0L);
-    Assert.assertEquals(flowStatusList.get(0).getJobStatuses().size(), 2);
+    List<FlowExecution> flowExecutionsList = client.getLatestFlowExecution(flowId, 2, null);
+    Assert.assertEquals(flowExecutionsList.size(), 2);
+    Assert.assertEquals(flowExecutionsList.get(0).getId().getFlowExecutionId(), (Long) 1L);
+    Assert.assertEquals(flowExecutionsList.get(1).getId().getFlowExecutionId(), (Long) 0L);
+    Assert.assertEquals(flowExecutionsList.get(0).getJobStatuses().size(), 2);
 
-    List<FlowStatus> flowStatusList2 = _client.getLatestFlowStatus(flowId, 1, "dataset1");
-    Assert.assertEquals(flowStatusList2.get(0).getJobStatuses().size(), 1);
-    Assert.assertEquals(flowStatusList2.get(0).getJobStatuses().get(0).getJobTag(), "dataset1");
+    List<FlowExecution> flowExecutionsList2 = client.getLatestFlowExecution(flowId, 1, "dataset1");
+    Assert.assertEquals(flowExecutionsList2.get(0).getJobStatuses().size(), 1);
+    Assert.assertEquals(flowExecutionsList2.get(0).getJobStatuses().get(0).getJobTag(), "dataset1");
   }
 
   /**
@@ -226,16 +222,16 @@ public class FlowStatusTest {
     _listOfJobStatusLists.add(jobStatusList);
 
     FlowStatusId flowId = new FlowStatusId().setFlowGroup("fgroup1").setFlowName("flow1").setFlowExecutionId(0);
-    FlowStatus flowStatus = _client.getFlowStatus(flowId);
+    FlowExecution flowExecution = client.getFlowExecution(flowId);
 
-    Assert.assertEquals(flowStatus.getId().getFlowGroup(), "fgroup1");
-    Assert.assertEquals(flowStatus.getId().getFlowName(), "flow1");
-    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
-    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 7000L);
-    Assert.assertEquals(flowStatus.getMessage(), fs1.getMessage());
-    Assert.assertEquals(flowStatus.getExecutionStatus(), ExecutionStatus.COMPLETE);
+    Assert.assertEquals(flowExecution.getId().getFlowGroup(), "fgroup1");
+    Assert.assertEquals(flowExecution.getId().getFlowName(), "flow1");
+    Assert.assertEquals(flowExecution.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
+    Assert.assertEquals(flowExecution.getExecutionStatistics().getExecutionEndTime().longValue(), 7000L);
+    Assert.assertEquals(flowExecution.getMessage(), fs1.getMessage());
+    Assert.assertEquals(flowExecution.getExecutionStatus(), ExecutionStatus.COMPLETE);
 
-    JobStatusArray jobStatuses = flowStatus.getJobStatuses();
+    JobStatusArray jobStatuses = flowExecution.getJobStatuses();
 
     Assert.assertEquals(jobStatusList.size(), jobStatuses.size() + 1);
 
@@ -277,23 +273,22 @@ public class FlowStatusTest {
     _listOfJobStatusLists.add(jobStatusList);
 
     FlowStatusId flowId = new FlowStatusId().setFlowGroup("fgroup1").setFlowName("flow1").setFlowExecutionId(0);
-    FlowStatus flowStatus = _client.getFlowStatus(flowId);
+    FlowExecution flowExecution = client.getFlowExecution(flowId);
 
-    Assert.assertEquals(flowStatus.getId().getFlowGroup(), "fgroup1");
-    Assert.assertEquals(flowStatus.getId().getFlowName(), "flow1");
-    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
-    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 6000L);
-    Assert.assertEquals(flowStatus.getMessage(), fs1.getMessage());
-    Assert.assertEquals(flowStatus.getExecutionStatus(), ExecutionStatus.RUNNING);
+    Assert.assertEquals(flowExecution.getId().getFlowGroup(), "fgroup1");
+    Assert.assertEquals(flowExecution.getId().getFlowName(), "flow1");
+    Assert.assertEquals(flowExecution.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
+    Assert.assertEquals(flowExecution.getExecutionStatistics().getExecutionEndTime().longValue(), 6000L);
+    Assert.assertEquals(flowExecution.getMessage(), fs1.getMessage());
+    Assert.assertEquals(flowExecution.getExecutionStatus(), ExecutionStatus.RUNNING);
 
-    JobStatusArray jobStatuses = flowStatus.getJobStatuses();
+    JobStatusArray jobStatuses = flowExecution.getJobStatuses();
 
     Assert.assertEquals(jobStatusList.size(), jobStatuses.size() + 1);
 
     for (int i = 0; i < jobStatuses.size(); i++) {
       org.apache.gobblin.service.monitoring.JobStatus mjs = jobStatusList.get(i);
       JobStatus js = jobStatuses.get(i);
-
       compareJobStatus(js, mjs);
     }
   }
@@ -328,16 +323,16 @@ public class FlowStatusTest {
     _listOfJobStatusLists.add(jobStatusList);
 
     FlowStatusId flowId = new FlowStatusId().setFlowGroup("fgroup1").setFlowName("flow1").setFlowExecutionId(0);
-    FlowStatus flowStatus = _client.getFlowStatus(flowId);
+    FlowExecution flowExecution = client.getFlowExecution(flowId);
 
-    Assert.assertEquals(flowStatus.getId().getFlowGroup(), "fgroup1");
-    Assert.assertEquals(flowStatus.getId().getFlowName(), "flow1");
-    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
-    Assert.assertEquals(flowStatus.getExecutionStatistics().getExecutionEndTime().longValue(), 7000L);
-    Assert.assertEquals(flowStatus.getMessage(), fs1.getMessage());
-    Assert.assertEquals(flowStatus.getExecutionStatus(), ExecutionStatus.FAILED);
+    Assert.assertEquals(flowExecution.getId().getFlowGroup(), "fgroup1");
+    Assert.assertEquals(flowExecution.getId().getFlowName(), "flow1");
+    Assert.assertEquals(flowExecution.getExecutionStatistics().getExecutionStartTime().longValue(), 0L);
+    Assert.assertEquals(flowExecution.getExecutionStatistics().getExecutionEndTime().longValue(), 7000L);
+    Assert.assertEquals(flowExecution.getMessage(), fs1.getMessage());
+    Assert.assertEquals(flowExecution.getExecutionStatus(), ExecutionStatus.FAILED);
 
-    JobStatusArray jobStatuses = flowStatus.getJobStatuses();
+    JobStatusArray jobStatuses = flowExecution.getJobStatuses();
 
     Assert.assertEquals(jobStatusList.size(), jobStatuses.size() + 1);
 
@@ -351,8 +346,8 @@ public class FlowStatusTest {
 
   @AfterClass(alwaysRun = true)
   public void tearDown() throws Exception {
-    if (_client != null) {
-      _client.close();
+    if (client != null) {
+      client.close();
     }
     if (_server != null) {
       _server.stopAsync();

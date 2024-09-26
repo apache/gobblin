@@ -14,8 +14,26 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+package org.apache.gobblin.temporal.ddm.activity;
 
-package org.apache.gobblin.service;
+import java.util.Set;
 
-public interface FlowConfigsV2ResourceHandler extends FlowConfigsResourceHandler {
+import io.temporal.activity.ActivityInterface;
+import io.temporal.activity.ActivityMethod;
+
+import org.apache.gobblin.temporal.ddm.work.DirDeletionResult;
+import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
+import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+
+
+/** Activity for deleting up a list of temporary work directories */
+@ActivityInterface
+public interface DeleteWorkDirsActivity {
+  /**
+   * Clean the list of resources specified in the input
+   * TODO: Generalize the input to support multiple platforms outside of just HDFS
+   */
+  @ActivityMethod
+  DirDeletionResult delete(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> workDirPaths);
 }
+

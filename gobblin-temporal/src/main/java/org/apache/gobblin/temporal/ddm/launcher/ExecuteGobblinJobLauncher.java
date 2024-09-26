@@ -24,14 +24,19 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.eventbus.EventBus;
-import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.client.WorkflowOptions;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
 import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
@@ -40,7 +45,10 @@ import org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobScheduler;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
@@ -74,24 +82,35 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
   @Override
   public void submitJob(List<WorkUnit> workunits) {
     try {
+      Properties finalProps = adjustJobProperties(this.jobProps);
       // Initialize workflowId to be used by cancel workflow.
       this.workflowId = Help.qualifyNamePerExecWithFlowExecId(WORKFLOW_ID_BASE, ConfigFactory.parseProperties(jobProps));
       WorkflowOptions options = WorkflowOptions.newBuilder()
           .setTaskQueue(this.queueName)
+          .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(finalProps))
           .setWorkflowId(this.workflowId)
           .build();
       ExecuteGobblinWorkflow workflow = this.client.newWorkflowStub(ExecuteGobblinWorkflow.class, options);
 
-      Config jobConfigWithOverrides = applyJobLauncherOverrides(ConfigUtils.propertiesToConfig(this.jobProps));
-
-      Help.propagateGaaSFlowExecutionContext(this.jobProps);
+      Help.propagateGaaSFlowExecutionContext(finalProps);
       EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder(eventSubmitter)
-          .withGaaSJobProps(this.jobProps)
+          .withGaaSJobProps(finalProps)
           .build();
-      ExecGobblinStats execGobblinStats = workflow.execute(ConfigUtils.configToProperties(jobConfigWithOverrides), eventSubmitterContext);
+      ExecGobblinStats execGobblinStats = workflow.execute(finalProps, eventSubmitterContext);
       log.info("FINISHED - ExecuteGobblinWorkflow.execute = {}", execGobblinStats);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }
+  }
+
+  // Generate properties such as Job ID, modifying task staging dirs and output dirs
+  protected Properties adjustJobProperties(Properties inputJobProps) throws Exception {
+    SharedResourcesBroker<GobblinScopeTypes> instanceBroker = SharedResourcesBrokerFactory.createDefaultTopLevelBroker(ConfigFactory.parseProperties(inputJobProps),
+        GobblinScopeTypes.GLOBAL.defaultScopeInstance());
+    Properties configOverridesProp = ConfigUtils.configToProperties(applyJobLauncherOverrides(ConfigUtils.propertiesToConfig(inputJobProps)));
+    configOverridesProp.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtils.newJobId(JobState.getJobNameFromProps(configOverridesProp),
+        PropertiesUtils.getPropAsLong(configOverridesProp, ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis())));
+    JobContext jobContext = new JobContext(configOverridesProp, log, instanceBroker, null);
+    return jobContext.getJobState().getProperties();
   }
 }
