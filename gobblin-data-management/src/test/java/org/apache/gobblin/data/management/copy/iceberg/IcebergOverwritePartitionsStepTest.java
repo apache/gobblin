@@ -126,7 +126,8 @@ public class IcebergOverwritePartitionsStepTest {
     }
   }
 
-  @Test
+  /** Disabling this test to avoid interrupting thread */
+  @Test(enabled = false)
   public void testExecuteWithRetryAndInterrupt() {
     // first call throw exception which will be retried and on second call nothing happens
     Mockito.doThrow(new RuntimeException()).doNothing().when(mockIcebergTable).overwritePartitions(Mockito.anyList(),

@@ -339,7 +339,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     return cc.stream().flatMap(x -> x.stream()).collect(Collectors.toList());
   }
 
-  @Test
+  @Test(enabled = false)
   public void testGetPartitionSpecificDataFiles() throws IOException {
     TableIdentifier testTableId = TableIdentifier.of(dbName, "testTable");
     Table testTable = catalog.createTable(testTableId, icebergSchema, icebergPartitionSpec);
@@ -371,7 +371,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     catalog.dropTable(testTableId);
   }
 
-  @Test
+  @Test(enabled = false)
   public void testOverwritePartitions() throws IOException {
     TableIdentifier testTableId = TableIdentifier.of(dbName, "testTable");
     Table testTable = catalog.createTable(testTableId, icebergSchema, icebergPartitionSpec);

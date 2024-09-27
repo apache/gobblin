@@ -17,9 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import java.io.IOException;
-import java.util.Collections;
-import java.util.List;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
