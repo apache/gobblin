@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
@@ -33,6 +34,7 @@ import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
+import org.apache.iceberg.OverwriteFiles;
 import org.apache.iceberg.ReplacePartitions;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
@@ -40,6 +42,7 @@ import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.io.FileIO;
@@ -242,32 +245,44 @@ public class IcebergTable {
   public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate) throws IOException {
     TableMetadata tableMetadata = accessTableMetadata();
     Snapshot currentSnapshot = tableMetadata.currentSnapshot();
+    log.info("Starting to copy data files from snapshot: {}", currentSnapshot.snapshotId());
+    //TODO: Add support for deleteManifests as well later
+    // Currently supporting dataManifests only
     List<ManifestFile> dataManifestFiles = currentSnapshot.dataManifests(this.tableOps.io());
     List<DataFile> dataFileList = new ArrayList<>();
     for (ManifestFile manifestFile : dataManifestFiles) {
-      ManifestReader<DataFile> manifestReader = ManifestFiles.read(manifestFile, this.tableOps.io());
-      CloseableIterator<DataFile> dataFiles = manifestReader.iterator();
-      dataFiles.forEachRemaining(dataFile -> {
-        if (icebergPartitionFilterPredicate.test(dataFile.partition())) {
-          dataFileList.add(dataFile.copy());
-        }
-      });
+      try (ManifestReader<DataFile> manifestReader = ManifestFiles.read(manifestFile, this.tableOps.io());
+          CloseableIterator<DataFile> dataFiles = manifestReader.iterator()) {
+        dataFiles.forEachRemaining(dataFile -> {
+          if (icebergPartitionFilterPredicate.test(dataFile.partition())) {
+            dataFileList.add(dataFile.copy());
+          }
+        });
+      } catch (IOException e) {
+        log.warn("Failed to read manifest file: {} " , manifestFile.path(), e);
+      }
     }
+    log.info("Found {} data files to copy", dataFileList.size());
     return dataFileList;
   }
 
   /**
-   * Replaces partitions in the table with the specified list of data files.
-   *
+   * Overwrite partitions in the table with the specified list of data files.
+   * <p>
+   *   Overwrite partition replaces the partitions using the expression filter provided.
+   * </p>
    * @param dataFiles the list of data files to replace partitions with
+   * @param partitionColName the partition column name whose data files are to be replaced
+   * @param partitionValue  the partition column value on which data files will be replaced
    */
-  protected void replacePartitions(List<DataFile> dataFiles) {
+  protected void overwritePartitions(List<DataFile> dataFiles, String partitionColName, String partitionValue) {
     if (dataFiles.isEmpty()) {
       return;
     }
-    ReplacePartitions replacePartitions = this.table.newReplacePartitions();
-    dataFiles.forEach(replacePartitions::addFile);
-    replacePartitions.commit();
+    OverwriteFiles overwriteFiles = this.table.newOverwrite();
+    overwriteFiles.overwriteByRowFilter(Expressions.equal(partitionColName, partitionValue));
+    dataFiles.forEach(overwriteFiles::addFile);
+    overwriteFiles.commit();
     this.tableOps.refresh();
   }
 

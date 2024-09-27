@@ -56,7 +56,7 @@ public class IcebergPartitionFilterPredicateUtilTest {
     IllegalArgumentException exception = Assert.expectThrows(IllegalArgumentException.class, () -> {
       IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex("col1", mockTableMetadata, supportedTransforms);
     });
-    Assert.assertEquals(exception.getMessage(), "Partition transform unsupported is not supported. Supported transforms are [supported1, supported2]");
+    Assert.assertTrue(exception.getMessage().contains("Partition transform unsupported is not supported. Supported transforms are [supported1, supported2]"));
   }
 
   @Test

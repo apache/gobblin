@@ -153,7 +153,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(destDbName, destTableName);
     // TODO: Rethink strategy to enforce dest iceberg table
     Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(destIcebergTable), String.format("Missing Destination Iceberg Table: {%s}.{%s}", destDbName, destTableName));
-    return new IcebergDataset(srcIcebergTable, destIcebergTable, properties, fs, getConfigShouldCopyMetadataPath(properties));
+    return createSpecificDataset(srcIcebergTable, destIcebergTable, properties, fs, getConfigShouldCopyMetadataPath(properties));
   }
 
   protected static IcebergCatalog createIcebergCatalog(Properties properties, CatalogLocation location) throws IOException {
@@ -165,12 +165,17 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
     return IcebergCatalogFactory.create(icebergCatalogClassName, catalogProperties, configuration);
   }
 
+  protected IcebergDataset createSpecificDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable, Properties properties, FileSystem fs, boolean shouldIncludeMetadataPath)
+      throws IcebergTable.TableNotFoundException {
+    return new IcebergDataset(srcIcebergTable, destIcebergTable, properties, fs, shouldIncludeMetadataPath);
+  }
+
   protected static boolean getConfigShouldCopyMetadataPath(Properties properties) {
     return Boolean.valueOf(properties.getProperty(ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH, DEFAULT_ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH));
   }
 
   /** @return property value or `null` */
-  public static String getLocationQualifiedProperty(Properties properties, CatalogLocation location, String relativePropName) {
+  protected static String getLocationQualifiedProperty(Properties properties, CatalogLocation location, String relativePropName) {
     return properties.getProperty(calcLocationQualifiedPropName(location, relativePropName));
   }
 

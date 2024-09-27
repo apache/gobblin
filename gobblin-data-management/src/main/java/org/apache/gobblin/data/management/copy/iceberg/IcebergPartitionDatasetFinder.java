@@ -38,59 +38,32 @@ import lombok.extern.slf4j.Slf4j;
  */
 @Slf4j
 public class IcebergPartitionDatasetFinder extends IcebergDatasetFinder {
+  public static final String ICEBERG_PARTITION_NAME_KEY = "partition.name";
+  public static final String ICEBERG_PARTITION_VALUE_KEY = "partition.value";
+
   public IcebergPartitionDatasetFinder(FileSystem sourceFs, Properties properties) {
     super(sourceFs, properties);
   }
 
-  /**
-   * Finds the {@link IcebergPartitionDataset}s in the file system using the Iceberg Catalog. Both Iceberg database name and table
-   * name are mandatory based on current implementation.
-   * <p>
-   * Overriding this method to put a check whether source and destination db & table names are passed in the properties as separate values
-   * </p>
-   * @return List of {@link IcebergPartitionDataset}s in the file system.
-   * @throws IOException if there is an error while finding the datasets.
-   */
   @Override
-  public List<IcebergDataset> findDatasets() throws IOException {
-    String srcDbName = getLocationQualifiedProperty(this.properties, CatalogLocation.SOURCE, ICEBERG_DB_NAME_KEY);
-    String destDbName = getLocationQualifiedProperty(this.properties, CatalogLocation.DESTINATION, ICEBERG_DB_NAME_KEY);
-    String srcTableName = getLocationQualifiedProperty(this.properties, CatalogLocation.SOURCE, ICEBERG_TABLE_NAME_KEY);
-    String destTableName = getLocationQualifiedProperty(this.properties, CatalogLocation.DESTINATION, ICEBERG_TABLE_NAME_KEY);
-
-    if (StringUtils.isBlank(srcDbName) || StringUtils.isBlank(destDbName) || StringUtils.isBlank(srcTableName)
-        || StringUtils.isBlank(destTableName)) {
-      String errorMsg = String.format("Missing (at least some) IcebergDataset properties - source: ('%s' and '%s') and destination: ('%s' and '%s') ",
-          srcDbName, srcTableName, destDbName, destTableName);
-      log.error(errorMsg);
-      throw new IllegalArgumentException(errorMsg);
-    }
-
-    IcebergCatalog srcIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.SOURCE);
-    IcebergCatalog destIcebergCatalog = createIcebergCatalog(this.properties, CatalogLocation.DESTINATION);
-
-    return Collections.singletonList(createIcebergDataset(
-        srcIcebergCatalog, srcDbName, srcTableName,
-        destIcebergCatalog, destDbName, destTableName,
-        this.properties, this.sourceFs
-    ));
-  }
-
- /**
- * Creates an {@link IcebergPartitionDataset} instance for the specified source and destination Iceberg tables.
- */
-  @Override
-  protected IcebergDataset createIcebergDataset(IcebergCatalog sourceIcebergCatalog, String srcDbName, String srcTableName, IcebergCatalog destinationIcebergCatalog, String destDbName, String destTableName, Properties properties, FileSystem fs) throws IOException {
-    IcebergTable srcIcebergTable = sourceIcebergCatalog.openTable(srcDbName, srcTableName);
-    Preconditions.checkArgument(sourceIcebergCatalog.tableAlreadyExists(srcIcebergTable),
-        String.format("Missing Source Iceberg Table: {%s}.{%s}", srcDbName, srcTableName));
-    IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(destDbName, destTableName);
-    Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(destIcebergTable),
-        String.format("Missing Destination Iceberg Table: {%s}.{%s}", destDbName, destTableName));
+  protected IcebergDataset createSpecificDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable,
+      Properties properties, FileSystem fs, boolean shouldIncludeMetadataPath) throws IcebergTable.TableNotFoundException {
 //    TODO: Add Validator for source and destination tables later
 //    TableMetadata srcTableMetadata = srcIcebergTable.accessTableMetadata();
 //    TableMetadata destTableMetadata = destIcebergTable.accessTableMetadata();
 //    IcebergTableMetadataValidator.validateSourceAndDestinationTablesMetadata(srcTableMetadata, destTableMetadata);
-    return new IcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, fs, getConfigShouldCopyMetadataPath(properties));
+
+    String partitionColumnName = getLocationQualifiedProperty(properties, IcebergDatasetFinder.CatalogLocation.SOURCE,
+        ICEBERG_PARTITION_NAME_KEY);
+    Preconditions.checkArgument(StringUtils.isNotEmpty(partitionColumnName),
+        "Partition column name cannot be empty");
+
+    String partitionColumnValue = getLocationQualifiedProperty(properties, IcebergDatasetFinder.CatalogLocation.SOURCE,
+        ICEBERG_PARTITION_VALUE_KEY);
+    Preconditions.checkArgument(StringUtils.isNotEmpty(partitionColumnValue),
+        "Partition value cannot be empty");
+
+    return new IcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, fs,
+        getConfigShouldCopyMetadataPath(properties), partitionColumnName, partitionColumnValue);
   }
 }

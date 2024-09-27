@@ -57,7 +57,10 @@ public class IcebergPartitionFilterPredicateUtil {
         String transform = partitionField.transform().toString().toLowerCase();
         if (!supportedTransforms.contains(transform)) {
           throw new IllegalArgumentException(
-              String.format("Partition transform %s is not supported. Supported transforms are %s", transform,
+              String.format(" For ~{%s:%d}~ Partition transform %s is not supported. Supported transforms are %s",
+                  partitionColumnName,
+                  idx,
+                  transform,
                   supportedTransforms));
         }
         return idx;

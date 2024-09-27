@@ -48,18 +48,21 @@ import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
 import static org.apache.gobblin.util.retry.RetryerFactory.RetryType;
 
 /**
- * Commit step for replacing partitions in an Iceberg table.
+ * Commit step for overwriting partitions in an Iceberg table.
  * <p>
- * This class implements the {@link CommitStep} interface and provides functionality to replace
+ * This class implements the {@link CommitStep} interface and provides functionality to overwrite
  * partitions in the destination Iceberg table using serialized data files.
  * </p>
  */
 @Slf4j
-public class IcebergReplacePartitionsStep implements CommitStep {
+public class IcebergOverwritePartitionsStep implements CommitStep {
   private final String destTableIdStr;
   private final Properties properties;
   private final byte[] serializedDataFiles;
-  public static final String REPLACE_PARTITIONS_RETRYER_CONFIG_PREFIX = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX + ".catalog.replace.partitions.retries";
+  private final String partitionColName;
+  private final String partitionValue;
+  public static final String OVERWRITE_PARTITIONS_RETRYER_CONFIG_PREFIX = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX +
+      ".catalog.overwrite.partitions.retries";
   private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
       RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(3L),
       RETRY_TIMES, 3,
@@ -72,8 +75,10 @@ public class IcebergReplacePartitionsStep implements CommitStep {
    * @param serializedDataFiles the serialized data files to be used for replacing partitions
    * @param properties the properties containing configuration
    */
-  public IcebergReplacePartitionsStep(String destTableIdStr, byte[] serializedDataFiles, Properties properties) {
+  public IcebergOverwritePartitionsStep(String destTableIdStr, String partitionColName, String partitionValue, byte[] serializedDataFiles, Properties properties) {
     this.destTableIdStr = destTableIdStr;
+    this.partitionColName = partitionColName;
+    this.partitionValue = partitionValue;
     this.serializedDataFiles = serializedDataFiles;
     this.properties = properties;
   }
@@ -94,20 +99,28 @@ public class IcebergReplacePartitionsStep implements CommitStep {
     IcebergTable destTable = createDestinationCatalog().openTable(TableIdentifier.parse(this.destTableIdStr));
     List<DataFile> dataFiles = SerializationUtil.deserializeFromBytes(this.serializedDataFiles);
     try {
-      log.info(String.format("Replacing partitions for destination table : {%s} ", this.destTableIdStr));
-      Retryer<Void> replacePartitionsRetryer = createReplacePartitionsRetryer();
-      replacePartitionsRetryer.call(() -> {
-        destTable.replacePartitions(dataFiles);
+      log.info("Overwriting Data files of partition {} with value {} for destination table : {} ",
+          this.partitionColName,
+          this.partitionValue,
+          this.destTableIdStr
+      );
+      Retryer<Void> overwritePartitionsRetryer = createOverwritePartitionsRetryer();
+      overwritePartitionsRetryer.call(() -> {
+        destTable.overwritePartitions(dataFiles, this.partitionColName, this.partitionValue);
         return null;
       });
-      log.info(String.format("Replaced partitions for destination table : {%s} ", this.destTableIdStr));
+      log.info("Overwriting Data files completed for partition {} with value {} for destination table : {} ",
+          this.partitionColName,
+          this.partitionValue,
+          this.destTableIdStr
+      );
     } catch (ExecutionException executionException) {
-      String msg = String.format("Failed to replace partitions for destination iceberg table : {%s}", this.destTableIdStr);
+      String msg = String.format("Failed to overwrite partitions for destination iceberg table : {%s}", this.destTableIdStr);
       log.error(msg, executionException);
       throw new RuntimeException(msg, executionException.getCause());
     } catch (RetryException retryException) {
       String interruptedNote = Thread.currentThread().isInterrupted() ? "... then interrupted" : "";
-      String msg = String.format("Failed to replace partition for destination table : {%s} : (retried %d times) %s ",
+      String msg = String.format("Failed to overwrite partition for destination table : {%s} : (retried %d times) %s ",
           this.destTableIdStr,
           retryException.getNumberOfFailedAttempts(),
           interruptedNote);
@@ -123,17 +136,17 @@ public class IcebergReplacePartitionsStep implements CommitStep {
     return IcebergDatasetFinder.createIcebergCatalog(this.properties, IcebergDatasetFinder.CatalogLocation.DESTINATION);
   }
 
-  private Retryer<Void> createReplacePartitionsRetryer() {
+  private Retryer<Void> createOverwritePartitionsRetryer() {
     Config config = ConfigFactory.parseProperties(this.properties);
-    Config retryerOverridesConfig = config.hasPath(IcebergReplacePartitionsStep.REPLACE_PARTITIONS_RETRYER_CONFIG_PREFIX)
-        ? config.getConfig(IcebergReplacePartitionsStep.REPLACE_PARTITIONS_RETRYER_CONFIG_PREFIX)
+    Config retryerOverridesConfig = config.hasPath(IcebergOverwritePartitionsStep.OVERWRITE_PARTITIONS_RETRYER_CONFIG_PREFIX)
+        ? config.getConfig(IcebergOverwritePartitionsStep.OVERWRITE_PARTITIONS_RETRYER_CONFIG_PREFIX)
         : ConfigFactory.empty();
 
     return RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
       @Override
       public <V> void onRetry(Attempt<V> attempt) {
         if (attempt.hasException()) {
-          String msg = String.format("Exception caught while replacing partitions for destination table : {%s} : [attempt: %d; %s after start]",
+          String msg = String.format("Exception caught while overwriting partitions for destination table : {%s} : [attempt: %d; %s after start]",
               destTableIdStr,
               attempt.getAttemptNumber(),
               Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());

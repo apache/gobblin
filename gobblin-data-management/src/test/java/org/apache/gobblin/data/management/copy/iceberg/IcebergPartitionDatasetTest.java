@@ -25,11 +25,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
 import java.util.Properties;
-import java.util.function.Predicate;
 
-import org.apache.gobblin.data.management.copy.CopyContext;
-import org.apache.gobblin.data.management.copy.PreserveAttributes;
-import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -52,7 +48,10 @@ import com.google.gson.JsonObject;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
-import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicateFactory;
+import org.apache.gobblin.data.management.copy.CopyContext;
+import org.apache.gobblin.data.management.copy.PreserveAttributes;
+import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicateUtil;
+import org.apache.gobblin.dataset.DatasetDescriptor;
 
 import static org.mockito.ArgumentMatchers.any;
 
@@ -66,14 +65,15 @@ public class IcebergPartitionDatasetTest {
   private FileSystem sourceFs;
   private FileSystem targetFs;
   private IcebergPartitionDataset icebergPartitionDataset;
-  private MockedStatic<IcebergPartitionFilterPredicateFactory> icebergPartitionFilterPredicateFactory;
+  private MockedStatic<IcebergPartitionFilterPredicateUtil> icebergPartitionFilterPredicateUtil;
   private static final String SRC_TEST_DB = "srcTestDB";
   private static final String SRC_TEST_TABLE = "srcTestTable";
   private static final String SRC_WRITE_LOCATION = SRC_TEST_DB + "/" + SRC_TEST_TABLE + "/data";
   private static final String DEST_TEST_DB = "destTestDB";
   private static final String DEST_TEST_TABLE = "destTestTable";
   private static final String DEST_WRITE_LOCATION = DEST_TEST_DB + "/" + DEST_TEST_TABLE + "/data";
-  private static final String TEST_ICEBERG_PARTITION_COLUMN_KEY = "iceberg.dataset.source.partition.name";
+  private static final String TEST_ICEBERG_PARTITION_COLUMN_NAME = "testPartition";
+  private static final String TEST_ICEBERG_PARTITION_COLUMN_VALUE = "testValue";
   private final Properties copyConfigProperties = new Properties();
   private final Properties properties = new Properties();
   private List<String> srcFilePaths;
@@ -111,21 +111,19 @@ public class IcebergPartitionDatasetTest {
     Mockito.when(srcIcebergTable.getDatasetDescriptor(Mockito.any())).thenReturn(Mockito.mock(DatasetDescriptor.class));
     Mockito.when(destIcebergTable.getDatasetDescriptor(Mockito.any())).thenReturn(Mockito.mock(DatasetDescriptor.class));
 
-    icebergPartitionFilterPredicateFactory = Mockito.mockStatic(IcebergPartitionFilterPredicateFactory.class);
-    icebergPartitionFilterPredicateFactory
-        .when(() -> IcebergPartitionFilterPredicateFactory.getFilterPredicate(Mockito.anyString(), Mockito.any(), Mockito.any()))
-        .thenReturn(Mockito.mock(Predicate.class));
+    icebergPartitionFilterPredicateUtil = Mockito.mockStatic(IcebergPartitionFilterPredicateUtil.class);
+    icebergPartitionFilterPredicateUtil
+        .when(() -> IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex(Mockito.anyString(), Mockito.any(), Mockito.any()))
+        .thenReturn(0);
 
-    properties.setProperty(TEST_ICEBERG_PARTITION_COLUMN_KEY, "testPartition");
     copyConfigProperties.setProperty("data.publisher.final.dir", "/test");
-
     srcFilePaths = new ArrayList<>();
   }
 
   @AfterMethod
   public void cleanUp() {
     srcFilePaths.clear();
-    icebergPartitionFilterPredicateFactory.close();
+    icebergPartitionFilterPredicateUtil.close();
   }
 
   private void setupSrcFileSystem() throws IOException {
@@ -151,23 +149,13 @@ public class IcebergPartitionDatasetTest {
   }
 
   @Test
-  public void testPartitionColumnNameMissing() throws IOException {
-    properties.remove(TEST_ICEBERG_PARTITION_COLUMN_KEY);
-    try {
-      icebergPartitionDataset = new IcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs, true);
-      Assert.fail("Expected IllegalArgumentException");
-    } catch (IllegalArgumentException e) {
-      Assert.assertEquals(e.getMessage(), "Partition column name cannot be empty");
-    }
-  }
-
-  @Test
   public void testGenerateCopyEntities() throws IOException {
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file1.orc");
     List<DataFile> srcDataFiles = getDataFiles();
     Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(srcDataFiles);
 
-    icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs, true);
+    icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs,
+        true);
 
     CopyConfiguration copyConfiguration =
         CopyConfiguration.builder(targetFs, copyConfigProperties).preserve(PreserveAttributes.fromMnemonicString(""))
@@ -184,8 +172,10 @@ public class IcebergPartitionDatasetTest {
     List<DataFile> srcDataFiles = Lists.newArrayList();
     Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(srcDataFiles);
 
-    icebergPartitionDataset = new IcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs, true);
-    Collection<CopyEntity> copyEntities = icebergPartitionDataset.generateCopyEntities(targetFs, Mockito.mock(CopyConfiguration.class));
+    icebergPartitionDataset = new IcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs,
+        true, TEST_ICEBERG_PARTITION_COLUMN_NAME, TEST_ICEBERG_PARTITION_COLUMN_VALUE);
+    Collection<CopyEntity> copyEntities = icebergPartitionDataset.generateCopyEntities(targetFs,
+        Mockito.mock(CopyConfiguration.class));
 
     // Since No data files are present, no copy entities should be generated
     Assert.assertEquals(copyEntities.size(), 0);
@@ -202,7 +192,8 @@ public class IcebergPartitionDatasetTest {
     List<DataFile> srcDataFiles = getDataFiles();
     Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(srcDataFiles);
 
-    icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs, true);
+    icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs,
+        true);
 
     CopyConfiguration copyConfiguration =
         CopyConfiguration.builder(targetFs, copyConfigProperties).preserve(PreserveAttributes.fromMnemonicString(""))
@@ -223,7 +214,8 @@ public class IcebergPartitionDatasetTest {
     List<DataFile> srcDataFiles = getDataFiles();
     Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(srcDataFiles);
 
-    icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs, true);
+    icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs,
+        true);
 
     CopyConfiguration copyConfiguration =
         CopyConfiguration.builder(targetFs, copyConfigProperties).preserve(PreserveAttributes.fromMnemonicString(""))
@@ -279,7 +271,7 @@ public class IcebergPartitionDatasetTest {
   }
 
   private static void verifyPostPublishStep(String json) {
-    String expectedCommitStep = "org.apache.gobblin.data.management.copy.iceberg.IcebergReplacePartitionsStep";
+    String expectedCommitStep = "org.apache.gobblin.data.management.copy.iceberg.IcebergOverwritePartitionsStep";
     String actualCommitStep = new Gson().fromJson(json, JsonObject.class)
         .getAsJsonObject("object-data")
         .getAsJsonObject("step")
@@ -319,7 +311,8 @@ public class IcebergPartitionDatasetTest {
     public TestIcebergPartitionDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable,
         Properties properties, FileSystem sourceFs, boolean shouldIncludeMetadataPath)
         throws IcebergTable.TableNotFoundException {
-      super(srcIcebergTable, destIcebergTable, properties, sourceFs, shouldIncludeMetadataPath);
+      super(srcIcebergTable, destIcebergTable, properties, sourceFs, shouldIncludeMetadataPath,
+          TEST_ICEBERG_PARTITION_COLUMN_NAME, TEST_ICEBERG_PARTITION_COLUMN_VALUE);
     }
 
     @Override
