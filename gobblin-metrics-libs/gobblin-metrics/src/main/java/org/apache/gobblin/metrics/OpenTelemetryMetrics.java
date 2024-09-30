@@ -60,6 +60,8 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
   @Override
   protected MetricExporter initializeMetricExporter(State state) {
+    // TODO: Refactor the method to use a factory pattern for instantiating MetricExporter. Each MetricExporter
+    //       type would have its own factory class, ensuring proper instantiation and handling specific configs.
     if (state.getPropAsBoolean(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_ENABLED,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_ENABLED)) {
       try {
