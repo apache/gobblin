@@ -72,6 +72,7 @@ import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClien
 @Alpha
 public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
   private static final Logger log = Workflow.getLogger(GobblinTemporalJobLauncher.class);
+  private static final int TERMINATION_TIMEOUT_SECONDS = 3;
 
   protected WorkflowServiceStubs workflowServiceStubs;
   protected WorkflowClient client;
@@ -160,7 +161,7 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
         workflowStub.cancel();
         try {
           // Check workflow status, if it is cancelled, will throw WorkflowFailedException else TimeoutException
-          workflowStub.getResult(3, TimeUnit.SECONDS, String.class, String.class);
+          workflowStub.getResult(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS, String.class, String.class);
         }
         catch (TimeoutException te) {
           // Workflow is still running, terminate it.

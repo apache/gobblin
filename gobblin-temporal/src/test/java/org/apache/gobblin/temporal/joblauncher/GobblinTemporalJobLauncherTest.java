@@ -22,10 +22,15 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import org.apache.hadoop.fs.Path;
+import org.mockito.AdditionalAnswers;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import org.mockito.internal.stubbing.answers.AnswersWithDelay;
+import org.mockito.internal.stubbing.answers.Returns;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
@@ -38,6 +43,7 @@ import io.temporal.api.workflow.v1.WorkflowExecutionInfo;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.api.workflowservice.v1.WorkflowServiceGrpc;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 
@@ -181,5 +187,22 @@ public class GobblinTemporalJobLauncherTest {
     verify(mockStub, times(1)).cancel();
 
     Mockito.reset(mockExecutionInfo);
+  }
+
+  @Test
+  public void testTerminateWorkflow() throws Exception {
+    // Mock the workflow status to be running
+    when(mockExecutionInfo.getStatus())
+        .thenReturn(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING);
+
+    // Mock getResult to throw TimeoutException
+    Mockito.doThrow(new TimeoutException("Workflow still in running"))
+        .when(mockStub).getResult(3L, TimeUnit.SECONDS, String.class, String.class);
+
+    jobLauncher.submitJob(null);
+
+    jobLauncher.executeCancellation();
+
+    verify(mockStub, times(1)).terminate("Job cancel invoked");
   }
 }

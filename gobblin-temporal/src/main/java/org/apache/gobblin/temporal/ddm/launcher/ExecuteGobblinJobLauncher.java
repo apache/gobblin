@@ -84,7 +84,7 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
     try {
       Properties finalProps = adjustJobProperties(this.jobProps);
       // Initialize workflowId to be used by cancel workflow.
-      this.workflowId = Help.qualifyNamePerExecWithFlowExecId(WORKFLOW_ID_BASE, ConfigFactory.parseProperties(jobProps));
+      this.workflowId = Help.qualifyNamePerExecWithFlowExecId(WORKFLOW_ID_BASE, ConfigFactory.parseProperties(finalProps));
       WorkflowOptions options = WorkflowOptions.newBuilder()
           .setTaskQueue(this.queueName)
           .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(finalProps))

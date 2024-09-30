@@ -214,6 +214,7 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
           try {
             launcher.cancelJob(listener);
           } catch (JobException e) {
+            LOGGER.error("Failed to cancel the job during shutdown", e);
             throw new RuntimeException(e);
           }
         }));
