@@ -144,8 +144,7 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
       WorkflowExecutionStatus status;
       try {
         status = response.getWorkflowExecutionInfo().getStatus();
-      }
-      catch (Exception e) {
+      } catch (Exception e) {
         log.warn("Exception occurred while getting status of the workflow " + this.workflowId
             + ". We would still attempt the cancellation", e);
         workflowStub.cancel();
@@ -162,22 +161,18 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
         try {
           // Check workflow status, if it is cancelled, will throw WorkflowFailedException else TimeoutException
           workflowStub.getResult(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS, String.class, String.class);
-        }
-        catch (TimeoutException te) {
+        } catch (TimeoutException te) {
           // Workflow is still running, terminate it.
           log.info("Workflow is still running, will attempt termination", te);
           workflowStub.terminate("Job cancel invoked");
-        }
-        catch (WorkflowFailedException wfe) {
+        } catch (WorkflowFailedException wfe) {
           // Do nothing as exception is expected.
-          log.info("Workflow cancellation successful", wfe);
         }
         log.info("Temporal workflow {} cancelled successfully", this.workflowId);
       } else {
         log.info("Workflow {} is already finished with status {}", this.workflowId, status);
       }
-    }
-    catch (Exception e) {
+    } catch (Exception e) {
       log.error("Exception occurred while cancelling the workflow " + this.workflowId, e);
     }
   }
