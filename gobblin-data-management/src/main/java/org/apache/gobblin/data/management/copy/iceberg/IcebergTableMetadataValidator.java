@@ -27,9 +27,20 @@ import com.google.common.annotations.VisibleForTesting;
 
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * Validator for Iceberg table metadata, ensuring that the source and destination tables have
+ * compatible schemas and partition specifications.
+ */
 @Slf4j
 public class IcebergTableMetadataValidator {
 
+  /**
+   * Validates the metadata of the source and destination Iceberg tables.
+   *
+   * @param srcTableMetadata  the metadata of the source table
+   * @param destTableMetadata the metadata of the destination table
+   * @throws IllegalArgumentException if the schemas or partition specifications do not match
+   */
   public static void validateSourceAndDestinationTablesMetadata(TableMetadata srcTableMetadata, TableMetadata destTableMetadata) {
     log.info("Starting validation of Source and Destination Iceberg Tables Metadata");
     Schema srcTableSchema = srcTableMetadata.schema();
@@ -41,6 +52,13 @@ public class IcebergTableMetadataValidator {
     log.info("Validation of Source and Destination Iceberg Tables Metadata completed successfully");
   }
 
+  /**
+   * Validates that the schemas of the source and destination tables are identical.
+   *
+   * @param srcTableSchema  the schema of the source table
+   * @param destTableSchema the schema of the destination table
+   * @throws IllegalArgumentException if the schemas do not match
+   */
   @VisibleForTesting
   protected static void validateSchema(Schema srcTableSchema, Schema destTableSchema) {
     // TODO: Need to add support for schema evolution, currently only supporting copying
@@ -61,6 +79,13 @@ public class IcebergTableMetadataValidator {
     }
   }
 
+  /**
+   * Validates that the partition specifications of the source and destination tables are compatible.
+   *
+   * @param srcPartitionSpec  the partition specification of the source table
+   * @param destPartitionSpec the partition specification of the destination table
+   * @throws IllegalArgumentException if the partition specifications do not match
+   */
   @VisibleForTesting
   protected static void validatePartitionSpec(PartitionSpec srcPartitionSpec, PartitionSpec destPartitionSpec) {
     // Currently, only supporting copying between iceberg tables with same partition spec
