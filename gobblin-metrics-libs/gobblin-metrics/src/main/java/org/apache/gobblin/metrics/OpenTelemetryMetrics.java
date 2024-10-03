@@ -65,7 +65,8 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
     if (state.getPropAsBoolean(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_ENABLED,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_ENABLED)) {
       try {
-        Class<?> clazz = Class.forName(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_CLASSNAME);
+        log.info("Initializing opentelemetry LogExporter class");
+        Class<?> clazz = Class.forName(state.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_CLASSNAME));
         Method instanceMethod = clazz.getMethod("instance");
         // Invoke the method to get the singleton instance
         return metricExporter = (MetricExporter) instanceMethod.invoke(null);
