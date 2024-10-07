@@ -119,6 +119,10 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
+
+      - name: Set up Temporal Docker Compose
+        run: |
+              docker-compose -f .github/workflows/docker_compose_temporal.yaml up -d
       # Fix for bug where Github tests are failing port address binding.
       - name: Add the current IP address, long hostname and short hostname record to /etc/hosts file
         run: |
