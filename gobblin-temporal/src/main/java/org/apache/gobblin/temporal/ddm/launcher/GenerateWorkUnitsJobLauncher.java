@@ -41,6 +41,7 @@ import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobScheduler;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 
 
 /**
@@ -72,6 +73,7 @@ public class GenerateWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
     try {
       WorkflowOptions options = WorkflowOptions.newBuilder()
           .setTaskQueue(this.queueName)
+          .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(this.jobProps))
           .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(WORKFLOW_ID_BASE, ConfigFactory.parseProperties(jobProps)))
           .build();
       GenerateWorkUnitsWorkflow workflow = this.client.newWorkflowStub(GenerateWorkUnitsWorkflow.class, options);

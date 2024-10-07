@@ -20,10 +20,14 @@ package org.apache.gobblin.yarn;
 import java.io.File;
 import java.io.IOException;
 import java.net.URL;
+import java.text.SimpleDateFormat;
+import java.util.Arrays;
 import java.util.Collection;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -197,6 +201,40 @@ public class YarnHelixUtils {
         StringUtils.EMPTY)){
       yarnConfiguration.setStrings(YarnConfiguration.YARN_APPLICATION_CLASSPATH, config.getString(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CLASSPATHS));
     }
+  }
+
+  /**
+   * Calculate the path of a jar cache on HDFS, which is retained on a monthly basis.
+   * Should be used in conjunction with {@link #retainKLatestJarCachePaths(Path, int, FileSystem)}. to clean up the cache on a periodic basis
+   * @param config
+   * @return
+   * @throws IOException
+   */
+  public static Path calculatePerMonthJarCachePath(Config config) throws IOException {
+    Path jarsCacheDirMonthly = new Path(config.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR));
+    String monthSuffix = new SimpleDateFormat("yyyy-MM").format(config.getLong(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY));
+    return new Path(jarsCacheDirMonthly, monthSuffix);
+
+  }
+
+  /**
+   * Retain the latest k jar cache paths that are children of the parent cache path.
+   * @param parentCachePath
+   * @param k the number of latest jar cache paths to retain
+   * @param fs
+   * @return
+   * @throws IllegalAccessException
+   * @throws IOException
+   */
+  public static boolean retainKLatestJarCachePaths(Path parentCachePath, int k, FileSystem fs) throws IOException {
+    // Cleanup old cache if necessary
+    List<FileStatus> jarDirs =
+        Arrays.stream(fs.exists(parentCachePath) ? fs.listStatus(parentCachePath) : new FileStatus[0]).sorted().collect(Collectors.toList());
+    boolean deletesSuccessful = true;
+    for (int i = 0; i < jarDirs.size() - k; i++) {
+      deletesSuccessful &= fs.delete(jarDirs.get(i).getPath(), true);
+    }
+    return deletesSuccessful;
   }
 
   public static void addRemoteFilesToLocalResources(String hdfsFileList, Map<String, LocalResource> resourceMap, Configuration yarnConfiguration) throws IOException {

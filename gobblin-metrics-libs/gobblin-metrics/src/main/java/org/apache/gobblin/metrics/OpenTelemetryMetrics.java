@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.metrics;
 
+import java.lang.reflect.Method;
 import java.time.Duration;
 import java.util.HashMap;
 import java.util.Map;
@@ -59,6 +60,21 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
   @Override
   protected MetricExporter initializeMetricExporter(State state) {
+    // TODO: Refactor the method to use a factory pattern for instantiating MetricExporter. Each MetricExporter
+    //       type would have its own factory class, ensuring proper instantiation and handling specific configs.
+    if (state.getPropAsBoolean(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_ENABLED,
+        ConfigurationKeys.DEFAULT_METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_ENABLED)) {
+      try {
+        log.info("Initializing opentelemetry LogExporter class");
+        Class<?> clazz = Class.forName(state.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_CLASSNAME));
+        Method instanceMethod = clazz.getMethod("instance");
+        // Invoke the method to get the singleton instance
+        return metricExporter = (MetricExporter) instanceMethod.invoke(null);
+      } catch (Exception e) {
+        log.error("Error occurred while instantiating opentelemetry LogExporter class", e);
+      }
+    }
+
     Preconditions.checkArgument(state.contains(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENDPOINT),
         "OpenTelemetry endpoint must be provided");
     OtlpHttpMetricExporterBuilder httpExporterBuilder = OtlpHttpMetricExporter.builder();
