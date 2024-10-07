@@ -34,6 +34,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class IcebergTableMetadataValidator {
 
+  private IcebergTableMetadataValidator() {
+    // Do not instantiate
+  }
+
   /**
    * Validates the metadata of the source and destination Iceberg tables.
    *
@@ -42,14 +46,18 @@ public class IcebergTableMetadataValidator {
    * @throws IllegalArgumentException if the schemas or partition specifications do not match
    */
   public static void validateSourceAndDestinationTablesMetadata(TableMetadata srcTableMetadata, TableMetadata destTableMetadata) {
-    log.info("Starting validation of Source and Destination Iceberg Tables Metadata");
+    log.info("Starting validation of Source : {} and Destination : {} Iceberg Tables Metadata",
+        srcTableMetadata.location(),
+        destTableMetadata.location());
     Schema srcTableSchema = srcTableMetadata.schema();
     Schema destTableSchema = destTableMetadata.schema();
     PartitionSpec srcPartitionSpec = srcTableMetadata.spec();
     PartitionSpec destPartitionSpec = destTableMetadata.spec();
-    validateSchema(srcTableSchema, destTableSchema);
-    validatePartitionSpec(srcPartitionSpec, destPartitionSpec);
-    log.info("Validation of Source and Destination Iceberg Tables Metadata completed successfully");
+    validateSchemaForEquality(srcTableSchema, destTableSchema);
+    validatePartitionSpecForEquality(srcPartitionSpec, destPartitionSpec);
+    log.info("Validation of Source : {} and Destination : {} Iceberg Tables Metadata completed successfully",
+        srcTableMetadata.location(),
+        destTableMetadata.location());
   }
 
   /**
@@ -60,7 +68,7 @@ public class IcebergTableMetadataValidator {
    * @throws IllegalArgumentException if the schemas do not match
    */
   @VisibleForTesting
-  protected static void validateSchema(Schema srcTableSchema, Schema destTableSchema) {
+  protected static void validateSchemaForEquality(Schema srcTableSchema, Schema destTableSchema) {
     // TODO: Need to add support for schema evolution, currently only supporting copying
     //  between iceberg tables with same schema.
     //  This function needs to be broken down into multiple functions to support schema evolution
@@ -87,7 +95,7 @@ public class IcebergTableMetadataValidator {
    * @throws IllegalArgumentException if the partition specifications do not match
    */
   @VisibleForTesting
-  protected static void validatePartitionSpec(PartitionSpec srcPartitionSpec, PartitionSpec destPartitionSpec) {
+  protected static void validatePartitionSpecForEquality(PartitionSpec srcPartitionSpec, PartitionSpec destPartitionSpec) {
     // Currently, only supporting copying between iceberg tables with same partition spec
     if (!srcPartitionSpec.compatibleWith(destPartitionSpec)) {
       String errMsg = String.format(

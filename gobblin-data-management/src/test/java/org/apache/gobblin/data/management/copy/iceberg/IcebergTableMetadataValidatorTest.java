@@ -66,7 +66,7 @@ public class IcebergTableMetadataValidatorTest {
   @Test
   public void testValidateSameSchema() {
     try {
-      IcebergTableMetadataValidator.validateSchema(schema1, schema1);
+      IcebergTableMetadataValidator.validateSchemaForEquality(schema1, schema1);
     } catch (Exception e) {
       System.out.println(e.getMessage());
       Assert.fail(SHOULD_NOT_THROW_EXCEPTION);
@@ -103,7 +103,7 @@ public class IcebergTableMetadataValidatorTest {
   @Test
   public void testValidateSamePartitionSpec() {
     try {
-      IcebergTableMetadataValidator.validatePartitionSpec(partitionSpec1, partitionSpec1);
+      IcebergTableMetadataValidator.validatePartitionSpecForEquality(partitionSpec1, partitionSpec1);
     } catch (Exception e) {
       System.out.println(e.getMessage());
       Assert.fail(SHOULD_NOT_THROW_EXCEPTION);
@@ -150,7 +150,7 @@ public class IcebergTableMetadataValidatorTest {
 
   private void verifyValidateSchemaIllegalArgumentException(Schema srcSchema, Schema destSchema) {
     IllegalArgumentException exception = Assert.expectThrows(IllegalArgumentException.class, () -> {
-      IcebergTableMetadataValidator.validateSchema(srcSchema, destSchema);
+      IcebergTableMetadataValidator.validateSchemaForEquality(srcSchema, destSchema);
     });
     Assert.assertTrue(exception.getMessage().startsWith(SCHEMA_MISMATCH_EXCEPTION));
   }
@@ -158,7 +158,7 @@ public class IcebergTableMetadataValidatorTest {
   private void verifyValidatePartitionSpecIllegalArgumentException(PartitionSpec srcPartitionSpec,
       PartitionSpec destPartitionSpec, String expectedMessage) {
     IllegalArgumentException exception = Assert.expectThrows(IllegalArgumentException.class, () -> {
-      IcebergTableMetadataValidator.validatePartitionSpec(srcPartitionSpec, destPartitionSpec);
+      IcebergTableMetadataValidator.validatePartitionSpecForEquality(srcPartitionSpec, destPartitionSpec);
     });
     Assert.assertTrue(exception.getMessage().startsWith(expectedMessage));
   }
