@@ -1,139 +1,154 @@
-/*
- * Licensed to the Apache Software Foundation (ASF) under one or more
- * contributor license agreements.  See the NOTICE file distributed with
- * this work for additional information regarding copyright ownership.
- * The ASF licenses this file to You under the Apache License, Version 2.0
- * (the "License"); you may not use this file except in compliance with
- * the License.  You may obtain a copy of the License at
- *
- *    http://www.apache.org/licenses/LICENSE-2.0
- *
- * Unless required by applicable law or agreed to in writing, software
- * distributed under the License is distributed on an "AS IS" BASIS,
- * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
- * See the License for the specific language governing permissions and
- * limitations under the License.
- */
-
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
-import java.time.Duration;
-import java.util.List;
 import java.util.Optional;
+import java.util.UUID;
 
-import org.junit.runner.RunWith;
-import org.mockito.Mock;
-import org.mockito.Mockito;
-import org.powermock.core.classloader.annotations.PrepareForTest;
-import org.powermock.modules.junit4.PowerMockRunner;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.testng.Assert;
-import org.testng.annotations.BeforeClass;
+import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
-import io.temporal.workflow.Async;
-import io.temporal.workflow.Promise;
-import io.temporal.workflow.Workflow;
+import io.temporal.api.common.v1.WorkflowExecution;
+import io.temporal.api.history.v1.History;
+import io.temporal.api.history.v1.HistoryEvent;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryReverseRequest;
+import io.temporal.api.workflowservice.v1.GetWorkflowExecutionHistoryReverseResponse;
+import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowOptions;
+import io.temporal.serviceclient.WorkflowServiceStubs;
+import io.temporal.worker.Worker;
+import io.temporal.worker.WorkerFactory;
+import io.temporal.api.enums.v1.EventType;
 
+
+import org.apache.gobblin.temporal.loadgen.activity.IllustrationItemActivity;
+import org.apache.gobblin.temporal.loadgen.work.IllustrationItem;
+import org.apache.gobblin.temporal.loadgen.work.SimpleGeneratedWorkload;
+import org.apache.gobblin.temporal.loadgen.workflow.impl.NestingExecOfIllustrationItemActivityWorkflowImpl;
 import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
-import org.apache.gobblin.temporal.util.nesting.workflow.AbstractNestingExecWorkflowImpl;
+import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
 
 
-@RunWith(PowerMockRunner.class)
-@PrepareForTest(Workflow.class)
 public class AbstractNestingExecWorkflowImplTest {
 
-  @Mock
-  private Workload<String> mockWorkload;
+  private static final Logger logger = LoggerFactory.getLogger(AbstractNestingExecWorkflowImplTest.class);
 
-  @Mock
-  private WorkflowAddr mockWorkflowAddr;
+  private WorkflowServiceStubs service;
+  private WorkflowClient client;
+  private WorkerFactory factory;
+  private Worker worker;
+  private final String TEMPORAL_TASK_QUEUE = "test-task-queue";
 
-  @Mock
-  private Workload.WorkSpan<String> mockWorkSpan;
+  @BeforeMethod
+  public void setUp() throws Exception {
+    // Connect to the Temporal service running in Docker
+    service = WorkflowServiceStubs.newInstance();
+    client = WorkflowClient.newInstance(service);
+    factory = WorkerFactory.newInstance(client);
+    worker = factory.newWorker(TEMPORAL_TASK_QUEUE);
+    worker.registerWorkflowImplementationTypes(NestingExecOfIllustrationItemActivityWorkflowImpl.class);
+    worker.registerActivitiesImplementations(new MockHandleItemActivityImpl());
+    factory.start();
+  }
 
-  @Mock
-  private Promise<Object> mockPromise;
-
-  private AbstractNestingExecWorkflowImpl<String, Object> workflow;
-
-  @BeforeClass
-  public void setup() {
-    // PowerMockito is required to mock static methods in the Workflow class
-    Mockito.mockStatic(Workflow.class);
-    Mockito.mockStatic(Async.class);
-    Mockito.mockStatic(Promise.class);
-    this.mockWorkload = Mockito.mock(Workload.class);
-    this.mockWorkflowAddr = Mockito.mock(WorkflowAddr.class);
-    this.mockWorkSpan = Mockito.mock(Workload.WorkSpan.class);
-    this.mockPromise = Mockito.mock(Promise.class);
-
-    workflow = new AbstractNestingExecWorkflowImpl<String, Object>() {
-      @Override
-      protected Promise<Object> launchAsyncActivity(String task) {
-        return mockPromise;
-      }
-    };
+  @AfterMethod
+  public void tearDown() {
+    factory.shutdown();
+    service.shutdown();
   }
 
   @Test
-  public void testPerformWorkload_NoWorkSpan() {
-    // Arrange
-    Mockito.when(mockWorkload.getSpan(Mockito.anyInt(), Mockito.anyInt())).thenReturn(Optional.empty());
+  public void testPerformWorkloadWithEmptyWorkload() {
+    final String workFlowId = UUID.randomUUID().toString();
+    final NestingExecWorkflow workflow = client.newWorkflowStub(NestingExecWorkflow.class,
+        WorkflowOptions.newBuilder().setTaskQueue(TEMPORAL_TASK_QUEUE).setWorkflowId(workFlowId).build());
 
-    // Act
-    int result = workflow.performWorkload(mockWorkflowAddr, mockWorkload, 0, 10, 5, Optional.empty());
+    Workload<IllustrationItem> workload = SimpleGeneratedWorkload.createAs(0);
 
-    // Assert
+    int result = workflow.performWorkload(WorkflowAddr.ROOT, workload, 0, 900, 30, Optional.empty());
     Assert.assertEquals(0, result);
-    Mockito.verify(mockWorkload, Mockito.times(2)).getSpan(0, 5);
+    Assert.assertEquals(0, getDepthLevelOfWorkFlowNesting(workFlowId));
   }
 
   @Test
-  public void testCalcPauseDurationBeforeCreatingSubTree_NoPause() {
-    // Act
-    Duration result = workflow.calcPauseDurationBeforeCreatingSubTree(50);
+  public void testPerformWorkloadWithPartialSpan() {
+    final String workFlowId = UUID.randomUUID().toString();
+    final NestingExecWorkflow workflow = client.newWorkflowStub(NestingExecWorkflow.class,
+        WorkflowOptions.newBuilder().setTaskQueue(TEMPORAL_TASK_QUEUE).setWorkflowId(workFlowId).build());
 
-    // Assert
-    Assert.assertEquals(Duration.ZERO, result);
+    Workload workload = SimpleGeneratedWorkload.createAs(500);
+
+    int result = workflow.performWorkload(new WorkflowAddr(0), workload, 0, 900, 30, Optional.empty());
+    Assert.assertEquals(500, result);
+    Assert.assertEquals(0, getDepthLevelOfWorkFlowNesting(workFlowId));
   }
 
   @Test
-  public void testCalcPauseDurationBeforeCreatingSubTree_PauseRequired() {
-    // Act
-    Duration result = workflow.calcPauseDurationBeforeCreatingSubTree(150);
+  public void testPerformWorkloadWithTwoLevelsOfNesting() {
+    final String workFlowId = UUID.randomUUID().toString();
+    final NestingExecWorkflow workflow = client.newWorkflowStub(NestingExecWorkflow.class,
+        WorkflowOptions.newBuilder().setTaskQueue(TEMPORAL_TASK_QUEUE).setWorkflowId(workFlowId).build());
 
-    // Assert
-    Assert.assertEquals(
-        Duration.ofSeconds(AbstractNestingExecWorkflowImpl.NUM_SECONDS_TO_PAUSE_BEFORE_CREATING_SUB_TREE_DEFAULT),
-        result);
+    Workload workload = SimpleGeneratedWorkload.createAs(2048);
+
+    int result = workflow.performWorkload(new WorkflowAddr(0), workload, 0, 900, 30, Optional.empty());
+    Assert.assertEquals(2048, result);
+    Assert.assertEquals(2, getDepthLevelOfWorkFlowNesting(workFlowId));
   }
 
   @Test
-  public void testConsolidateSubTreeGrandChildren() {
-    // Act
-    List<Integer> result = AbstractNestingExecWorkflowImpl.consolidateSubTreeGrandChildren(3, 10, 2);
+  public void testPerformWorkloadWithMaxBranchesExceeded_WithTreeDepth_1() {
+    final String workFlowId = UUID.randomUUID().toString();
+    final NestingExecWorkflow workflow = client.newWorkflowStub(NestingExecWorkflow.class,
+        WorkflowOptions.newBuilder().setTaskQueue(TEMPORAL_TASK_QUEUE).setWorkflowId(workFlowId).build());
 
-    // Assert
-    Assert.assertEquals(3, result.size());
-    Assert.assertEquals(Integer.valueOf(0), result.get(0));
-    Assert.assertEquals(Integer.valueOf(0), result.get(1));
-    Assert.assertEquals(Integer.valueOf(6), result.get(2));
+    Workload workload = SimpleGeneratedWorkload.createAs(1024);
+
+    int result = workflow.performWorkload(new WorkflowAddr(0), workload, 0, 1025, 30, Optional.empty());
+
+    logger.info("PerformWorkload method returned");
+    Assert.assertEquals(1024, result);
+    Assert.assertEquals(1, getDepthLevelOfWorkFlowNesting(workFlowId));
   }
 
-  @Test(expectedExceptions = AssertionError.class)
-  public void testPerformWorkload_LaunchesChildWorkflows() {
-    // Arrange
-    Mockito.when(mockWorkload.getSpan(Mockito.anyInt(), Mockito.anyInt())).thenReturn(Optional.of(mockWorkSpan));
-    Mockito.when(mockWorkSpan.getNumElems()).thenReturn(5);
-    Mockito.when(mockWorkSpan.next()).thenReturn("task1");
-    Mockito.when(mockWorkload.isIndexKnownToExceed(Mockito.anyInt())).thenReturn(false);
+  @Test
+  public void testPerformWorkloadWithMaxSubTreesOverride_WithTreeDepth_0() {
+    final String workFlowId = UUID.randomUUID().toString();
+    final NestingExecWorkflow workflow = client.newWorkflowStub(NestingExecWorkflow.class,
+        WorkflowOptions.newBuilder().setTaskQueue(TEMPORAL_TASK_QUEUE).setWorkflowId(workFlowId).build());
 
-    // Mock the child workflow
-    Mockito.when(Async.function(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.anyInt(), Mockito.anyInt(),
-        Mockito.anyInt(), Mockito.any())).thenReturn(mockPromise);
-    Mockito.when(mockPromise.get()).thenReturn(5);
-    // Act
-    int result = workflow.performWorkload(mockWorkflowAddr, mockWorkload, 0, 10, 5, Optional.empty());
+    logger.info("Calling performWorkload method on workflow with max sub-trees override");
+    Workload workload = SimpleGeneratedWorkload.createAs(1024);
+
+    int result = workflow.performWorkload(new WorkflowAddr(0), workload, 0, 1024, 30, Optional.of(0));
+    Assert.assertEquals(1024, result);
+    Assert.assertEquals(0, getDepthLevelOfWorkFlowNesting(workFlowId));
+  }
+
+  private int getDepthLevelOfWorkFlowNesting(String workFlowId) {
+    final GetWorkflowExecutionHistoryReverseResponse workflowExecutionHistoryResponse = client.getWorkflowServiceStubs()
+        .blockingStub()
+        .getWorkflowExecutionHistoryReverse(GetWorkflowExecutionHistoryReverseRequest.newBuilder()
+            .setNamespace("default")
+            .setExecution(WorkflowExecution.newBuilder().setWorkflowId(workFlowId).build())
+            .build());
+    int depth = 0;
+    final History history = workflowExecutionHistoryResponse.getHistory();
+    for (HistoryEvent historyEvent : history.getEventsList()) {
+      if (historyEvent.getEventType().equals(EventType.EVENT_TYPE_START_CHILD_WORKFLOW_EXECUTION_INITIATED)) {
+        depth++;
+      }
+    }
+    return depth;
+  }
+
+  private class MockHandleItemActivityImpl implements IllustrationItemActivity {
+    @Override
+    public String handleItem(IllustrationItem item) {
+      return null;
+    }
   }
 }
