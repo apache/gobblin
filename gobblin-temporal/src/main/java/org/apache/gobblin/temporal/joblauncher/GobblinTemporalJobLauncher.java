@@ -20,12 +20,19 @@ package org.apache.gobblin.temporal.joblauncher;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.TimeUnit;
+import java.util.concurrent.TimeoutException;
 
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
+import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.client.WorkflowClient;
+import io.temporal.client.WorkflowFailedException;
+import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Workflow;
 
@@ -65,10 +72,13 @@ import static org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClien
 @Alpha
 public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
   private static final Logger log = Workflow.getLogger(GobblinTemporalJobLauncher.class);
+  private static final int TERMINATION_TIMEOUT_SECONDS = 3;
 
   protected WorkflowServiceStubs workflowServiceStubs;
   protected WorkflowClient client;
   protected String queueName;
+  protected String namespace;
+  protected String workflowId;
 
   public GobblinTemporalJobLauncher(Properties jobProps, Path appWorkDir,
                                     List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap, EventBus eventBus)
@@ -79,11 +89,13 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     String connectionUri = jobProps.getProperty(TEMPORAL_CONNECTION_STRING);
     this.workflowServiceStubs = createServiceInstance(connectionUri);
 
-    String namespace = jobProps.getProperty(GOBBLIN_TEMPORAL_NAMESPACE, DEFAULT_GOBBLIN_TEMPORAL_NAMESPACE);
+    this.namespace = jobProps.getProperty(GOBBLIN_TEMPORAL_NAMESPACE, DEFAULT_GOBBLIN_TEMPORAL_NAMESPACE);
     this.client = createClientInstance(workflowServiceStubs, namespace);
 
     this.queueName = jobProps.getProperty(GOBBLIN_TEMPORAL_TASK_QUEUE, DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
 
+    // non-null value indicates job has been submitted
+    this.workflowId = null;
     startCancellationExecutor();
   }
 
@@ -113,7 +125,56 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
 
   @Override
   protected void executeCancellation() {
-    log.info("Cancel temporal workflow");
+    if (this.workflowId == null) {
+      log.info("Cancellation of temporal workflow attempted without submitting it");
+      return;
+    }
+
+    log.info("Cancelling temporal workflow {}", this.workflowId);
+    try {
+      WorkflowStub workflowStub = this.client.newUntypedWorkflowStub(this.workflowId);
+
+      // Describe the workflow execution to get its status
+      DescribeWorkflowExecutionRequest request = DescribeWorkflowExecutionRequest.newBuilder()
+          .setNamespace(this.namespace)
+          .setExecution(workflowStub.getExecution())
+          .build();
+      DescribeWorkflowExecutionResponse response = workflowServiceStubs.blockingStub().describeWorkflowExecution(request);
+
+      WorkflowExecutionStatus status;
+      try {
+        status = response.getWorkflowExecutionInfo().getStatus();
+      } catch (Exception e) {
+        log.warn("Exception occurred while getting status of the workflow " + this.workflowId
+            + ". We would still attempt the cancellation", e);
+        workflowStub.cancel();
+        log.info("Temporal workflow {} cancelled successfully", this.workflowId);
+        return;
+      }
+
+      // Check if the workflow is not finished
+      if (status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED &&
+          status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED &&
+          status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CANCELED &&
+          status != WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TERMINATED) {
+        workflowStub.cancel();
+        try {
+          // Check workflow status, if it is cancelled, will throw WorkflowFailedException else TimeoutException
+          workflowStub.getResult(TERMINATION_TIMEOUT_SECONDS, TimeUnit.SECONDS, String.class, String.class);
+        } catch (TimeoutException te) {
+          // Workflow is still running, terminate it.
+          log.info("Workflow is still running, will attempt termination", te);
+          workflowStub.terminate("Job cancel invoked");
+        } catch (WorkflowFailedException wfe) {
+          // Do nothing as exception is expected.
+        }
+        log.info("Temporal workflow {} cancelled successfully", this.workflowId);
+      } else {
+        log.info("Workflow {} is already finished with status {}", this.workflowId, status);
+      }
+    } catch (Exception e) {
+      log.error("Exception occurred while cancelling the workflow " + this.workflowId, e);
+    }
   }
 
   /** No-op: merely logs a warning, since not expected to be invoked */

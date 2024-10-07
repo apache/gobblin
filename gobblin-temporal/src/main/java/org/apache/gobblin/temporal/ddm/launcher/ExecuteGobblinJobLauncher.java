@@ -83,10 +83,12 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
   public void submitJob(List<WorkUnit> workunits) {
     try {
       Properties finalProps = adjustJobProperties(this.jobProps);
+      // Initialize workflowId.
+      this.workflowId = Help.qualifyNamePerExecWithFlowExecId(WORKFLOW_ID_BASE, ConfigFactory.parseProperties(finalProps));
       WorkflowOptions options = WorkflowOptions.newBuilder()
           .setTaskQueue(this.queueName)
-          .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(WORKFLOW_ID_BASE, ConfigFactory.parseProperties(finalProps)))
           .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(finalProps))
+          .setWorkflowId(this.workflowId)
           .build();
       ExecuteGobblinWorkflow workflow = this.client.newWorkflowStub(ExecuteGobblinWorkflow.class, options);
 
