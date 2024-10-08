@@ -359,6 +359,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
       if (copyEntity instanceof CopyableFile) {
         CopyableFile copyableFile = (CopyableFile) copyEntity;
         if (wus.getWorkingState() == WorkingState.COMMITTED) {
+          // Committed files should exist in destination otherwise FNFE will be thrown
           preserveFileAttrInPublisher(copyableFile);
           CopyEventSubmitterHelper.submitSuccessfulFilePublish(this.eventSubmitter, copyableFile, wus);
           // Dataset Output path is injected in each copyableFile.
