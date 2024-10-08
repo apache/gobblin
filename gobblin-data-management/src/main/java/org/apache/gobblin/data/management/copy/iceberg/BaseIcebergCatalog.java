@@ -21,6 +21,7 @@ import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -67,4 +68,6 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
   }
 
   protected abstract TableOperations createTableOperations(TableIdentifier tableId);
+
+  protected abstract Table loadTableInstance(TableIdentifier tableId);
 }
