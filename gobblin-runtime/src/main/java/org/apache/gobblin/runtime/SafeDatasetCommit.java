@@ -175,7 +175,7 @@ public final class SafeDatasetCommit implements Callable<Void> {
           this.datasetState.setState(JobState.RunningState.COMMITTED);
         }
       }
-    }  catch (Throwable throwable) {
+    } catch (Throwable throwable) {
       log.error(String.format("Failed to commit dataset state for dataset %s of job %s", this.datasetUrn,
           this.jobContext.getJobId()), throwable);
       throw new RuntimeException(throwable);
@@ -192,7 +192,7 @@ public final class SafeDatasetCommit implements Callable<Void> {
         }
 
       } catch (IOException | RuntimeException ioe) {
-        log.error(String
+       log.error(String
             .format("Failed to persist dataset state for dataset %s of job %s", datasetUrn, this.jobContext.getJobId()),
             ioe);
         throw new RuntimeException(ioe);
