@@ -21,8 +21,10 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,13 +35,17 @@ import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.PartitionData;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 import org.apache.iceberg.hive.HiveMetastoreTest;
 import org.apache.iceberg.shaded.org.apache.avro.SchemaBuilder;
 import org.testng.Assert;
@@ -61,7 +67,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
           .fields()
           .name("id")
           .type()
-          .longType()
+          .stringType()
           .noDefault()
           .endRecord();
   protected static final Schema icebergSchema = AvroSchemaUtil.toIceberg(avroDataSchema);
@@ -106,15 +112,17 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    IcebergSnapshotInfo snapshotInfo = new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri).getCurrentSnapshotInfo();
+    IcebergSnapshotInfo snapshotInfo = new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri,
+        catalog.loadTable(tableId)).getCurrentSnapshotInfo();
     verifySnapshotInfo(snapshotInfo, perSnapshotFilesets, perSnapshotFilesets.size());
   }
 
   /** Verify failure when attempting to get current snapshot info for non-existent table */
-  @Test(expectedExceptions = IcebergTable.TableNotFoundException.class)
+  @Test(expectedExceptions = {IcebergTable.TableNotFoundException.class, NoSuchTableException.class})
   public void testGetCurrentSnapshotInfoOnBogusTable() throws IOException {
     TableIdentifier bogusTableId = TableIdentifier.of(dbName, tableName + "_BOGUS");
-    IcebergSnapshotInfo snapshotInfo = new IcebergTable(bogusTableId, catalog.newTableOps(bogusTableId), catalogUri).getCurrentSnapshotInfo();
+    IcebergSnapshotInfo snapshotInfo = new IcebergTable(bogusTableId, catalog.newTableOps(bogusTableId), catalogUri,
+        catalog.loadTable(bogusTableId)).getCurrentSnapshotInfo();
     Assert.fail("expected an exception when using table ID '" + bogusTableId + "'");
   }
 
@@ -129,7 +137,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri).getAllSnapshotInfosIterator());
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId),
+        catalogUri, catalog.loadTable(tableId)).getAllSnapshotInfosIterator());
     Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
 
     for (int i = 0; i < snapshotInfos.size(); ++i) {
@@ -149,7 +158,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri).getIncrementalSnapshotInfosIterator());
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId),
+        catalogUri, catalog.loadTable(tableId)).getIncrementalSnapshotInfosIterator());
     Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
 
     for (int i = 0; i < snapshotInfos.size(); ++i) {
@@ -169,7 +179,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri).getIncrementalSnapshotInfosIterator());
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId),
+        catalogUri, catalog.loadTable(tableId)).getIncrementalSnapshotInfosIterator());
     Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
 
     for (int i = 0; i < snapshotInfos.size(); ++i) {
@@ -200,7 +211,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     TableIdentifier destTableId = TableIdentifier.of(dbName, "destTable");
     catalog.createTable(destTableId, icebergSchema, null, destTableProperties);
 
-    IcebergTable destIcebergTable = new IcebergTable(destTableId, catalog.newTableOps(destTableId), catalogUri);
+    IcebergTable destIcebergTable = new IcebergTable(destTableId, catalog.newTableOps(destTableId), catalogUri,
+        catalog.loadTable(destTableId));
     // Mock a source table with the same table UUID copying new properties
     TableMetadata newSourceTableProperties = destIcebergTable.accessTableMetadata().replaceProperties(srcTableProperties);
 
@@ -333,4 +345,119 @@ public class IcebergTableTest extends HiveMetastoreTest {
   protected static <T, C extends Collection<T>> List<T> flatten(Collection<C> cc) {
     return cc.stream().flatMap(x -> x.stream()).collect(Collectors.toList());
   }
+
+  @Test(groups = {"disabledOnCI"})
+  public void testGetPartitionSpecificDataFiles() throws IOException {
+    TableIdentifier testTableId = TableIdentifier.of(dbName, "testTable");
+    Table testTable = catalog.createTable(testTableId, icebergSchema, icebergPartitionSpec);
+
+    List<String> paths = Arrays.asList(
+        "/path/tableName/data/id=1/file1.orc",
+        "/path/tableName/data/id=1/file3.orc",
+        "/path/tableName/data/id=1/file5.orc",
+        "/path/tableName/data/id=1/file4.orc",
+        "/path/tableName/data/id=1/file2.orc"
+    );
+    // Using the schema defined in start of this class
+    PartitionData partitionData = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData.set(0, "1");
+    List<PartitionData> partitionDataList = Collections.nCopies(paths.size(), partitionData);
+
+    addPartitionDataFiles(testTable, paths, partitionDataList);
+
+    IcebergTable icebergTable = new IcebergTable(testTableId,
+        catalog.newTableOps(testTableId),
+        catalogUri,
+        catalog.loadTable(testTableId));
+    // Using AlwaysTrue & AlwaysFalse Predicate to avoid mocking of predicate class
+    Predicate<StructLike> alwaysTruePredicate = partition -> true;
+    Predicate<StructLike> alwaysFalsePredicate = partition -> false;
+    Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysTruePredicate).size(), 5);
+    Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysFalsePredicate).size(), 0);
+
+    catalog.dropTable(testTableId);
+  }
+
+  @Test(groups = {"disabledOnCI"})
+  public void testOverwritePartition() throws IOException {
+    TableIdentifier testTableId = TableIdentifier.of(dbName, "testTable");
+    Table testTable = catalog.createTable(testTableId, icebergSchema, icebergPartitionSpec);
+
+    List<String> paths = Arrays.asList(
+        "/path/tableName/data/id=1/file1.orc",
+        "/path/tableName/data/id=1/file2.orc"
+    );
+    // Using the schema defined in start of this class
+    PartitionData partitionData = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData.set(0, "1");
+    PartitionData partitionData2 = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData2.set(0, "1");
+    List<PartitionData> partitionDataList = Arrays.asList(partitionData, partitionData2);
+
+    addPartitionDataFiles(testTable, paths, partitionDataList);
+
+    IcebergTable icebergTable = new IcebergTable(testTableId,
+        catalog.newTableOps(testTableId),
+        catalogUri,
+        catalog.loadTable(testTableId));
+
+    verifyAnyOrder(paths, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
+
+    List<String> paths2 = Arrays.asList(
+        "/path/tableName/data/id=2/file3.orc",
+        "/path/tableName/data/id=2/file4.orc"
+    );
+    // Using the schema defined in start of this class
+    PartitionData partitionData3 = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData3.set(0, "2");
+    PartitionData partitionData4 = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData4.set(0, "2");
+    List<PartitionData> partitionDataList2 = Arrays.asList(partitionData3, partitionData4);
+
+    List<DataFile> dataFiles2 = getDataFiles(paths2, partitionDataList2);
+    // here, since partition data with value 2 doesn't exist yet, we expect it to get added to the table
+    icebergTable.overwritePartition(dataFiles2, "id", "2");
+    List<String> expectedPaths2 = new ArrayList<>(paths);
+    expectedPaths2.addAll(paths2);
+    verifyAnyOrder(expectedPaths2, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
+
+    List<String> paths3 = Arrays.asList(
+      "/path/tableName/data/id=1/file5.orc",
+      "/path/tableName/data/id=1/file6.orc"
+    );
+    // Reusing same partition dats to create data file with different paths
+    List<DataFile> dataFiles3 = getDataFiles(paths3, partitionDataList);
+    // here, since partition data with value 1 already exists, we expect it to get updated in the table with newer path
+    icebergTable.overwritePartition(dataFiles3, "id", "1");
+    List<String> expectedPaths3 = new ArrayList<>(paths2);
+    expectedPaths3.addAll(paths3);
+    verifyAnyOrder(expectedPaths3, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
+
+    catalog.dropTable(testTableId);
+  }
+
+  private static void addPartitionDataFiles(Table table, List<String> paths, List<PartitionData> partitionDataList) {
+    Assert.assertEquals(paths.size(), partitionDataList.size());
+    getDataFiles(paths, partitionDataList).forEach(dataFile -> table.newAppend().appendFile(dataFile).commit());
+  }
+
+  private static List<DataFile> getDataFiles(List<String> paths, List<PartitionData> partitionDataList) {
+    Assert.assertEquals(paths.size(), partitionDataList.size());
+    List<DataFile> dataFiles = Lists.newArrayList();
+    for (int i = 0; i < paths.size(); i++) {
+      dataFiles.add(createDataFileWithPartition(paths.get(i), partitionDataList.get(i)));
+    }
+    return dataFiles;
+  }
+
+  private static DataFile createDataFileWithPartition(String path, PartitionData partitionData) {
+    return DataFiles.builder(icebergPartitionSpec)
+        .withPath(path)
+        .withFileSizeInBytes(8)
+        .withRecordCount(1)
+        .withPartition(partitionData)
+        .withFormat(FileFormat.ORC)
+        .build();
+  }
+
 }

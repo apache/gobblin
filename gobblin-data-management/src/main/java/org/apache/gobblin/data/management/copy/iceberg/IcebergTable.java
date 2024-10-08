@@ -20,20 +20,29 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestReader;
+import org.apache.iceberg.OverwriteFiles;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.StructLike;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.io.FileIO;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -77,10 +86,11 @@ public class IcebergTable {
   private final String datasetDescriptorPlatform;
   private final TableOperations tableOps;
   private final String catalogUri;
+  private final Table table;
 
   @VisibleForTesting
-  IcebergTable(TableIdentifier tableId, TableOperations tableOps, String catalogUri) {
-    this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri);
+  IcebergTable(TableIdentifier tableId, TableOperations tableOps, String catalogUri, Table table) {
+    this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri, table);
   }
 
   /** @return metadata info limited to the most recent (current) snapshot */
@@ -217,4 +227,59 @@ public class IcebergTable {
       this.tableOps.commit(dstMetadata, srcMetadata);
     }
   }
+
+  /**
+   * Retrieves a list of data files from the current snapshot that match the specified partition filter predicate.
+   *
+   * @param icebergPartitionFilterPredicate the predicate to filter partitions
+   * @return a list of data files that match the partition filter predicate
+   * @throws IOException if an I/O error occurs while accessing the table metadata or reading manifest files
+   */
+  public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate) throws IOException {
+    TableMetadata tableMetadata = accessTableMetadata();
+    Snapshot currentSnapshot = tableMetadata.currentSnapshot();
+    log.info("Starting to copy data files from snapshot: {}", currentSnapshot.snapshotId());
+    //TODO: Add support for deleteManifests as well later
+    // Currently supporting dataManifests only
+    List<ManifestFile> dataManifestFiles = currentSnapshot.dataManifests(this.tableOps.io());
+    List<DataFile> dataFileList = new ArrayList<>();
+    for (ManifestFile manifestFile : dataManifestFiles) {
+      try (ManifestReader<DataFile> manifestReader = ManifestFiles.read(manifestFile, this.tableOps.io());
+          CloseableIterator<DataFile> dataFiles = manifestReader.iterator()) {
+        dataFiles.forEachRemaining(dataFile -> {
+          if (icebergPartitionFilterPredicate.test(dataFile.partition())) {
+            dataFileList.add(dataFile.copy());
+          }
+        });
+      } catch (IOException e) {
+        log.warn("Failed to read manifest file: {} " , manifestFile.path(), e);
+      }
+    }
+    log.info("Found {} data files to copy", dataFileList.size());
+    return dataFileList;
+  }
+
+  /**
+   * Overwrite partition data files in the table for the specified partition col name & partition value.
+   * <p>
+   *   Overwrite partition replaces the partition using the expression filter provided.
+   * </p>
+   * @param dataFiles the list of data files to replace partitions with
+   * @param partitionColName the partition column name whose data files are to be replaced
+   * @param partitionValue  the partition column value on which data files will be replaced
+   */
+  protected void overwritePartition(List<DataFile> dataFiles, String partitionColName, String partitionValue)
+      throws TableNotFoundException {
+    if (dataFiles.isEmpty()) {
+      return;
+    }
+    log.info("SnapshotId before overwrite: {}", accessTableMetadata().currentSnapshot().snapshotId());
+    OverwriteFiles overwriteFiles = this.table.newOverwrite();
+    overwriteFiles.overwriteByRowFilter(Expressions.equal(partitionColName, partitionValue));
+    dataFiles.forEach(overwriteFiles::addFile);
+    overwriteFiles.commit();
+    this.tableOps.refresh();
+    log.info("SnapshotId after overwrite: {}", accessTableMetadata().currentSnapshot().snapshotId());
+  }
+
 }
