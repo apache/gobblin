@@ -119,23 +119,31 @@ jobs:
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
+
+      - name: Build Temporal Docker
+        id: temporal_build
+        run: |
+          git clone https://github.com/temporalio/docker-compose.git
+          cd docker-compose
+          docker compose up -d
+
       # Fix for bug where Github tests are failing port address binding.
       - name: Add the current IP address, long hostname and short hostname record to /etc/hosts file
         run: |
           echo -e "$(ip addr show eth0 | grep "inet\b" | awk '{print $2}' | cut -d/ -f1)\t$(hostname -f) $(hostname -s)" | sudo tee -a /etc/hosts
       - name: Verify mysql connection
         run: |
-            sudo apt-get clean
-            sudo apt-get --fix-missing update
-            sudo apt-get -f install -o Dpkg::Options::="--force-overwrite"
-            sudo apt-get purge mysql\*
-            sudo rm -rf /var/lib/mysql
-            sudo rm -rf /etc/mysql
-            sudo dpkg -l | grep -i mysql
-            sudo apt-get clean
-            sudo apt-get install -y mysql-client
-            mysql --host 127.0.0.1 --port 3306 -uroot -ptestPassword -e "SHOW DATABASES"
-            mysql --host 127.0.0.1 --port 3306 -uroot -ptestPassword -e "SET GLOBAL max_connections=2000"
+          sudo apt-get clean
+          sudo apt-get --fix-missing update
+          sudo apt-get -f install -o Dpkg::Options::="--force-overwrite"
+          sudo apt-get purge mysql\*
+          sudo rm -rf /var/lib/mysql
+          sudo rm -rf /etc/mysql
+          sudo dpkg -l | grep -i mysql
+          sudo apt-get clean
+          sudo apt-get install -y mysql-client
+          mysql --host 127.0.0.1 --port 3306 -uroot -ptestPassword -e "SHOW DATABASES"
+          mysql --host 127.0.0.1 --port 3306 -uroot -ptestPassword -e "SET GLOBAL max_connections=2000"
       - name: Cache Gradle Dependencies
         uses: actions/cache@v2
         with:
