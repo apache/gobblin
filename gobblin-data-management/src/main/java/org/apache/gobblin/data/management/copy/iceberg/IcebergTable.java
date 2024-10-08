@@ -89,11 +89,6 @@ public class IcebergTable {
   private final Table table;
 
   @VisibleForTesting
-  IcebergTable(TableIdentifier tableId, TableOperations tableOps, String catalogUri) {
-    this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri, null);
-  }
-
-  @VisibleForTesting
   IcebergTable(TableIdentifier tableId, TableOperations tableOps, String catalogUri, Table table) {
     this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri, table);
   }
@@ -265,23 +260,26 @@ public class IcebergTable {
   }
 
   /**
-   * Overwrite partitions in the table with the specified list of data files.
+   * Overwrite partition data files in the table for the specified partition col name & partition value.
    * <p>
-   *   Overwrite partition replaces the partitions using the expression filter provided.
+   *   Overwrite partition replaces the partition using the expression filter provided.
    * </p>
    * @param dataFiles the list of data files to replace partitions with
    * @param partitionColName the partition column name whose data files are to be replaced
    * @param partitionValue  the partition column value on which data files will be replaced
    */
-  protected void overwritePartitions(List<DataFile> dataFiles, String partitionColName, String partitionValue) {
+  protected void overwritePartition(List<DataFile> dataFiles, String partitionColName, String partitionValue)
+      throws TableNotFoundException {
     if (dataFiles.isEmpty()) {
       return;
     }
+    log.info("SnapshotId before overwrite: {}", accessTableMetadata().currentSnapshot().snapshotId());
     OverwriteFiles overwriteFiles = this.table.newOverwrite();
     overwriteFiles.overwriteByRowFilter(Expressions.equal(partitionColName, partitionValue));
     dataFiles.forEach(overwriteFiles::addFile);
     overwriteFiles.commit();
     this.tableOps.refresh();
+    log.info("SnapshotId after overwrite: {}", accessTableMetadata().currentSnapshot().snapshotId());
   }
 
 }

@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -91,6 +92,9 @@ public class IcebergPartitionDataset extends IcebergDataset {
         srcTableMetadata,
         supportedTransforms
     );
+    Preconditions.checkArgument(partitionColumnIndex >= 0, String.format(
+        "Partition column %s not found in table %s",
+        this.partitionColumnName, this.getFileSetId()));
     return new IcebergMatchesAnyPropNamePartitionFilterPredicate(partitionColumnIndex, this.partitionColValue);
   }
 
@@ -152,6 +156,8 @@ public class IcebergPartitionDataset extends IcebergDataset {
   private List<DataFile> getDestDataFiles(List<DataFile> srcDataFiles) throws IcebergTable.TableNotFoundException {
     List<DataFile> destDataFiles = new ArrayList<>();
     if (srcDataFiles.isEmpty()) {
+      log.warn("No data files found for partition col : {} with partition value : {} in source table : {}",
+          this.partitionColumnName, this.partitionColValue, this.getFileSetId());
       return destDataFiles;
     }
     TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
@@ -179,6 +185,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
           .withPath(updatedDestFilePath.toString())
           .build());
       // Store the mapping of srcPath to destPath to be used in creating list of src file status to dest path
+      log.debug("Path changed from Src : {} to Dest : {}", srcFilePath, updatedDestFilePath);
       srcPathToDestPath.put(new Path(srcFilePath), updatedDestFilePath);
       if (growthMilestoneTracker.isAnotherMilestone(destDataFiles.size())) {
         log.info("Generated {} destination data files", destDataFiles.size());

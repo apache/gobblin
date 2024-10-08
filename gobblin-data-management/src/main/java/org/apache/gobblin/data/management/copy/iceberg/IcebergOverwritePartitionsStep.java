@@ -72,7 +72,7 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
    * Constructs an {@code IcebergReplacePartitionsStep} with the specified parameters.
    *
    * @param destTableIdStr the identifier of the destination table as a string
-   * @param serializedDataFiles the serialized data files to be used for replacing partitions
+   * @param serializedDataFiles [from List<DataFiles>] the serialized data files to be used for replacing partitions
    * @param properties the properties containing configuration
    */
   public IcebergOverwritePartitionsStep(String destTableIdStr, String partitionColName, String partitionValue, byte[] serializedDataFiles, Properties properties) {
@@ -106,7 +106,7 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
       );
       Retryer<Void> overwritePartitionsRetryer = createOverwritePartitionsRetryer();
       overwritePartitionsRetryer.call(() -> {
-        destTable.overwritePartitions(dataFiles, this.partitionColName, this.partitionValue);
+        destTable.overwritePartition(dataFiles, this.partitionColName, this.partitionValue);
         return null;
       });
       log.info("Overwriting Data files completed for partition {} with value {} for destination table : {} ",
