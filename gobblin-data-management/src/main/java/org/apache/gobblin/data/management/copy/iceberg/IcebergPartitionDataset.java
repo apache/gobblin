@@ -20,7 +20,6 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -47,7 +46,6 @@ import com.google.common.collect.Maps;
 import com.google.common.collect.ImmutableList;
 import com.google.common.base.Preconditions;
 
-import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
@@ -72,7 +70,6 @@ public class IcebergPartitionDataset extends IcebergDataset {
   // be moved to a common place or inside each filter predicate.
   private static final List<String> supportedTransforms = ImmutableList.of("identity", "truncate");
   private final Predicate<StructLike> partitionFilterPredicate;
-  private final Map<Path, Path> srcPathToDestPath;
   private final String partitionColumnName;
   private final String partitionColValue;
 
@@ -83,7 +80,6 @@ public class IcebergPartitionDataset extends IcebergDataset {
     this.partitionColumnName = partitionColumnName;
     this.partitionColValue = partitionColValue;
     this.partitionFilterPredicate = createPartitionFilterPredicate();
-    this.srcPathToDestPath = new HashMap<>();
   }
 
   /**
@@ -166,7 +162,6 @@ public class IcebergPartitionDataset extends IcebergDataset {
           .withPath(updatedDestFilePath.toString())
           .build());
       log.debug("~{}~ Path changed from Src : {} to Dest : {}", fileSet, srcFilePath, updatedDestFilePath);
-      srcPathToDestPath.put(new Path(srcFilePath), updatedDestFilePath);
       if (growthMilestoneTracker.isAnotherMilestone(destDataFiles.size())) {
         log.info("~{}~ created {} destination data files", fileSet, destDataFiles.size());
       }
