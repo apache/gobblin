@@ -62,6 +62,7 @@ import com.google.common.collect.Sets;
 /** Test {@link org.apache.gobblin.data.management.copy.iceberg.IcebergTable} */
 public class IcebergTableTest extends HiveMetastoreTest {
 
+  // Note - Keep table names unique when creating a new table for your tests and also drop those at last of your test
   protected static final org.apache.iceberg.shaded.org.apache.avro.Schema avroDataSchema =
       SchemaBuilder.record("test")
           .fields()
@@ -208,7 +209,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     // Expect existing property values to be deleted if it does not exist on the source
     destTableProperties.put("deletedTableProperty", "deletedTablePropertyValue");
 
-    TableIdentifier destTableId = TableIdentifier.of(dbName + "3", "destTable");
+    TableIdentifier destTableId = TableIdentifier.of(dbName, "destTable");
     catalog.createTable(destTableId, icebergSchema, null, destTableProperties);
 
     IcebergTable destIcebergTable = new IcebergTable(destTableId, catalog.newTableOps(destTableId), catalogUri,
@@ -350,7 +351,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
 
   @Test
   public void testGetPartitionSpecificDataFiles() throws IOException {
-    TableIdentifier testTableId = TableIdentifier.of(dbName +"6", "testTable");
+    TableIdentifier testTableId = TableIdentifier.of(dbName, "testTableForPartitionSpecificDataFiles");
     Table testTable = catalog.createTable(testTableId, icebergSchema, icebergPartitionSpec);
 
     List<String> paths = Arrays.asList(
@@ -382,8 +383,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
 
   @Test
   public void testOverwritePartition() throws IOException {
-    TableIdentifier testTableId2 = TableIdentifier.of(dbName + "9", "testTable2");
-    Table testTable = catalog.createTable(testTableId2, icebergSchema, icebergPartitionSpec);
+    TableIdentifier overwritePartitionTestTableId = TableIdentifier.of(dbName, "testTableForOverwritePartition");
+    Table testTable = catalog.createTable(overwritePartitionTestTableId, icebergSchema, icebergPartitionSpec);
 
     List<String> paths = Arrays.asList(
         "/path/tableName/data/id=1/file1.orc",
@@ -398,10 +399,10 @@ public class IcebergTableTest extends HiveMetastoreTest {
 
     addPartitionDataFiles(testTable, paths, partitionDataList);
 
-    IcebergTable icebergTable = new IcebergTable(testTableId2,
-        catalog.newTableOps(testTableId2),
+    IcebergTable icebergTable = new IcebergTable(overwritePartitionTestTableId,
+        catalog.newTableOps(overwritePartitionTestTableId),
         catalogUri,
-        catalog.loadTable(testTableId2));
+        catalog.loadTable(overwritePartitionTestTableId));
 
     verifyAnyOrder(paths, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
 
@@ -435,7 +436,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     expectedPaths3.addAll(paths3);
     verifyAnyOrder(expectedPaths3, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
 
-    catalog.dropTable(testTableId2);
+    catalog.dropTable(overwritePartitionTestTableId);
   }
 
   private static void addPartitionDataFiles(Table table, List<String> paths, List<PartitionData> partitionDataList) {
