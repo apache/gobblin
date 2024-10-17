@@ -208,7 +208,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     // Expect existing property values to be deleted if it does not exist on the source
     destTableProperties.put("deletedTableProperty", "deletedTablePropertyValue");
 
-    TableIdentifier destTableId = TableIdentifier.of(dbName, "destTable");
+    TableIdentifier destTableId = TableIdentifier.of(dbName + "3", "destTable");
     catalog.createTable(destTableId, icebergSchema, null, destTableProperties);
 
     IcebergTable destIcebergTable = new IcebergTable(destTableId, catalog.newTableOps(destTableId), catalogUri,
@@ -221,6 +221,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().get("newKey"), "newValue");
     Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().get("testKey"), "testValueNew");
     Assert.assertNull(destIcebergTable.accessTableMetadata().properties().get("deletedTableProperty"));
+
+    catalog.dropTable(destTableId);
   }
 
   /** full validation for a particular {@link IcebergSnapshotInfo} */
@@ -346,9 +348,9 @@ public class IcebergTableTest extends HiveMetastoreTest {
     return cc.stream().flatMap(x -> x.stream()).collect(Collectors.toList());
   }
 
-  @Test(groups = {"disabledOnCI"})
+  @Test
   public void testGetPartitionSpecificDataFiles() throws IOException {
-    TableIdentifier testTableId = TableIdentifier.of(dbName, "testTable");
+    TableIdentifier testTableId = TableIdentifier.of(dbName +"6", "testTable");
     Table testTable = catalog.createTable(testTableId, icebergSchema, icebergPartitionSpec);
 
     List<String> paths = Arrays.asList(
@@ -378,10 +380,10 @@ public class IcebergTableTest extends HiveMetastoreTest {
     catalog.dropTable(testTableId);
   }
 
-  @Test(groups = {"disabledOnCI"})
+  @Test
   public void testOverwritePartition() throws IOException {
-    TableIdentifier testTableId = TableIdentifier.of(dbName, "testTable");
-    Table testTable = catalog.createTable(testTableId, icebergSchema, icebergPartitionSpec);
+    TableIdentifier testTableId2 = TableIdentifier.of(dbName + "9", "testTable2");
+    Table testTable = catalog.createTable(testTableId2, icebergSchema, icebergPartitionSpec);
 
     List<String> paths = Arrays.asList(
         "/path/tableName/data/id=1/file1.orc",
@@ -396,10 +398,10 @@ public class IcebergTableTest extends HiveMetastoreTest {
 
     addPartitionDataFiles(testTable, paths, partitionDataList);
 
-    IcebergTable icebergTable = new IcebergTable(testTableId,
-        catalog.newTableOps(testTableId),
+    IcebergTable icebergTable = new IcebergTable(testTableId2,
+        catalog.newTableOps(testTableId2),
         catalogUri,
-        catalog.loadTable(testTableId));
+        catalog.loadTable(testTableId2));
 
     verifyAnyOrder(paths, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
 
@@ -433,7 +435,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
     expectedPaths3.addAll(paths3);
     verifyAnyOrder(expectedPaths3, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
 
-    catalog.dropTable(testTableId);
+    catalog.dropTable(testTableId2);
   }
 
   private static void addPartitionDataFiles(Table table, List<String> paths, List<PartitionData> partitionDataList) {
