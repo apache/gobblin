@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import java.io.IOException;
 import java.util.Properties;
 
 import org.apache.commons.lang3.StringUtils;
@@ -44,7 +45,7 @@ public class IcebergPartitionDatasetFinder extends IcebergDatasetFinder {
 
   @Override
   protected IcebergDataset createSpecificDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable,
-      Properties properties, FileSystem fs, boolean shouldIncludeMetadataPath) throws IcebergTable.TableNotFoundException {
+      Properties properties, FileSystem fs, boolean shouldIncludeMetadataPath) throws IOException {
 //    TODO: Add Validator for source and destination tables later
 
     String partitionColumnName = getLocationQualifiedProperty(properties, IcebergDatasetFinder.CatalogLocation.SOURCE,

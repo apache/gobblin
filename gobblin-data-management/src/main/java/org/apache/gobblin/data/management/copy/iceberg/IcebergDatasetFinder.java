@@ -166,7 +166,7 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   }
 
   protected IcebergDataset createSpecificDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable, Properties properties, FileSystem fs, boolean shouldIncludeMetadataPath)
-      throws IcebergTable.TableNotFoundException {
+      throws IOException {
     return new IcebergDataset(srcIcebergTable, destIcebergTable, properties, fs, shouldIncludeMetadataPath);
   }
 

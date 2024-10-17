@@ -17,13 +17,13 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
-import com.google.common.base.Preconditions;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
 import java.util.function.Predicate;
@@ -45,6 +45,7 @@ import org.apache.iceberg.util.SerializationUtil;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.ImmutableList;
+import com.google.common.base.Preconditions;
 
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
@@ -67,6 +68,8 @@ import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartiti
  */
 @Slf4j
 public class IcebergPartitionDataset extends IcebergDataset {
+  // Currently hardcoded these transforms here but eventually it will depend on filter predicate implementation and can
+  // be moved to a common place or inside each filter predicate.
   private static final List<String> supportedTransforms = ImmutableList.of("identity", "truncate");
   private final Predicate<StructLike> partitionFilterPredicate;
   private final Map<Path, Path> srcPathToDestPath;
@@ -75,37 +78,12 @@ public class IcebergPartitionDataset extends IcebergDataset {
 
   public IcebergPartitionDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable, Properties properties,
       FileSystem sourceFs, boolean shouldIncludeMetadataPath, String partitionColumnName, String partitionColValue)
-      throws IcebergTable.TableNotFoundException {
+      throws IOException {
     super(srcIcebergTable, destIcebergTable, properties, sourceFs, shouldIncludeMetadataPath);
     this.partitionColumnName = partitionColumnName;
     this.partitionColValue = partitionColValue;
     this.partitionFilterPredicate = createPartitionFilterPredicate();
     this.srcPathToDestPath = new HashMap<>();
-  }
-
-  private Predicate<StructLike> createPartitionFilterPredicate() throws IcebergTable.TableNotFoundException {
-    //TODO: Refactor it later using factory or other way to support different types of filter predicate
-    // Also take into consideration creation of Expression Filter to be used in overwrite api
-    TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
-    int partitionColumnIndex = IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex(
-        this.partitionColumnName,
-        srcTableMetadata,
-        supportedTransforms
-    );
-    Preconditions.checkArgument(partitionColumnIndex >= 0, String.format(
-        "Partition column %s not found in table %s",
-        this.partitionColumnName, this.getFileSetId()));
-    return new IcebergMatchesAnyPropNamePartitionFilterPredicate(partitionColumnIndex, this.partitionColValue);
-  }
-
-  /**
-   * Represents the destination file paths and the corresponding file status in source file system.
-   * These both properties are used in creating {@link CopyEntity}
-   */
-  @Data
-  protected static final class FilePathsWithStatus {
-    private final Path destPath;
-    private final FileStatus srcFileStatus;
   }
 
   /**
@@ -121,6 +99,8 @@ public class IcebergPartitionDataset extends IcebergDataset {
    */
   @Override
   Collection<CopyEntity> generateCopyEntities(FileSystem targetFs, CopyConfiguration copyConfig) throws IOException {
+    // TODO: Refactor the IcebergDataset::generateCopyEntities to avoid code duplication
+    //  Differences are getting data files, copying ancestor permission and adding post publish steps
     String fileSet = this.getFileSetId();
     List<CopyEntity> copyEntities = Lists.newArrayList();
     IcebergTable srcIcebergTable = getSrcIcebergTable();
@@ -128,9 +108,9 @@ public class IcebergPartitionDataset extends IcebergDataset {
     List<DataFile> destDataFiles = getDestDataFiles(srcDataFiles);
     Configuration defaultHadoopConfiguration = new Configuration();
 
-    for (FilePathsWithStatus filePathsWithStatus : getFilePathsStatus(this.sourceFs)) {
-      Path destPath = filePathsWithStatus.getDestPath();
-      FileStatus srcFileStatus = filePathsWithStatus.getSrcFileStatus();
+    for (Map.Entry<Path, FileStatus> entry : getDestFilePathWithSrcFileStatus(srcDataFiles, destDataFiles, this.sourceFs).entrySet()) {
+      Path destPath = entry.getKey();
+      FileStatus srcFileStatus = entry.getValue();
       FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
 
       CopyableFile fileEntity = CopyableFile.fromOriginAndDestination(
@@ -154,10 +134,11 @@ public class IcebergPartitionDataset extends IcebergDataset {
   }
 
   private List<DataFile> getDestDataFiles(List<DataFile> srcDataFiles) throws IcebergTable.TableNotFoundException {
+    String fileSet = this.getFileSetId();
     List<DataFile> destDataFiles = new ArrayList<>();
     if (srcDataFiles.isEmpty()) {
-      log.warn("No data files found for partition col : {} with partition value : {} in source table : {}",
-          this.partitionColumnName, this.partitionColValue, this.getFileSetId());
+      log.warn("~{}~ found no data files for partition col : {} with partition value : {} to copy", fileSet,
+          this.partitionColumnName, this.partitionColValue);
       return destDataFiles;
     }
     TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
@@ -184,14 +165,13 @@ public class IcebergPartitionDataset extends IcebergDataset {
           .copy(dataFile)
           .withPath(updatedDestFilePath.toString())
           .build());
-      // Store the mapping of srcPath to destPath to be used in creating list of src file status to dest path
-      log.debug("Path changed from Src : {} to Dest : {}", srcFilePath, updatedDestFilePath);
+      log.debug("~{}~ Path changed from Src : {} to Dest : {}", fileSet, srcFilePath, updatedDestFilePath);
       srcPathToDestPath.put(new Path(srcFilePath), updatedDestFilePath);
       if (growthMilestoneTracker.isAnotherMilestone(destDataFiles.size())) {
-        log.info("Generated {} destination data files", destDataFiles.size());
+        log.info("~{}~ created {} destination data files", fileSet, destDataFiles.size());
       }
     });
-    log.info("Generated {} destination data files", destDataFiles.size());
+    log.info("~{}~ created {} destination data files", fileSet, destDataFiles.size());
     return destDataFiles;
   }
 
@@ -208,15 +188,16 @@ public class IcebergPartitionDataset extends IcebergDataset {
     return new Path(fileDir, newFileName);
   }
 
-  private List<FilePathsWithStatus> getFilePathsStatus(FileSystem fs) throws IOException {
-    List<FilePathsWithStatus> filePathsStatus = new ArrayList<>();
-    for (Map.Entry<Path, Path> entry : this.srcPathToDestPath.entrySet()) {
-      Path srcPath = entry.getKey();
-      Path destPath = entry.getValue();
+  private Map<Path, FileStatus> getDestFilePathWithSrcFileStatus(List<DataFile> srcDataFiles,
+      List<DataFile> destDataFiles, FileSystem fs) throws IOException {
+    Map<Path, FileStatus> results = Maps.newHashMap();
+    for (int i = 0; i < srcDataFiles.size(); i++) {
+      Path srcPath = new Path(srcDataFiles.get(i).path().toString());
+      Path destPath = new Path(destDataFiles.get(i).path().toString());
       FileStatus srcFileStatus = fs.getFileStatus(srcPath);
-      filePathsStatus.add(new FilePathsWithStatus(destPath, srcFileStatus));
+      results.put(destPath, srcFileStatus);
     }
-    return filePathsStatus;
+    return results;
   }
 
   private PostPublishStep createOverwritePostPublishStep(List<DataFile> destDataFiles) {
@@ -231,6 +212,22 @@ public class IcebergPartitionDataset extends IcebergDataset {
     );
 
     return new PostPublishStep(this.getFileSetId(), Maps.newHashMap(), icebergOverwritePartitionStep, 0);
+  }
+
+  private Predicate<StructLike> createPartitionFilterPredicate() throws IOException {
+    //TODO: Refactor it later using factory or other way to support different types of filter predicate
+    // Also take into consideration creation of Expression Filter to be used in overwrite api
+    TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
+    Optional<Integer> partitionColumnIndexOpt = IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex(
+        this.partitionColumnName,
+        srcTableMetadata,
+        supportedTransforms
+    );
+    Preconditions.checkArgument(partitionColumnIndexOpt.isPresent(), String.format(
+        "Partition column %s not found in table %s",
+        this.partitionColumnName, this.getFileSetId()));
+    int partitionColumnIndex = partitionColumnIndexOpt.get();
+    return new IcebergMatchesAnyPropNamePartitionFilterPredicate(partitionColumnIndex, this.partitionColValue);
   }
 
 }

@@ -17,8 +17,10 @@
 
 package org.apache.gobblin.data.management.copy.iceberg.predicates;
 
+import java.io.IOException;
 import java.util.List;
 
+import java.util.Optional;
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.TableMetadata;
@@ -53,28 +55,31 @@ public class IcebergPartitionFilterPredicateUtilTest {
   @Test
   public void testPartitionTransformNotSupported() {
     setupMockData("col1", "unsupported");
-    IllegalArgumentException exception = Assert.expectThrows(IllegalArgumentException.class, () -> {
+    IOException exception = Assert.expectThrows(IOException.class, () -> {
       IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex("col1", mockTableMetadata, supportedTransforms);
     });
     Assert.assertTrue(exception.getMessage().contains("Partition transform unsupported is not supported. Supported transforms are [supported1, supported2]"));
   }
 
   @Test
-  public void testPartitionTransformSupported() {
+  public void testPartitionTransformSupported() throws IOException {
     setupMockData("col1", "supported1");
-    int result = IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex("col1", mockTableMetadata, supportedTransforms);
+    int result =
+        IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex("col1", mockTableMetadata, supportedTransforms)
+            .get();
     Assert.assertEquals(result, 0);
   }
 
   @Test
-  public void testPartitionColumnNotFound() {
+  public void testPartitionColumnNotFound() throws IOException {
     setupMockData("col", "supported1");
-    int result = IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex("col2", mockTableMetadata, supportedTransforms);
-    Assert.assertEquals(result, -1);
+    Optional<Integer> result = IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex("col2",
+        mockTableMetadata, supportedTransforms);
+    Assert.assertFalse(result.isPresent());
   }
 
   @Test
-  public void testPartitionColumnFoundIndex1() {
+  public void testPartitionColumnFoundIndex1() throws IOException {
     mockTableMetadata = Mockito.mock(TableMetadata.class);
     PartitionSpec mockPartitionSpec = Mockito.mock(PartitionSpec.class);
     PartitionField mockPartitionField1 = Mockito.mock(PartitionField.class);
@@ -93,7 +98,9 @@ public class IcebergPartitionFilterPredicateUtilTest {
     Mockito.when(mockPartitionField2.transform()).thenReturn(mockTransform2);
     Mockito.when(mockTransform2.toString()).thenReturn("supported2");
 
-    int result = IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex("col2", mockTableMetadata, supportedTransforms);
+    int result =
+        IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex("col2", mockTableMetadata, supportedTransforms)
+            .get();
     Assert.assertEquals(result, 1);
   }
 }

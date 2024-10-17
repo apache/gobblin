@@ -17,7 +17,9 @@
 
 package org.apache.gobblin.data.management.copy.iceberg.predicates;
 
+import java.io.IOException;
 import java.util.List;
+import java.util.Optional;
 
 import org.apache.iceberg.PartitionField;
 import org.apache.iceberg.TableMetadata;
@@ -45,27 +47,27 @@ public class IcebergPartitionFilterPredicateUtil {
    * @return the index of the partition column if found, otherwise -1
    * @throws IllegalArgumentException if the partition transform is not supported
    */
-  public static int getPartitionColumnIndex(
+  public static Optional<Integer> getPartitionColumnIndex(
       String partitionColumnName,
       TableMetadata tableMetadata,
       List<String> supportedTransforms
-  ) {
+  ) throws IOException {
     List<PartitionField> partitionFields = tableMetadata.spec().fields();
     for (int idx = 0; idx < partitionFields.size(); idx++) {
       PartitionField partitionField = partitionFields.get(idx);
       if (partitionField.name().equals(partitionColumnName)) {
         String transform = partitionField.transform().toString().toLowerCase();
         if (!supportedTransforms.contains(transform)) {
-          throw new IllegalArgumentException(
+          throw new IOException(
               String.format(" For ~{%s:%d}~ Partition transform %s is not supported. Supported transforms are %s",
                   partitionColumnName,
                   idx,
                   transform,
                   supportedTransforms));
         }
-        return idx;
+        return Optional.of(idx);
       }
     }
-    return -1;
+    return Optional.empty();
   }
 }

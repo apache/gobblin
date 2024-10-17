@@ -24,6 +24,7 @@ import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 
 import org.apache.hadoop.conf.Configuration;
@@ -114,7 +115,7 @@ public class IcebergPartitionDatasetTest {
     icebergPartitionFilterPredicateUtil = Mockito.mockStatic(IcebergPartitionFilterPredicateUtil.class);
     icebergPartitionFilterPredicateUtil
         .when(() -> IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex(Mockito.anyString(), Mockito.any(), Mockito.any()))
-        .thenReturn(0);
+        .thenReturn(Optional.of(0));
 
     copyConfigProperties.setProperty("data.publisher.final.dir", "/test");
     srcFilePaths = new ArrayList<>();
@@ -309,8 +310,7 @@ public class IcebergPartitionDatasetTest {
   protected static class TestIcebergPartitionDataset extends IcebergPartitionDataset {
 
     public TestIcebergPartitionDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable,
-        Properties properties, FileSystem sourceFs, boolean shouldIncludeMetadataPath)
-        throws IcebergTable.TableNotFoundException {
+        Properties properties, FileSystem sourceFs, boolean shouldIncludeMetadataPath) throws IOException {
       super(srcIcebergTable, destIcebergTable, properties, sourceFs, shouldIncludeMetadataPath,
           TEST_ICEBERG_PARTITION_COLUMN_NAME, TEST_ICEBERG_PARTITION_COLUMN_VALUE);
     }

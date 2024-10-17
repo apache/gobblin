@@ -96,23 +96,32 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
    */
   @Override
   public void execute() throws IOException {
+    // In IcebergRegisterStep::execute we validated if dest table metadata prior to starting the generate copy entities
+    // is similar to table metadata while committing metadata in IcebergRegisterStep but that check in here will lead
+    // to failure most of the time here as it is possible that the table metadata has changed (maybe data has been
+    // written to newer partitions or other cases as well) between the time of generating copy entities
+    // and committing metadata. Hence, we are not doing that check here.
+    // Incase data has been written to the partition we are trying to overwrite, the overwrite step will remove the data
+    // and copy only data that has been collected in the copy entities.
     IcebergTable destTable = createDestinationCatalog().openTable(TableIdentifier.parse(this.destTableIdStr));
     List<DataFile> dataFiles = SerializationUtil.deserializeFromBytes(this.serializedDataFiles);
     try {
-      log.info("Overwriting Data files of partition {} with value {} for destination table : {} ",
+      log.info("~{}~ Starting partition overwrite - partition: {}; value: {}; numDataFiles: {}; path[0]: {}",
+          this.destTableIdStr,
           this.partitionColName,
           this.partitionValue,
-          this.destTableIdStr
+          dataFiles.size(),
+          dataFiles.get(0).path()
       );
       Retryer<Void> overwritePartitionsRetryer = createOverwritePartitionsRetryer();
       overwritePartitionsRetryer.call(() -> {
         destTable.overwritePartition(dataFiles, this.partitionColName, this.partitionValue);
         return null;
       });
-      log.info("Overwriting Data files completed for partition {} with value {} for destination table : {} ",
+      log.info("~{}~ Successful partition overwrite - partition: {}; value: {}",
+          this.destTableIdStr,
           this.partitionColName,
-          this.partitionValue,
-          this.destTableIdStr
+          this.partitionValue
       );
     } catch (ExecutionException executionException) {
       String msg = String.format("Failed to overwrite partitions for destination iceberg table : {%s}", this.destTableIdStr);

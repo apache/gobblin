@@ -233,30 +233,38 @@ public class IcebergTable {
    *
    * @param icebergPartitionFilterPredicate the predicate to filter partitions
    * @return a list of data files that match the partition filter predicate
-   * @throws IOException if an I/O error occurs while accessing the table metadata or reading manifest files
+   * @throws TableNotFoundException if error occurred while accessing the table metadata
+   * @throws RuntimeException if error occurred while reading the manifest file
    */
-  public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate) throws IOException {
+  public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate)
+      throws TableNotFoundException {
     TableMetadata tableMetadata = accessTableMetadata();
     Snapshot currentSnapshot = tableMetadata.currentSnapshot();
-    log.info("Starting to copy data files from snapshot: {}", currentSnapshot.snapshotId());
+    long currentSnapshotId = currentSnapshot.snapshotId();
+    List<DataFile> knownDataFiles = new ArrayList<>();
+    log.info("~{}~ for snapshot '{}' - '{}' total known iceberg datafiles", tableId, currentSnapshotId,
+        knownDataFiles.size());
     //TODO: Add support for deleteManifests as well later
     // Currently supporting dataManifests only
     List<ManifestFile> dataManifestFiles = currentSnapshot.dataManifests(this.tableOps.io());
-    List<DataFile> dataFileList = new ArrayList<>();
     for (ManifestFile manifestFile : dataManifestFiles) {
       try (ManifestReader<DataFile> manifestReader = ManifestFiles.read(manifestFile, this.tableOps.io());
           CloseableIterator<DataFile> dataFiles = manifestReader.iterator()) {
         dataFiles.forEachRemaining(dataFile -> {
           if (icebergPartitionFilterPredicate.test(dataFile.partition())) {
-            dataFileList.add(dataFile.copy());
+            knownDataFiles.add(dataFile.copy());
           }
         });
+        log.info("~{}~ for snapshot '{}' - '{}' total known iceberg datafiles", tableId, currentSnapshotId,
+            knownDataFiles.size());
       } catch (IOException e) {
-        log.warn("Failed to read manifest file: {} " , manifestFile.path(), e);
+        String errMsg = String.format("~%s~ for snapshot '%d' - Failed to read manifest file: %s", tableId,
+            currentSnapshotId, manifestFile.path());
+        log.error(errMsg, e);
+        throw new RuntimeException(errMsg, e);
       }
     }
-    log.info("Found {} data files to copy", dataFileList.size());
-    return dataFileList;
+    return knownDataFiles;
   }
 
   /**
@@ -273,13 +281,13 @@ public class IcebergTable {
     if (dataFiles.isEmpty()) {
       return;
     }
-    log.info("SnapshotId before overwrite: {}", accessTableMetadata().currentSnapshot().snapshotId());
+    log.info("~{}~ SnapshotId before overwrite: {}", tableId, accessTableMetadata().currentSnapshot().snapshotId());
     OverwriteFiles overwriteFiles = this.table.newOverwrite();
     overwriteFiles.overwriteByRowFilter(Expressions.equal(partitionColName, partitionValue));
     dataFiles.forEach(overwriteFiles::addFile);
     overwriteFiles.commit();
     this.tableOps.refresh();
-    log.info("SnapshotId after overwrite: {}", accessTableMetadata().currentSnapshot().snapshotId());
+    log.info("~{}~ SnapshotId after overwrite: {}", tableId, accessTableMetadata().currentSnapshot().snapshotId());
   }
 
 }
