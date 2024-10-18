@@ -224,7 +224,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
 
     this.stopStatus.setStopInprogress(true);
 
-    log.info("Stopping the Gobblin Cluster Manager");
+    log.info("Stopping the Gobblin Temporal Cluster Manager");
 
     stopAppLauncherAndServices();
   }
