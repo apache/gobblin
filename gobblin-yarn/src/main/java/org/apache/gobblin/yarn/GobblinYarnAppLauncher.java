@@ -174,6 +174,8 @@ public class GobblinYarnAppLauncher {
 
   private static final String GOBBLIN_YARN_APPLICATION_TYPE = "GOBBLIN_YARN";
 
+  // The application tags are set by HadoopJavaJob on mapreduce key even though it is not a mapreduce job
+  // Reference: https://github.com/azkaban/azkaban/blob/6db750049f6fdf7842e18b8d533a3b736429bdf4/az-hadoop-jobtype-plugin/src/main/java/azkaban/jobtype/AbstractHadoopJavaProcessJob.java#L96
   private static final String APPLICATION_TAGS_KEY = "hadoop-inject.mapreduce.job.tags";
 
   // The set of Yarn application types this class is interested in. This is used to
