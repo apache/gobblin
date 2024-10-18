@@ -215,6 +215,41 @@ public class HiveDatasetFinderTest {
 
   }
 
+  @Test
+  public void testDatasetConfig() throws Exception {
+
+    List<HiveDatasetFinder.DbAndTable> dbAndTables = Lists.newArrayList();
+    dbAndTables.add(new HiveDatasetFinder.DbAndTable("db1", "table1"));
+    HiveMetastoreClientPool pool = getTestPool(dbAndTables);
+
+    Properties properties = new Properties();
+    properties.put(HiveDatasetFinder.HIVE_DATASET_PREFIX + "." + WhitelistBlacklist.WHITELIST, "");
+
+    properties.put("hive.dataset.test.conf1", "conf1-val1");
+    properties.put("hive.dataset.test.conf2", "conf2-val2");
+
+    HiveDatasetFinder finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
+    List<HiveDataset> datasets = Lists.newArrayList(finder.getDatasetsIterator());
+
+    Assert.assertEquals(datasets.size(), 1);
+    HiveDataset hiveDataset = datasets.get(0);
+
+    Assert.assertEquals(hiveDataset.getDatasetConfig().getString("hive.dataset.test.conf1"), "conf1-val1");
+    Assert.assertEquals(hiveDataset.getDatasetConfig().getString("hive.dataset.test.conf2"), "conf2-val2");
+
+    // Test scoped configs with prefix
+    properties.put(HiveDatasetFinder.HIVE_DATASET_CONFIG_PREFIX_KEY, "hive.dataset.test");
+
+    finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
+    datasets = Lists.newArrayList(finder.getDatasetsIterator());
+
+    Assert.assertEquals(datasets.size(), 1);
+    hiveDataset = datasets.get(0);
+    Assert.assertEquals(hiveDataset.getDatasetConfig().getString("conf1"), "conf1-val1");
+    Assert.assertEquals(hiveDataset.getDatasetConfig().getString("conf2"), "conf2-val2");
+
+  }
+
   private HiveMetastoreClientPool getTestPool(List<HiveDatasetFinder.DbAndTable> dbAndTables) throws Exception {
 
     SetMultimap<String, String> entities = HashMultimap.create();

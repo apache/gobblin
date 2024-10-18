@@ -25,6 +25,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
+import java.util.regex.Pattern;
 
 import javax.annotation.Nonnull;
 
@@ -80,6 +81,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   public static final String DEFAULT_TABLE_PATTERN = "*";
   public static final String TABLE_FILTER = HIVE_DATASET_PREFIX + ".tableFilter";
 
+  public static final String TABLE_FOLDER_FILTER = HIVE_DATASET_PREFIX + ".tableFolderFilter";
+
   /*
    * By setting the prefix, only config keys with this prefix will be used to build a HiveDataset.
    * By passing scoped configurations the same config keys can be used in different contexts.
@@ -117,6 +120,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   protected Optional<String> configStoreUri;
   protected final Function<Table, String> configStoreDatasetUriBuilder;
   protected final Optional<Predicate<Table>> tableFilter;
+
+  protected final Optional<String> tableFolderFilter;
 
   protected final String datasetConfigPrefix;
   protected final ConfigClient configClient;
@@ -194,6 +199,9 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     } else {
       this.tableFilter = Optional.absent();
     }
+    if (StringUtils.isNotEmpty(properties.getProperty(TABLE_FOLDER_FILTER))) {
+      this.tableFolderFilter = Optional.of(properties.getProperty(TABLE_FOLDER_FILTER));
+    }
   }
 
   protected static HiveMetastoreClientPool createClientPool(Properties properties) throws IOException {
@@ -262,7 +270,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
           try (AutoReturnableObject<IMetaStoreClient> client = HiveDatasetFinder.this.clientPool.getClient()) {
             Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
-            if (tableFilter.isPresent() && !tableFilter.get().apply(table)) {
+            if ((tableFilter.isPresent() && !tableFilter.get().apply(table)) || tableFolderFilter.isPresent() && shouldFilterTableLocation(tableFolderFilter, table)) {
               continue;
             }
 
@@ -294,6 +302,9 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     };
   }
 
+  protected static boolean shouldFilterTableLocation(Optional<String> regex, Table table) {
+    return Pattern.compile(regex.get()).matcher(table.getSd().getLocation()).matches();
+  }
 
   /**
    * @deprecated Use {@link #createHiveDataset(Table, Config)} instead
