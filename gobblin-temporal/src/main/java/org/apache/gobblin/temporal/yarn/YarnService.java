@@ -25,7 +25,6 @@ import java.util.Arrays;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -547,13 +546,11 @@ class YarnService extends AbstractIdleService {
 
     FileStatus[] statuses = this.fs.listStatus(destDir);
     if (statuses != null) {
-      Set<String> libJarNames = new HashSet<>(Arrays.asList(this.config.getString(GobblinYarnConfigurationKeys.YARN_APPLICATION_LIB_JAR_LIST).split(",")));
-      String containerJars = this.config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY) ?
-          this.config.getString(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY) : "";
+      Set<String> appLibJars = YarnHelixUtils.getAppLibJarList(this.config);
       for (FileStatus status : statuses) {
         String fileName = status.getPath().getName();
         // Ensure that we are only adding jars that were uploaded by the YarnAppLauncher for this application
-        if (fileName.contains(".jar") && !(libJarNames.contains(fileName) || containerJars.contains(fileName))) {
+        if (fileName.contains(".jar") && !appLibJars.contains(fileName)) {
           continue;
         }
         YarnHelixUtils.addFileAsLocalResource(this.fs, status.getPath(), LocalResourceType.FILE, resourceMap);

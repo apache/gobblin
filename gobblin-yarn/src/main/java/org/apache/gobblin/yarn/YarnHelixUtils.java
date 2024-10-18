@@ -23,9 +23,11 @@ import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.Collectors;
 
@@ -52,6 +54,7 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
+import com.google.common.collect.Sets;
 import com.typesafe.config.Config;
 
 import org.apache.gobblin.util.ConfigUtils;
@@ -235,6 +238,16 @@ public class YarnHelixUtils {
       deletesSuccessful &= fs.delete(jarDirs.get(i).getPath(), true);
     }
     return deletesSuccessful;
+  }
+
+
+  public static Set<String> getAppLibJarList(Config config) {
+    Set<String> libAppJars = new HashSet<>(Arrays.asList(
+        ConfigUtils.getString(config, GobblinYarnConfigurationKeys.YARN_APPLICATION_LIB_JAR_LIST, "").split(",")));
+    Set<String> containerJars = new HashSet<>(Arrays.asList(
+        ConfigUtils.getString(config, GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY, "").split(",")));
+    libAppJars.addAll(containerJars);
+    return Sets.filter(libAppJars, s -> !s.isEmpty());
   }
 
   public static void addRemoteFilesToLocalResources(String hdfsFileList, Map<String, LocalResource> resourceMap, Configuration yarnConfiguration) throws IOException {

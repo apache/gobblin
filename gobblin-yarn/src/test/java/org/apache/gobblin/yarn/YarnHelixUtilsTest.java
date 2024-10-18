@@ -17,6 +17,7 @@
 package org.apache.gobblin.yarn;
 
 import java.io.IOException;
+import java.util.Set;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
@@ -97,6 +98,40 @@ public class YarnHelixUtilsTest {
     // Should be cleaned up
     Assert.assertFalse(fs.exists(new Path(this.tempDir, "tmp/2024-07")));
     Assert.assertFalse(fs.exists(new Path(this.tempDir, "tmp/2024-06")));
+  }
+
+  @Test
+  public void testGetJarListFromConfigs() {
+    // Test when container jars is empty
+    Config emptyContainerJarsList = ConfigFactory.empty()
+        .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LIB_JAR_LIST, ConfigValueFactory.fromAnyRef("a.jar,b.jar"))
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY, ConfigValueFactory.fromAnyRef(""));
+
+    Set<String> jars = YarnHelixUtils.getAppLibJarList(emptyContainerJarsList);
+    Assert.assertEquals(2, jars.size());
+    Assert.assertTrue(jars.contains("a.jar"));
+    Assert.assertTrue(jars.contains("b.jar"));
+
+    // Test when yarn application lib jars is empty
+    Config emptyYarnAppLibJarsConfig = ConfigFactory.empty()
+        .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LIB_JAR_LIST, ConfigValueFactory.fromAnyRef(""))
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY, ConfigValueFactory.fromAnyRef("c.jar,d.jar"));
+
+    jars = YarnHelixUtils.getAppLibJarList(emptyYarnAppLibJarsConfig);
+    Assert.assertEquals(2, jars.size());
+    Assert.assertTrue(jars.contains("c.jar"));
+    Assert.assertTrue(jars.contains("d.jar"));
+
+    // Test when both yarn application lib jars and container jars are not empty
+    Config config = ConfigFactory.empty()
+        .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LIB_JAR_LIST, ConfigValueFactory.fromAnyRef("a.jar,b.jar"))
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JARS_KEY, ConfigValueFactory.fromAnyRef("c.jar,d.jar"));
+    jars = YarnHelixUtils.getAppLibJarList(config);
+    Assert.assertEquals(4, jars.size());
+    Assert.assertTrue(jars.contains("a.jar"));
+    Assert.assertTrue(jars.contains("b.jar"));
+    Assert.assertTrue(jars.contains("c.jar"));
+    Assert.assertTrue(jars.contains("d.jar"));
 
   }
 }
