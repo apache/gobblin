@@ -132,6 +132,5 @@ public class YarnHelixUtilsTest {
     Assert.assertTrue(jars.contains("b.jar"));
     Assert.assertTrue(jars.contains("c.jar"));
     Assert.assertTrue(jars.contains("d.jar"));
-
   }
 }

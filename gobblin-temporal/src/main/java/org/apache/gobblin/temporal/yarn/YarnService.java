@@ -559,7 +559,6 @@ class YarnService extends AbstractIdleService {
   }
 
 
-
   protected ByteBuffer getSecurityTokens() throws IOException {
     Credentials credentials = UserGroupInformation.getCurrentUser().getCredentials();
     Closer closer = Closer.create();
