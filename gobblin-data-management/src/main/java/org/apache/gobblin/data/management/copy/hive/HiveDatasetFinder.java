@@ -269,7 +269,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
           try (AutoReturnableObject<IMetaStoreClient> client = HiveDatasetFinder.this.clientPool.getClient()) {
             Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
-            if ((tableFilter.isPresent() && !tableFilter.get().apply(table)) || !shouldAllowTableLocation(tableFolderAllowlistRegex, table)) {
+            if ((tableFilter.isPresent() && !tableFilter.get().apply(table))
+                || !shouldAllowTableLocation(tableFolderAllowlistRegex, table)) {
               continue;
             }
 
