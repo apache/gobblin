@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.dynscale;
+package org.apache.gobblin.temporal.dynamic;
 
 import java.util.List;
 import lombok.Data;

@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.dynscale;
+package org.apache.gobblin.temporal.dynamic;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
@@ -98,6 +98,7 @@ public class WorkforcePlan {
           throw new IllegalRevisionException.UnknownBasis(directive, ube);
         }
       }
+      // TODO - make idempotent, as re-attempts after failure between `addProfile` and `reviseStaffing` would fail with `IllegalRevisionException.Redefinition`
       // adjust the set-point now that either a new profile is defined OR the profile already existed
       this.staffing.reviseStaffing(name, directive.getSetPoint(), directive.getTimestampEpochMillis());
       this.lastRevisionEpochMillis = directive.getTimestampEpochMillis();

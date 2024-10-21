@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.dynscale;
+package org.apache.gobblin.temporal.dynamic;
 
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;

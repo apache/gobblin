@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.dynscale;
+package org.apache.gobblin.temporal.dynamic;
 
 import java.util.Optional;
 import com.google.common.collect.Lists;
@@ -148,7 +148,7 @@ public class ScalingDirectiveParserTest {
   @DataProvider(name = "funkyButValidDirectives")
   public String[][] validDirectives() {
     return new String[][]{
-        // null overlay upon unnamed baseline profile:
+        // null overlay upon unnamed baseline profile (null overlay functions as the 'identity element'):
         {"1728435970.my_profile=24,+()"},
         {"1728435970.my_profile=24,-()"},
         {"1728435970.my_profile=24;+()"},
@@ -165,6 +165,8 @@ public class ScalingDirectiveParserTest {
         { "1728439210.new_profile=16;bar+(a=7,m=sixteen)" },
         { "1728439210.new_profile=16,bar+(a=7;)" },
         { "1728439210.new_profile=16;bar+(a=7,)" }
+
+        // NOTE: unlike Adding, separator mismatch causes failure with the Removing overlay, because the NOT-separator is illegal in a key
     };
   }
 
@@ -204,7 +206,7 @@ public class ScalingDirectiveParserTest {
         { "1728439210.new_profile=16,bar+(a=7,m)" },
         { "1728439210.new_profile=16,bar+(a,m)" },
 
-        // adding: superfluous separator or used instead as a terminator:
+        // adding: superfluous separator or used incorrectly as a terminator:
         { "1728439210.new_profile=16,bar+(,)" },
         { "1728439210.new_profile=16;bar+(;)" },
         { "1728439210.new_profile=16,bar+(,,)" },
@@ -221,7 +223,7 @@ public class ScalingDirectiveParserTest {
         { "1728436436.other_profile=69,my_profile-(x=y,z)" },
         { "1728436436.other_profile=69,my_profile-(x=y,z=1)" },
 
-        // removing: superfluous separator or used instead as a terminator:
+        // removing: superfluous separator or used incorrectly as a terminator:
         { "1728436436.other_profile=69,my_profile-(,)" },
         { "1728436436.other_profile=69;my_profile-(;)" },
         { "1728436436.other_profile=69,my_profile-(,,)" },

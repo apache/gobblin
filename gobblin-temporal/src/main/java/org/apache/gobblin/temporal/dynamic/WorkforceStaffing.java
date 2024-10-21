@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.dynscale;
+package org.apache.gobblin.temporal.dynamic;
 
 import com.google.common.annotations.VisibleForTesting;
 import java.util.HashMap;
@@ -30,9 +30,9 @@ import lombok.Data;
 
 
 public class WorkforceStaffing {
-  public static long INITIALIZATION_PROVENANCE_EPOCH_MILLIS = 0L;
+  public static final long INITIALIZATION_PROVENANCE_EPOCH_MILLIS = 0L;
   // CAUTION: sentinel value only for use with `StaffingDeltas.ProfileDelta` - NOT for use with `WorkforceStaffing::reviseStaffing`!
-  public static long UNKNOWN_PROVENANCE_EPOCH_MILLIS = -1L;
+  public static final long UNKNOWN_PROVENANCE_EPOCH_MILLIS = -1L;
 
   @Data
   private static class SetPoint {

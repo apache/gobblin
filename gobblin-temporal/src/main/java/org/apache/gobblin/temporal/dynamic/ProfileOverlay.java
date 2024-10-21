@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.dynscale;
+package org.apache.gobblin.temporal.dynamic;
 
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -44,6 +44,7 @@ public interface ProfileOverlay {
 
 
   @Data
+  // TODO: variadic ctor/factory
   class Adding implements ProfileOverlay {
     private final List<KVPair> additionPairs;
 
@@ -77,6 +78,7 @@ public interface ProfileOverlay {
 
 
   @Data
+  // TODO: variadic ctor/factory
   class Removing implements ProfileOverlay {
     private final List<String> removalKeys;
 
