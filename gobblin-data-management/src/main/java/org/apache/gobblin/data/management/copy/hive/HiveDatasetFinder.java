@@ -271,7 +271,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
             Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
             if ((tableFilter.isPresent() && !tableFilter.get().apply(table))
                 || !shouldAllowTableLocation(tableFolderAllowlistRegex, table)) {
-              log.info("Ignoring table {} as its underlying location does not part of allowlist regex {}", dbAndTable, tableFolderAllowlistRegex);
+              log.info("Ignoring table {} as its underlying location {} does not part of allowlist regex {}", dbAndTable,
+                  table.getSd().getLocation(), tableFolderAllowlistRegex);
               continue;
             }
 
