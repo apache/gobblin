@@ -546,7 +546,13 @@ class YarnService extends AbstractIdleService {
 
     FileStatus[] statuses = this.fs.listStatus(destDir);
     if (statuses != null) {
+      Set<String> appLibJars = YarnHelixUtils.getAppLibJarList(this.config);
       for (FileStatus status : statuses) {
+        String fileName = status.getPath().getName();
+        // Ensure that we are only adding jars that were uploaded by the YarnAppLauncher for this application
+        if (fileName.contains(".jar") && !appLibJars.contains(fileName)) {
+          continue;
+        }
         YarnHelixUtils.addFileAsLocalResource(this.fs, status.getPath(), LocalResourceType.FILE, resourceMap);
       }
     }
