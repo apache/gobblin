@@ -21,6 +21,7 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.nio.ByteBuffer;
+import java.util.Arrays;
 import java.util.EnumSet;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -172,6 +173,10 @@ public class GobblinYarnAppLauncher {
   private static final Splitter SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
   private static final String GOBBLIN_YARN_APPLICATION_TYPE = "GOBBLIN_YARN";
+
+  // The application tags are set by HadoopJavaJob on mapreduce key even though it is not a mapreduce job
+  // Reference: https://github.com/azkaban/azkaban/blob/6db750049f6fdf7842e18b8d533a3b736429bdf4/az-hadoop-jobtype-plugin/src/main/java/azkaban/jobtype/AbstractHadoopJavaProcessJob.java#L96
+  private static final String APPLICATION_TAGS_KEY = "hadoop-inject.mapreduce.job.tags";
 
   // The set of Yarn application types this class is interested in. This is used to
   // lookup the application this class has launched previously upon restarting.
@@ -575,6 +580,11 @@ public class GobblinYarnAppLauncher {
     LOGGER.info("creating new yarn application");
     YarnClientApplication gobblinYarnApp = this.yarnClient.createApplication();
     ApplicationSubmissionContext appSubmissionContext = gobblinYarnApp.getApplicationSubmissionContext();
+    if (config.hasPath(APPLICATION_TAGS_KEY)) {
+      String tags = config.getString(APPLICATION_TAGS_KEY);
+      Set<String> tagSet = new HashSet<>(Arrays.asList(tags.split(",")));
+      appSubmissionContext.setApplicationTags(tagSet);
+    }
     appSubmissionContext.setApplicationType(GOBBLIN_YARN_APPLICATION_TYPE);
     appSubmissionContext.setMaxAppAttempts(ConfigUtils.getInt(config, GobblinYarnConfigurationKeys.APP_MASTER_MAX_ATTEMPTS_KEY, GobblinYarnConfigurationKeys.DEFAULT_APP_MASTER_MAX_ATTEMPTS_KEY));
     ApplicationId applicationId = appSubmissionContext.getApplicationId();
