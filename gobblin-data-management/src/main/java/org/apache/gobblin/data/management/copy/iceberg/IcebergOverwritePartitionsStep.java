@@ -96,13 +96,10 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
    */
   @Override
   public void execute() throws IOException {
-    // In IcebergRegisterStep::execute we validated if dest table metadata prior to starting the generate copy entities
-    // is similar to table metadata while committing metadata in IcebergRegisterStep but that check in here will lead
-    // to failure most of the time here as it is possible that the table metadata has changed (maybe data has been
-    // written to newer partitions or other cases as well) between the time of generating copy entities
-    // and committing metadata. Hence, we are not doing that check here.
-    // Incase data has been written to the partition we are trying to overwrite, the overwrite step will remove the data
-    // and copy only data that has been collected in the copy entities.
+    // Unlike IcebergRegisterStep::execute, which validates dest table metadata has not changed between copy entity
+    // generation and the post-copy commit, do no such validation here, so dest table writes may continue throughout
+    // our copying. any new data written in the meanwhile to THE SAME partitions we are about to overwrite will be
+    // clobbered and replaced by the copy entities from our execution.
     IcebergTable destTable = createDestinationCatalog().openTable(TableIdentifier.parse(this.destTableIdStr));
     List<DataFile> dataFiles = SerializationUtil.deserializeFromBytes(this.serializedDataFiles);
     try {
@@ -124,12 +121,12 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
           this.partitionValue
       );
     } catch (ExecutionException executionException) {
-      String msg = String.format("Failed to overwrite partitions for destination iceberg table : {%s}", this.destTableIdStr);
+      String msg = String.format("~%s~ Failed to overwrite partitions", this.destTableIdStr);
       log.error(msg, executionException);
       throw new RuntimeException(msg, executionException.getCause());
     } catch (RetryException retryException) {
       String interruptedNote = Thread.currentThread().isInterrupted() ? "... then interrupted" : "";
-      String msg = String.format("Failed to overwrite partition for destination table : {%s} : (retried %d times) %s ",
+      String msg = String.format("~%s~ Failure attempting to overwrite partition [num failures: %d] %s",
           this.destTableIdStr,
           retryException.getNumberOfFailedAttempts(),
           interruptedNote);
@@ -155,7 +152,7 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
       @Override
       public <V> void onRetry(Attempt<V> attempt) {
         if (attempt.hasException()) {
-          String msg = String.format("Exception caught while overwriting partitions for destination table : {%s} : [attempt: %d; %s after start]",
+          String msg = String.format("~%s~ Exception while overwriting partitions [attempt: %d; elapsed: %s]",
               destTableIdStr,
               attempt.getAttemptNumber(),
               Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());

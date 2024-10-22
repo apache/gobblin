@@ -44,7 +44,7 @@ public class IcebergOverwritePartitionsStepTest {
   private IcebergCatalog mockIcebergCatalog;
   private Properties mockProperties;
   private byte[] mockSerializedDataFiles;
-  private IcebergOverwritePartitionsStep mockIcebergOverwritePartitionsStep;
+  private IcebergOverwritePartitionsStep spyIcebergOverwritePartitionsStep;
 
   @BeforeMethod
   public void setUp() throws IOException {
@@ -55,11 +55,11 @@ public class IcebergOverwritePartitionsStepTest {
     List<DataFile> mockDataFiles = getDummyDataFiles();
     mockSerializedDataFiles = SerializationUtil.serializeToBytes(mockDataFiles);
 
-    mockIcebergOverwritePartitionsStep = Mockito.spy(new IcebergOverwritePartitionsStep(destTableIdStr,
+    spyIcebergOverwritePartitionsStep = Mockito.spy(new IcebergOverwritePartitionsStep(destTableIdStr,
         testPartitionColName, testPartitionColValue, mockSerializedDataFiles, mockProperties));
 
     Mockito.when(mockIcebergCatalog.openTable(Mockito.any(TableIdentifier.class))).thenReturn(mockIcebergTable);
-    Mockito.doReturn(mockIcebergCatalog).when(mockIcebergOverwritePartitionsStep).createDestinationCatalog();
+    Mockito.doReturn(mockIcebergCatalog).when(spyIcebergOverwritePartitionsStep).createDestinationCatalog();
   }
 
   private List<DataFile> getDummyDataFiles() {
@@ -79,8 +79,8 @@ public class IcebergOverwritePartitionsStepTest {
   }
 
   @Test
-  public void testIsCompleted() {
-    Assert.assertFalse(mockIcebergOverwritePartitionsStep.isCompleted());
+  public void testNeverIsCompleted() {
+    Assert.assertFalse(spyIcebergOverwritePartitionsStep.isCompleted());
   }
 
   @Test
@@ -88,7 +88,7 @@ public class IcebergOverwritePartitionsStepTest {
     try {
       Mockito.doNothing().when(mockIcebergTable).overwritePartition(Mockito.anyList(), Mockito.anyString(),
           Mockito.anyString());
-      mockIcebergOverwritePartitionsStep.execute();
+      spyIcebergOverwritePartitionsStep.execute();
       Mockito.verify(mockIcebergTable, Mockito.times(1)).overwritePartition(Mockito.anyList(),
           Mockito.anyString(), Mockito.anyString());
     } catch (IOException e) {
@@ -102,7 +102,7 @@ public class IcebergOverwritePartitionsStepTest {
       // first call throw exception which will be retried and on second call nothing happens
       Mockito.doThrow(new RuntimeException()).doNothing().when(mockIcebergTable).overwritePartition(Mockito.anyList(),
           Mockito.anyString(), Mockito.anyString());
-      mockIcebergOverwritePartitionsStep.execute();
+      spyIcebergOverwritePartitionsStep.execute();
       Mockito.verify(mockIcebergTable, Mockito.times(2)).overwritePartition(Mockito.anyList(),
           Mockito.anyString(), Mockito.anyString());
     } catch (IOException e) {
@@ -116,7 +116,7 @@ public class IcebergOverwritePartitionsStepTest {
       // Always throw exception
       Mockito.doThrow(new RuntimeException()).when(mockIcebergTable).overwritePartition(Mockito.anyList(),
           Mockito.anyString(), Mockito.anyString());
-      mockIcebergOverwritePartitionsStep.execute();
+      spyIcebergOverwritePartitionsStep.execute();
     } catch (RuntimeException e) {
       Mockito.verify(mockIcebergTable, Mockito.times(3)).overwritePartition(Mockito.anyList(),
           Mockito.anyString(), Mockito.anyString());
@@ -131,15 +131,15 @@ public class IcebergOverwritePartitionsStepTest {
     int retryCount = 7;
     mockProperties.setProperty(IcebergOverwritePartitionsStep.OVERWRITE_PARTITIONS_RETRYER_CONFIG_PREFIX + "." + RETRY_TIMES,
         Integer.toString(retryCount));
-    mockIcebergOverwritePartitionsStep = Mockito.spy(new IcebergOverwritePartitionsStep(destTableIdStr,
+    spyIcebergOverwritePartitionsStep = Mockito.spy(new IcebergOverwritePartitionsStep(destTableIdStr,
         testPartitionColName, testPartitionColValue, mockSerializedDataFiles, mockProperties));
     Mockito.when(mockIcebergCatalog.openTable(Mockito.any(TableIdentifier.class))).thenReturn(mockIcebergTable);
-    Mockito.doReturn(mockIcebergCatalog).when(mockIcebergOverwritePartitionsStep).createDestinationCatalog();
+    Mockito.doReturn(mockIcebergCatalog).when(spyIcebergOverwritePartitionsStep).createDestinationCatalog();
     try {
       // Always throw exception
       Mockito.doThrow(new RuntimeException()).when(mockIcebergTable).overwritePartition(Mockito.anyList(),
           Mockito.anyString(), Mockito.anyString());
-      mockIcebergOverwritePartitionsStep.execute();
+      spyIcebergOverwritePartitionsStep.execute();
     } catch (RuntimeException e) {
       Mockito.verify(mockIcebergTable, Mockito.times(retryCount)).overwritePartition(Mockito.anyList(),
           Mockito.anyString(), Mockito.anyString());
@@ -150,7 +150,7 @@ public class IcebergOverwritePartitionsStepTest {
   }
 
   private void assertRetryTimes(RuntimeException re, Integer retryTimes) {
-    String msg = String.format("Failed to overwrite partition for destination table : {%s} : (retried %d times)", destTableIdStr, retryTimes);
+    String msg = String.format("~%s~ Failure attempting to overwrite partition [num failures: %d]", destTableIdStr, retryTimes);
     Assert.assertTrue(re.getMessage().startsWith(msg), re.getMessage());
   }
 }

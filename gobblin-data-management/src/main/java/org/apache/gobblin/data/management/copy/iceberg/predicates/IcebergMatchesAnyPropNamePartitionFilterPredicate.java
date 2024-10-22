@@ -23,9 +23,9 @@ import java.util.function.Predicate;
 import org.apache.iceberg.StructLike;
 
 /**
- * Predicate implementation for filtering Iceberg partitions based on specified partition values.
+ * Predicate implementation for filtering Iceberg partitions based on specified partition value.
  * <p>
- * This class filters partitions by checking if the partition value matches any of the specified values.
+ * This class filters partitions by checking if the partition value matches the specified partition value.
  * </p>
  */
 public class IcebergMatchesAnyPropNamePartitionFilterPredicate implements Predicate<StructLike> {
@@ -36,7 +36,7 @@ public class IcebergMatchesAnyPropNamePartitionFilterPredicate implements Predic
    * Constructs an {@code IcebergMatchesAnyPropNamePartitionFilterPredicate} with the specified parameters.
    *
    * @param partitionColumnIndex the index of the partition column in partition spec
-   * @param partitionValue the partition value to match
+   * @param partitionValue the partition value used to match
    */
   public IcebergMatchesAnyPropNamePartitionFilterPredicate(int partitionColumnIndex, String partitionValue) {
     this.partitionColumnIndex = partitionColumnIndex;
@@ -44,10 +44,10 @@ public class IcebergMatchesAnyPropNamePartitionFilterPredicate implements Predic
   }
 
   /**
-   * Check if the partition value matches any of the specified partition values.
+   * Check if the partition value matches the specified partition value.
    *
    * @param partition the partition to check
-   * @return {@code true} if the partition value matches any of the specified values, otherwise {@code false}
+   * @return {@code true} if the partition value matches the specified partition value, otherwise {@code false}
    */
   @Override
   public boolean test(StructLike partition) {

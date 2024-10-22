@@ -44,8 +44,6 @@ import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.collect.Lists;
-import com.google.gson.Gson;
-import com.google.gson.JsonObject;
 
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
@@ -63,7 +61,7 @@ public class IcebergPartitionDatasetTest {
   private IcebergTable destIcebergTable;
   private TableMetadata srcTableMetadata;
   private TableMetadata destTableMetadata;
-  private FileSystem sourceFs;
+  private static FileSystem sourceFs;
   private FileSystem targetFs;
   private IcebergPartitionDataset icebergPartitionDataset;
   private MockedStatic<IcebergPartitionFilterPredicateUtil> icebergPartitionFilterPredicateUtil;
@@ -75,9 +73,10 @@ public class IcebergPartitionDatasetTest {
   private static final String DEST_WRITE_LOCATION = DEST_TEST_DB + "/" + DEST_TEST_TABLE + "/data";
   private static final String TEST_ICEBERG_PARTITION_COLUMN_NAME = "testPartition";
   private static final String TEST_ICEBERG_PARTITION_COLUMN_VALUE = "testValue";
+  private static final String OVERWRITE_COMMIT_STEP = "org.apache.gobblin.data.management.copy.iceberg.IcebergOverwritePartitionsStep";
   private final Properties copyConfigProperties = new Properties();
   private final Properties properties = new Properties();
-  private List<String> srcFilePaths;
+  private static final List<String> srcFilePaths = new ArrayList<>();
 
   private static final URI SRC_FS_URI;
   private static final URI DEST_FS_URI;
@@ -118,7 +117,6 @@ public class IcebergPartitionDatasetTest {
         .thenReturn(Optional.of(0));
 
     copyConfigProperties.setProperty("data.publisher.final.dir", "/test");
-    srcFilePaths = new ArrayList<>();
   }
 
   @AfterMethod
@@ -135,7 +133,7 @@ public class IcebergPartitionDatasetTest {
     Mockito.when(sourceFs.getFileStatus(any(Path.class))).thenAnswer(invocation -> {
       Path path = invocation.getArgument(0, Path.class);
       Path qualifiedPath = sourceFs.makeQualified(path);
-      return getFileStatus(qualifiedPath);
+      return IcebergDatasetTest.MockFileSystemBuilder.createEmptyFileStatus(qualifiedPath.toString());
     });
   }
 
@@ -152,8 +150,8 @@ public class IcebergPartitionDatasetTest {
   @Test
   public void testGenerateCopyEntities() throws IOException {
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file1.orc");
-    List<DataFile> srcDataFiles = getDataFiles();
-    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(srcDataFiles);
+    List<DataFile> mockSrcDataFiles = createDataFileMocks();
+    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(mockSrcDataFiles);
 
     icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs,
         true);
@@ -164,8 +162,7 @@ public class IcebergPartitionDatasetTest {
 
     Collection<CopyEntity> copyEntities = icebergPartitionDataset.generateCopyEntities(targetFs, copyConfiguration);
 
-    Assert.assertEquals(copyEntities.size(), 2);
-    verifyCopyEntities(copyEntities, true);
+    verifyCopyEntities(copyEntities, 2, true);
   }
 
   @Test
@@ -179,7 +176,7 @@ public class IcebergPartitionDatasetTest {
         Mockito.mock(CopyConfiguration.class));
 
     // Since No data files are present, no copy entities should be generated
-    Assert.assertEquals(copyEntities.size(), 0);
+    verifyCopyEntities(copyEntities, 0, true);
   }
 
   @Test
@@ -190,8 +187,8 @@ public class IcebergPartitionDatasetTest {
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file4.orc");
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file5.orc");
 
-    List<DataFile> srcDataFiles = getDataFiles();
-    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(srcDataFiles);
+    List<DataFile> mockSrcDataFiles = createDataFileMocks();
+    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(mockSrcDataFiles);
 
     icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs,
         true);
@@ -202,8 +199,7 @@ public class IcebergPartitionDatasetTest {
 
     Collection<CopyEntity> copyEntities = icebergPartitionDataset.generateCopyEntities(targetFs, copyConfiguration);
 
-    Assert.assertEquals(copyEntities.size(), 6);
-    verifyCopyEntities(copyEntities, true);
+    verifyCopyEntities(copyEntities, 6, true);
   }
 
   @Test
@@ -212,8 +208,8 @@ public class IcebergPartitionDatasetTest {
     Mockito.when(srcTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "")).thenReturn(SRC_WRITE_LOCATION);
     Mockito.when(destTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "")).thenReturn(DEST_WRITE_LOCATION);
 
-    List<DataFile> srcDataFiles = getDataFiles();
-    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(srcDataFiles);
+    List<DataFile> mockSrcDataFiles = createDataFileMocks();
+    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(mockSrcDataFiles);
 
     icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs,
         true);
@@ -225,39 +221,35 @@ public class IcebergPartitionDatasetTest {
     List<CopyEntity> copyEntities =
         (List<CopyEntity>) icebergPartitionDataset.generateCopyEntities(targetFs, copyConfiguration);
 
-    Assert.assertEquals(copyEntities.size(), 2);
-    verifyCopyEntities(copyEntities, false);
+    verifyCopyEntities(copyEntities, 2, false);
   }
 
-  private List<DataFile> getDataFiles() throws IOException {
+  private static List<DataFile> createDataFileMocks() throws IOException {
     List<DataFile> dataFiles = new ArrayList<>();
     for (String srcFilePath : srcFilePaths) {
       DataFile dataFile = Mockito.mock(DataFile.class);
       Path dataFilePath = new Path(srcFilePath);
       Path qualifiedPath = sourceFs.makeQualified(dataFilePath);
       Mockito.when(dataFile.path()).thenReturn(dataFilePath.toString());
-      Mockito.when(sourceFs.getFileStatus(Mockito.eq(dataFilePath))).thenReturn(getFileStatus(qualifiedPath));
+      Mockito.when(sourceFs.getFileStatus(Mockito.eq(dataFilePath))).thenReturn(
+          IcebergDatasetTest.MockFileSystemBuilder.createEmptyFileStatus(qualifiedPath.toString()));
       dataFiles.add(dataFile);
     }
     return dataFiles;
   }
 
-  private static FileStatus getFileStatus(Path path) {
-    FileStatus fileStatus = new FileStatus();
-    fileStatus.setPath(path);
-    return fileStatus;
-  }
-
-  private static void verifyCopyEntities(Collection<CopyEntity> copyEntities, boolean sameSrcAndDestWriteLocation) {
+  private static void verifyCopyEntities(Collection<CopyEntity> copyEntities, int expectedCopyEntitiesSize,
+      boolean sameSrcAndDestWriteLocation) {
+    Assert.assertEquals(copyEntities.size(), expectedCopyEntitiesSize);
     String srcWriteLocationStart = SRC_FS_URI + SRC_WRITE_LOCATION;
     String destWriteLocationStart = DEST_FS_URI + (sameSrcAndDestWriteLocation ? SRC_WRITE_LOCATION : DEST_WRITE_LOCATION);
     String srcErrorMsg = String.format("Source Location should start with %s", srcWriteLocationStart);
     String destErrorMsg = String.format("Destination Location should start with %s", destWriteLocationStart);
     for (CopyEntity copyEntity : copyEntities) {
       String json = copyEntity.toString();
-      if (isCopyableFile(json)) {
-        String originFilepath = getOriginFilePathAsStringFromJson(json);
-        String destFilepath = getDestinationFilePathAsStringFromJson(json);
+      if (IcebergDatasetTest.isCopyableFile(json)) {
+        String originFilepath = IcebergDatasetTest.CopyEntityDeserializer.getOriginFilePathAsStringFromJson(json);
+        String destFilepath = IcebergDatasetTest.CopyEntityDeserializer.getDestinationFilePathAsStringFromJson(json);
         Assert.assertTrue(originFilepath.startsWith(srcWriteLocationStart), srcErrorMsg);
         Assert.assertTrue(destFilepath.startsWith(destWriteLocationStart), destErrorMsg);
         String originFileName = originFilepath.substring(srcWriteLocationStart.length() + 1);
@@ -266,42 +258,9 @@ public class IcebergPartitionDatasetTest {
         Assert.assertTrue(destFileName.length() > originFileName.length() + 1,
             "Destination file name should be longer than source file name as UUID is appended");
       } else{
-        verifyPostPublishStep(json);
+        IcebergDatasetTest.verifyPostPublishStep(json, OVERWRITE_COMMIT_STEP);
       }
     }
-  }
-
-  private static void verifyPostPublishStep(String json) {
-    String expectedCommitStep = "org.apache.gobblin.data.management.copy.iceberg.IcebergOverwritePartitionsStep";
-    String actualCommitStep = new Gson().fromJson(json, JsonObject.class)
-        .getAsJsonObject("object-data")
-        .getAsJsonObject("step")
-        .getAsJsonPrimitive("object-type")
-        .getAsString();
-    Assert.assertEquals(actualCommitStep, expectedCommitStep);
-  }
-
-  private static boolean isCopyableFile(String json) {
-    String objectType = new Gson().fromJson(json, JsonObject.class)
-        .getAsJsonPrimitive("object-type")
-        .getAsString();
-    return objectType.equals("org.apache.gobblin.data.management.copy.CopyableFile");
-  }
-
-  private static String getOriginFilePathAsStringFromJson(String json) {
-    return new Gson().fromJson(json, JsonObject.class)
-        .getAsJsonObject("object-data")
-        .getAsJsonObject("origin")
-        .getAsJsonObject("object-data").getAsJsonObject("path").getAsJsonObject("object-data")
-        .getAsJsonObject("uri").getAsJsonPrimitive("object-data").getAsString();
-  }
-
-  private static String getDestinationFilePathAsStringFromJson(String json) {
-    return new Gson().fromJson(json, JsonObject.class)
-        .getAsJsonObject("object-data")
-        .getAsJsonObject("destination")
-        .getAsJsonObject("object-data")
-        .getAsJsonObject("uri").getAsJsonPrimitive("object-data").getAsString();
   }
 
   /**

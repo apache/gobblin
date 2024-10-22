@@ -93,6 +93,11 @@ public class IcebergTable {
     this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri, table);
   }
 
+  @VisibleForTesting
+  IcebergTable(TableIdentifier bogusTableId, TableOperations tableOperations, String catalogUri) {
+    this(bogusTableId, tableOperations, catalogUri, null);
+  }
+
   /** @return metadata info limited to the most recent (current) snapshot */
   public IcebergSnapshotInfo getCurrentSnapshotInfo() throws IOException {
     TableMetadata current = accessTableMetadata();
@@ -287,6 +292,9 @@ public class IcebergTable {
     dataFiles.forEach(overwriteFiles::addFile);
     overwriteFiles.commit();
     this.tableOps.refresh();
+    // Note : this would only arise in a high-frequency commit scenario, but there's no guarantee that the current
+    // snapshot is necessarily the one from the commit just before. another writer could have just raced to commit
+    // in between.
     log.info("~{}~ SnapshotId after overwrite: {}", tableId, accessTableMetadata().currentSnapshot().snapshotId());
   }
 

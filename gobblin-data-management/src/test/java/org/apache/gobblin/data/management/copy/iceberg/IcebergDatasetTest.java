@@ -93,6 +93,7 @@ public class IcebergDatasetTest {
   private static final String MANIFEST_PATH_0 = ROOT_PATH + "metadata/manifest.a";
   private static final String MANIFEST_DATA_PATH_0A = ROOT_PATH + "data/p0/a";
   private static final String MANIFEST_DATA_PATH_0B = ROOT_PATH + "data/p0/b";
+  private static final String REGISTER_COMMIT_STEP = "org.apache.gobblin.data.management.copy.iceberg.IcebergRegisterStep";
   private static final MockIcebergTable.SnapshotPaths SNAPSHOT_PATHS_0 =
       new MockIcebergTable.SnapshotPaths(Optional.of(METADATA_PATH), MANIFEST_LIST_PATH_0, Arrays.asList(
           new IcebergSnapshotInfo.ManifestFileInfo(MANIFEST_PATH_0,
@@ -432,17 +433,17 @@ public class IcebergDatasetTest {
     for (CopyEntity copyEntity : copyEntities) {
       String json = copyEntity.toString();
       if (isCopyableFile(json)) {
-        String filepath = CopyEntityDeserializer.getFilePathAsStringFromJson(json);
+        String filepath = CopyEntityDeserializer.getOriginFilePathAsStringFromJson(json);
         actual.add(filepath);
       } else{
-        verifyPostPublishStep(json);
+        verifyPostPublishStep(json, REGISTER_COMMIT_STEP);
       }
     }
     Assert.assertEquals(actual.size(), expected.size(), "Set" + actual.toString() + " vs Set" + expected.toString());
     Assert.assertEqualsNoOrder(actual.toArray(), expected.toArray());
   }
 
-  private static boolean isCopyableFile(String json) {
+  public static boolean isCopyableFile(String json) {
     String objectType = new Gson().fromJson(json, JsonObject.class)
         .getAsJsonPrimitive("object-type")
         .getAsString();
@@ -456,14 +457,14 @@ public class IcebergDatasetTest {
         List<CopyEntityDeserializer.FileOwnerAndPermissions> ancestorFileOwnerAndPermissionsList =
             CopyEntityDeserializer.getAncestorOwnerAndPermissions(copyEntityJson);
         CopyEntityDeserializer.FileOwnerAndPermissions destinationFileOwnerAndPermissions = CopyEntityDeserializer.getDestinationOwnerAndPermissions(copyEntityJson);
-        Path filePath = new Path(CopyEntityDeserializer.getFilePathAsStringFromJson(copyEntityJson));
+        Path filePath = new Path(CopyEntityDeserializer.getOriginFilePathAsStringFromJson(copyEntityJson));
         FileStatus fileStatus = expectedPathsAndFileStatuses.get(filePath);
         verifyFileStatus(destinationFileOwnerAndPermissions, fileStatus);
         // providing path's parent to verify ancestor owner and permissions
         verifyAncestorPermissions(ancestorFileOwnerAndPermissionsList, filePath.getParent(),
             expectedPathsAndFileStatuses);
       } else {
-        verifyPostPublishStep(copyEntityJson);
+        verifyPostPublishStep(copyEntityJson, REGISTER_COMMIT_STEP);
       }
     }
   }
@@ -485,8 +486,7 @@ public class IcebergDatasetTest {
     }
   }
 
-  private static void verifyPostPublishStep(String json) {
-    String expectedCommitStep = "org.apache.gobblin.data.management.copy.iceberg.IcebergRegisterStep";
+  public static void verifyPostPublishStep(String json, String expectedCommitStep) {
     String actualCommitStep = new Gson().fromJson(json, JsonObject.class)
         .getAsJsonObject("object-data").getAsJsonObject("step").getAsJsonPrimitive("object-type").getAsString();
     Assert.assertEquals(actualCommitStep, expectedCommitStep);
@@ -586,7 +586,7 @@ public class IcebergDatasetTest {
       return fs;
     }
 
-    protected static FileStatus createEmptyFileStatus(String pathString) throws IOException {
+    public static FileStatus createEmptyFileStatus(String pathString) throws IOException {
       Path path = new Path(pathString);
       FileStatus fileStatus = new FileStatus();
       fileStatus.setPath(path);
@@ -644,7 +644,7 @@ public class IcebergDatasetTest {
     }
   }
 
-  private static class CopyEntityDeserializer {
+  protected static class CopyEntityDeserializer {
 
     @Data
     public static class FileOwnerAndPermissions {
@@ -656,13 +656,20 @@ public class IcebergDatasetTest {
       String otherActionPermission = FsAction.valueOf("READ_WRITE").toString();
     }
 
-    public static String getFilePathAsStringFromJson(String json) {
-      String filepath = new Gson().fromJson(json, JsonObject.class)
-              .getAsJsonObject("object-data")
-              .getAsJsonObject("origin")
-              .getAsJsonObject("object-data").getAsJsonObject("path").getAsJsonObject("object-data")
-              .getAsJsonObject("uri").getAsJsonPrimitive("object-data").getAsString();
-      return filepath;
+    public static String getOriginFilePathAsStringFromJson(String json) {
+      return new Gson().fromJson(json, JsonObject.class)
+          .getAsJsonObject("object-data")
+          .getAsJsonObject("origin")
+          .getAsJsonObject("object-data").getAsJsonObject("path").getAsJsonObject("object-data")
+          .getAsJsonObject("uri").getAsJsonPrimitive("object-data").getAsString();
+    }
+
+    public static String getDestinationFilePathAsStringFromJson(String json) {
+      return new Gson().fromJson(json, JsonObject.class)
+          .getAsJsonObject("object-data")
+          .getAsJsonObject("destination")
+          .getAsJsonObject("object-data")
+          .getAsJsonObject("uri").getAsJsonPrimitive("object-data").getAsString();
     }
 
     public static List<FileOwnerAndPermissions> getAncestorOwnerAndPermissions(String json) {

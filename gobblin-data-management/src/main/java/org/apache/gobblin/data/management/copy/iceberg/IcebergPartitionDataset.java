@@ -101,12 +101,13 @@ public class IcebergPartitionDataset extends IcebergDataset {
     List<CopyEntity> copyEntities = Lists.newArrayList();
     IcebergTable srcIcebergTable = getSrcIcebergTable();
     List<DataFile> srcDataFiles = srcIcebergTable.getPartitionSpecificDataFiles(this.partitionFilterPredicate);
-    List<DataFile> destDataFiles = getDestDataFiles(srcDataFiles);
+    Map<Path, DataFile> destDataFileBySrcPath = calcDestDataFileBySrcPath(srcDataFiles);
     Configuration defaultHadoopConfiguration = new Configuration();
 
-    for (Map.Entry<Path, FileStatus> entry : getDestFilePathWithSrcFileStatus(srcDataFiles, destDataFiles, this.sourceFs).entrySet()) {
+    for (Map.Entry<Path, FileStatus> entry : calcSrcFileStatusByDestFilePath(destDataFileBySrcPath).entrySet()) {
       Path destPath = entry.getKey();
       FileStatus srcFileStatus = entry.getValue();
+      // TODO: should be the same FS each time; try creating once, reusing thereafter, to not recreate wastefully
       FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
 
       CopyableFile fileEntity = CopyableFile.fromOriginAndDestination(
@@ -121,6 +122,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
     }
 
     // Adding this check to avoid adding post publish step when there are no files to copy.
+    List<DataFile> destDataFiles = new ArrayList<>(destDataFileBySrcPath.values());
     if (CollectionUtils.isNotEmpty(destDataFiles)) {
       copyEntities.add(createOverwritePostPublishStep(destDataFiles));
     }
@@ -129,45 +131,47 @@ public class IcebergPartitionDataset extends IcebergDataset {
     return copyEntities;
   }
 
-  private List<DataFile> getDestDataFiles(List<DataFile> srcDataFiles) throws IcebergTable.TableNotFoundException {
+  private Map<Path, DataFile> calcDestDataFileBySrcPath(List<DataFile> srcDataFiles)
+      throws IcebergTable.TableNotFoundException {
     String fileSet = this.getFileSetId();
-    List<DataFile> destDataFiles = new ArrayList<>();
+    Map<Path, DataFile> destDataFileBySrcPath = Maps.newHashMap();
     if (srcDataFiles.isEmpty()) {
       log.warn("~{}~ found no data files for partition col : {} with partition value : {} to copy", fileSet,
           this.partitionColumnName, this.partitionColValue);
-      return destDataFiles;
+      return destDataFileBySrcPath;
     }
     TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
     TableMetadata destTableMetadata = getDestIcebergTable().accessTableMetadata();
     PartitionSpec partitionSpec = destTableMetadata.spec();
-    String srcWriteDataLocation = srcTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "");
-    String destWriteDataLocation = destTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "");
+    // tableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "") returns null if the property is not set and
+    // doesn't respect passed default value, so to avoid NPE in .replace() we are setting it to empty string.
+    String srcWriteDataLocation = Optional.ofNullable(srcTableMetadata.property(TableProperties.WRITE_DATA_LOCATION,
+        "")).orElse("");
+    String destWriteDataLocation = Optional.ofNullable(destTableMetadata.property(TableProperties.WRITE_DATA_LOCATION,
+        "")).orElse("");
     if (StringUtils.isEmpty(srcWriteDataLocation) || StringUtils.isEmpty(destWriteDataLocation)) {
       log.warn(
-          "Either source or destination table does not have write data location : source table write data location : {} , destination table write data location : {}",
+          "~{}~ Either source or destination table does not have write data location : source table write data location : {} , destination table write data location : {}",
+          fileSet,
           srcWriteDataLocation,
           destWriteDataLocation
       );
     }
-    // tableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "") returns null if the property is not set and
-    // doesn't respect passed default value, so to avoid NPE in .replace() we are setting it to empty string.
-    String prefixToBeReplaced = (srcWriteDataLocation != null) ? srcWriteDataLocation : "";
-    String prefixToReplaceWith = (destWriteDataLocation != null) ? destWriteDataLocation : "";
     GrowthMilestoneTracker growthMilestoneTracker = new GrowthMilestoneTracker();
     srcDataFiles.forEach(dataFile -> {
       String srcFilePath = dataFile.path().toString();
-      Path updatedDestFilePath = relocateDestPath(srcFilePath, prefixToBeReplaced, prefixToReplaceWith);
-      destDataFiles.add(DataFiles.builder(partitionSpec)
+      Path updatedDestFilePath = relocateDestPath(srcFilePath, srcWriteDataLocation, destWriteDataLocation);
+      log.debug("~{}~ Path changed from Src : {} to Dest : {}", fileSet, srcFilePath, updatedDestFilePath);
+      destDataFileBySrcPath.put(new Path(srcFilePath), DataFiles.builder(partitionSpec)
           .copy(dataFile)
           .withPath(updatedDestFilePath.toString())
           .build());
-      log.debug("~{}~ Path changed from Src : {} to Dest : {}", fileSet, srcFilePath, updatedDestFilePath);
-      if (growthMilestoneTracker.isAnotherMilestone(destDataFiles.size())) {
-        log.info("~{}~ created {} destination data files", fileSet, destDataFiles.size());
+      if (growthMilestoneTracker.isAnotherMilestone(destDataFileBySrcPath.size())) {
+        log.info("~{}~ created {} destination data files", fileSet, destDataFileBySrcPath.size());
       }
     });
-    log.info("~{}~ created {} destination data files", fileSet, destDataFiles.size());
-    return destDataFiles;
+    log.info("~{}~ created {} destination data files", fileSet, destDataFileBySrcPath.size());
+    return destDataFileBySrcPath;
   }
 
   private Path relocateDestPath(String curPathStr, String prefixToBeReplaced, String prefixToReplaceWith) {
@@ -183,16 +187,20 @@ public class IcebergPartitionDataset extends IcebergDataset {
     return new Path(fileDir, newFileName);
   }
 
-  private Map<Path, FileStatus> getDestFilePathWithSrcFileStatus(List<DataFile> srcDataFiles,
-      List<DataFile> destDataFiles, FileSystem fs) throws IOException {
-    Map<Path, FileStatus> results = Maps.newHashMap();
-    for (int i = 0; i < srcDataFiles.size(); i++) {
-      Path srcPath = new Path(srcDataFiles.get(i).path().toString());
-      Path destPath = new Path(destDataFiles.get(i).path().toString());
-      FileStatus srcFileStatus = fs.getFileStatus(srcPath);
-      results.put(destPath, srcFileStatus);
-    }
-    return results;
+  private Map<Path, FileStatus> calcSrcFileStatusByDestFilePath(Map<Path, DataFile> destDataFileBySrcPath) {
+    Map<Path, FileStatus> srcFileStatusByDestFilePath = Maps.newHashMap();
+    destDataFileBySrcPath.forEach((srcPath, destDataFile) -> {
+      FileStatus srcFileStatus;
+      try {
+        srcFileStatus = this.sourceFs.getFileStatus(srcPath);
+      } catch (IOException e) {
+        String errMsg = String.format("~%s~ Failed to get file status for path : %s", this.getFileSetId(), srcPath);
+        log.error(errMsg);
+        throw new RuntimeException(errMsg, e);
+      }
+      srcFileStatusByDestFilePath.put(new Path(destDataFile.path().toString()), srcFileStatus);
+    });
+    return srcFileStatusByDestFilePath;
   }
 
   private PostPublishStep createOverwritePostPublishStep(List<DataFile> destDataFiles) {
