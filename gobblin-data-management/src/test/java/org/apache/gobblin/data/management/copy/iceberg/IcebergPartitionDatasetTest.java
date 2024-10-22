@@ -62,7 +62,7 @@ public class IcebergPartitionDatasetTest {
   private TableMetadata srcTableMetadata;
   private TableMetadata destTableMetadata;
   private static FileSystem sourceFs;
-  private FileSystem targetFs;
+  private static FileSystem targetFs;
   private IcebergPartitionDataset icebergPartitionDataset;
   private MockedStatic<IcebergPartitionFilterPredicateUtil> icebergPartitionFilterPredicateUtil;
   private static final String SRC_TEST_DB = "srcTestDB";
@@ -123,28 +123,6 @@ public class IcebergPartitionDatasetTest {
   public void cleanUp() {
     srcFilePaths.clear();
     icebergPartitionFilterPredicateUtil.close();
-  }
-
-  private void setupSrcFileSystem() throws IOException {
-    sourceFs = Mockito.mock(FileSystem.class);
-    Mockito.when(sourceFs.getUri()).thenReturn(SRC_FS_URI);
-    Mockito.when(sourceFs.makeQualified(any(Path.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0, Path.class).makeQualified(SRC_FS_URI, new Path("/")));
-    Mockito.when(sourceFs.getFileStatus(any(Path.class))).thenAnswer(invocation -> {
-      Path path = invocation.getArgument(0, Path.class);
-      Path qualifiedPath = sourceFs.makeQualified(path);
-      return IcebergDatasetTest.MockFileSystemBuilder.createEmptyFileStatus(qualifiedPath.toString());
-    });
-  }
-
-  private void setupDestFileSystem() throws IOException {
-    targetFs = Mockito.mock(FileSystem.class);
-    Mockito.when(targetFs.getUri()).thenReturn(DEST_FS_URI);
-    Mockito.when(targetFs.makeQualified(any(Path.class)))
-        .thenAnswer(invocation -> invocation.getArgument(0, Path.class).makeQualified(DEST_FS_URI, new Path("/")));
-    // Since we are adding UUID to the file name for every file while creating destination path,
-    // so return file not found exception if trying to find file status on destination file system
-    Mockito.when(targetFs.getFileStatus(any(Path.class))).thenThrow(new FileNotFoundException());
   }
 
   @Test
@@ -222,6 +200,28 @@ public class IcebergPartitionDatasetTest {
         (List<CopyEntity>) icebergPartitionDataset.generateCopyEntities(targetFs, copyConfiguration);
 
     verifyCopyEntities(copyEntities, 2, false);
+  }
+
+  private static void setupSrcFileSystem() throws IOException {
+    sourceFs = Mockito.mock(FileSystem.class);
+    Mockito.when(sourceFs.getUri()).thenReturn(SRC_FS_URI);
+    Mockito.when(sourceFs.makeQualified(any(Path.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0, Path.class).makeQualified(SRC_FS_URI, new Path("/")));
+    Mockito.when(sourceFs.getFileStatus(any(Path.class))).thenAnswer(invocation -> {
+      Path path = invocation.getArgument(0, Path.class);
+      Path qualifiedPath = sourceFs.makeQualified(path);
+      return IcebergDatasetTest.MockFileSystemBuilder.createEmptyFileStatus(qualifiedPath.toString());
+    });
+  }
+
+  private static void setupDestFileSystem() throws IOException {
+    targetFs = Mockito.mock(FileSystem.class);
+    Mockito.when(targetFs.getUri()).thenReturn(DEST_FS_URI);
+    Mockito.when(targetFs.makeQualified(any(Path.class)))
+        .thenAnswer(invocation -> invocation.getArgument(0, Path.class).makeQualified(DEST_FS_URI, new Path("/")));
+    // Since we are adding UUID to the file name for every file while creating destination path,
+    // so return file not found exception if trying to find file status on destination file system
+    Mockito.when(targetFs.getFileStatus(any(Path.class))).thenThrow(new FileNotFoundException());
   }
 
   private static List<DataFile> createDataFileMocks() throws IOException {

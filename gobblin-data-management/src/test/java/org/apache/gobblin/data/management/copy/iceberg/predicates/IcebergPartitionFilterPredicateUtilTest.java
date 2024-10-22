@@ -33,24 +33,8 @@ import com.google.common.collect.ImmutableList;
 
 /** Tests for {@link org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicateUtil} */
 public class IcebergPartitionFilterPredicateUtilTest {
-  private TableMetadata mockTableMetadata;
+  private static TableMetadata mockTableMetadata;
   private final List<String> supportedTransforms = ImmutableList.of("supported1", "supported2");
-
-  private void setupMockData(String name, String transform) {
-    mockTableMetadata = Mockito.mock(TableMetadata.class);
-
-    PartitionSpec mockPartitionSpec = Mockito.mock(PartitionSpec.class);
-    PartitionField mockPartitionField = Mockito.mock(PartitionField.class);
-    Transform mockTransform = Mockito.mock(Transform.class);
-
-    List<PartitionField> partitionFields = ImmutableList.of(mockPartitionField);
-
-    Mockito.when(mockTableMetadata.spec()).thenReturn(mockPartitionSpec);
-    Mockito.when(mockPartitionSpec.fields()).thenReturn(partitionFields);
-    Mockito.when(mockPartitionField.name()).thenReturn(name);
-    Mockito.when(mockPartitionField.transform()).thenReturn(mockTransform);
-    Mockito.when(mockTransform.toString()).thenReturn(transform);
-  }
 
   @Test
   public void testPartitionTransformNotSupported() {
@@ -102,5 +86,21 @@ public class IcebergPartitionFilterPredicateUtilTest {
         IcebergPartitionFilterPredicateUtil.getPartitionColumnIndex("col2", mockTableMetadata, supportedTransforms)
             .get();
     Assert.assertEquals(result, 1);
+  }
+
+  private static void setupMockData(String name, String transform) {
+    mockTableMetadata = Mockito.mock(TableMetadata.class);
+
+    PartitionSpec mockPartitionSpec = Mockito.mock(PartitionSpec.class);
+    PartitionField mockPartitionField = Mockito.mock(PartitionField.class);
+    Transform mockTransform = Mockito.mock(Transform.class);
+
+    List<PartitionField> partitionFields = ImmutableList.of(mockPartitionField);
+
+    Mockito.when(mockTableMetadata.spec()).thenReturn(mockPartitionSpec);
+    Mockito.when(mockPartitionSpec.fields()).thenReturn(partitionFields);
+    Mockito.when(mockPartitionField.name()).thenReturn(name);
+    Mockito.when(mockPartitionField.transform()).thenReturn(mockTransform);
+    Mockito.when(mockTransform.toString()).thenReturn(transform);
   }
 }

@@ -93,11 +93,6 @@ public class IcebergTable {
     this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri, table);
   }
 
-  @VisibleForTesting
-  IcebergTable(TableIdentifier bogusTableId, TableOperations tableOperations, String catalogUri) {
-    this(bogusTableId, tableOperations, catalogUri, null);
-  }
-
   /** @return metadata info limited to the most recent (current) snapshot */
   public IcebergSnapshotInfo getCurrentSnapshotInfo() throws IOException {
     TableMetadata current = accessTableMetadata();
