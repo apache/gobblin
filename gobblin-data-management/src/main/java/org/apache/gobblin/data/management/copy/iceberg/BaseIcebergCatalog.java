@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.util.Map;
 
+import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Table;
@@ -42,12 +43,12 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
   }
 
   @Override
-  public IcebergTable openTable(String dbName, String tableName) {
+  public IcebergTable openTable(String dbName, String tableName) throws IcebergTable.TableNotFoundException {
     TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
-    return new IcebergTable(tableId, calcDatasetDescriptorName(tableId), getDatasetDescriptorPlatform(),
+    return Optional.of(new IcebergTable(tableId, calcDatasetDescriptorName(tableId), getDatasetDescriptorPlatform(),
         createTableOperations(tableId),
         this.getCatalogUri(),
-        loadTableInstance(tableId));
+        loadTableInstance(tableId))).orElseThrow(() -> new IcebergTable.TableNotFoundException(tableId));
   }
 
   protected Catalog createCompanionCatalog(Map<String, String> properties, Configuration configuration) {
