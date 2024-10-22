@@ -144,21 +144,20 @@ public class ScalingDirectiveParserTest {
         new ProfileOverlay.Removing(Lists.newArrayList("a.b", "c.d"))));
   }
 
-
   @DataProvider(name = "funkyButValidDirectives")
   public String[][] validDirectives() {
     return new String[][]{
         // null overlay upon unnamed baseline profile (null overlay functions as the 'identity element'):
-        {"1728435970.my_profile=24,+()"},
-        {"1728435970.my_profile=24,-()"},
-        {"1728435970.my_profile=24;+()"},
-        {"1728435970.my_profile=24;-()"},
+        { "1728435970.my_profile=24,+()" },
+        { "1728435970.my_profile=24,-()" },
+        { "1728435970.my_profile=24;+()" },
+        { "1728435970.my_profile=24;-()" },
 
         // null overlay upon named profile:
-        {"1728435970.my_profile=24,foo+()"},
-        {"1728435970.my_profile=24,foo-()"},
-        {"1728435970.my_profile=24;foo+()"},
-        {"1728435970.my_profile=24;foo-()"},
+        { "1728435970.my_profile=24,foo+()" },
+        { "1728435970.my_profile=24,foo-()" },
+        { "1728435970.my_profile=24;foo+()" },
+        { "1728435970.my_profile=24;foo-()" },
 
         // seemingly separator mismatch, but in fact the NOT-separator is part of the value (e.g. a="7;m=sixteen"):
         { "1728439210.new_profile=16,bar+(a=7;m=sixteen)" },
@@ -178,6 +177,27 @@ public class ScalingDirectiveParserTest {
     Assert.assertNotNull(parser.parse(directive));
   }
 
+  @DataProvider(name = "validDirectivesToRoundTrip")
+  public String[][] validDirectivesForRoundTrip() {
+    return new String[][]{
+        { "2.some_profile=15" },
+        { "6.extra_profile=9,the_basis+(a.b=foo, c.d=bar)" },
+        { "6.extra_profile=9,the_basis-(a.b, c.d)" },
+        // funky ones:
+        { "1728435970.my_profile=24,+()" },
+        { "1728435970.my_profile=24,-()" },
+        { "1728435970.my_profile=24,foo+()" },
+        { "1728435970.my_profile=24,foo-()" }
+    };
+  }
+
+  @Test(
+      expectedExceptions = {},
+      dataProvider = "validDirectivesToRoundTrip"
+  )
+  public void roundTripAsStringAfterParse(String directive) {
+    Assert.assertEquals(ScalingDirectiveParser.asString(parser.parse(directive)), directive);
+  }
 
   @DataProvider(name = "invalidDirectives")
   public String[][] invalidDirectives() {

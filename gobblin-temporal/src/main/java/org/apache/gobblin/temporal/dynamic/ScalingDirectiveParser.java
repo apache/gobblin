@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.dynamic;
 
+import java.net.URLEncoder;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
@@ -65,6 +66,7 @@ public class ScalingDirectiveParser {
 
   private static final String KEY_REGEX = "(\\w+(?:\\.\\w+)*)";
   private static final String KEY_VALUE_REGEX = KEY_REGEX + "\\s*=\\s*(.*)";
+  private static final String URL_ENCODING_CHARSET = "UTF-8";
   private static final Pattern directivePattern = Pattern.compile(DIRECTIVE_REGEX);
   private static final Pattern keyPattern = Pattern.compile(KEY_REGEX);
   private static final Pattern keyValuePattern = Pattern.compile(KEY_VALUE_REGEX);
@@ -118,15 +120,52 @@ public class ScalingDirectiveParser {
     }
   }
 
+  public static String asString(ScalingDirective directive) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(directive.getTimestampEpochMillis()).append('.').append(directive.getProfileName()).append('=').append(directive.getSetPoint());
+    directive.getOptDerivedFrom().ifPresent(derivedFrom -> {
+      sb.append(',').append(derivedFrom.getBasisProfileName());
+      sb.append(derivedFrom.getOverlay() instanceof ProfileOverlay.Adding ? "+(" : "-(");
+      ProfileOverlay overlay = derivedFrom.getOverlay();
+      if (overlay instanceof ProfileOverlay.Adding) {
+        ProfileOverlay.Adding adding = (ProfileOverlay.Adding) overlay;
+        for (ProfileOverlay.KVPair kv : adding.getAdditionPairs()) {
+          sb.append(kv.getKey()).append('=').append(urlEncode(kv.getValue())).append(", ");
+        }
+        if (adding.getAdditionPairs().size() > 0) {
+          sb.setLength(sb.length() - 2);  // remove trailing ", "
+        }
+      } else {
+        ProfileOverlay.Removing removing = (ProfileOverlay.Removing) overlay;
+        for (String key : removing.getRemovalKeys()) {
+          sb.append(key).append(", ");
+        }
+        if (removing.getRemovalKeys().size() > 0) {
+          sb.setLength(sb.length() - 2);  // remove trailing ", "
+        }
+      }
+      sb.append(')');
+    });
+    return sb.toString();
+  }
+
   private static String identifyProfileName(String profileId) {
     return profileId.equals(BASELINE_ID) ? WorkforceProfiles.BASELINE_NAME : profileId;
   }
 
   private static String urlDecode(String directive, String s) {
     try {
-      return java.net.URLDecoder.decode(s, "UTF-8");
+      return java.net.URLDecoder.decode(s, URL_ENCODING_CHARSET);
     } catch (java.io.UnsupportedEncodingException e) {
       throw new MalformedDirectiveException(directive, "unable to URL-decode - {{" + s + "}}");
+    }
+  }
+
+  private static String urlEncode(String s) {
+    try {
+      return URLEncoder.encode(s, URL_ENCODING_CHARSET);
+    } catch (java.io.UnsupportedEncodingException e) {
+      throw new RuntimeException("THIS SHOULD BE IMPOSSIBLE, given we used '" + URL_ENCODING_CHARSET + "' with {{" + s + "}}", e);
     }
   }
 }

@@ -122,8 +122,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       throw ApplicationFailure.newNonRetryableFailureWithCause(
           String.format("Failed Gobblin job %s", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)),
           e.getClass().getName(),
-          e,
-          null
+          e
       );
     } finally {
       // TODO: Cleanup WorkUnit/Taskstate Directory for jobs cancelled mid flight
@@ -140,8 +139,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
           throw ApplicationFailure.newNonRetryableFailureWithCause(
               String.format("Failed cleaning Gobblin job %s", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)),
               e.getClass().getName(),
-              e,
-              null
+              e
           );
         }
         log.error("Failed to cleanup work dirs", e);
