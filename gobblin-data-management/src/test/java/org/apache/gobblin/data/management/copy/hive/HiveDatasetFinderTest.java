@@ -215,6 +215,51 @@ public class HiveDatasetFinderTest {
 
   }
 
+  @Test
+  public void testHiveTableFolderAllowlistFilter() throws Exception {
+    List<HiveDatasetFinder.DbAndTable> dbAndTables = Lists.newArrayList();
+    dbAndTables.add(new HiveDatasetFinder.DbAndTable("db1", "table1"));
+    // This table is created on /tmp/test
+    HiveMetastoreClientPool pool = getTestPool(dbAndTables);
+
+    Properties properties = new Properties();
+    properties.put(HiveDatasetFinder.HIVE_DATASET_PREFIX + "." + WhitelistBlacklist.WHITELIST, "");
+    // Try a regex with multiple groups
+    properties.put(HiveDatasetFinder.TABLE_FOLDER_ALLOWLIST_FILTER, "(/tmp/|a).*");
+
+    HiveDatasetFinder finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
+    List<HiveDataset> datasets = Lists.newArrayList(finder.getDatasetsIterator());
+
+    Assert.assertEquals(datasets.size(), 1);
+
+    properties.put(HiveDatasetFinder.HIVE_DATASET_PREFIX + "." + WhitelistBlacklist.WHITELIST, "");
+    // The table located at /tmp/test should be filtered
+    properties.put(HiveDatasetFinder.TABLE_FOLDER_ALLOWLIST_FILTER, "/a/b");
+
+    finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
+    datasets = Lists.newArrayList(finder.getDatasetsIterator());
+
+    Assert.assertEquals(datasets.size(), 0);
+
+    // Test empty filter
+    properties.put(HiveDatasetFinder.HIVE_DATASET_PREFIX + "." + WhitelistBlacklist.WHITELIST, "");
+    // The table located at /tmp/test should be filtered
+    properties.put(HiveDatasetFinder.TABLE_FOLDER_ALLOWLIST_FILTER, "");
+
+    finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
+    datasets = Lists.newArrayList(finder.getDatasetsIterator());
+
+    Assert.assertEquals(datasets.size(), 0);
+
+    // Test no regex config
+    properties.put(HiveDatasetFinder.HIVE_DATASET_PREFIX + "." + WhitelistBlacklist.WHITELIST, "");
+
+    finder = new TestHiveDatasetFinder(FileSystem.getLocal(new Configuration()), properties, pool);
+    datasets = Lists.newArrayList(finder.getDatasetsIterator());
+
+    Assert.assertEquals(datasets.size(), 0);
+  }
+
   private HiveMetastoreClientPool getTestPool(List<HiveDatasetFinder.DbAndTable> dbAndTables) throws Exception {
 
     SetMultimap<String, String> entities = HashMultimap.create();

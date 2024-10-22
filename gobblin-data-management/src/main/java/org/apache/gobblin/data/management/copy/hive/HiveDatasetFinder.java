@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.data.management.copy.hive;
 
-import com.google.common.base.Throwables;
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
 import java.net.URISyntaxException;
@@ -25,12 +24,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
-
-import javax.annotation.Nonnull;
-
-import lombok.Data;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
+import java.util.regex.Pattern;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
@@ -43,11 +37,17 @@ import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Predicate;
+import com.google.common.base.Throwables;
 import com.google.common.collect.AbstractIterator;
 import com.google.common.collect.Iterables;
 import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+
+import javax.annotation.Nonnull;
+import lombok.Data;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.config.client.ConfigClient;
 import org.apache.gobblin.config.client.ConfigClientCache;
@@ -79,6 +79,9 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   public static final String TABLE_PATTERN_KEY = HIVE_DATASET_PREFIX + ".table.pattern";
   public static final String DEFAULT_TABLE_PATTERN = "*";
   public static final String TABLE_FILTER = HIVE_DATASET_PREFIX + ".tableFilter";
+
+  // Property used to filter tables only physically within a folder, represented by a regex
+  public static final String TABLE_FOLDER_ALLOWLIST_FILTER = HIVE_DATASET_PREFIX + ".tableFolderAllowlistFilter";
 
   /*
    * By setting the prefix, only config keys with this prefix will be used to build a HiveDataset.
@@ -117,6 +120,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   protected Optional<String> configStoreUri;
   protected final Function<Table, String> configStoreDatasetUriBuilder;
   protected final Optional<Predicate<Table>> tableFilter;
+
+  protected final Optional<Pattern> tableFolderAllowlistRegex;
 
   protected final String datasetConfigPrefix;
   protected final ConfigClient configClient;
@@ -194,6 +199,8 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     } else {
       this.tableFilter = Optional.absent();
     }
+    this.tableFolderAllowlistRegex = properties.containsKey(TABLE_FOLDER_ALLOWLIST_FILTER) ?
+        Optional.of(Pattern.compile(properties.getProperty(TABLE_FOLDER_ALLOWLIST_FILTER))): Optional.absent();
   }
 
   protected static HiveMetastoreClientPool createClientPool(Properties properties) throws IOException {
@@ -262,7 +269,10 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
 
           try (AutoReturnableObject<IMetaStoreClient> client = HiveDatasetFinder.this.clientPool.getClient()) {
             Table table = client.get().getTable(dbAndTable.getDb(), dbAndTable.getTable());
-            if (tableFilter.isPresent() && !tableFilter.get().apply(table)) {
+            if ((tableFilter.isPresent() && !tableFilter.get().apply(table))
+                || !shouldAllowTableLocation(tableFolderAllowlistRegex, table)) {
+              log.info("Ignoring table {} as its underlying location {} does not pass allowlist regex {}", dbAndTable,
+                  table.getSd().getLocation(), tableFolderAllowlistRegex.get());
               continue;
             }
 
@@ -294,6 +304,12 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     };
   }
 
+  protected static boolean shouldAllowTableLocation(Optional<Pattern> regex, Table table) {
+    if (!regex.isPresent()) {
+      return true;
+    }
+    return regex.get().matcher(table.getSd().getLocation()).matches();
+  }
 
   /**
    * @deprecated Use {@link #createHiveDataset(Table, Config)} instead
