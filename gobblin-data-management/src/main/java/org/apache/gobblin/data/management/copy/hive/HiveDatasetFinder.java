@@ -121,7 +121,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
   protected final Function<Table, String> configStoreDatasetUriBuilder;
   protected final Optional<Predicate<Table>> tableFilter;
 
-  protected final Optional<String> tableFolderAllowlistRegex;
+  protected final Optional<Pattern> tableFolderAllowlistRegex;
 
   protected final String datasetConfigPrefix;
   protected final ConfigClient configClient;
@@ -200,7 +200,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
       this.tableFilter = Optional.absent();
     }
     this.tableFolderAllowlistRegex = properties.containsKey(TABLE_FOLDER_ALLOWLIST_FILTER) ?
-        Optional.of(properties.getProperty(TABLE_FOLDER_ALLOWLIST_FILTER)): Optional.absent();
+        Optional.of(Pattern.compile(properties.getProperty(TABLE_FOLDER_ALLOWLIST_FILTER))): Optional.absent();
   }
 
   protected static HiveMetastoreClientPool createClientPool(Properties properties) throws IOException {
@@ -272,7 +272,7 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
             if ((tableFilter.isPresent() && !tableFilter.get().apply(table))
                 || !shouldAllowTableLocation(tableFolderAllowlistRegex, table)) {
               log.info("Ignoring table {} as its underlying location {} does not pass allowlist regex {}", dbAndTable,
-                  table.getSd().getLocation(), tableFolderAllowlistRegex);
+                  table.getSd().getLocation(), tableFolderAllowlistRegex.get());
               continue;
             }
 
@@ -304,11 +304,11 @@ public class HiveDatasetFinder implements IterableDatasetFinder<HiveDataset> {
     };
   }
 
-  protected static boolean shouldAllowTableLocation(Optional<String> regex, Table table) {
+  protected static boolean shouldAllowTableLocation(Optional<Pattern> regex, Table table) {
     if (!regex.isPresent()) {
       return true;
     }
-    return Pattern.compile(regex.get()).matcher(table.getSd().getLocation()).matches();
+    return regex.get().matcher(table.getSd().getLocation()).matches();
   }
 
   /**
