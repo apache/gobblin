@@ -28,7 +28,6 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
@@ -57,6 +56,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 
 import static org.apache.gobblin.data.management.copy.iceberg.IcebergSnapshotInfo.ManifestFileInfo;
 
