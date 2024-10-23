@@ -19,7 +19,6 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.util.Map;
 
-import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
 import org.apache.iceberg.Table;
