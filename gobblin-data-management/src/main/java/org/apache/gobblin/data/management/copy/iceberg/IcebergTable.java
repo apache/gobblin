@@ -28,6 +28,7 @@ import java.util.Set;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
@@ -242,12 +243,18 @@ public class IcebergTable {
     Snapshot currentSnapshot = tableMetadata.currentSnapshot();
     long currentSnapshotId = currentSnapshot.snapshotId();
     List<DataFile> knownDataFiles = new ArrayList<>();
-    log.info("~{}~ for snapshot '{}' - '{}' total known iceberg datafiles", tableId, currentSnapshotId,
-        knownDataFiles.size());
+    GrowthMilestoneTracker growthMilestoneTracker = new GrowthMilestoneTracker();
     //TODO: Add support for deleteManifests as well later
     // Currently supporting dataManifests only
     List<ManifestFile> dataManifestFiles = currentSnapshot.dataManifests(this.tableOps.io());
     for (ManifestFile manifestFile : dataManifestFiles) {
+      if (growthMilestoneTracker.isAnotherMilestone(knownDataFiles.size())) {
+        log.info("~{}~ for snapshot '{}' - before manifest-file '{}' '{}' total known iceberg datafiles", tableId,
+            currentSnapshotId,
+            manifestFile.path(),
+            knownDataFiles.size()
+        );
+      }
       try (ManifestReader<DataFile> manifestReader = ManifestFiles.read(manifestFile, this.tableOps.io());
           CloseableIterator<DataFile> dataFiles = manifestReader.iterator()) {
         dataFiles.forEachRemaining(dataFile -> {
@@ -255,8 +262,6 @@ public class IcebergTable {
             knownDataFiles.add(dataFile.copy());
           }
         });
-        log.info("~{}~ for snapshot '{}' - '{}' total known iceberg datafiles", tableId, currentSnapshotId,
-            knownDataFiles.size());
       } catch (IOException e) {
         String errMsg = String.format("~%s~ for snapshot '%d' - Failed to read manifest file: %s", tableId,
             currentSnapshotId, manifestFile.path());
