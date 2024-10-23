@@ -64,11 +64,7 @@ public class IcebergHiveCatalog extends BaseIcebergCatalog {
   }
 
   @Override
-  protected Table loadTableInstance(TableIdentifier tableId) throws IcebergTable.TableNotFoundException {
-    try {
-      return hc.loadTable(tableId);
-    } catch (Exception e) {
-      throw new IcebergTable.TableNotFoundException(tableId);
-    }
+  protected Table loadTableInstance(TableIdentifier tableId) {
+    return hc.loadTable(tableId);
   }
 }

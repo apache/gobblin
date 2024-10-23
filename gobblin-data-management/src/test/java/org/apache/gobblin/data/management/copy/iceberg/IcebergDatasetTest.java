@@ -93,7 +93,7 @@ public class IcebergDatasetTest {
   private static final String MANIFEST_PATH_0 = ROOT_PATH + "metadata/manifest.a";
   private static final String MANIFEST_DATA_PATH_0A = ROOT_PATH + "data/p0/a";
   private static final String MANIFEST_DATA_PATH_0B = ROOT_PATH + "data/p0/b";
-  private static final String REGISTER_COMMIT_STEP = "org.apache.gobblin.data.management.copy.iceberg.IcebergRegisterStep";
+  private static final String REGISTER_COMMIT_STEP = IcebergRegisterStep.class.getName();
   private static final MockIcebergTable.SnapshotPaths SNAPSHOT_PATHS_0 =
       new MockIcebergTable.SnapshotPaths(Optional.of(METADATA_PATH), MANIFEST_LIST_PATH_0, Arrays.asList(
           new IcebergSnapshotInfo.ManifestFileInfo(MANIFEST_PATH_0,

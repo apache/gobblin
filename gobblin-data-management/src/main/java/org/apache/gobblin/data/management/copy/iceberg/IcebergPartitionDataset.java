@@ -25,7 +25,9 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.function.Function;
 import java.util.function.Predicate;
+import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -53,6 +55,7 @@ import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.CopyableDataset;
+import org.apache.gobblin.util.function.CheckedExceptionFunction;
 import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergMatchesAnyPropNamePartitionFilterPredicate;
 import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicateUtil;
@@ -188,19 +191,12 @@ public class IcebergPartitionDataset extends IcebergDataset {
   }
 
   private Map<Path, FileStatus> calcSrcFileStatusByDestFilePath(Map<Path, DataFile> destDataFileBySrcPath) {
-    Map<Path, FileStatus> srcFileStatusByDestFilePath = Maps.newHashMap();
-    destDataFileBySrcPath.forEach((srcPath, destDataFile) -> {
-      FileStatus srcFileStatus;
-      try {
-        srcFileStatus = this.sourceFs.getFileStatus(srcPath);
-      } catch (IOException e) {
-        String errMsg = String.format("~%s~ Failed to get file status for path : %s", this.getFileSetId(), srcPath);
-        log.error(errMsg);
-        throw new RuntimeException(errMsg, e);
-      }
-      srcFileStatusByDestFilePath.put(new Path(destDataFile.path().toString()), srcFileStatus);
-    });
-    return srcFileStatusByDestFilePath;
+    Function<Path, FileStatus> getFileStatus = CheckedExceptionFunction.wrapToTunneled(this.sourceFs::getFileStatus);
+    return destDataFileBySrcPath.entrySet().stream()
+        .collect(Collectors.toMap(
+            entry -> new Path(entry.getValue().path().toString()),
+            entry -> getFileStatus.apply(entry.getKey())
+        ));
   }
 
   private PostPublishStep createOverwritePostPublishStep(List<DataFile> destDataFiles) {

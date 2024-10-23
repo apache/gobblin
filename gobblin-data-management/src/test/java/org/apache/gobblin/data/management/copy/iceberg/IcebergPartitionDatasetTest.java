@@ -23,7 +23,10 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 
@@ -73,11 +76,9 @@ public class IcebergPartitionDatasetTest {
   private static final String DEST_WRITE_LOCATION = DEST_TEST_DB + "/" + DEST_TEST_TABLE + "/data";
   private static final String TEST_ICEBERG_PARTITION_COLUMN_NAME = "testPartition";
   private static final String TEST_ICEBERG_PARTITION_COLUMN_VALUE = "testValue";
-  private static final String OVERWRITE_COMMIT_STEP = "org.apache.gobblin.data.management.copy.iceberg.IcebergOverwritePartitionsStep";
+  private static final String OVERWRITE_COMMIT_STEP = IcebergOverwritePartitionsStep.class.getName();
   private final Properties copyConfigProperties = new Properties();
   private final Properties properties = new Properties();
-  private static final List<String> srcFilePaths = new ArrayList<>();
-
   private static final URI SRC_FS_URI;
   private static final URI DEST_FS_URI;
 
@@ -121,15 +122,16 @@ public class IcebergPartitionDatasetTest {
 
   @AfterMethod
   public void cleanUp() {
-    srcFilePaths.clear();
     icebergPartitionFilterPredicateUtil.close();
   }
 
   @Test
   public void testGenerateCopyEntities() throws IOException {
+    List<String> srcFilePaths = new ArrayList<>();
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file1.orc");
-    List<DataFile> mockSrcDataFiles = createDataFileMocks();
-    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(mockSrcDataFiles);
+    Map<String, DataFile> mockDataFilesBySrcPath = createDataFileMocksBySrcPath(srcFilePaths);
+    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(
+        new ArrayList<>(mockDataFilesBySrcPath.values()));
 
     icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs,
         true);
@@ -140,7 +142,7 @@ public class IcebergPartitionDatasetTest {
 
     Collection<CopyEntity> copyEntities = icebergPartitionDataset.generateCopyEntities(targetFs, copyConfiguration);
 
-    verifyCopyEntities(copyEntities, 2, true);
+    verifyCopyEntities(copyEntities, new ArrayList<>(mockDataFilesBySrcPath.keySet()), true);
   }
 
   @Test
@@ -154,19 +156,21 @@ public class IcebergPartitionDatasetTest {
         Mockito.mock(CopyConfiguration.class));
 
     // Since No data files are present, no copy entities should be generated
-    verifyCopyEntities(copyEntities, 0, true);
+    verifyCopyEntities(copyEntities, Collections.emptyList(), true);
   }
 
   @Test
   public void testMultipleCopyEntitiesGenerated() throws IOException {
+    List<String> srcFilePaths = new ArrayList<>();
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file1.orc");
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file2.orc");
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file3.orc");
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file4.orc");
     srcFilePaths.add(SRC_WRITE_LOCATION + "/file5.orc");
 
-    List<DataFile> mockSrcDataFiles = createDataFileMocks();
-    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(mockSrcDataFiles);
+    Map<String, DataFile> mockDataFilesBySrcPath = createDataFileMocksBySrcPath(srcFilePaths);
+    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(
+        new ArrayList<>(mockDataFilesBySrcPath.values()));
 
     icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs,
         true);
@@ -177,17 +181,19 @@ public class IcebergPartitionDatasetTest {
 
     Collection<CopyEntity> copyEntities = icebergPartitionDataset.generateCopyEntities(targetFs, copyConfiguration);
 
-    verifyCopyEntities(copyEntities, 6, true);
+    verifyCopyEntities(copyEntities, new ArrayList<>(mockDataFilesBySrcPath.keySet()), true);
   }
 
   @Test
   public void testWithDifferentSrcAndDestTableWriteLocation() throws IOException {
+    List<String> srcFilePaths = new ArrayList<>();
     srcFilePaths.add(SRC_WRITE_LOCATION + "/randomFile--Name.orc");
     Mockito.when(srcTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "")).thenReturn(SRC_WRITE_LOCATION);
     Mockito.when(destTableMetadata.property(TableProperties.WRITE_DATA_LOCATION, "")).thenReturn(DEST_WRITE_LOCATION);
 
-    List<DataFile> mockSrcDataFiles = createDataFileMocks();
-    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(mockSrcDataFiles);
+    Map<String, DataFile> mockDataFilesBySrcPath = createDataFileMocksBySrcPath(srcFilePaths);
+    Mockito.when(srcIcebergTable.getPartitionSpecificDataFiles(Mockito.any())).thenReturn(
+        new ArrayList<>(mockDataFilesBySrcPath.values()));
 
     icebergPartitionDataset = new TestIcebergPartitionDataset(srcIcebergTable, destIcebergTable, properties, sourceFs,
         true);
@@ -199,7 +205,7 @@ public class IcebergPartitionDatasetTest {
     List<CopyEntity> copyEntities =
         (List<CopyEntity>) icebergPartitionDataset.generateCopyEntities(targetFs, copyConfiguration);
 
-    verifyCopyEntities(copyEntities, 2, false);
+    verifyCopyEntities(copyEntities, new ArrayList<>(mockDataFilesBySrcPath.keySet()), false);
   }
 
   private static void setupSrcFileSystem() throws IOException {
@@ -224,23 +230,23 @@ public class IcebergPartitionDatasetTest {
     Mockito.when(targetFs.getFileStatus(any(Path.class))).thenThrow(new FileNotFoundException());
   }
 
-  private static List<DataFile> createDataFileMocks() throws IOException {
-    List<DataFile> dataFiles = new ArrayList<>();
+  private static Map<String, DataFile> createDataFileMocksBySrcPath(List<String> srcFilePaths) throws IOException {
+    Map<String, DataFile> dataFileMocksBySrcPath = new HashMap<>();
     for (String srcFilePath : srcFilePaths) {
       DataFile dataFile = Mockito.mock(DataFile.class);
       Path dataFilePath = new Path(srcFilePath);
-      Path qualifiedPath = sourceFs.makeQualified(dataFilePath);
+      String qualifiedPath = sourceFs.makeQualified(dataFilePath).toString();
       Mockito.when(dataFile.path()).thenReturn(dataFilePath.toString());
       Mockito.when(sourceFs.getFileStatus(Mockito.eq(dataFilePath))).thenReturn(
-          IcebergDatasetTest.MockFileSystemBuilder.createEmptyFileStatus(qualifiedPath.toString()));
-      dataFiles.add(dataFile);
+          IcebergDatasetTest.MockFileSystemBuilder.createEmptyFileStatus(qualifiedPath));
+      dataFileMocksBySrcPath.put(qualifiedPath, dataFile);
     }
-    return dataFiles;
+    return dataFileMocksBySrcPath;
   }
 
-  private static void verifyCopyEntities(Collection<CopyEntity> copyEntities, int expectedCopyEntitiesSize,
+  private static void verifyCopyEntities(Collection<CopyEntity> copyEntities, List<String> expectedSrcFilePaths,
       boolean sameSrcAndDestWriteLocation) {
-    Assert.assertEquals(copyEntities.size(), expectedCopyEntitiesSize);
+    List<String> actualSrcFilePaths = new ArrayList<>();
     String srcWriteLocationStart = SRC_FS_URI + SRC_WRITE_LOCATION;
     String destWriteLocationStart = DEST_FS_URI + (sameSrcAndDestWriteLocation ? SRC_WRITE_LOCATION : DEST_WRITE_LOCATION);
     String srcErrorMsg = String.format("Source Location should start with %s", srcWriteLocationStart);
@@ -249,6 +255,7 @@ public class IcebergPartitionDatasetTest {
       String json = copyEntity.toString();
       if (IcebergDatasetTest.isCopyableFile(json)) {
         String originFilepath = IcebergDatasetTest.CopyEntityDeserializer.getOriginFilePathAsStringFromJson(json);
+        actualSrcFilePaths.add(originFilepath);
         String destFilepath = IcebergDatasetTest.CopyEntityDeserializer.getDestinationFilePathAsStringFromJson(json);
         Assert.assertTrue(originFilepath.startsWith(srcWriteLocationStart), srcErrorMsg);
         Assert.assertTrue(destFilepath.startsWith(destWriteLocationStart), destErrorMsg);
@@ -261,6 +268,9 @@ public class IcebergPartitionDatasetTest {
         IcebergDatasetTest.verifyPostPublishStep(json, OVERWRITE_COMMIT_STEP);
       }
     }
+    Assert.assertEquals(actualSrcFilePaths.size(), expectedSrcFilePaths.size(),
+        "Set" + actualSrcFilePaths + " vs Set" + expectedSrcFilePaths);
+    Assert.assertEqualsNoOrder(actualSrcFilePaths.toArray(), expectedSrcFilePaths.toArray());
   }
 
   /**

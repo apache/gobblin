@@ -27,6 +27,7 @@ import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -120,8 +121,9 @@ public class IcebergTableTest extends HiveMetastoreTest {
   @Test(expectedExceptions = {IcebergTable.TableNotFoundException.class})
   public void testGetCurrentSnapshotInfoOnBogusTable() throws IOException {
     TableIdentifier bogusTableId = TableIdentifier.of(dbName, tableName + "_BOGUS");
-    // Passing null for Table as catalog.loadTable(bogusTableId) will throw NoSuchTableException so
-    // IcebergTable instance couldn't be created and the goal of this test will not be achieved
+    // Passing null for Table as catalog.loadTable(bogusTableId) will throw
+    // org.apache.iceberg.exceptions.NoSuchTableException,
+    // so IcebergTable instance couldn't be created and the goal of this test will not be achieved
     IcebergSnapshotInfo snapshotInfo = new IcebergTable(bogusTableId, catalog.newTableOps(bogusTableId), catalogUri,
         null).getCurrentSnapshotInfo();
     Assert.fail("expected an exception when using table ID '" + bogusTableId + "'");
@@ -229,6 +231,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
   /** Verify that getPartitionSpecificDataFiles return datafiles belonging to the partition defined by predicate */
   @Test
   public void testGetPartitionSpecificDataFiles() throws IOException {
+    // Note - any specific file path format is not mandatory to be mapped to specific partition
     List<String> paths = Arrays.asList(
         "/path/tableName/data/id=1/file1.orc",
         "/path/tableName/data/file3.orc",
@@ -239,10 +242,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     // Using the schema defined in start of this class
     PartitionData partitionData = new PartitionData(icebergPartitionSpec.partitionType());
     partitionData.set(0, "1");
-    Map<String, PartitionData> pathsWithPartitionData = Maps.newHashMap();
-    paths.forEach(path -> pathsWithPartitionData.put(path, partitionData));
 
-    addPartitionDataFiles(table, createDataFiles(pathsWithPartitionData));
+    addPartitionDataFiles(table, createDataFiles(paths.stream().collect(Collectors.toMap(Function.identity(), v -> partitionData))));
 
     IcebergTable icebergTable = new IcebergTable(tableId,
         catalog.newTableOps(tableId),
@@ -258,17 +259,16 @@ public class IcebergTableTest extends HiveMetastoreTest {
   /** Verify that overwritePartition replace data files belonging to given partition col and value */
   @Test
   public void testOverwritePartition() throws IOException {
+    // Note - any specific file path format is not mandatory to be mapped to specific partition
     List<String> paths = Arrays.asList(
         "/path/tableName/data/id=1/file1.orc",
         "/path/tableName/data/file2.orc"
     );
     // Using the schema defined in start of this class
-    PartitionData partitionData = new PartitionData(icebergPartitionSpec.partitionType());
-    partitionData.set(0, "1");
-    Map<String, PartitionData> pathsWithPartitionData = Maps.newHashMap();
-    paths.forEach(path -> pathsWithPartitionData.put(path, partitionData));
+    PartitionData partition1Data = new PartitionData(icebergPartitionSpec.partitionType());
+    partition1Data.set(0, "1");
 
-    addPartitionDataFiles(table, createDataFiles(pathsWithPartitionData));
+    addPartitionDataFiles(table, createDataFiles(paths.stream().collect(Collectors.toMap(Function.identity(), v -> partition1Data))));
 
     IcebergTable icebergTable = new IcebergTable(tableId,
         catalog.newTableOps(tableId),
@@ -282,12 +282,10 @@ public class IcebergTableTest extends HiveMetastoreTest {
         "/path/tableName/data/id=2/file4.orc"
     );
     // Using the schema defined in start of this class
-    PartitionData partitionData2 = new PartitionData(icebergPartitionSpec.partitionType());
-    partitionData2.set(0, "2");
-    Map<String, PartitionData> paths2WithPartitionData2 = Maps.newHashMap();
-    paths2.forEach(path -> paths2WithPartitionData2.put(path, partitionData2));
+    PartitionData partition2Data = new PartitionData(icebergPartitionSpec.partitionType());
+    partition2Data.set(0, "2");
 
-    List<DataFile> partition2DataFiles = createDataFiles(paths2WithPartitionData2);
+    List<DataFile> partition2DataFiles = createDataFiles(paths2.stream().collect(Collectors.toMap(Function.identity(), v -> partition2Data)));
     // here, since partition data with value 2 doesn't exist yet,
     // we expect it to get added to the table, w/o changing or deleting any other partitions
     icebergTable.overwritePartition(partition2DataFiles, "id", "2");
@@ -300,9 +298,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
         "/path/tableName/data/file6.orc"
     );
     // Reusing same partition data to create data file with different paths
-    Map<String, PartitionData> paths3WithPartitionData = Maps.newHashMap();
-    paths3.forEach(path -> paths3WithPartitionData.put(path, partitionData));
-    List<DataFile> partition1NewDataFiles = createDataFiles(paths3WithPartitionData);
+    List<DataFile> partition1NewDataFiles = createDataFiles(paths3.stream().collect(Collectors.toMap(Function.identity(), v -> partition1Data)));
     // here, since partition data with value 1 already exists, we expect it to get updated in the table with newer path
     icebergTable.overwritePartition(partition1NewDataFiles, "id", "1");
     List<String> expectedPaths3 = new ArrayList<>(paths2);

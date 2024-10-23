@@ -237,7 +237,7 @@ public class IcebergTable {
    * @throws RuntimeException if error occurred while reading the manifest file
    */
   public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate)
-      throws TableNotFoundException {
+      throws IOException {
     TableMetadata tableMetadata = accessTableMetadata();
     Snapshot currentSnapshot = tableMetadata.currentSnapshot();
     long currentSnapshotId = currentSnapshot.snapshotId();
@@ -261,7 +261,7 @@ public class IcebergTable {
         String errMsg = String.format("~%s~ for snapshot '%d' - Failed to read manifest file: %s", tableId,
             currentSnapshotId, manifestFile.path());
         log.error(errMsg, e);
-        throw new RuntimeException(errMsg, e);
+        throw new IOException(errMsg, e);
       }
     }
     return knownDataFiles;
