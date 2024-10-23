@@ -193,14 +193,16 @@ public class IcebergPartitionDataset extends IcebergDataset {
   private Map<Path, FileStatus> calcSrcFileStatusByDestFilePath(Map<Path, DataFile> destDataFileBySrcPath)
       throws IOException {
     Function<Path, FileStatus> getFileStatus = CheckedExceptionFunction.wrapToTunneled(this.sourceFs::getFileStatus);
+    Map<Path, FileStatus> srcFileStatusByDestFilePath = Maps.newHashMap();
     try {
-      return destDataFileBySrcPath.entrySet()
+      srcFileStatusByDestFilePath = destDataFileBySrcPath.entrySet()
           .stream()
           .collect(Collectors.toMap(entry -> new Path(entry.getValue().path().toString()),
               entry -> getFileStatus.apply(entry.getKey())));
     } catch (CheckedExceptionFunction.WrappedIOException wrapper) {
       wrapper.rethrowWrapped();
     }
+    return srcFileStatusByDestFilePath;
   }
 
   private PostPublishStep createOverwritePostPublishStep(List<DataFile> destDataFiles) {
