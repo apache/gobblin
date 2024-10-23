@@ -45,10 +45,10 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
   @Override
   public IcebergTable openTable(String dbName, String tableName) throws IcebergTable.TableNotFoundException {
     TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
-    return Optional.of(new IcebergTable(tableId, calcDatasetDescriptorName(tableId), getDatasetDescriptorPlatform(),
+    return new IcebergTable(tableId, calcDatasetDescriptorName(tableId), getDatasetDescriptorPlatform(),
         createTableOperations(tableId),
         this.getCatalogUri(),
-        loadTableInstance(tableId))).orElseThrow(() -> new IcebergTable.TableNotFoundException(tableId));
+        loadTableInstance(tableId));
   }
 
   protected Catalog createCompanionCatalog(Map<String, String> properties, Configuration configuration) {
@@ -73,5 +73,5 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
 
   protected abstract TableOperations createTableOperations(TableIdentifier tableId);
 
-  protected abstract Table loadTableInstance(TableIdentifier tableId);
+  protected abstract Table loadTableInstance(TableIdentifier tableId) throws IcebergTable.TableNotFoundException;
 }

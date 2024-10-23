@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.util.Map;
 
+import java.util.Optional;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.hive.conf.HiveConf;
 import org.apache.iceberg.Table;
@@ -64,7 +65,11 @@ public class IcebergHiveCatalog extends BaseIcebergCatalog {
   }
 
   @Override
-  protected Table loadTableInstance(TableIdentifier tableId) {
-    return hc.loadTable(tableId);
+  protected Table loadTableInstance(TableIdentifier tableId) throws IcebergTable.TableNotFoundException {
+    try {
+      return hc.loadTable(tableId);
+    } catch (Exception e) {
+      throw new IcebergTable.TableNotFoundException(tableId);
+    }
   }
 }
