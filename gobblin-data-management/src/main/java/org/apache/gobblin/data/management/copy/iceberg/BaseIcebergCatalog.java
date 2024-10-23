@@ -21,10 +21,12 @@ import java.util.Map;
 
 import org.apache.hadoop.conf.Configuration;
 import org.apache.iceberg.CatalogUtil;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.Catalog;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.gobblin.dataset.DatasetConstants;
+import org.apache.iceberg.exceptions.NoSuchTableException;
 
 /**
  * Base implementation of {@link IcebergCatalog} to access {@link IcebergTable} and the
@@ -41,9 +43,15 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
   }
 
   @Override
-  public IcebergTable openTable(String dbName, String tableName) {
+  public IcebergTable openTable(String dbName, String tableName) throws IcebergTable.TableNotFoundException {
     TableIdentifier tableId = TableIdentifier.of(dbName, tableName);
-    return new IcebergTable(tableId, calcDatasetDescriptorName(tableId), getDatasetDescriptorPlatform(), createTableOperations(tableId), this.getCatalogUri());
+    try {
+      return new IcebergTable(tableId, calcDatasetDescriptorName(tableId), getDatasetDescriptorPlatform(),
+          createTableOperations(tableId), this.getCatalogUri(), loadTableInstance(tableId));
+    } catch (NoSuchTableException ex) {
+      // defend against `org.apache.iceberg.catalog.Catalog::loadTable` throwing inside some `@Override` of `loadTableInstance`
+      throw new IcebergTable.TableNotFoundException(tableId);
+    }
   }
 
   protected Catalog createCompanionCatalog(Map<String, String> properties, Configuration configuration) {
@@ -67,4 +75,6 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
   }
 
   protected abstract TableOperations createTableOperations(TableIdentifier tableId);
+
+  protected abstract Table loadTableInstance(TableIdentifier tableId);
 }

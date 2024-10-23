@@ -20,20 +20,29 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.iceberg.DataFile;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
+import org.apache.iceberg.ManifestReader;
+import org.apache.iceberg.OverwriteFiles;
 import org.apache.iceberg.Snapshot;
+import org.apache.iceberg.StructLike;
+import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.io.CloseableIterable;
+import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.io.FileIO;
 
 import com.google.common.annotations.VisibleForTesting;
@@ -47,6 +56,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
+import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 
 import static org.apache.gobblin.data.management.copy.iceberg.IcebergSnapshotInfo.ManifestFileInfo;
 
@@ -77,10 +87,11 @@ public class IcebergTable {
   private final String datasetDescriptorPlatform;
   private final TableOperations tableOps;
   private final String catalogUri;
+  private final Table table;
 
   @VisibleForTesting
-  IcebergTable(TableIdentifier tableId, TableOperations tableOps, String catalogUri) {
-    this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri);
+  IcebergTable(TableIdentifier tableId, TableOperations tableOps, String catalogUri, Table table) {
+    this(tableId, tableId.toString(), DatasetConstants.PLATFORM_ICEBERG, tableOps, catalogUri, table);
   }
 
   /** @return metadata info limited to the most recent (current) snapshot */
@@ -217,4 +228,74 @@ public class IcebergTable {
       this.tableOps.commit(dstMetadata, srcMetadata);
     }
   }
+
+  /**
+   * Retrieves a list of data files from the current snapshot that match the specified partition filter predicate.
+   *
+   * @param icebergPartitionFilterPredicate the predicate to filter partitions
+   * @return a list of data files that match the partition filter predicate
+   * @throws TableNotFoundException if error occurred while accessing the table metadata
+   * @throws RuntimeException if error occurred while reading the manifest file
+   */
+  public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate)
+      throws IOException {
+    TableMetadata tableMetadata = accessTableMetadata();
+    Snapshot currentSnapshot = tableMetadata.currentSnapshot();
+    long currentSnapshotId = currentSnapshot.snapshotId();
+    List<DataFile> knownDataFiles = new ArrayList<>();
+    GrowthMilestoneTracker growthMilestoneTracker = new GrowthMilestoneTracker();
+    //TODO: Add support for deleteManifests as well later
+    // Currently supporting dataManifests only
+    List<ManifestFile> dataManifestFiles = currentSnapshot.dataManifests(this.tableOps.io());
+    for (ManifestFile manifestFile : dataManifestFiles) {
+      if (growthMilestoneTracker.isAnotherMilestone(knownDataFiles.size())) {
+        log.info("~{}~ for snapshot '{}' - before manifest-file '{}' '{}' total known iceberg datafiles", tableId,
+            currentSnapshotId,
+            manifestFile.path(),
+            knownDataFiles.size()
+        );
+      }
+      try (ManifestReader<DataFile> manifestReader = ManifestFiles.read(manifestFile, this.tableOps.io());
+          CloseableIterator<DataFile> dataFiles = manifestReader.iterator()) {
+        dataFiles.forEachRemaining(dataFile -> {
+          if (icebergPartitionFilterPredicate.test(dataFile.partition())) {
+            knownDataFiles.add(dataFile.copy());
+          }
+        });
+      } catch (IOException e) {
+        String errMsg = String.format("~%s~ for snapshot '%d' - Failed to read manifest file: %s", tableId,
+            currentSnapshotId, manifestFile.path());
+        log.error(errMsg, e);
+        throw new IOException(errMsg, e);
+      }
+    }
+    return knownDataFiles;
+  }
+
+  /**
+   * Overwrite partition data files in the table for the specified partition col name & partition value.
+   * <p>
+   *   Overwrite partition replaces the partition using the expression filter provided.
+   * </p>
+   * @param dataFiles the list of data files to replace partitions with
+   * @param partitionColName the partition column name whose data files are to be replaced
+   * @param partitionValue  the partition column value on which data files will be replaced
+   */
+  protected void overwritePartition(List<DataFile> dataFiles, String partitionColName, String partitionValue)
+      throws TableNotFoundException {
+    if (dataFiles.isEmpty()) {
+      return;
+    }
+    log.info("~{}~ SnapshotId before overwrite: {}", tableId, accessTableMetadata().currentSnapshot().snapshotId());
+    OverwriteFiles overwriteFiles = this.table.newOverwrite();
+    overwriteFiles.overwriteByRowFilter(Expressions.equal(partitionColName, partitionValue));
+    dataFiles.forEach(overwriteFiles::addFile);
+    overwriteFiles.commit();
+    this.tableOps.refresh();
+    // Note : this would only arise in a high-frequency commit scenario, but there's no guarantee that the current
+    // snapshot is necessarily the one from the commit just before. another writer could have just raced to commit
+    // in between.
+    log.info("~{}~ SnapshotId after overwrite: {}", tableId, accessTableMetadata().currentSnapshot().snapshotId());
+  }
+
 }

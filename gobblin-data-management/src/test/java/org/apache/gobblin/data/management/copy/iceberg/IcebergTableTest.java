@@ -21,11 +21,13 @@ import java.io.File;
 import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -33,8 +35,11 @@ import org.apache.iceberg.AppendFiles;
 import org.apache.iceberg.CatalogProperties;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
+import org.apache.iceberg.FileFormat;
+import org.apache.iceberg.PartitionData;
 import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Schema;
+import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.avro.AvroSchemaUtil;
@@ -61,7 +66,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
           .fields()
           .name("id")
           .type()
-          .longType()
+          .stringType()
           .noDefault()
           .endRecord();
   protected static final Schema icebergSchema = AvroSchemaUtil.toIceberg(avroDataSchema);
@@ -71,6 +76,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
 
   private final String dbName = "myicebergdb";
   private final String tableName = "justtesting";
+  private final String destTableName = "destTable";
   private TableIdentifier tableId;
   private Table table;
   private String catalogUri;
@@ -85,7 +91,7 @@ public class IcebergTableTest extends HiveMetastoreTest {
   @BeforeMethod
   public void setUpEachTest() {
     tableId = TableIdentifier.of(dbName, tableName);
-    table = catalog.createTable(tableId, icebergSchema);
+    table = catalog.createTable(tableId, icebergSchema, icebergPartitionSpec);
     catalogUri = catalog.getConf().get(CatalogProperties.URI);
     metadataBasePath = calcMetadataBasePath(tableId);
   }
@@ -106,7 +112,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    IcebergSnapshotInfo snapshotInfo = new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri).getCurrentSnapshotInfo();
+    IcebergSnapshotInfo snapshotInfo = new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri,
+        catalog.loadTable(tableId)).getCurrentSnapshotInfo();
     verifySnapshotInfo(snapshotInfo, perSnapshotFilesets, perSnapshotFilesets.size());
   }
 
@@ -114,7 +121,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
   @Test(expectedExceptions = IcebergTable.TableNotFoundException.class)
   public void testGetCurrentSnapshotInfoOnBogusTable() throws IOException {
     TableIdentifier bogusTableId = TableIdentifier.of(dbName, tableName + "_BOGUS");
-    IcebergSnapshotInfo snapshotInfo = new IcebergTable(bogusTableId, catalog.newTableOps(bogusTableId), catalogUri).getCurrentSnapshotInfo();
+    IcebergSnapshotInfo snapshotInfo = new IcebergTable(bogusTableId, catalog.newTableOps(bogusTableId), catalogUri,
+        null).getCurrentSnapshotInfo();
     Assert.fail("expected an exception when using table ID '" + bogusTableId + "'");
   }
 
@@ -129,7 +137,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri).getAllSnapshotInfosIterator());
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId),
+        catalogUri, catalog.loadTable(tableId)).getAllSnapshotInfosIterator());
     Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
 
     for (int i = 0; i < snapshotInfos.size(); ++i) {
@@ -149,7 +158,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri).getIncrementalSnapshotInfosIterator());
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId),
+        catalogUri, catalog.loadTable(tableId)).getIncrementalSnapshotInfosIterator());
     Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
 
     for (int i = 0; i < snapshotInfos.size(); ++i) {
@@ -169,7 +179,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
     );
 
     initializeSnapshots(table, perSnapshotFilesets);
-    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri).getIncrementalSnapshotInfosIterator());
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(new IcebergTable(tableId, catalog.newTableOps(tableId),
+        catalogUri, catalog.loadTable(tableId)).getIncrementalSnapshotInfosIterator());
     Assert.assertEquals(snapshotInfos.size(), perSnapshotFilesets.size(), "num snapshots");
 
     for (int i = 0; i < snapshotInfos.size(); ++i) {
@@ -197,10 +208,11 @@ public class IcebergTableTest extends HiveMetastoreTest {
     // Expect existing property values to be deleted if it does not exist on the source
     destTableProperties.put("deletedTableProperty", "deletedTablePropertyValue");
 
-    TableIdentifier destTableId = TableIdentifier.of(dbName, "destTable");
+    TableIdentifier destTableId = TableIdentifier.of(dbName, destTableName);
     catalog.createTable(destTableId, icebergSchema, null, destTableProperties);
 
-    IcebergTable destIcebergTable = new IcebergTable(destTableId, catalog.newTableOps(destTableId), catalogUri);
+    IcebergTable destIcebergTable = new IcebergTable(destTableId, catalog.newTableOps(destTableId), catalogUri,
+        catalog.loadTable(destTableId));
     // Mock a source table with the same table UUID copying new properties
     TableMetadata newSourceTableProperties = destIcebergTable.accessTableMetadata().replaceProperties(srcTableProperties);
 
@@ -209,6 +221,86 @@ public class IcebergTableTest extends HiveMetastoreTest {
     Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().get("newKey"), "newValue");
     Assert.assertEquals(destIcebergTable.accessTableMetadata().properties().get("testKey"), "testValueNew");
     Assert.assertNull(destIcebergTable.accessTableMetadata().properties().get("deletedTableProperty"));
+
+    catalog.dropTable(destTableId);
+  }
+
+  /** Verify that getPartitionSpecificDataFiles return datafiles belonging to the partition defined by predicate */
+  @Test
+  public void testGetPartitionSpecificDataFiles() throws IOException {
+    // Note - any specific file path format is not mandatory to be mapped to specific partition
+    List<String> paths = Arrays.asList(
+        "/path/tableName/data/id=1/file1.orc",
+        "/path/tableName/data/file3.orc",
+        "/path/tableName/data/id=2/file5.orc",
+        "/path/tableName/data/file4.orc",
+        "/path/tableName/data/id=3/file2.orc"
+    );
+    // Using the schema defined in start of this class
+    PartitionData partitionData = new PartitionData(icebergPartitionSpec.partitionType());
+    partitionData.set(0, "1");
+
+    addPartitionDataFiles(table, createDataFiles(paths.stream().collect(Collectors.toMap(Function.identity(), v -> partitionData))));
+
+    IcebergTable icebergTable = new IcebergTable(tableId,
+        catalog.newTableOps(tableId),
+        catalogUri,
+        catalog.loadTable(tableId));
+    // Using AlwaysTrue & AlwaysFalse Predicate to avoid mocking of predicate class
+    Predicate<StructLike> alwaysTruePredicate = partition -> true;
+    Predicate<StructLike> alwaysFalsePredicate = partition -> false;
+    Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysTruePredicate).size(), 5);
+    Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysFalsePredicate).size(), 0);
+  }
+
+  /** Verify that overwritePartition replace data files belonging to given partition col and value */
+  @Test
+  public void testOverwritePartition() throws IOException {
+    // Note - any specific file path format is not mandatory to be mapped to specific partition
+    List<String> paths = Arrays.asList(
+        "/path/tableName/data/id=1/file1.orc",
+        "/path/tableName/data/file2.orc"
+    );
+    // Using the schema defined in start of this class
+    PartitionData partition1Data = new PartitionData(icebergPartitionSpec.partitionType());
+    partition1Data.set(0, "1");
+
+    addPartitionDataFiles(table, createDataFiles(paths.stream().collect(Collectors.toMap(Function.identity(), v -> partition1Data))));
+
+    IcebergTable icebergTable = new IcebergTable(tableId,
+        catalog.newTableOps(tableId),
+        catalogUri,
+        catalog.loadTable(tableId));
+
+    verifyAnyOrder(paths, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
+
+    List<String> paths2 = Arrays.asList(
+        "/path/tableName/data/file3.orc",
+        "/path/tableName/data/id=2/file4.orc"
+    );
+    // Using the schema defined in start of this class
+    PartitionData partition2Data = new PartitionData(icebergPartitionSpec.partitionType());
+    partition2Data.set(0, "2");
+
+    List<DataFile> partition2DataFiles = createDataFiles(paths2.stream().collect(Collectors.toMap(Function.identity(), v -> partition2Data)));
+    // here, since partition data with value 2 doesn't exist yet,
+    // we expect it to get added to the table, w/o changing or deleting any other partitions
+    icebergTable.overwritePartition(partition2DataFiles, "id", "2");
+    List<String> expectedPaths2 = new ArrayList<>(paths);
+    expectedPaths2.addAll(paths2);
+    verifyAnyOrder(expectedPaths2, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
+
+    List<String> paths3 = Arrays.asList(
+        "/path/tableName/data/id=2/file5.orc",
+        "/path/tableName/data/file6.orc"
+    );
+    // Reusing same partition data to create data file with different paths
+    List<DataFile> partition1NewDataFiles = createDataFiles(paths3.stream().collect(Collectors.toMap(Function.identity(), v -> partition1Data)));
+    // here, since partition data with value 1 already exists, we expect it to get updated in the table with newer path
+    icebergTable.overwritePartition(partition1NewDataFiles, "id", "1");
+    List<String> expectedPaths3 = new ArrayList<>(paths2);
+    expectedPaths3.addAll(paths3);
+    verifyAnyOrder(expectedPaths3, icebergTable.getCurrentSnapshotInfo().getAllDataFilePaths(), "data filepaths should match");
   }
 
   /** full validation for a particular {@link IcebergSnapshotInfo} */
@@ -333,4 +425,25 @@ public class IcebergTableTest extends HiveMetastoreTest {
   protected static <T, C extends Collection<T>> List<T> flatten(Collection<C> cc) {
     return cc.stream().flatMap(x -> x.stream()).collect(Collectors.toList());
   }
+
+  private static void addPartitionDataFiles(Table table, List<DataFile> dataFiles) {
+    dataFiles.forEach(dataFile -> table.newAppend().appendFile(dataFile).commit());
+  }
+
+  private static List<DataFile> createDataFiles(Map<String, PartitionData> pathWithPartitionData) {
+    return pathWithPartitionData.entrySet().stream()
+        .map(e -> createDataFileWithPartition(e.getKey(), e.getValue()))
+        .collect(Collectors.toList());
+  }
+
+  private static DataFile createDataFileWithPartition(String path, PartitionData partitionData) {
+    return DataFiles.builder(icebergPartitionSpec)
+        .withPath(path)
+        .withFileSizeInBytes(8)
+        .withRecordCount(1)
+        .withPartition(partitionData)
+        .withFormat(FileFormat.ORC)
+        .build();
+  }
+
 }
