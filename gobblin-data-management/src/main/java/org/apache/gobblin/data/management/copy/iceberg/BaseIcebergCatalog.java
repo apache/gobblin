@@ -49,6 +49,7 @@ public abstract class BaseIcebergCatalog implements IcebergCatalog {
       return new IcebergTable(tableId, calcDatasetDescriptorName(tableId), getDatasetDescriptorPlatform(),
           createTableOperations(tableId), this.getCatalogUri(), loadTableInstance(tableId));
     } catch (NoSuchTableException ex) {
+      // defend against `org.apache.iceberg.catalog.Catalog::loadTable` throwing inside some `@Override` of `loadTableInstance`
       throw new IcebergTable.TableNotFoundException(tableId);
     }
   }

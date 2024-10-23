@@ -118,12 +118,9 @@ public class IcebergTableTest extends HiveMetastoreTest {
   }
 
   /** Verify failure when attempting to get current snapshot info for non-existent table */
-  @Test(expectedExceptions = {IcebergTable.TableNotFoundException.class})
+  @Test(expectedExceptions = IcebergTable.TableNotFoundException.class)
   public void testGetCurrentSnapshotInfoOnBogusTable() throws IOException {
     TableIdentifier bogusTableId = TableIdentifier.of(dbName, tableName + "_BOGUS");
-    // Passing null for Table as catalog.loadTable(bogusTableId) will throw
-    // org.apache.iceberg.exceptions.NoSuchTableException,
-    // so IcebergTable instance couldn't be created and the goal of this test will not be achieved
     IcebergSnapshotInfo snapshotInfo = new IcebergTable(bogusTableId, catalog.newTableOps(bogusTableId), catalogUri,
         null).getCurrentSnapshotInfo();
     Assert.fail("expected an exception when using table ID '" + bogusTableId + "'");

@@ -56,7 +56,6 @@ import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.CopyableDataset;
 import org.apache.gobblin.util.function.CheckedExceptionFunction;
-import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
 import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergMatchesAnyPropNamePartitionFilterPredicate;
 import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicateUtil;
 
@@ -130,7 +129,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
       copyEntities.add(createOverwritePostPublishStep(destDataFiles));
     }
 
-    log.info("~{}~ generated {} copy--entities", fileSet, copyEntities.size());
+    log.info("~{}~ generated {} copy entities", fileSet, copyEntities.size());
     return copyEntities;
   }
 
@@ -160,7 +159,6 @@ public class IcebergPartitionDataset extends IcebergDataset {
           destWriteDataLocation
       );
     }
-    GrowthMilestoneTracker growthMilestoneTracker = new GrowthMilestoneTracker();
     srcDataFiles.forEach(dataFile -> {
       String srcFilePath = dataFile.path().toString();
       Path updatedDestFilePath = relocateDestPath(srcFilePath, srcWriteDataLocation, destWriteDataLocation);
@@ -169,9 +167,6 @@ public class IcebergPartitionDataset extends IcebergDataset {
           .copy(dataFile)
           .withPath(updatedDestFilePath.toString())
           .build());
-      if (growthMilestoneTracker.isAnotherMilestone(destDataFileBySrcPath.size())) {
-        log.info("~{}~ created {} destination data files", fileSet, destDataFileBySrcPath.size());
-      }
     });
     log.info("~{}~ created {} destination data files", fileSet, destDataFileBySrcPath.size());
     return destDataFileBySrcPath;
