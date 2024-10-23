@@ -59,6 +59,11 @@ public class IcebergHiveCatalog extends BaseIcebergCatalog {
   }
 
   @Override
+  protected Table loadTableInstance(TableIdentifier tableId) {
+    return hc.loadTable(tableId);
+  }
+
+  @Override
   public boolean tableAlreadyExists(IcebergTable icebergTable) {
     return hc.tableExists(icebergTable.getTableId());
   }
