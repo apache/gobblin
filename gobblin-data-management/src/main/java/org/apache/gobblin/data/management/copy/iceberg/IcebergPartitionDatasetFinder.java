@@ -46,7 +46,7 @@ public class IcebergPartitionDatasetFinder extends IcebergDatasetFinder {
   @Override
   protected IcebergDataset createSpecificDataset(IcebergTable srcIcebergTable, IcebergTable destIcebergTable,
       Properties properties, FileSystem fs, boolean shouldIncludeMetadataPath) throws IOException {
-    IcebergTableMetadataValidatorUtils.validateSourceAndDestinationTablesMetadata(
+    IcebergTableMetadataValidatorUtils.failUnlessCompatibleStructure(
         srcIcebergTable.accessTableMetadata(), destIcebergTable.accessTableMetadata());
 
     String partitionColumnName = getLocationQualifiedProperty(properties, IcebergDatasetFinder.CatalogLocation.SOURCE,

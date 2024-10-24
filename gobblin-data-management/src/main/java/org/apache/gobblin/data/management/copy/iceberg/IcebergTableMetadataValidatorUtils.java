@@ -37,60 +37,58 @@ public class IcebergTableMetadataValidatorUtils {
   }
 
   /**
-   * Validates the metadata of the source and destination Iceberg tables.
-   *
-   * @param srcTableMetadata  the metadata of the source table
-   * @param destTableMetadata the metadata of the destination table
-   * @throws IOException if the schemas or partition specifications do not match
+   * Compares the metadata of the given two iceberg tables.
+   * <ul>
+   *   <li>First compares the schema of the metadata.</li>
+   *   <li>Then compares the partition spec of the metadata.</li>
+   * </ul>
+   * @param tableAMetadata  the metadata of the first table
+   * @param tableBMetadata the metadata of the second table
+   * @throws IOException if the schemas or partition spec do not match
    */
-  public static void validateSourceAndDestinationTablesMetadata(TableMetadata srcTableMetadata,
-      TableMetadata destTableMetadata) throws IOException {
-    log.info("Starting validation of Source : {} and Destination : {} Iceberg Tables Metadata",
-        srcTableMetadata.location(),
-        destTableMetadata.location());
-    Schema srcTableSchema = srcTableMetadata.schema();
-    Schema destTableSchema = destTableMetadata.schema();
-    PartitionSpec srcPartitionSpec = srcTableMetadata.spec();
-    PartitionSpec destPartitionSpec = destTableMetadata.spec();
-    validateSchemaForEquality(srcTableSchema, destTableSchema);
-    validatePartitionSpecForEquality(srcPartitionSpec, destPartitionSpec);
-    log.info("Validation of Source : {} and Destination : {} Iceberg Tables Metadata completed successfully",
-        srcTableMetadata.location(),
-        destTableMetadata.location());
-  }
+  public static void failUnlessCompatibleStructure(TableMetadata tableAMetadata,
+      TableMetadata tableBMetadata) throws IOException {
+    log.info("Starting comparison between iceberg tables with metadata file location : {} and {}",
+        tableAMetadata.metadataFileLocation(),
+        tableBMetadata.metadataFileLocation());
 
-  private static void validateSchemaForEquality(Schema srcTableSchema, Schema destTableSchema) throws IOException {
-    // TODO: Need to add support for schema evolution, currently only supporting copying
-    //  between iceberg tables with same schema.
+    Schema tableASchema = tableAMetadata.schema();
+    Schema tableBSchema = tableBMetadata.schema();
+    // TODO: Need to add support for schema evolution
     //  This function needs to be broken down into multiple functions to support schema evolution
-    //  Possible cases - Src Schema == Dest Schema,
-    //  - Src Schema is subset of Dest Schema [ Destination Schema Evolved ],
-    //  - Src Schema is superset of Dest Schema [ Source Schema Evolved ],
+    //  Possible cases - tableASchema == tableBSchema,
+    //  - tableASchema is subset of tableBSchema [ tableBSchema Evolved ],
+    //  - tableASchema is superset of tableBSchema [ tableASchema Evolved ],
     //  - Other cases?
     //  Also consider using Strategy or any other design pattern for this to make it a better solution
-    if (!srcTableSchema.sameSchema(destTableSchema)) {
+    if (!tableASchema.sameSchema(tableBSchema)) {
       String errMsg = String.format(
-          "Schema Mismatch between Source and Destination Iceberg Tables Schema - Source-Schema-Id : {%s} and "
-              + "Destination-Schema-Id : {%s}",
-          srcTableSchema.schemaId(),
-          destTableSchema.schemaId()
+          "Schema Mismatch between Metadata{%s} - SchemaId{%d} and Metadata{%s} - SchemaId{%d}",
+          tableAMetadata.metadataFileLocation(),
+          tableASchema.schemaId(),
+          tableBMetadata.metadataFileLocation(),
+          tableBSchema.schemaId()
       );
       log.error(errMsg);
       throw new IOException(errMsg);
     }
-  }
 
-  private static void validatePartitionSpecForEquality(PartitionSpec srcPartitionSpec, PartitionSpec destPartitionSpec)
-      throws IOException {
-    // Currently, only supporting copying between iceberg tables with same partition spec
-    if (!srcPartitionSpec.compatibleWith(destPartitionSpec)) {
+    PartitionSpec tableAPartitionSpec = tableAMetadata.spec();
+    PartitionSpec tableBPartitionSpec = tableBMetadata.spec();
+    if (!tableAPartitionSpec.compatibleWith(tableBPartitionSpec)) {
       String errMsg = String.format(
-          "Partition Spec Mismatch between Source and Destination Iceberg Tables Partition Spec - Source : {%s} and Destination : {%s}",
-          srcPartitionSpec,
-          destPartitionSpec
+          "Partition Spec Mismatch between Metadata{%s} - PartitionSpecId{%d} and Metadata{%s} - PartitionSpecId{%d}",
+          tableAMetadata.metadataFileLocation(),
+          tableAPartitionSpec.specId(),
+          tableBMetadata.metadataFileLocation(),
+          tableBPartitionSpec.specId()
       );
       log.error(errMsg);
       throw new IOException(errMsg);
     }
+
+    log.info("Comparison completed successfully between iceberg tables with metadata file location : {} and {}",
+        tableAMetadata.metadataFileLocation(),
+        tableBMetadata.metadataFileLocation());
   }
 }
