@@ -54,7 +54,7 @@ import org.apache.gobblin.util.HadoopUtils;
  */
 @lombok.NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @lombok.RequiredArgsConstructor
-@lombok.ToString(exclude = { "stateConfig", "cachedWorkItems" })
+@lombok.ToString(exclude = { "cachedWorkItems" })
 @Slf4j
 public abstract class AbstractEagerFsDirBackedWorkload<WORK_ITEM> implements Workload<WORK_ITEM>, FileSystemApt {
 
@@ -64,7 +64,6 @@ public abstract class AbstractEagerFsDirBackedWorkload<WORK_ITEM> implements Wor
   //   Cannot construct instance of `org.apache.hadoop.fs.Path` (although at least one Creator exists):
   //     cannot deserialize from Object value (no delegate- or property-based Creator)
   @NonNull private String fsDir;
-  @Getter(AccessLevel.PROTECTED) @Setter(AccessLevel.PROTECTED)
   private transient volatile WORK_ITEM[] cachedWorkItems = null;
 
   @Override
