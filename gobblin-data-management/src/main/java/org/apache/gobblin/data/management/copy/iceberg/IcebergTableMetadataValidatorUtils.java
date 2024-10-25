@@ -26,8 +26,7 @@ import org.apache.iceberg.TableMetadata;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * Validator for Iceberg table metadata, ensuring that the source and destination tables have
- * compatible schemas and partition specifications.
+ * Validator for Iceberg table metadata, ensuring that the given tables metadata have same schema and partition spec.
  */
 @Slf4j
 public class IcebergTableMetadataValidatorUtils {
@@ -55,7 +54,7 @@ public class IcebergTableMetadataValidatorUtils {
     Schema tableASchema = tableAMetadata.schema();
     Schema tableBSchema = tableBMetadata.schema();
     // TODO: Need to add support for schema evolution
-    //  This function needs to be broken down into multiple functions to support schema evolution
+    //  This check needs to be broken down into multiple checks to support schema evolution
     //  Possible cases - tableASchema == tableBSchema,
     //  - tableASchema is subset of tableBSchema [ tableBSchema Evolved ],
     //  - tableASchema is superset of tableBSchema [ tableASchema Evolved ],
