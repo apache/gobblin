@@ -43,10 +43,11 @@ public class IcebergTableMetadataValidatorUtils {
    * </ul>
    * @param tableAMetadata  the metadata of the first table
    * @param tableBMetadata the metadata of the second table
+   * @param strictEqualityForPartitionSpec boolean value to control strictness of partition spec comparison
    * @throws IOException if the schemas or partition spec do not match
    */
   public static void failUnlessCompatibleStructure(TableMetadata tableAMetadata,
-      TableMetadata tableBMetadata) throws IOException {
+      TableMetadata tableBMetadata, boolean strictEqualityForPartitionSpec) throws IOException {
     log.info("Starting comparison between iceberg tables with metadata file location : {} and {}",
         tableAMetadata.metadataFileLocation(),
         tableBMetadata.metadataFileLocation());
@@ -74,7 +75,10 @@ public class IcebergTableMetadataValidatorUtils {
 
     PartitionSpec tableAPartitionSpec = tableAMetadata.spec();
     PartitionSpec tableBPartitionSpec = tableBMetadata.spec();
-    if (!tableAPartitionSpec.compatibleWith(tableBPartitionSpec)) {
+    // .compatibleWith() doesn't match for specId of partition spec and fieldId of partition fields while .equals() does
+    boolean partitionSpecMatch = strictEqualityForPartitionSpec ? tableAPartitionSpec.equals(tableBPartitionSpec)
+        : tableAPartitionSpec.compatibleWith(tableBPartitionSpec);
+    if (!partitionSpecMatch) {
       String errMsg = String.format(
           "Partition Spec Mismatch between Metadata{%s} - PartitionSpecId{%d} and Metadata{%s} - PartitionSpecId{%d}",
           tableAMetadata.metadataFileLocation(),
