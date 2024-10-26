@@ -167,6 +167,27 @@ public class IcebergTableMetadataValidatorUtilsTest {
         tableMetadataWithSchema1AndPartitionSpec12, PARTITION_SPEC_MISMATCH_EXCEPTION);
   }
 
+  @Test
+  public void testStrictPartitionSpecEquality() throws IOException {
+    PartitionSpec partitionSpecWithTwoCols = PartitionSpec.builderFor(schema1)
+        .identity("field1")
+        .identity("field2")
+        .build();
+
+    TableMetadata tableMetadataWithSchema1AndPartitionSpecWithTwoCols = TableMetadata.newTableMetadata(schema1,
+        partitionSpecWithTwoCols, "tableLocationForSchema1WithPartitionSpecWithTwoCols", new HashMap<>());
+    TableMetadata updatedMetadataForTableMetadataWithSchema1AndPartitionSpec1 = tableMetadataWithSchema1AndPartitionSpec1
+        .updatePartitionSpec(tableMetadataWithSchema1AndPartitionSpecWithTwoCols.spec());
+
+    IcebergTableMetadataValidatorUtils.failUnlessCompatibleStructure(
+        tableMetadataWithSchema1AndPartitionSpecWithTwoCols,
+        updatedMetadataForTableMetadataWithSchema1AndPartitionSpec1,
+        false);
+
+    verifyFailUnlessCompatibleStructureIOException(tableMetadataWithSchema1AndPartitionSpecWithTwoCols,
+        updatedMetadataForTableMetadataWithSchema1AndPartitionSpec1, PARTITION_SPEC_MISMATCH_EXCEPTION);
+  }
+
   private void verifyFailUnlessCompatibleStructureIOException(TableMetadata tableAMetadata,
       TableMetadata tableBMetadata, String expectedMessage) {
     IOException exception = Assert.expectThrows(IOException.class, () -> {

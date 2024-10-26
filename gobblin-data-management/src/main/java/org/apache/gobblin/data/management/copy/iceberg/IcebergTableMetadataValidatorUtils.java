@@ -41,57 +41,57 @@ public class IcebergTableMetadataValidatorUtils {
    *   <li>First compares the schema of the metadata.</li>
    *   <li>Then compares the partition spec of the metadata.</li>
    * </ul>
-   * @param tableAMetadata  the metadata of the first table
-   * @param tableBMetadata the metadata of the second table
-   * @param strictEqualityForPartitionSpec boolean value to control strictness of partition spec comparison
+   * @param tableMetadataA  the metadata of the first table
+   * @param tableMetadataB the metadata of the second table
+   * @param validateStrictPartitionEquality boolean value to control strictness of partition spec comparison
    * @throws IOException if the schemas or partition spec do not match
    */
-  public static void failUnlessCompatibleStructure(TableMetadata tableAMetadata,
-      TableMetadata tableBMetadata, boolean strictEqualityForPartitionSpec) throws IOException {
+  public static void failUnlessCompatibleStructure(TableMetadata tableMetadataA,
+      TableMetadata tableMetadataB, boolean validateStrictPartitionEquality) throws IOException {
     log.info("Starting comparison between iceberg tables with metadata file location : {} and {}",
-        tableAMetadata.metadataFileLocation(),
-        tableBMetadata.metadataFileLocation());
+        tableMetadataA.metadataFileLocation(),
+        tableMetadataB.metadataFileLocation());
 
-    Schema tableASchema = tableAMetadata.schema();
-    Schema tableBSchema = tableBMetadata.schema();
+    Schema schemaA = tableMetadataA.schema();
+    Schema schemaB = tableMetadataB.schema();
     // TODO: Need to add support for schema evolution
     //  This check needs to be broken down into multiple checks to support schema evolution
-    //  Possible cases - tableASchema == tableBSchema,
-    //  - tableASchema is subset of tableBSchema [ tableBSchema Evolved ],
-    //  - tableASchema is superset of tableBSchema [ tableASchema Evolved ],
+    //  Possible cases - schemaA == schemaB,
+    //  - schemaA is subset of schemaB [ schemaB Evolved ],
+    //  - schemaA is superset of schemaB [ schemaA Evolved ],
     //  - Other cases?
     //  Also consider using Strategy or any other design pattern for this to make it a better solution
-    if (!tableASchema.sameSchema(tableBSchema)) {
+    if (!schemaA.sameSchema(schemaB)) {
       String errMsg = String.format(
           "Schema Mismatch between Metadata{%s} - SchemaId{%d} and Metadata{%s} - SchemaId{%d}",
-          tableAMetadata.metadataFileLocation(),
-          tableASchema.schemaId(),
-          tableBMetadata.metadataFileLocation(),
-          tableBSchema.schemaId()
+          tableMetadataA.metadataFileLocation(),
+          schemaA.schemaId(),
+          tableMetadataB.metadataFileLocation(),
+          schemaB.schemaId()
       );
       log.error(errMsg);
       throw new IOException(errMsg);
     }
 
-    PartitionSpec tableAPartitionSpec = tableAMetadata.spec();
-    PartitionSpec tableBPartitionSpec = tableBMetadata.spec();
+    PartitionSpec partitionSpecA = tableMetadataA.spec();
+    PartitionSpec partitionSpecB = tableMetadataB.spec();
     // .compatibleWith() doesn't match for specId of partition spec and fieldId of partition fields while .equals() does
-    boolean partitionSpecMatch = strictEqualityForPartitionSpec ? tableAPartitionSpec.equals(tableBPartitionSpec)
-        : tableAPartitionSpec.compatibleWith(tableBPartitionSpec);
+    boolean partitionSpecMatch = validateStrictPartitionEquality ? partitionSpecA.equals(partitionSpecB)
+        : partitionSpecA.compatibleWith(partitionSpecB);
     if (!partitionSpecMatch) {
       String errMsg = String.format(
           "Partition Spec Mismatch between Metadata{%s} - PartitionSpecId{%d} and Metadata{%s} - PartitionSpecId{%d}",
-          tableAMetadata.metadataFileLocation(),
-          tableAPartitionSpec.specId(),
-          tableBMetadata.metadataFileLocation(),
-          tableBPartitionSpec.specId()
+          tableMetadataA.metadataFileLocation(),
+          partitionSpecA.specId(),
+          tableMetadataB.metadataFileLocation(),
+          partitionSpecB.specId()
       );
       log.error(errMsg);
       throw new IOException(errMsg);
     }
 
     log.info("Comparison completed successfully between iceberg tables with metadata file location : {} and {}",
-        tableAMetadata.metadataFileLocation(),
-        tableBMetadata.metadataFileLocation());
+        tableMetadataA.metadataFileLocation(),
+        tableMetadataB.metadataFileLocation());
   }
 }
