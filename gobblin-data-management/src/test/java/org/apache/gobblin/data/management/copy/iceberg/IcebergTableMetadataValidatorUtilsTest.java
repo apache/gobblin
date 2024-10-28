@@ -63,12 +63,13 @@ public class IcebergTableMetadataValidatorUtilsTest {
       schema3, unpartitionedPartitionSpec, "tableLocationForSchema3WithUnpartitionedSpec", new HashMap<>());
   private static final String SCHEMA_MISMATCH_EXCEPTION = "Schema Mismatch between Metadata";
   private static final String PARTITION_SPEC_MISMATCH_EXCEPTION = "Partition Spec Mismatch between Metadata";
-  private static final boolean PARTITION_SPEC_STRICT_EQUALITY_CHECK = Boolean.TRUE;
+  private static final boolean VALIDATE_STRICT_PARTITION_EQUALITY_TRUE = Boolean.TRUE;
+  private static final boolean VALIDATE_STRICT_PARTITION_EQUALITY_FALSE = Boolean.FALSE;
   @Test
   public void testValidateSameSchema() throws IOException {
     IcebergTableMetadataValidatorUtils.failUnlessCompatibleStructure(
         tableMetadataWithSchema1AndUnpartitionedSpec, tableMetadataWithSchema1AndUnpartitionedSpec,
-        PARTITION_SPEC_STRICT_EQUALITY_CHECK
+        VALIDATE_STRICT_PARTITION_EQUALITY_TRUE
     );
   }
 
@@ -135,7 +136,7 @@ public class IcebergTableMetadataValidatorUtilsTest {
   public void testValidateSamePartitionSpec() throws IOException {
     IcebergTableMetadataValidatorUtils.failUnlessCompatibleStructure(
         tableMetadataWithSchema1AndPartitionSpec1, tableMetadataWithSchema1AndPartitionSpec1,
-        PARTITION_SPEC_STRICT_EQUALITY_CHECK
+        VALIDATE_STRICT_PARTITION_EQUALITY_TRUE
     );
   }
 
@@ -182,7 +183,7 @@ public class IcebergTableMetadataValidatorUtilsTest {
     IcebergTableMetadataValidatorUtils.failUnlessCompatibleStructure(
         tableMetadataWithSchema1AndPartitionSpecWithTwoCols,
         updatedMetadataForTableMetadataWithSchema1AndPartitionSpec1,
-        false);
+        VALIDATE_STRICT_PARTITION_EQUALITY_FALSE);
 
     verifyFailUnlessCompatibleStructureIOException(tableMetadataWithSchema1AndPartitionSpecWithTwoCols,
         updatedMetadataForTableMetadataWithSchema1AndPartitionSpec1, PARTITION_SPEC_MISMATCH_EXCEPTION);
@@ -192,7 +193,7 @@ public class IcebergTableMetadataValidatorUtilsTest {
       TableMetadata tableBMetadata, String expectedMessage) {
     IOException exception = Assert.expectThrows(IOException.class, () -> {
       IcebergTableMetadataValidatorUtils.failUnlessCompatibleStructure(tableAMetadata, tableBMetadata,
-          PARTITION_SPEC_STRICT_EQUALITY_CHECK);
+          VALIDATE_STRICT_PARTITION_EQUALITY_TRUE);
     });
     Assert.assertTrue(exception.getMessage().startsWith(expectedMessage));
   }
