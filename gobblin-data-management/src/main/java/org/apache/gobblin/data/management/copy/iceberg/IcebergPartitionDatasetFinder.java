@@ -39,7 +39,7 @@ public class IcebergPartitionDatasetFinder extends IcebergDatasetFinder {
   public static final String ICEBERG_PARTITION_NAME_KEY = "partition.name";
   public static final String ICEBERG_PARTITION_VALUE_KEY = "partition.value";
   public static final String ICEBERG_DATASET_PARTITION_VALIDATE_STRICT_EQUALITY = ICEBERG_DATASET_PREFIX + "partition.validate.strict.equality";
-  //  true, to ensure equality of the partitions' specId as well as the partitions' fields' fieldId
+  //  true, requires equality of the partitions' specId as well as the partitions' fields' fieldId
   public static final String DEFAULT_ICEBERG_DATASET_PARTITION_VALIDATE_STRICT_EQUALITY= "true";
 
   public IcebergPartitionDatasetFinder(FileSystem sourceFs, Properties properties) {
