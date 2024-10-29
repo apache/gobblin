@@ -36,7 +36,7 @@ public class WorkforceStaffing {
 
   @Data
   private static class SetPoint {
-    private final int point;
+    private final int numWorkers;
     private final long provenanceEpochMillis; // for debuggability
   }
 
@@ -63,7 +63,7 @@ public class WorkforceStaffing {
   }
 
   public Optional<Integer> getStaffing(String profileName) {
-    return Optional.ofNullable(setPointByName.get(profileName)).map(SetPoint::getPoint);
+    return Optional.ofNullable(setPointByName.get(profileName)).map(SetPoint::getNumWorkers);
   }
 
   public void reviseStaffing(String profileName, int setPoint, long provenanceEpochMillis) {
@@ -83,13 +83,13 @@ public class WorkforceStaffing {
     // not expecting any profile earlier in `reference` to no longer be set... (but defensive coding nonetheless)
     List<StaffingDeltas.ProfileDelta> profileDeltas = frozenReferenceSetPointsByName.entrySet().stream()
         .filter(entry -> !this.setPointByName.containsKey(entry.getKey()))
-        .map(entry -> new StaffingDeltas.ProfileDelta(profiles.getOrThrow(entry.getKey()), 0 - entry.getValue().getPoint(), UNKNOWN_PROVENANCE_EPOCH_MILLIS))
+        .map(entry -> new StaffingDeltas.ProfileDelta(profiles.getOrThrow(entry.getKey()), 0 - entry.getValue().getNumWorkers(), UNKNOWN_PROVENANCE_EPOCH_MILLIS))
         .collect(Collectors.toList());
     profileDeltas.addAll(this.setPointByName.entrySet().stream().map(entry -> {
-          Optional<Integer> optEquivReferenceSetPoint = Optional.ofNullable(frozenReferenceSetPointsByName.get(entry.getKey())).map(SetPoint::getPoint);
+          Optional<Integer> optEquivReferenceSetPoint = Optional.ofNullable(frozenReferenceSetPointsByName.get(entry.getKey())).map(SetPoint::getNumWorkers);
           return new StaffingDeltas.ProfileDelta(
               profiles.getOrThrow(entry.getKey()),
-              entry.getValue().getPoint() - optEquivReferenceSetPoint.orElse(0),
+              entry.getValue().getNumWorkers() - optEquivReferenceSetPoint.orElse(0),
               entry.getValue().getProvenanceEpochMillis());
             }
         ).filter(delta -> !delta.isUnchanged())

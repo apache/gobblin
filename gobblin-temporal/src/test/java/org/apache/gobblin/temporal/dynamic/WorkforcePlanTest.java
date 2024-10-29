@@ -40,17 +40,10 @@ public class WorkforcePlanTest {
     plan = new WorkforcePlan(baselineConfig, initialBaselineSetPoint);
   }
 
-  private static ScalingDirective createNewProfileDirective(String profileName, int setPoint, long epochMillis, String basisProfileName) {
-    return new ScalingDirective(profileName, setPoint, epochMillis, Optional.of(
-        new ProfileDerivation(basisProfileName, new ProfileOverlay.Adding(Lists.newArrayList(
-            new ProfileOverlay.KVPair("key1", "new_value"),
-            new ProfileOverlay.KVPair("key4", "value4"))))));
-  }
-
   @Test
   public void reviseWithValidReSetPoint() throws WorkforcePlan.IllegalRevisionException {
-    plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 7,10000L));
-    plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 1,20000L));
+    plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 7, 10000L));
+    plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 1, 20000L));
     Assert.assertEquals(plan.getLastRevisionEpochMillis(), 20000L);
     Assert.assertEquals(plan.getNumProfiles(), 1);
   }
@@ -59,7 +52,7 @@ public class WorkforcePlanTest {
   public void reviseWithValidDerivation() throws WorkforcePlan.IllegalRevisionException {
     Assert.assertEquals(plan.getLastRevisionEpochMillis(), WorkforceStaffing.INITIALIZATION_PROVENANCE_EPOCH_MILLIS);
     Assert.assertEquals(plan.getNumProfiles(), 1);
-    ScalingDirective directive = createNewProfileDirective("new_profile", 5,10000L, WorkforceProfiles.BASELINE_NAME);
+    ScalingDirective directive = createNewProfileDirective("new_profile", 5, 10000L, WorkforceProfiles.BASELINE_NAME);
     plan.revise(directive);
 
     Assert.assertEquals(plan.getLastRevisionEpochMillis(), 10000L);
@@ -74,14 +67,14 @@ public class WorkforcePlanTest {
     Assert.assertEquals(plan.getLastRevisionEpochMillis(), WorkforceStaffing.INITIALIZATION_PROVENANCE_EPOCH_MILLIS);
     Assert.assertEquals(plan.getNumProfiles(), 1);
     plan.reviseWhenNewer(Lists.newArrayList(
-        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 2,100L),
-        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 3,500L),
-        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 4,200L),
-        createNewProfileDirective("new_profile", 5,400L, WorkforceProfiles.BASELINE_NAME),
+        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 2, 100L),
+        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 3, 500L),
+        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 4, 200L),
+        createNewProfileDirective("new_profile", 5, 400L, WorkforceProfiles.BASELINE_NAME),
         // NOTE: the second attempt at derivation is NOT judged a duplicate, as the outdated timestamp of first attempt (above) meant it was ignored!
-        createNewProfileDirective("new_profile", 6,600L, WorkforceProfiles.BASELINE_NAME),
-        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 7,800L),
-        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 8,700L)
+        createNewProfileDirective("new_profile", 6, 600L, WorkforceProfiles.BASELINE_NAME),
+        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 7, 800L),
+        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 8, 700L)
     ), failure -> numErrors.incrementAndGet());
 
     Assert.assertEquals(plan.getLastRevisionEpochMillis(), 800L);
@@ -95,19 +88,19 @@ public class WorkforcePlanTest {
   public void reviseWhenNewerSwallowsErrors() throws WorkforcePlan.IllegalRevisionException {
     AtomicInteger numErrors = new AtomicInteger(0);
     plan.reviseWhenNewer(Lists.newArrayList(
-        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 1,100L),
+        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 1, 100L),
         // (1) error: `UnrecognizedProfile`
-        new ScalingDirective("unknown_profile", 2,250L),
-        createNewProfileDirective("new_profile", 3,200L, WorkforceProfiles.BASELINE_NAME),
+        new ScalingDirective("unknown_profile", 2, 250L),
+        createNewProfileDirective("new_profile", 3, 200L, WorkforceProfiles.BASELINE_NAME),
         // (2) error: `Redefinition`
-        createNewProfileDirective("new_profile", 4,450L, WorkforceProfiles.BASELINE_NAME),
-        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 5,300L),
+        createNewProfileDirective("new_profile", 4, 450L, WorkforceProfiles.BASELINE_NAME),
+        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 5, 300L),
         // (3) error: `UnknownBasis`
-        createNewProfileDirective("other_profile", 6,550L, "never_defined"),
-        new ScalingDirective("new_profile", 7,400L),
+        createNewProfileDirective("other_profile", 6, 550L, "never_defined"),
+        new ScalingDirective("new_profile", 7, 400L),
         // ignored: out-of-order timestamp (not an error... see: `reviseWhenNewerIgnoresOutOfOrderDirectives`)
-        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 8,350L),
-        createNewProfileDirective("another", 9,500L, "new_profile")
+        new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 8, 350L),
+        createNewProfileDirective("another", 9, 500L, "new_profile")
     ), failure -> numErrors.incrementAndGet());
 
     Assert.assertEquals(plan.getLastRevisionEpochMillis(), 500L);
@@ -120,12 +113,12 @@ public class WorkforcePlanTest {
 
   @Test
   public void calcStaffingDeltas() throws WorkforcePlan.IllegalRevisionException {
-    plan.revise(createNewProfileDirective("new_profile", 3,10L, WorkforceProfiles.BASELINE_NAME));
-    plan.revise(createNewProfileDirective("other_profile", 8,20L, "new_profile"));
-    plan.revise(createNewProfileDirective("another", 7,30L, "new_profile"));
-    plan.revise(new ScalingDirective("new_profile", 5,40L));
-    plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 6,50L));
-    plan.revise(new ScalingDirective("another", 4,60L));
+    plan.revise(createNewProfileDirective("new_profile", 3, 10L, WorkforceProfiles.BASELINE_NAME));
+    plan.revise(createNewProfileDirective("other_profile", 8, 20L, "new_profile"));
+    plan.revise(createNewProfileDirective("another", 7, 30L, "new_profile"));
+    plan.revise(new ScalingDirective("new_profile", 5, 40L));
+    plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 6, 50L));
+    plan.revise(new ScalingDirective("another", 4, 60L));
 
     Assert.assertEquals(plan.getLastRevisionEpochMillis(), 60L);
     Assert.assertEquals(plan.getNumProfiles(), 4);
@@ -165,23 +158,30 @@ public class WorkforcePlanTest {
 
   @Test(expectedExceptions = WorkforcePlan.IllegalRevisionException.OutdatedDirective.class)
   public void reviseWithOutdatedDirective() throws WorkforcePlan.IllegalRevisionException {
-    plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 7,30000L));
-    plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 12,8000L));
+    plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 7, 30000L));
+    plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 12, 8000L));
   }
 
   @Test(expectedExceptions = WorkforcePlan.IllegalRevisionException.UnrecognizedProfile.class)
   public void reviseWithUnrecognizedProfileDirective() throws WorkforcePlan.IllegalRevisionException {
-    plan.revise(new ScalingDirective("unknown_profile", 7,10000L));
+    plan.revise(new ScalingDirective("unknown_profile", 7, 10000L));
   }
 
   @Test(expectedExceptions = WorkforcePlan.IllegalRevisionException.Redefinition.class)
   public void reviseWithRedefinitionDirective() throws WorkforcePlan.IllegalRevisionException {
-    plan.revise(createNewProfileDirective("new_profile", 5,10000L, WorkforceProfiles.BASELINE_NAME));
-    plan.revise(createNewProfileDirective("new_profile", 9,20000L, WorkforceProfiles.BASELINE_NAME));
+    plan.revise(createNewProfileDirective("new_profile", 5, 10000L, WorkforceProfiles.BASELINE_NAME));
+    plan.revise(createNewProfileDirective("new_profile", 9, 20000L, WorkforceProfiles.BASELINE_NAME));
   }
 
   @Test(expectedExceptions = WorkforcePlan.IllegalRevisionException.UnknownBasis.class)
   public void reviseWithUnknownBasisDirective() throws WorkforcePlan.IllegalRevisionException {
-    plan.revise(createNewProfileDirective("new_profile", 5,10000L, "never_defined"));
+    plan.revise(createNewProfileDirective("new_profile", 5, 10000L, "never_defined"));
+  }
+
+  private static ScalingDirective createNewProfileDirective(String profileName, int setPoint, long epochMillis, String basisProfileName) {
+    return new ScalingDirective(profileName, setPoint, epochMillis, Optional.of(
+        new ProfileDerivation(basisProfileName, new ProfileOverlay.Adding(Lists.newArrayList(
+            new ProfileOverlay.KVPair("key1", "new_value"),
+            new ProfileOverlay.KVPair("key4", "value4"))))));
   }
 }

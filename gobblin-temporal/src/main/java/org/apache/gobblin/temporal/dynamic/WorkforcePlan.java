@@ -121,7 +121,6 @@ public class WorkforcePlan {
       try {
         revise(directive);
       } catch (IllegalRevisionException ire) {
-        System.err.println("uh oh it's: " + ire);
         illegalRevisionHandler.accept(ire);
       }
     });
