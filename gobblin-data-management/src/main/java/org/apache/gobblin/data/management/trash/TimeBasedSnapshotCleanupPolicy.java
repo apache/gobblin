@@ -31,18 +31,30 @@ public class TimeBasedSnapshotCleanupPolicy implements SnapshotCleanupPolicy {
 
   public static final String SNAPSHOT_RETENTION_POLICY_MINUTES_KEY = "gobblin.trash.snapshot.retention.minutes";
   public static final int SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT = 1440; // one day
+  public static final String USE_UTC_COMPARISON_KEY = "gobblin.trash.snapshot.retention.comparison.useUTC";
+  public static final boolean USE_UTC_COMPARISON_DEFAULT = false;
 
   private final int retentionMinutes;
+  private final boolean useUTCComparison;
 
   public TimeBasedSnapshotCleanupPolicy(Properties props) {
     this.retentionMinutes = Integer.parseInt(props.getProperty(SNAPSHOT_RETENTION_POLICY_MINUTES_KEY,
         Integer.toString(SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT)));
+
+    this.useUTCComparison = Boolean.parseBoolean(props.getProperty(USE_UTC_COMPARISON_KEY, 
+        Boolean.toString(USE_UTC_COMPARISON_DEFAULT)));
   }
 
   @Override
   public boolean shouldDeleteSnapshot(FileStatus snapshot, Trash trash) {
     DateTime snapshotTime = Trash.TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(snapshot.getPath().getName());
-    // To ensure that the comparison between snapshotTime and the current time is done in the same time zone
+
+    if (this.useUTCComparison) {
+       // Ensure that the comparison between snapshotTime and the current time is done in the same time zone (UTC)
     return snapshotTime.plusMinutes(this.retentionMinutes).isBefore(DateTime.now(DateTimeZone.UTC));
+    } else {
+      // Default to use system time zone
+      return snapshotTime.plusMinutes(this.retentionMinutes).isBeforeNow();
+    }
   }
 }
