@@ -21,6 +21,8 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.Duration;
 
 
 /**
@@ -41,6 +43,20 @@ public class TimeBasedSnapshotCleanupPolicy implements SnapshotCleanupPolicy {
   @Override
   public boolean shouldDeleteSnapshot(FileStatus snapshot, Trash trash) {
     DateTime snapshotTime = Trash.TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(snapshot.getPath().getName());
+    System.out.println("Parsed time is " + snapshotTime + " and the timezone is " + snapshotTime.getZone());
+    System.out.println("Target clean up time is " + snapshotTime.plusMinutes(this.retentionMinutes));
+    System.out.println("Current time is  " + new DateTime() + " and the timezone is " + new DateTime().getZone());
+
+    DateTime now = new DateTime().withZone(DateTimeZone.UTC).minusHours(7); // mimic the time in azkaban 
+    DateTime targetCleanupTime = snapshotTime.plusMinutes(this.retentionMinutes);
+    DateTime delta = targetCleanupTime.minus(now.getMillis());
+
+    Duration duration = new Duration(now, targetCleanupTime);
+    duration.toStandardHours();
+    duration.toStandardMinutes();
+    System.out.println("Time delta is " +  duration.toStandardHours() + " hours and " + duration.toStandardMinutes() + " minutes");
+
+
     return snapshotTime.plusMinutes(this.retentionMinutes).isBeforeNow();
   }
 }
