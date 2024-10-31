@@ -14,6 +14,10 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
+
+import javax.tools.ToolProvider
+
+
 subprojects {
   plugins.withType(JavaPlugin) {
     configurations {
@@ -41,7 +45,7 @@ subprojects {
         customTestCompile externalDependency.slf4jToLog4j
 
         // Required to add JDK's tool jar, which is required to run byteman tests.
-        // testCompile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
+        testCompile (files(((URLClassLoader) ToolProvider.getSystemToolClassLoader()).getURLs()))
       }
       if (!project.name.contains('gobblin-aws') && !project.name.contains('gobblin-distribution')) {
         configurations.compile.dependencies*.each {
