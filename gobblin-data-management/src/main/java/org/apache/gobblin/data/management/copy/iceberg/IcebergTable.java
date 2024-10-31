@@ -234,8 +234,7 @@ public class IcebergTable {
    *
    * @param icebergPartitionFilterPredicate the predicate to filter partitions
    * @return a list of data files that match the partition filter predicate
-   * @throws TableNotFoundException if error occurred while accessing the table metadata
-   * @throws RuntimeException if error occurred while reading the manifest file
+   * @throws IOException if error occurred while accessing the table metadata or reading the manifest file
    */
   public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate)
       throws IOException {
@@ -286,7 +285,13 @@ public class IcebergTable {
     if (dataFiles.isEmpty()) {
       return;
     }
-    log.info("~{}~ SnapshotId before overwrite: {}", tableId, accessTableMetadata().currentSnapshot().snapshotId());
+    TableMetadata tableMetadata = accessTableMetadata();
+    Optional<Snapshot> currentSnapshot = Optional.ofNullable(tableMetadata.currentSnapshot());
+    if (currentSnapshot.isPresent()) {
+      log.info("~{}~ SnapshotId before overwrite: {}", tableId, currentSnapshot.get().snapshotId());
+    } else {
+      log.warn("~{}~ No current snapshot found before overwrite", tableId);
+    }
     OverwriteFiles overwriteFiles = this.table.newOverwrite();
     overwriteFiles.overwriteByRowFilter(Expressions.equal(partitionColName, partitionValue));
     dataFiles.forEach(overwriteFiles::addFile);
