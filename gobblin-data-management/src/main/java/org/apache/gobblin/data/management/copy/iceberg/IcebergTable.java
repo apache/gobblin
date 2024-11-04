@@ -239,7 +239,8 @@ public class IcebergTable {
   public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate)
       throws IOException {
     TableMetadata tableMetadata = accessTableMetadata();
-    Snapshot currentSnapshot = tableMetadata.currentSnapshot();
+    Snapshot currentSnapshot = Optional.ofNullable(tableMetadata.currentSnapshot())
+        .orElseThrow(() -> new IOException(String.format("~%s~ No snapshots found", tableId)));
     long currentSnapshotId = currentSnapshot.snapshotId();
     List<DataFile> knownDataFiles = new ArrayList<>();
     GrowthMilestoneTracker growthMilestoneTracker = new GrowthMilestoneTracker();

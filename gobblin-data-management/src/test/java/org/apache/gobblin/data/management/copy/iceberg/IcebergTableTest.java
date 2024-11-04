@@ -253,6 +253,18 @@ public class IcebergTableTest extends HiveMetastoreTest {
     Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysFalsePredicate).size(), 0);
   }
 
+  @Test
+  public void testGetPartitionSpecificDataFilesThrowsExceptionWhenNoSnapshotsFound() throws IOException {
+    IcebergTable icebergTable = new IcebergTable(tableId,
+        catalog.newTableOps(tableId),
+        catalogUri,
+        catalog.loadTable(tableId));
+    // Using AlwaysTrue Predicate to avoid mocking of predicate class
+    Predicate<StructLike> alwaysTruePredicate = partition -> true;
+    IOException exception = Assert.expectThrows(IOException.class, () -> icebergTable.getPartitionSpecificDataFiles(alwaysTruePredicate));
+    Assert.assertEquals(exception.getMessage(), String.format("~%s~ No snapshots found", tableId));
+  }
+
   /** Verify that overwritePartition replace data files belonging to given partition col and value */
   @Test
   public void testOverwritePartition() throws IOException {
