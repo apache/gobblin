@@ -46,8 +46,8 @@ public class WorkforcePlan {
     }
 
     /** Illegal revision: directive arrived out of {@link ScalingDirective#getTimestampEpochMillis()} order */
-    public static class OutdatedDirective extends IllegalRevisionException {
-      protected OutdatedDirective(ScalingDirective directive, long lastRevisionEpochMillis) {
+    public static class OutOfOrderDirective extends IllegalRevisionException {
+      protected OutOfOrderDirective(ScalingDirective directive, long lastRevisionEpochMillis) {
         super(directive, "directive for profile '" + directive.renderName() + "' precedes last revision at "
             + lastRevisionEpochMillis + ": " + directive);
       }
@@ -61,18 +61,18 @@ public class WorkforcePlan {
       }
     }
 
-    /** Illegal revision: set point for an unknown worker profile */
-    public static class UnrecognizedProfile extends IllegalRevisionException {
-      protected UnrecognizedProfile(ScalingDirective directive) {
-        super(directive, "unrecognized profile reference '" + directive.renderName() + "': " + directive);
-      }
-    }
-
     /** Illegal revision: worker profile evolution from an unknown basis profile */
     public static class UnknownBasis extends IllegalRevisionException {
       protected UnknownBasis(ScalingDirective directive, ProfileDerivation.UnknownBasisException ube) {
         super(directive, "profile '" + directive.renderName() + "' may not be defined on the basis of an unknown profile '"
             + WorkforceProfiles.renderName(ube.getName()) + "': " + directive);
+      }
+    }
+
+    /** Illegal revision: set point for an unknown worker profile */
+    public static class UnrecognizedProfile extends IllegalRevisionException {
+      protected UnrecognizedProfile(ScalingDirective directive) {
+        super(directive, "unrecognized profile reference '" + directive.renderName() + "': " + directive);
       }
     }
   }
@@ -81,7 +81,7 @@ public class WorkforcePlan {
   private final WorkforceStaffing staffing;
   @Getter private volatile long lastRevisionEpochMillis;
 
-  /** create new plan with `baselineConfig` with `initialSetPoint` of the initial, baseline worker profile */
+  /** create new plan with the initial, baseline worker profile using `baselineConfig` at `initialSetPoint` */
   public WorkforcePlan(Config baselineConfig, int initialSetPoint) {
     this.profiles = WorkforceProfiles.withBaseline(baselineConfig);
     this.staffing = WorkforceStaffing.initialize(initialSetPoint);
@@ -97,7 +97,7 @@ public class WorkforcePlan {
   public synchronized void revise(ScalingDirective directive) throws IllegalRevisionException {
     String name = directive.getProfileName();
     if (this.lastRevisionEpochMillis >= directive.getTimestampEpochMillis()) {
-      throw new IllegalRevisionException.OutdatedDirective(directive, this.lastRevisionEpochMillis);
+      throw new IllegalRevisionException.OutOfOrderDirective(directive, this.lastRevisionEpochMillis);
     };
     Optional<WorkerProfile> optExistingProfile = profiles.apply(name);
     Optional<ProfileDerivation> optDerivation = directive.getOptDerivedFrom();
@@ -113,27 +113,30 @@ public class WorkforcePlan {
           throw new IllegalRevisionException.UnknownBasis(directive, ube);
         }
       }
-      // TODO - make idempotent, since any retry attempts after a failure between `addProfile` and `reviseStaffing` would henceforth fail with
-      // `IllegalRevisionException.Redefinition`, despite us wishing to adjust the set point now that the new profile has been defined...
+      // TODO - make idempotent, since any retry attempt following failure between `addProfile` and `reviseStaffing` would thereafter fail with
+      // `IllegalRevisionException.Redefinition`, despite us wishing to adjust the set point for that new profile just defined...
       // how to ensure the profile def is the same / unchanged?  (e.g. compare full profile `Config` equality)?
+      // NOTE: the current outcome would be a profile defined in `WorkforceProfiles` with no set point in `WorkforceStaffing`.  fortunately,
+      // that would NOT lead to `calcStaffingDeltas` throwing {@link WorkforceProfiles.UnknownProfileException}!
+
       this.staffing.reviseStaffing(name, directive.getSetPoint(), directive.getTimestampEpochMillis());
       this.lastRevisionEpochMillis = directive.getTimestampEpochMillis();
     }
   }
 
   /**
-   * Performs atomic bulk revision while enforcing `directives` ordering by {@link ScalingDirective#getTimestampEpochMillis()}
+   * Performs atomic bulk revision while enforcing `directives` ordering in accord with {@link ScalingDirective#getTimestampEpochMillis()}
    *
-   * This version catches {@link IllegalRevisionException}s, logging a warning message for any before continuing to process subsequent directives.
+   * This version catches {@link IllegalRevisionException}, to log a warning message before continuing to process subsequent directives.
    */
   public synchronized void reviseWhenNewer(List<ScalingDirective> directives) {
     reviseWhenNewer(directives, ire -> { log.warn("Failure: ", ire); });
   }
 
   /**
-   * Performs atomic bulk revision while enforcing `directives` ordering by {@link ScalingDirective#getTimestampEpochMillis()}
+   * Performs atomic bulk revision while enforcing `directives` ordering in accord with {@link ScalingDirective#getTimestampEpochMillis()}
    *
-   * This version catches {@link IllegalRevisionException}s, feeding any to `illegalRevisionHandler` before continuing to process subsequent directives.
+   * This version catches {@link IllegalRevisionException}, to call `illegalRevisionHandler` before continuing to process subsequent directives.
    */
   public synchronized void reviseWhenNewer(List<ScalingDirective> directives, Consumer<IllegalRevisionException> illegalRevisionHandler) {
     directives.stream().sequential()

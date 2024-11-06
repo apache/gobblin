@@ -59,10 +59,10 @@ import lombok.extern.slf4j.Slf4j;
  * the definition itself will be supplied separately.  Supply it and {@link OverlayPlaceholderNeedsDefinition#retryParsingWithDefinition(String)}, upon
  * the same UNCHECKED exception (originally thrown by {@link #parse(String)}).
  *
- * Given this syntax is specifically designed for directives to appear as an HDFS file name, we enforce a {@link #MAX_PROFILE_IDENTIFIER_LENGTH} (== 100),
- * to fit within the HDFS path segment limit (== 255), and therein avoid:
- *   org.apache.hadoop.hdfs.protocol.FSLimitException$PathComponentTooLongException: \
- *       The maximum path component name limit of ... in directory ... is exceeded: limit=255 length=256
+ * Given this syntax is specifically designed for directives to appear as HDFS file names, we enforce a {@link #MAX_PROFILE_IDENTIFIER_LENGTH} (== 100),
+ * to ensure fit within the HDFS path segment limit (== 255), and therein avoid:
+ *     org.apache.hadoop.hdfs.protocol.FSLimitException$PathComponentTooLongException: \
+ *         The maximum path component name limit of ... in directory ... is exceeded: limit=255 length=256
  * the max identifier length of 100 is chosen as follows:
  *   - limit == 255
  *   - current millis-precision epoch timestamp requires 10 chars, yet reserve 16 for future-proofing to nanos-precision
@@ -71,7 +71,7 @@ import lombok.extern.slf4j.Slf4j;
  *   - since a max of two profile identifiers, neither may exceed (200 / 2 == 100) chars
  *
  * Examples:
- *  - simply update the set point for the profile, `my_profile` (already existing/defined):
+ *  - simply update the set point for the (already existing/defined) profile, `my_profile`:
  *      1728435970.my_profile=24
  *
  *  - update the set point of the baseline profile (equiv. forms):
@@ -82,7 +82,7 @@ import lombok.extern.slf4j.Slf4j;
  *      1728439210.new_profile=16,bar+(a.b.c=7,l.m=sixteen)
  *      1728439223.new_profile=16;bar+(a.b.c=7;l.m=sixteen)
  *
- *  - similar derivation, but demonstrating URL-encoding (to include ',' and literal space in the value):
+ *  - similar derivation, but demonstrating URL-encoding (to preserve ',' and literal space in the value):
  *      1728460832.new_profile=16,bar+(a.b.c=7,l.m=sixteen%2C%20again)
  *
  *  - define a new profile, `other_profile`, with a set point of 9 by deriving via "removing" overlay from the existing profile, `my_profile` (equiv. forms):
@@ -127,7 +127,7 @@ public class ScalingDirectiveParser {
     private final boolean isAdding;
     // ATTENTION: explicitly manage a reference to `parser`, despite it being the enclosing class instance, instead of making this a non-static inner class.
     // That allows `definePlaceholder` to be `static`, for simpler testability, while dodging:
-    //   Static declarations in inner classes are not supported at language level '8'
+    //     Static declarations in inner classes are not supported at language level '8'
     private final ScalingDirectiveParser parser;
 
     private OverlayPlaceholderNeedsDefinition(String directive, String overlaySep, boolean isAdding, ScalingDirectiveParser enclosing) {
@@ -173,7 +173,7 @@ public class ScalingDirectiveParser {
 
   // TODO: syntax to remove an attr while ALSO "adding" (so not simply setting to the empty string) - [proposal: alt. form for KV_PAIR ::= ( KEY '|=|' )]
 
-  // syntax as described in class-level javadoc:
+  // syntax (described in class-level javadoc):
   private static final String DIRECTIVE_REGEX = "(?x) (?s) ^ \\s* (\\d+) \\s* \\. \\s* (\\w* | baseline\\(\\)) \\s* = \\s* (\\d+) "
       + "(?: \\s* ([;,]) \\s* (\\w* | baseline\\(\\)) \\s* (?: (\\+ \\s* \\( \\s* ([^)]*?) \\s* \\) ) | (- \\s* \\( \\s* ([^)]*?) \\s* \\) ) ) )? \\s* $";
 

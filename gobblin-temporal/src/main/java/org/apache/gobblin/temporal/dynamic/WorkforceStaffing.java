@@ -33,7 +33,7 @@ import lombok.Data;
 /**
  * Collection to map {@link WorkerProfile} names, each to a given set point.  It might be "managed" by a {@link WorkforcePlan}, to reflect
  * desired staffing, or else "unmanaged", where it might represent the current, actual per-worker scaling level.  Those two might then be compared via
- * {@link WorkforcePlan#calcStaffingDeltas(WorkforceStaffing)} to calculate necessary {@link StaffingDeltas} for attaining the "managed" workforce plan.
+ * {@link WorkforcePlan#calcStaffingDeltas(WorkforceStaffing)} to calculate {@link StaffingDeltas} against the "managed" workforce plan.
  */
 @ThreadSafe
 public class WorkforceStaffing {
@@ -96,7 +96,7 @@ public class WorkforceStaffing {
   }
 
   /**
-   * @return the {@link StaffingDeltas} between `this` as "the reference" versus `altStaffing`, using `profiles` to obtain {@link WorkerProfile}s.
+   * @return the {@link StaffingDeltas} between `this` (as "the reference") and `altStaffing`, by using `profiles` to obtain {@link WorkerProfile}s.
    * (A positive {@link StaffingDeltas.ProfileDelta#getDelta()} reflects an increase, while a negative, a decrease.)
    *
    * NOTE: when the same {@link WorkforcePlan} manages both this {@link WorkforceStaffing} and {@link WorkforceProfiles}, then

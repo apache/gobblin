@@ -164,15 +164,10 @@ public class WorkforcePlanTest {
     });
   }
 
-  @Test(expectedExceptions = WorkforcePlan.IllegalRevisionException.OutdatedDirective.class)
-  public void reviseWithOutdatedDirective() throws WorkforcePlan.IllegalRevisionException {
+  @Test(expectedExceptions = WorkforcePlan.IllegalRevisionException.OutOfOrderDirective.class)
+  public void reviseWithOutOfOrderDirective() throws WorkforcePlan.IllegalRevisionException {
     plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 7, 30000L));
     plan.revise(new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 12, 8000L));
-  }
-
-  @Test(expectedExceptions = WorkforcePlan.IllegalRevisionException.UnrecognizedProfile.class)
-  public void reviseWithUnrecognizedProfileDirective() throws WorkforcePlan.IllegalRevisionException {
-    plan.revise(new ScalingDirective("UNKNOWN_PROFILE", 7, 10000L));
   }
 
   @Test(expectedExceptions = WorkforcePlan.IllegalRevisionException.Redefinition.class)
@@ -184,6 +179,11 @@ public class WorkforcePlanTest {
   @Test(expectedExceptions = WorkforcePlan.IllegalRevisionException.UnknownBasis.class)
   public void reviseWithUnknownBasisDirective() throws WorkforcePlan.IllegalRevisionException {
     plan.revise(createNewProfileDirective("new_profile", 5, 10000L, "NEVER_DEFINED"));
+  }
+
+  @Test(expectedExceptions = WorkforcePlan.IllegalRevisionException.UnrecognizedProfile.class)
+  public void reviseWithUnrecognizedProfileDirective() throws WorkforcePlan.IllegalRevisionException {
+    plan.revise(new ScalingDirective("UNKNOWN_PROFILE", 7, 10000L));
   }
 
   private static ScalingDirective createNewProfileDirective(String profileName, int setPoint, long epochMillis, String basisProfileName) {

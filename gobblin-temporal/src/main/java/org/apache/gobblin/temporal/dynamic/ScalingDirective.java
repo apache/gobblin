@@ -23,9 +23,9 @@ import lombok.RequiredArgsConstructor;
 
 
 /**
- * Core abstraction to model scaling adjustment, which originates at a given moment in time.  A directive provides a set point for a given worker profile.
+ * Core abstraction to model scaling adjustment: a directive originates at a specific moment in time to provide a set point for a given worker profile.
  * The set point is the number of instances presently desired for that profile.  When naming a heretofore unknown worker profile, the directive MUST also
- * define that new profile through a {@link ProfileDerivation} that references a known profile.  Known worker profiles MUST NOT be redefined.
+ * define that new profile through a {@link ProfileDerivation} referencing a known profile.  Once defined, a worker profile MUST NOT be redefined.
  */
 @Data
 @RequiredArgsConstructor
