@@ -26,48 +26,107 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import com.google.common.annotations.VisibleForTesting;
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
 /**
- * parse {@link ScalingDirective}s with syntax of the form:
- * TIMESTAMP '.' WORKER_NAME '=' SETPOINT [ ( ',' | ';' ) WORKER_NAME ( '+(' KV_PAIR (*SEP* KV_PAIR)* ')' | '-( KEY (*SEP* KEY* ')' ) ]
- * where *SEP* is either ',' or ';' (whichever did follow SETPOINT)
- * the first form with '+' is an "adding" (upsert) overlay, the second form with '-' is a removing overlay
- * allows for URL-encoded values in the KV_PAIRs and whitespace around any token
+ * Parser for {@link ScalingDirective} syntax of the form:
+ *   TIMESTAMP '.' PROFILE_NAME '=' SET_POINT [ ( ',' | ';' ) PROFILE_NAME ( '+(' KV_PAIR (<SEP> KV_PAIR)* ')' | '-( KEY (<SEP> KEY)* ')' ) ]
+ * where:
+ *   only ( TIMESTAMP '.' PROFILE_NAME '=' SET_POINT ) are non-optional
  *
-    1728435970.my_profile=24
-    1728436821.=24
-    1728436828.baseline()=24
-
-    1728439210.new_profile=16,bar+(a.b.c=7,l.m=sixteen)
-    1728439223.new_profile=16;bar+(a.b.c=7;l.m=sixteen)
-    1728460832.new_profile=16,bar+(a.b.c=7,l.m=sixteen%2C%20again)
-
-    1728436436.other_profile=9,my_profile-(x,y.z)
-    1728436499.other_profile=9;my_profile-(x;y.z)
-
-    1728441200.plus_profile=16,+(a.b.c=7,l.m=sixteen)
-    1728443640.plus_profile=16,baseline()+(a.b.c=7,l.m=sixteen)
-
-    1728448521.extra_profile=9,-(a.b, c.d)
-    1728449978.extra_profile=9,baseline()-(a.b, c.d)
-*/
+ *   <SEP> is either ',' or ';' (whichever did follow SET_POINT)
+ *
+ *   TIMESTAMP is millis-since-epoch
+ *
+ *   PROFILE_NAME is a simple [a-zA-Z0-9_]+ identifier familiar from many programming languages.  The special name "baseline()" is reserved
+ *   for the baseline profile, which may alternatively be spelled as the empty identifier ("").
+ *
+ *   SET_POINT must be a non-negative integer ('0' indicates no instances desired).
+ *
+ *   The first form introduced by '+' is an "adding" (upsert) overlay; the second form with '-' is a "removing" overlay.
+ *
+ *   KV_PAIR (for "adding") is an '='-delimited (KEY '=' VALUE), where VALUE may use URL-encoding to escape characters.
+ *
+ *   KEY (for "removing" and in the "adding" KV_PAIR) is a '.'-separated sequence of alphanumeric identifier segments, as in a {@link java.util.Properties}
+ *   or {@link com.typesafe.config.Config} name.
+ *
+ *   Whitespace may appear around any tokens, though not within a KEY or a VALUE.  Comments are unsupported.
+ *
+ * As an alternative to inlining a lengthy adding or removing overlay definition, {@link #OVERLAY_DEFINITION_PLACEHOLDER} may stand in to indicate that
+ * the definition itself will be supplied separately.  Supply it and {@link OverlayPlaceholderNeedsDefinition#retryParsingWithDefinition(String)}, upon
+ * the same UNCHECKED exception (originally thrown by {@link #parse(String)}).
+ *
+ * Given this syntax is specifically designed for directives to appear as an HDFS file name, we enforce a {@link #MAX_PROFILE_IDENTIFIER_LENGTH} (== 100),
+ * to fit within the HDFS path segment limit (== 255), and therein avoid:
+ *   org.apache.hadoop.hdfs.protocol.FSLimitException$PathComponentTooLongException: \
+ *       The maximum path component name limit of ... in directory ... is exceeded: limit=255 length=256
+ * the max identifier length of 100 is chosen as follows:
+ *   - limit == 255
+ *   - current millis-precision epoch timestamp requires 10 chars, yet reserve 16 for future-proofing to nanos-precision
+ *   - reserve 30 chars for future use in syntax evolution
+ *   - 200 = 255 [limit] - 16 [digit timestamp] - 1 ['.'] - 1 ['='] - 1 [',' / ';'] - 6 ['+(...)' / '-(...)'] - 30 [reserved... for future]
+ *   - since a max of two profile identifiers, neither may exceed (200 / 2 == 100) chars
+ *
+ * Examples:
+ *  - simply update the set point for the profile, `my_profile` (already existing/defined):
+ *      1728435970.my_profile=24
+ *
+ *  - update the set point of the baseline profile (equiv. forms):
+ *      1728436821.=24
+ *      1728436828.baseline()=24
+ *
+ *  - define a new profile, `new_profile`, with a set point of 16 by deriving via "adding" overlay from the existing profile, `bar` (equiv. forms):
+ *      1728439210.new_profile=16,bar+(a.b.c=7,l.m=sixteen)
+ *      1728439223.new_profile=16;bar+(a.b.c=7;l.m=sixteen)
+ *
+ *  - similar derivation, but demonstrating URL-encoding (to include ',' and literal space in the value):
+ *      1728460832.new_profile=16,bar+(a.b.c=7,l.m=sixteen%2C%20again)
+ *
+ *  - define a new profile, `other_profile`, with a set point of 9 by deriving via "removing" overlay from the existing profile, `my_profile` (equiv. forms):
+ *      1728436436.other_profile=9,my_profile-(x,y.z)
+ *      1728436499.other_profile=9;my_profile-(x;y.z)
+ *
+ *  - define a new profile, `plus_profile`, with an initial set point, via "adding" overlay upon the baseline profile (equiv. forms):
+ *      1728441200.plus_profile=5,+(a.b.c=7,l.m=sixteen)
+ *      1728443640.plus_profile=5,baseline()+(a.b.c=7,l.m=sixteen)
+ *
+ *  - define a new profile, `extra_profile`, with an initial set point, via "removing" overlay upon the baseline profile (equiv. forms):
+ *      1728448521.extra_profile=14,-(a.b, c.d)
+ *      1728449978.extra_profile=14,baseline()-(a.b, c.d)
+ *
+ *  - define a new profile with an initial set point, using {@link #OVERLAY_DEFINITION_PLACEHOLDER} syntax instead of inlining the overlay definition:
+ *      1728539479.and_also=21,baaz-(...)
+ *      1728547230.this_too=19,quux+(...)
+ */
 @Slf4j
 public class ScalingDirectiveParser {
+
+  /** Announce a syntax error within {@link #getDirective()} */
   public static class InvalidSyntaxException extends Exception {
+    @Getter
     private final String directive;
+
     public InvalidSyntaxException(String directive, String desc) {
       super("error: " + desc + ", in ==>" + directive + "<==");
       this.directive = directive;
     }
   }
 
+  /**
+   * Report that {@link #getDirective()} used {@link #OVERLAY_DEFINITION_PLACEHOLDER} in lieu of inlining an "adding" or "removing" overlay definition.
+   *
+   * When the overlay definition is later recovered, pass it to {@link #retryParsingWithDefinition(String)} to re-attempt the parse.
+   */
   public static class OverlayPlaceholderNeedsDefinition extends RuntimeException {
+    @Getter
     private final String directive;
     private final String overlaySep;
     private final boolean isAdding;
-    // ATTENTION: explicitly managed, rather than making this a non-static inner class so `definePlaceholder` may be `static` for testing, while avoiding:
+    // ATTENTION: explicitly manage a reference to `parser`, despite it being the enclosing class instance, instead of making this a non-static inner class.
+    // That allows `definePlaceholder` to be `static`, for simpler testability, while dodging:
     //   Static declarations in inner classes are not supported at language level '8'
     private final ScalingDirectiveParser parser;
 
@@ -79,7 +138,12 @@ public class ScalingDirectiveParser {
       this.parser = enclosing;
     }
 
-    // doesn't allow recursive placeholding...
+    /**
+     * Pass the missing `overlayDefinition` and re-attempt parsing.  This DOES NOT allow nested placeholding, so `overlayDefinition` may not
+     * itself be/contain {@link #OVERLAY_DEFINITION_PLACEHOLDER}.
+     *
+     * @return the parsed {@link ScalingDirective} or throw {@link InvalidSyntaxException}
+     */
     public ScalingDirective retryParsingWithDefinition(String overlayDefinition) throws InvalidSyntaxException {
       try {
         return this.parser.parse(definePlaceholder(this.directive, this.overlaySep, this.isAdding, overlayDefinition));
@@ -88,6 +152,8 @@ public class ScalingDirectiveParser {
       }
     }
 
+    /** encapsulate the intricacies of splicing `overlayDefinition` into `directiveWithPlaceholder`, after attending to the necessary URL-encoding */
+    @VisibleForTesting
     protected static String definePlaceholder(String directiveWithPlaceholder, String overlaySep, boolean isAdding, String overlayDefinition) {
       // use care to selectively `urlEncode` parts (but NOT the entire string), to avoid disrupting syntactic chars, like [,;=]
       String urlEncodedOverlayDef = Arrays.stream(overlayDefinition.split("\\s*" + overlaySep + "\\s*", -1)) // (neg. limit to disallow trailing empty strings)
@@ -100,21 +166,14 @@ public class ScalingDirectiveParser {
             }
           }).collect(Collectors.joining(overlaySep));
 
-      // correct any double-encoding of '%', in case it arrived url-encoded
+      // undo any double-encoding of '%', in case `overlayDefinition` arrived URL-encoded
       return directiveWithPlaceholder.replace(OVERLAY_DEFINITION_PLACEHOLDER, urlEncodedOverlayDef.replace("%25", "%"));
     }
   }
 
+  // TODO: syntax to remove an attr while ALSO "adding" (so not simply setting to the empty string) - [proposal: alt. form for KV_PAIR ::= ( KEY '|=|' )]
 
-  // TODO: also support non-inline overlay definitions - "(...)"
-  //   consider an additional trailing "|" (or "," / ";") syntax when the additional props are only needed post-launch
-  // since we're primarily designed for HDFS file names, in addition, a max identifier length (to fit within HDFS path segment limit == 255)
-  // org.apache.hadoop.hdfs.protocol.FSLimitException$PathComponentTooLongException: \
-  //   The maximum path component name limit of ... in directory ... is exceeded: limit=255 length=256
-  // 200 = 255 [limit] - 16 [digit timestamp] - 1 ['.'] - 1 ['='] - 1 [',' / ';'] - 6 ['+(...)' / '-(...)'] - 30 [reserved... for future]
-  // current millis-precision epoch timestamp requires 10 chars, but we reserve 16 for future-proofing to nanos-precision
-  // hence, neither (of the max two) profile identifiers may exceed 100 chars.
-  // TODO: syntax to indicate removing an attr during an addition
+  // syntax as described in class-level javadoc:
   private static final String DIRECTIVE_REGEX = "(?x) (?s) ^ \\s* (\\d+) \\s* \\. \\s* (\\w* | baseline\\(\\)) \\s* = \\s* (\\d+) "
       + "(?: \\s* ([;,]) \\s* (\\w* | baseline\\(\\)) \\s* (?: (\\+ \\s* \\( \\s* ([^)]*?) \\s* \\) ) | (- \\s* \\( \\s* ([^)]*?) \\s* \\) ) ) )? \\s* $";
 
@@ -130,6 +189,13 @@ public class ScalingDirectiveParser {
 
   private static final String BASELINE_ID = "baseline()";
 
+  /**
+   * Parse `directive` into a {@link ScalingDirective} or throw {@link InvalidSyntaxException}
+   *
+   * When an overlay definition was not inlined because {@link #OVERLAY_DEFINITION_PLACEHOLDER} was used instead, throw the UNCHECKED exception
+   * {@link OverlayPlaceholderNeedsDefinition}, which facilitates a subsequent attempt to supply the overlay definition and
+   * {@link OverlayPlaceholderNeedsDefinition#retryParsingWithDefinition(String)} (a form of the Proxy pattern).
+   */
   public ScalingDirective parse(String directive) throws InvalidSyntaxException {
     Matcher parsed = directivePattern.matcher(directive);
     if (parsed.matches()) {
@@ -147,7 +213,7 @@ public class ScalingDirectiveParser {
           if (additionsStr.equals(OVERLAY_DEFINITION_PLACEHOLDER)) {
             throw new OverlayPlaceholderNeedsDefinition(directive, overlayIntroSep, true, this);
           } else if (!additionsStr.equals("")) {
-            for (String addStr : additionsStr.split("\\s*" + overlayIntroSep + "\\s*", -1)) {  // (negative limit to disallow trailing empty strings)
+            for (String addStr : additionsStr.split("\\s*" + overlayIntroSep + "\\s*", -1)) {  // (`-1` limit to disallow trailing empty strings)
               Matcher keyValueParsed = keyValuePattern.matcher(addStr);
               if (keyValueParsed.matches()) {
                 additions.add(new ProfileOverlay.KVPair(keyValueParsed.group(1), urlDecode(directive, keyValueParsed.group(2))));
@@ -163,7 +229,7 @@ public class ScalingDirectiveParser {
           if (removalsStr.equals(OVERLAY_DEFINITION_PLACEHOLDER)) {
             throw new OverlayPlaceholderNeedsDefinition(directive, overlayIntroSep, false, this);
           } else if (!removalsStr.equals("")) {
-            for (String removeStr : removalsStr.split("\\s*" + overlayIntroSep + "\\s*", -1)) {  // (negative limit to disallow trailing empty strings)
+            for (String removeStr : removalsStr.split("\\s*" + overlayIntroSep + "\\s*", -1)) {  // (`-1` limit to disallow trailing empty strings)
               Matcher keyParsed = keyPattern.matcher(removeStr);
               if (keyParsed.matches()) {
                 removalKeys.add(keyParsed.group(1));
@@ -181,6 +247,13 @@ public class ScalingDirectiveParser {
     }
   }
 
+  /**
+   * @return `directive` as a pretty-printed string
+   *
+   * NOTE: regardless of its length or content, the result inlines the entire overlay def, with {@link #OVERLAY_DEFINITION_PLACEHOLDER} NEVER used
+   *
+   * @see #parse(String), the inverse operation (approximately - modulo {@link #OVERLAY_DEFINITION_PLACEHOLDER}, noted above)
+   */
   public static String asString(ScalingDirective directive) {
     StringBuilder sb = new StringBuilder();
     sb.append(directive.getTimestampEpochMillis()).append('.').append(directive.getProfileName()).append('=').append(directive.getSetPoint());
@@ -210,6 +283,7 @@ public class ScalingDirectiveParser {
     return sb.toString();
   }
 
+  /** handle special naming of {@link #BASELINE_ID} and enforce {@link #MAX_PROFILE_IDENTIFIER_LENGTH} */
   private static String identifyProfileName(String profileId, String directive) throws InvalidSyntaxException {
     if (profileId.length() > MAX_PROFILE_IDENTIFIER_LENGTH) {
       throw new InvalidSyntaxException(directive, "profile ID exceeds length limit (of " + MAX_PROFILE_IDENTIFIER_LENGTH + "): '" + profileId + "'");
@@ -217,6 +291,7 @@ public class ScalingDirectiveParser {
     return profileId.equals(BASELINE_ID) ? WorkforceProfiles.BASELINE_NAME : profileId;
   }
 
+  /** @return `s`, URL-decoded as UTF-8 or throw {@link InvalidSyntaxException} */
   private static String urlDecode(String directive, String s) throws InvalidSyntaxException {
     try {
       return java.net.URLDecoder.decode(s, URL_ENCODING_CHARSET);
@@ -225,6 +300,7 @@ public class ScalingDirectiveParser {
     }
   }
 
+  /** @return `s`, URL-encoded as UTF-8 and wrap any {@link java.io.UnsupportedEncodingException}--which SHOULD NEVER HAPPEN!--as an unchecked exception */
   private static String urlEncode(String s) {
     try {
       return URLEncoder.encode(s, URL_ENCODING_CHARSET);
