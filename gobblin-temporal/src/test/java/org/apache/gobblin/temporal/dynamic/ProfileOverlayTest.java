@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.temporal.dynamic;
 
-import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -25,13 +24,13 @@ import org.testng.annotations.Test;
 import org.testng.Assert;
 
 
+/** Test {@link ProfileOverlay} */
 public class ProfileOverlayTest {
 
   @Test
   public void testAddingApplyOverlay() {
     Config config = ConfigFactory.parseString("key1=value1A, key4=value4");
-    ProfileOverlay.Adding adding = new ProfileOverlay.Adding(
-        Lists.newArrayList(new ProfileOverlay.KVPair("key1", "value1B"), new ProfileOverlay.KVPair("key2", "value2")));
+    ProfileOverlay.Adding adding = new ProfileOverlay.Adding(new ProfileOverlay.KVPair("key1", "value1B"), new ProfileOverlay.KVPair("key2", "value2"));
     Config updatedConfig = adding.applyOverlay(config);
     Assert.assertEquals(updatedConfig.getString("key1"), "value1B");
     Assert.assertEquals(updatedConfig.getString("key2"), "value2");
@@ -41,7 +40,7 @@ public class ProfileOverlayTest {
   @Test
   public void testRemovingApplyOverlay() {
     Config config = ConfigFactory.parseString("key1=value1, key2=value2");
-    ProfileOverlay.Removing removing = new ProfileOverlay.Removing(Lists.newArrayList("key1"));
+    ProfileOverlay.Removing removing = new ProfileOverlay.Removing("key1");
     Config updatedConfig = removing.applyOverlay(config);
     Assert.assertFalse(updatedConfig.hasPath("key1"));
     Assert.assertEquals(updatedConfig.getString("key2"), "value2");
@@ -50,9 +49,8 @@ public class ProfileOverlayTest {
   @Test
   public void testComboApplyOverlay() {
     Config config = ConfigFactory.parseString("key1=value1, key2=value2, key3=value3");
-    ProfileOverlay.Adding adding = new ProfileOverlay.Adding(
-        Lists.newArrayList(new ProfileOverlay.KVPair("key4", "value4"), new ProfileOverlay.KVPair("key5", "value5")));
-    ProfileOverlay.Removing removing = new ProfileOverlay.Removing(Lists.newArrayList("key2", "key4"));
+    ProfileOverlay.Adding adding = new ProfileOverlay.Adding(new ProfileOverlay.KVPair("key4", "value4"), new ProfileOverlay.KVPair("key5", "value5"));
+    ProfileOverlay.Removing removing = new ProfileOverlay.Removing("key2", "key4");
     ProfileOverlay.Combo combo = ProfileOverlay.Combo.normalize(adding, removing);
     Config updatedConfig = combo.applyOverlay(config);
     Assert.assertEquals(updatedConfig.getString("key1"), "value1");
@@ -70,10 +68,8 @@ public class ProfileOverlayTest {
 
   @Test
   public void testAddingOver() {
-    ProfileOverlay.Adding adding1 = new ProfileOverlay.Adding(
-        Lists.newArrayList(new ProfileOverlay.KVPair("key1", "value1"), new ProfileOverlay.KVPair("key2", "value2A")));
-    ProfileOverlay.Adding adding2 = new ProfileOverlay.Adding(
-        Lists.newArrayList(new ProfileOverlay.KVPair("key2", "value2B"), new ProfileOverlay.KVPair("key3", "value3")));
+    ProfileOverlay.Adding adding1 = new ProfileOverlay.Adding(new ProfileOverlay.KVPair("key1", "value1"), new ProfileOverlay.KVPair("key2", "value2A"));
+    ProfileOverlay.Adding adding2 = new ProfileOverlay.Adding(new ProfileOverlay.KVPair("key2", "value2B"), new ProfileOverlay.KVPair("key3", "value3"));
     ProfileOverlay result = adding1.over(adding2);
     Config config = result.applyOverlay(ConfigFactory.empty());
     Assert.assertEquals(config.getString("key1"), "value1");
@@ -83,15 +79,14 @@ public class ProfileOverlayTest {
 
   @Test
   public void testRemovingOver() {
-    ProfileOverlay.Removing removing1 = new ProfileOverlay.Removing(Lists.newArrayList("key1", "key2"));
-    ProfileOverlay.Removing removing2 = new ProfileOverlay.Removing(Lists.newArrayList("key2", "key3"));
+    ProfileOverlay.Removing removing1 = new ProfileOverlay.Removing("key1", "key2");
+    ProfileOverlay.Removing removing2 = new ProfileOverlay.Removing("key2", "key3");
     ProfileOverlay result = removing1.over(removing2);
     Assert.assertTrue(result instanceof ProfileOverlay.Removing);
     ProfileOverlay.Removing removingResult = (ProfileOverlay.Removing) result;
     Assert.assertEqualsNoOrder(removingResult.getRemovalKeys().toArray(), new String[]{"key1", "key2", "key3"});
 
-    Config config =
-        result.applyOverlay(ConfigFactory.parseString("key1=value1, key2=value2, key3=value3, key4=value4"));
+    Config config = result.applyOverlay(ConfigFactory.parseString("key1=value1, key2=value2, key3=value3, key4=value4"));
     Assert.assertFalse(config.hasPath("key1"));
     Assert.assertFalse(config.hasPath("key2"));
     Assert.assertFalse(config.hasPath("key3"));

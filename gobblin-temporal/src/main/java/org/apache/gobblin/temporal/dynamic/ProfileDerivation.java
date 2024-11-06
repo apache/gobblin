@@ -25,8 +25,14 @@ import lombok.Data;
 import lombok.Getter;
 
 
+/**
+ * Defines a new {@link WorkerProfile} by evolving from another profile, the basis.  Such evolution creates a new immutable profile through
+ * {@link ProfileOverlay}, which either adds or removes properties from the basis profile's definition.  That basis profile must already exist.
+ */
 @Data
 public class ProfileDerivation {
+
+  /** Flags when the basis profile was NOT found */
   public static class UnknownBasisException extends Exception {
     @Getter
     private final String name;
@@ -39,6 +45,7 @@ public class ProfileDerivation {
   private final String basisProfileName;
   private final ProfileOverlay overlay;
 
+  /** @return a new profile definition through evolution from the basis profile, which is to be obtained via `basisResolver` */
   public Config formulateConfig(Function<String, Optional<WorkerProfile>> basisResolver) throws UnknownBasisException {
     Optional<WorkerProfile> optProfile = basisResolver.apply(basisProfileName);
     if (!optProfile.isPresent()) {
@@ -48,6 +55,7 @@ public class ProfileDerivation {
     }
   }
 
+  /** @return the canonical display name of {@link #getBasisProfileName()} for tracing/debugging */
   public String renderName() {
     return WorkforceProfiles.renderName(this.basisProfileName);
   }

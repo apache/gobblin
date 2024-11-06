@@ -20,42 +20,68 @@ package org.apache.gobblin.temporal.dynamic;
 import java.util.Optional;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
+import javax.annotation.concurrent.ThreadSafe;
 
 import com.typesafe.config.Config;
+import lombok.Getter;
 
 
+/** A collection of known {@link WorkerProfile}s, also offering name -> profile resolution for {@link ProfileDerivation} */
+@ThreadSafe
 public class WorkforceProfiles implements Function<String, Optional<WorkerProfile>> {
+
+  /** Indicates `profileName` NOT found */
+  public static class UnknownProfileException extends RuntimeException {
+    @Getter
+    private final String profileName;
+
+    public UnknownProfileException(String profileName) {
+      super("named '" + WorkforceProfiles.renderName(profileName) + "'");
+      this.profileName = profileName;
+    }
+  }
+
+
   public static final String BASELINE_NAME = "";
   public static final String BASELINE_NAME_RENDERING = "<<BASELINE>>";
 
+  /** @return the canonical display name for tracing/debugging, with special handling for {@link #BASELINE_NAME} */
   public static String renderName(String name) {
     return name.equals(BASELINE_NAME) ? BASELINE_NAME_RENDERING : name;
   }
 
 
-  public static class UnknownProfileException extends RuntimeException {
-    public UnknownProfileException(String profileName) {
-      super("named '" + WorkforceProfiles.renderName(profileName) + "'");
-    }
-  }
-
   private final ConcurrentHashMap<String, WorkerProfile> profileByName;
 
+  /** restricted-access ctor: instead use {@link #withBaseline(Config)} */
   private WorkforceProfiles() {
     this.profileByName = new ConcurrentHashMap<>();
   }
 
+  /** @return a new instance with `baselineConfig` as the "baseline profile" */
   public static WorkforceProfiles withBaseline(Config baselineConfig) {
     WorkforceProfiles profiles = new WorkforceProfiles();
     profiles.addProfile(new WorkerProfile(BASELINE_NAME, baselineConfig));
     return profiles;
   }
 
+  /** Add a new, previously unknown {@link WorkerProfile} or throw `RuntimeException` on any attempt to add/redefine a previously known profile */
+  public void addProfile(WorkerProfile profile) {
+    if (profileByName.putIfAbsent(profile.getName(), profile) != null) {
+      throw new RuntimeException("profile '" + WorkforceProfiles.renderName(profile.getName()) + "' already exists!");
+    }
+  }
+
+  /** @return the {@link WorkerProfile} named `profileName`, when it exists */
   @Override
   public Optional<WorkerProfile> apply(String profileName) {
     return Optional.ofNullable(profileByName.get(profileName));
   }
 
+  /**
+   * @return the {@link WorkerProfile} named `profileName` or throw {@link UnknownProfileException} when it does not exist
+   * @throws UnknownProfileException when `profileName` is unknown
+   */
   public WorkerProfile getOrThrow(String profileName) {
     WorkerProfile profile = profileByName.get(profileName);
     if (profile != null) {
@@ -64,12 +90,7 @@ public class WorkforceProfiles implements Function<String, Optional<WorkerProfil
     throw new UnknownProfileException(profileName);
   }
 
-  public void addProfile(WorkerProfile profile) {
-    if (profileByName.putIfAbsent(profile.getName(), profile) != null) {
-      throw new RuntimeException("profile '" + WorkforceProfiles.renderName(profile.getName()) + "' already exists!");
-    }
-  }
-
+  /** @return how many known profiles, including the baseline */
   public int size() {
     return profileByName.size();
   }

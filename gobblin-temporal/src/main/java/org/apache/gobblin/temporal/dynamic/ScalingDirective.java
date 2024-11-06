@@ -22,6 +22,11 @@ import lombok.Data;
 import lombok.RequiredArgsConstructor;
 
 
+/**
+ * Core abstraction to model scaling adjustment, which originates at a given moment in time.  A directive provides a set point for a given worker profile.
+ * The set point is the number of instances presently desired for that profile.  When naming a heretofore unknown worker profile, the directive MUST also
+ * define that new profile through a {@link ProfileDerivation} that references a known profile.  Known worker profiles MUST NOT be redefined.
+ */
 @Data
 @RequiredArgsConstructor
 public class ScalingDirective {
@@ -30,6 +35,7 @@ public class ScalingDirective {
   private final long timestampEpochMillis;
   private final Optional<ProfileDerivation> optDerivedFrom;
 
+  /** Create a set-point-only directive (for a known profile, with no {@link ProfileDerivation}) */
   public ScalingDirective(String profileName, int setPoint, long timestampEpochMillis) {
     this(profileName, setPoint, timestampEpochMillis, Optional.empty());
   }
@@ -38,6 +44,7 @@ public class ScalingDirective {
     this(profileName, setPoint, timestampEpochMillis, Optional.of(new ProfileDerivation(basisProfileName, overlay)));
   }
 
+  /** @return the canonical display name (of {@link #getProfileName()}) for tracing/debugging */
   public String renderName() {
     return WorkforceProfiles.renderName(this.profileName);
   }

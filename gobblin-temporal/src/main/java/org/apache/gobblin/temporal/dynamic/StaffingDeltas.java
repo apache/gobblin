@@ -21,16 +21,22 @@ import java.util.List;
 import lombok.Data;
 
 
+/** Staffing set point {@link ProfileDelta}s for multiple {@link WorkerProfile}s */
 @Data
 public class StaffingDeltas {
+  /**
+   * Difference for a {@link WorkerProfile}'s staffing set point (e.g. between desired and current levels).  Positive `delta` reflects increase,
+   * while negative, a decrease.
+   */
   @Data
   public static class ProfileDelta {
     private final WorkerProfile profile;
     private final int delta;
     private final long setPointProvenanceEpochMillis;
 
-    public boolean isUnchanged() {
-      return delta == 0;
+    /** @return whether {@link #getDelta()} is non-zero */
+    public boolean isChange() {
+      return delta != 0;
     }
   }
 

@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.temporal.dynamic;
 
-import com.google.common.base.Charsets;
 import java.io.IOException;
 import java.io.InputStream;
 import java.util.ArrayList;
@@ -26,6 +25,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 
+import com.google.common.base.Charsets;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.commons.io.IOUtils;
@@ -34,6 +34,13 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 
+/**
+ * A {@link ScalingDirectiveSource} that reads {@link ScalingDirective}s from a {@link FileSystem} directory, where each directive is the name
+ * of a single file inside the directory.  Directives too long for one filename path component MUST use the
+ * {@link ScalingDirectiveParser#OVERLAY_DEFINITION_PLACEHOLDER} syntax and write their {@link ProfileDerivation} overlay as the file's data/content.
+ * Within-length scaling directives are no-data, zero-length files.  When backed by HDFS, reading such zero-length scaling directive files is a
+ * NameNode-only operation, while their metadata-only nature additionally conserves NN object count/quota.
+ */
 @Slf4j
 public class FsScalingDirectiveSource implements ScalingDirectiveSource {
   private final FileSystem fileSystem;
@@ -41,17 +48,32 @@ public class FsScalingDirectiveSource implements ScalingDirectiveSource {
   private final Optional<Path> optErrorsPath;
   private final ScalingDirectiveParser parser = new ScalingDirectiveParser();
 
-  public FsScalingDirectiveSource(FileSystem fileSystem, String directivesDirPath, Optional<String> optErrorDirPath) {
+  /** Read from `directivesDirPath` of `fileSystem`, and optionally move invalid/rejected directives to `optErrorsDirPath` */
+  public FsScalingDirectiveSource(FileSystem fileSystem, String directivesDirPath, Optional<String> optErrorsDirPath) {
     this.fileSystem = fileSystem;
     this.dirPath = new Path(directivesDirPath);
-    this.optErrorsPath = optErrorDirPath.map(Path::new);
+    this.optErrorsPath = optErrorsDirPath.map(Path::new);
   }
 
-  // TODO: describe purpose of constraint (to preclude late insertion/edits of the directives stream) -
-  // verify and only return directives whose stated (in filename) timestamp order matches `FileStatus` modtime order
+  /**
+   * @return all valid (parseable, in-order) scaling directives currently in the directory, ordered by ascending modtime
+   *
+   * Ignore invalid directives, and, when `optErrorsDirPath` was provided to the ctor, acknowledge each by moving it to a separate "errors" directory.
+   * Regardless, always swallow {@link ScalingDirectiveParser.InvalidSyntaxException}.
+   *
+   * Like un-parseable directives, so too are out-of-order directives invalid.  This prevents late/out-of-order insertion and/or edits to the directives
+   * stream.  Each directive contains its own {@link ScalingDirective#getTimestampEpochMillis()} stated in its filename.  Later-modtime directives are
+   * rejected when directive-timestamp-order does not match {@link FileStatus} modtime order.  In the case of a modtime tie, the directive with the
+   * alphabetically-later filename is rejected.
+   *
+   * NOTE: This returns ALL known directives, even those already returned by a prior invocation.
+   *
+   * @throws IOException when unable to read the directory (or file data, in the case of an overlay definition placeholder)
+   */
   @Override
   public List<ScalingDirective> getScalingDirectives() throws IOException {
     List<Map.Entry<ScalingDirective, FileStatus>> directiveWithFileStatus = new ArrayList<>();
+    // to begin, just parse w/o worrying about ordering... that comes next
     for (FileStatus fileStatus : fileSystem.listStatus(dirPath)) {
       if (!fileStatus.isFile()) {
         log.warn("Ignoring non-file object: " + fileStatus);
@@ -60,7 +82,7 @@ public class FsScalingDirectiveSource implements ScalingDirectiveSource {
         String fileName = fileStatus.getPath().getName();
         try {
           try {
-            directiveWithFileStatus.add(new ImmutablePair<>(parseScalingDirective(fileName), fileStatus));
+            directiveWithFileStatus.add(new ImmutablePair<>(parser.parse(fileName), fileStatus));
           } catch (ScalingDirectiveParser.OverlayPlaceholderNeedsDefinition needsDefinition) {
             // directive used placeholder syntax to indicate the overlay definition resides inside its file... so open the file to load that def
             log.info("Loading overlay definition for directive {{" + fileName + "}} from: " + fileStatus);
@@ -74,15 +96,15 @@ public class FsScalingDirectiveSource implements ScalingDirectiveSource {
       }
     }
 
-    // verify and only return directives whose ordering of stated (in filename) timestamp matches `FileStatus` modtime order
+    // verify ordering: only return directives whose stated timestamp ordering (of filename prefix) matches `FileStatus` modtime order
     List<ScalingDirective> directives = new ArrayList<>();
-    // NOTE: for deterministic total-ordering, sort by path, rather than by timestamp, in case of modtime tie (given only secs granularity)
+    // NOTE: for deterministic total-ordering, sort by path, rather than by timestamp, in case of modtime tie (given only millisecs granularity)
     directiveWithFileStatus.sort(Comparator.comparing(p -> p.getValue().getPath()));
     long latestValidModTime = -1;
     for (Map.Entry<ScalingDirective, FileStatus> entry : directiveWithFileStatus) {
       long thisModTime = entry.getValue().getModificationTime();
-      if (thisModTime < latestValidModTime) {  // do NOT reject equal (non-increasing) modtime, given granularity of epoch seconds
-        log.warn("Ignoring out-of-order scaling directive " + entry.getKey() + " since FS modTime " + thisModTime + " precedes last observed "
+      if (thisModTime <= latestValidModTime) {  // when equal (non-increasing) modtime: reject alphabetically-later filename (path)
+        log.warn("Ignoring out-of-order scaling directive " + entry.getKey() + " since FS modTime " + thisModTime + " NOT later than last observed "
             + latestValidModTime + ": " + entry.getValue());
         optAcknowledgeError(entry.getValue(), "out-of-order");
       } else {
@@ -93,32 +115,32 @@ public class FsScalingDirectiveSource implements ScalingDirectiveSource {
     return directives;
   }
 
-  // ack error by moving the bad/non-directive to a separate errors dir
-  protected void optAcknowledgeError(FileStatus fileStatus, String desc) {
+  /** "acknowledge" the rejection of an invalid directive by moving it to a separate "errors" dir (when `optErrorsDirPath` was given to the ctor) */
+  protected void optAcknowledgeError(FileStatus invalidDirectiveFileStatus, String desc) {
     this.optErrorsPath.ifPresent(errorsPath ->
-        moveToErrors(fileStatus, errorsPath, desc)
+        moveDirectiveToDir(invalidDirectiveFileStatus, errorsPath, desc)
     );
   }
 
-  // move broken/ignored directives into a separate directory, as an observability-enhancing ack of its rejection
-  protected void moveToErrors(FileStatus badDirectiveStatus, Path errorsPath, String desc) {
-    Path badDirectivePath = badDirectiveStatus.getPath();
+  /**
+   * move `invalidDirectiveFileStatus` to a designated `destDirPath`, with the reason for moving (e.g. the error) described in `desc`.
+   * This is used to promote observability by acknowledging invalid, rejected directives
+   */
+  protected void moveDirectiveToDir(FileStatus invalidDirectiveFileStatus, Path destDirPath, String desc) {
+    Path invalidDirectivePath = invalidDirectiveFileStatus.getPath();
     try {
-      if (!this.fileSystem.rename(badDirectivePath, new Path(errorsPath, badDirectivePath.getName()))) {
+      if (!this.fileSystem.rename(invalidDirectivePath, new Path(destDirPath, invalidDirectivePath.getName()))) {
         throw new RuntimeException(); // unclear how to obtain more info about such a failure
       }
     } catch (IOException e) {
-      log.warn("Failed to move " + desc + " directive {{" + badDirectiveStatus.getPath() + "}} to '" + errorsPath + "'... leaving in place", e);
+      log.warn("Failed to move " + desc + " directive {{" + invalidDirectiveFileStatus.getPath() + "}} to '" + destDirPath + "'... leaving in place", e);
     } catch (RuntimeException e) {
-      log.warn("Failed to move " + desc + " directive {{" + badDirectiveStatus.getPath() + "}} to '" + errorsPath + "' [unknown reason]... leaving in place");
+      log.warn("Failed to move " + desc + " directive {{" + invalidDirectiveFileStatus.getPath() + "}} to '" + destDirPath
+          + "' [unknown reason]... leaving in place", e);
     }
   }
 
-  private ScalingDirective parseScalingDirective(String fileName)
-      throws ScalingDirectiveParser.InvalidSyntaxException, ScalingDirectiveParser.OverlayPlaceholderNeedsDefinition {
-    return parser.parse(fileName);
-  }
-
+  /** @return all contents of `path` as a single (UTF-8) `String` */
   protected String slurpFileAsString(Path path) throws IOException {
     try (InputStream is = this.fileSystem.open(path)) {
       return IOUtils.toString(is, Charsets.UTF_8);

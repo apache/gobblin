@@ -20,7 +20,6 @@ package org.apache.gobblin.temporal.dynamic;
 import java.util.Optional;
 import java.util.function.Function;
 
-import com.google.common.collect.Lists;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
@@ -28,12 +27,13 @@ import org.testng.annotations.Test;
 import org.testng.Assert;
 
 
+/** Test {@link ProfileDerivation} */
 public class ProfileDerivationTest {
 
   @Test
-  public void testFormulateConfigSuccess() throws ProfileDerivation.UnknownBasisException {
+  public void testFormulateConfigWithSuccessfulBasisResolution() throws ProfileDerivation.UnknownBasisException {
     String basisProfileName = "testProfile";
-    ProfileOverlay overlay = new ProfileOverlay.Adding(Lists.newArrayList(new ProfileOverlay.KVPair("key1", "value1B")));
+    ProfileOverlay overlay = new ProfileOverlay.Adding(new ProfileOverlay.KVPair("key1", "value1B"));
     ProfileDerivation profileDerivation = new ProfileDerivation(basisProfileName, overlay);
 
     Function<String, Optional<WorkerProfile>> basisResolver = name -> {
@@ -50,12 +50,13 @@ public class ProfileDerivationTest {
     Assert.assertEquals(resultConfig.getString("key2"), "value2");
   }
 
+  @Test
   public void testFormulateConfigUnknownBasis() {
     String basisProfileName = "foo";
     try {
       ProfileDerivation derivation = new ProfileDerivation(basisProfileName, null);
       derivation.formulateConfig(ignore -> Optional.empty());
-      Assert.fail("Expected UnknownBasisException");
+      Assert.fail("Expected instead: UnknownBasisException");
     } catch (ProfileDerivation.UnknownBasisException ube) {
       Assert.assertEquals(ube.getName(), basisProfileName);
     }

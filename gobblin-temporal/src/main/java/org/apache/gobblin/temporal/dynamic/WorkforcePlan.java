@@ -17,19 +17,27 @@
 
 package org.apache.gobblin.temporal.dynamic;
 
-import com.google.common.annotations.VisibleForTesting;
 import java.util.List;
 import java.util.Optional;
 import java.util.function.Consumer;
+import javax.annotation.concurrent.ThreadSafe;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.typesafe.config.Config;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 
+/**
+ * Stateful class to maintain the dynamically scalable workforce plan for {@link WorkerProfile}s with a {@link WorkforceStaffing} set point
+ * for each.  The plan evolves through incremental revision by {@link ScalingDirective}s, while {@link #calcStaffingDeltas(WorkforceStaffing)}
+ * reports {@link StaffingDeltas} between the current plan and another alternative (e.g. current level of) {@link WorkforceStaffing}.
+ */
 @Slf4j
+@ThreadSafe
 public class WorkforcePlan {
 
+  /** Common baseclass for illegal plan revision */
   public static class IllegalRevisionException extends Exception {
     @Getter private final ScalingDirective directive;
     private IllegalRevisionException(ScalingDirective directive, String msg) {
@@ -37,6 +45,7 @@ public class WorkforcePlan {
       this.directive = directive;
     }
 
+    /** Illegal revision: directive arrived out of {@link ScalingDirective#getTimestampEpochMillis()} order */
     public static class OutdatedDirective extends IllegalRevisionException {
       protected OutdatedDirective(ScalingDirective directive, long lastRevisionEpochMillis) {
         super(directive, "directive for profile '" + directive.renderName() + "' precedes last revision at "
@@ -44,6 +53,7 @@ public class WorkforcePlan {
       }
     }
 
+    /** Illegal revision: redefinition of a known worker profile */
     public static class Redefinition extends IllegalRevisionException {
       protected Redefinition(ScalingDirective directive, ProfileDerivation proposedDerivation) {
         super(directive, "profile '" + directive.renderName() + "' already exists, so may not be redefined on the basis of '"
@@ -51,12 +61,14 @@ public class WorkforcePlan {
       }
     }
 
+    /** Illegal revision: set point for an unknown worker profile */
     public static class UnrecognizedProfile extends IllegalRevisionException {
       protected UnrecognizedProfile(ScalingDirective directive) {
         super(directive, "unrecognized profile reference '" + directive.renderName() + "': " + directive);
       }
     }
 
+    /** Illegal revision: worker profile evolution from an unknown basis profile */
     public static class UnknownBasis extends IllegalRevisionException {
       protected UnknownBasis(ScalingDirective directive, ProfileDerivation.UnknownBasisException ube) {
         super(directive, "profile '" + directive.renderName() + "' may not be defined on the basis of an unknown profile '"
@@ -69,16 +81,19 @@ public class WorkforcePlan {
   private final WorkforceStaffing staffing;
   @Getter private volatile long lastRevisionEpochMillis;
 
+  /** create new plan with `baselineConfig` with `initialSetPoint` of the initial, baseline worker profile */
   public WorkforcePlan(Config baselineConfig, int initialSetPoint) {
     this.profiles = WorkforceProfiles.withBaseline(baselineConfig);
     this.staffing = WorkforceStaffing.initialize(initialSetPoint);
     this.lastRevisionEpochMillis = 0;
   }
 
+  /** @return how many worker profiles known to the plan, including the baseline */
   public int getNumProfiles() {
     return profiles.size();
   }
 
+  /** revise the plan with a new {@link ScalingDirective} or throw {@link IllegalRevisionException} */
   public synchronized void revise(ScalingDirective directive) throws IllegalRevisionException {
     String name = directive.getProfileName();
     if (this.lastRevisionEpochMillis >= directive.getTimestampEpochMillis()) {
@@ -98,25 +113,30 @@ public class WorkforcePlan {
           throw new IllegalRevisionException.UnknownBasis(directive, ube);
         }
       }
-      // TODO - make idempotent, as re-attempts after failure between `addProfile` and `reviseStaffing` would fail with `IllegalRevisionException.Redefinition`
-      // adjust the set-point now that either a new profile is defined OR the profile already existed
+      // TODO - make idempotent, since any retry attempts after a failure between `addProfile` and `reviseStaffing` would henceforth fail with
+      // `IllegalRevisionException.Redefinition`, despite us wishing to adjust the set point now that the new profile has been defined...
+      // how to ensure the profile def is the same / unchanged?  (e.g. compare full profile `Config` equality)?
       this.staffing.reviseStaffing(name, directive.getSetPoint(), directive.getTimestampEpochMillis());
       this.lastRevisionEpochMillis = directive.getTimestampEpochMillis();
     }
   }
 
-  /** atomic bulk revision
+  /**
+   * Performs atomic bulk revision while enforcing `directives` ordering by {@link ScalingDirective#getTimestampEpochMillis()}
    *
-   * !!!!requires sorted order of directives by timestamp!!!!
-   *
+   * This version catches {@link IllegalRevisionException}s, logging a warning message for any before continuing to process subsequent directives.
    */
   public synchronized void reviseWhenNewer(List<ScalingDirective> directives) {
     reviseWhenNewer(directives, ire -> { log.warn("Failure: ", ire); });
   }
 
+  /**
+   * Performs atomic bulk revision while enforcing `directives` ordering by {@link ScalingDirective#getTimestampEpochMillis()}
+   *
+   * This version catches {@link IllegalRevisionException}s, feeding any to `illegalRevisionHandler` before continuing to process subsequent directives.
+   */
   public synchronized void reviseWhenNewer(List<ScalingDirective> directives, Consumer<IllegalRevisionException> illegalRevisionHandler) {
     directives.stream().sequential()
-        .filter(directive -> directive.getTimestampEpochMillis() > this.lastRevisionEpochMillis)
         .forEach(directive -> {
       try {
         revise(directive);
@@ -126,21 +146,24 @@ public class WorkforcePlan {
     });
   }
 
-  /** @returns diff of {@link StaffingDeltas} of this, current {@link WorkforcePlan} against some `reference` {@link WorkforceStaffing} */
-  public synchronized StaffingDeltas calcStaffingDeltas(WorkforceStaffing reference) {
-    return staffing.calcDeltas(reference, profiles);
+  /** @return diff of {@link StaffingDeltas} between this, current {@link WorkforcePlan} and some `altStaffing` (e.g. current) {@link WorkforceStaffing} */
+  public synchronized StaffingDeltas calcStaffingDeltas(WorkforceStaffing altStaffing) {
+    return staffing.calcDeltas(altStaffing, profiles);
   }
 
+  /** @return [for testing/debugging] the current staffing set point for the {@link WorkerProfile} named `profileName`, when it exists */
   @VisibleForTesting
   Optional<Integer> peepStaffing(String profileName) {
     return staffing.getStaffing(profileName);
   }
 
+  /** @return [for testing/debugging] the {@link WorkerProfile} named `profileName` or throws {@link WorkforceProfiles.UnknownProfileException} */
   @VisibleForTesting
   WorkerProfile peepProfile(String profileName) throws WorkforceProfiles.UnknownProfileException {
     return profiles.getOrThrow(profileName);
   }
 
+  /** @return [for testing/debugging] the baseline {@link WorkerProfile} - it should NEVER {@link WorkforceProfiles.UnknownProfileException} */
   @VisibleForTesting
   WorkerProfile peepBaselineProfile() throws WorkforceProfiles.UnknownProfileException {
     return profiles.getOrThrow(WorkforceProfiles.BASELINE_NAME);

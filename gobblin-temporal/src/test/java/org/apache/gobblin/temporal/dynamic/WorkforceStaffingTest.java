@@ -33,6 +33,7 @@ import org.testng.Assert;
 import static org.mockito.ArgumentMatchers.anyString;
 
 
+/** Test {@link WorkforceStaffing} */
 public class WorkforceStaffingTest {
 
   @Mock private WorkforceProfiles profiles;
@@ -55,9 +56,10 @@ public class WorkforceStaffingTest {
   public void reviseStaffingShouldUpdateSetPoint() {
     String profileName = "testProfile";
     WorkforceStaffing staffing = WorkforceStaffing.initialize(0);
-    staffing.reviseStaffing(profileName, 10, 1000L);
+    staffing.reviseStaffing(profileName, 10, 5000L);
     Assert.assertEquals(staffing.getStaffing(profileName), Optional.of(10));
 
+    // NOTE: verify that `provenanceEpochMillis` is merely assoc. metadata, w/ no requirement for monotonic increase
     staffing.reviseStaffing(profileName, 17, 2000L);
     Assert.assertEquals(staffing.getStaffing(profileName), Optional.of(17));
   }
@@ -72,8 +74,8 @@ public class WorkforceStaffingTest {
     currentStaffing.reviseStaffing(heldSteadyProfileName, 9, 2000L);
 
     WorkforceStaffing improvedStaffing = WorkforceStaffing.initialize(7);
-    improvedStaffing.reviseStaffing(newlyAddedProfileName, 10, 3000L);
-    improvedStaffing.reviseStaffing(heldSteadyProfileName, 9, 4000L);
+    improvedStaffing.updateSetPoint(newlyAddedProfileName, 10);
+    improvedStaffing.updateSetPoint(heldSteadyProfileName, 9);
 
     StaffingDeltas deltas = improvedStaffing.calcDeltas(currentStaffing, profiles);
     Assert.assertEquals(deltas.getPerProfileDeltas().size(), 3);
@@ -83,7 +85,7 @@ public class WorkforceStaffingTest {
     ImmutableMap<String, Integer> expectedDeltaByProfileName = ImmutableMap.of(
         WorkforceProfiles.BASELINE_NAME, 2,
         subsequentlyUnreferencedProfileName, -3,
-        // NOTE: NOT present (when delta == 0)!
+        // NOTE: NOT present (since delta == 0)!
         // heldSteadyProfileName, 0,
         newlyAddedProfileName, 10
     );

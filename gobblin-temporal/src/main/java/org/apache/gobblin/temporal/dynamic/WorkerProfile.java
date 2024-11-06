@@ -21,6 +21,7 @@ import com.typesafe.config.Config;
 import lombok.Data;
 
 
+/** A named worker {@link Config} */
 @Data
 public class WorkerProfile {
   private final String name;

@@ -22,13 +22,12 @@ import java.util.Optional;
 import java.util.function.BiFunction;
 import java.util.stream.IntStream;
 
-import com.google.common.collect.Lists;
-
 import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 import org.testng.Assert;
 
 
+/** Test {@link ScalingDirectiveParser} */
 public class ScalingDirectiveParserTest {
 
   private final ScalingDirectiveParser parser = new ScalingDirectiveParser();
@@ -52,7 +51,7 @@ public class ScalingDirectiveParserTest {
   }
 
   @Test
-  public void parseBaselineProfile() throws ScalingDirectiveParser.InvalidSyntaxException {
+  public void parseBaselineProfilePseudoIdentifier() throws ScalingDirectiveParser.InvalidSyntaxException {
     ScalingDirective sd = parser.parse("1728436828.baseline()=6");
     Assert.assertEquals(sd, new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 6, 1728436828L, Optional.empty()));
   }
@@ -66,22 +65,22 @@ public class ScalingDirectiveParserTest {
     Assert.assertTrue(sd.getOptDerivedFrom().isPresent());
     ProfileDerivation derivation = sd.getOptDerivedFrom().get();
     Assert.assertEquals(derivation.getBasisProfileName(), "bar");
-    Assert.assertEquals(derivation.getOverlay(), new ProfileOverlay.Adding(
-        Lists.newArrayList(new ProfileOverlay.KVPair("a.b.c", "7"), new ProfileOverlay.KVPair("l.m", "sixteen"))));
+    Assert.assertEquals(derivation.getOverlay(),
+        new ProfileOverlay.Adding(new ProfileOverlay.KVPair("a.b.c", "7"), new ProfileOverlay.KVPair("l.m", "sixteen")));
   }
 
   @Test
   public void parseAddingOverlayWithSemicolonSep() throws ScalingDirectiveParser.InvalidSyntaxException {
     ScalingDirective sd = parser.parse("1728439223.new_profile=32;baz+( a.b.c=7 ; l.m.n.o=sixteen )");
-    Assert.assertEquals(sd, new ScalingDirective("new_profile", 32, 1728439223L, "baz", new ProfileOverlay.Adding(
-        Lists.newArrayList(new ProfileOverlay.KVPair("a.b.c", "7"), new ProfileOverlay.KVPair("l.m.n.o", "sixteen")))));
+    Assert.assertEquals(sd, new ScalingDirective("new_profile", 32, 1728439223L, "baz",
+        new ProfileOverlay.Adding(new ProfileOverlay.KVPair("a.b.c", "7"), new ProfileOverlay.KVPair("l.m.n.o", "sixteen"))));
   }
 
   @Test
   public void parseAddingOverlayWithCommaSepUrlEncoded() throws ScalingDirectiveParser.InvalidSyntaxException {
     ScalingDirective sd = parser.parse("1728460832.new_profile=16,baa+(a.b.c=7,l.m=sixteen%2C%20again)");
-    Assert.assertEquals(sd, new ScalingDirective("new_profile", 16, 1728460832L, "baa", new ProfileOverlay.Adding(
-        Lists.newArrayList(new ProfileOverlay.KVPair("a.b.c", "7"), new ProfileOverlay.KVPair("l.m", "sixteen, again")))));
+    Assert.assertEquals(sd, new ScalingDirective("new_profile", 16, 1728460832L, "baa",
+        new ProfileOverlay.Adding(new ProfileOverlay.KVPair("a.b.c", "7"), new ProfileOverlay.KVPair("l.m", "sixteen, again"))));
   }
 
   @Test
@@ -93,63 +92,60 @@ public class ScalingDirectiveParserTest {
     Assert.assertTrue(sd.getOptDerivedFrom().isPresent());
     ProfileDerivation derivation = sd.getOptDerivedFrom().get();
     Assert.assertEquals(derivation.getBasisProfileName(), "my_profile");
-    Assert.assertEquals(derivation.getOverlay(), new ProfileOverlay.Removing(Lists.newArrayList("x", "y.z")));
+    Assert.assertEquals(derivation.getOverlay(), new ProfileOverlay.Removing("x", "y.z"));
   }
 
   @Test
   public void parseRemovingOverlayWithSemicolonSep() throws ScalingDirectiveParser.InvalidSyntaxException {
     ScalingDirective sd = parser.parse("1728436499.other_profile=9;my_profile-(x.y;z.z)");
     Assert.assertEquals(sd, new ScalingDirective("other_profile", 9, 1728436499L, "my_profile",
-        new ProfileOverlay.Removing(Lists.newArrayList("x.y", "z.z"))));
+        new ProfileOverlay.Removing("x.y", "z.z")));
   }
 
   @Test
   public void parseAddingOverlayWithWhitespace() throws ScalingDirectiveParser.InvalidSyntaxException {
     ScalingDirective sd = parser.parse("  1728998877 .  another  = 999 ; wow +  ( t.r  = jump%20  ; cb.az =  foo%20#%20111  ) ");
-    Assert.assertEquals(sd, new ScalingDirective("another", 999, 1728998877L, "wow", new ProfileOverlay.Adding(
-        Lists.newArrayList(new ProfileOverlay.KVPair("t.r", "jump "),
-            new ProfileOverlay.KVPair("cb.az", "foo # 111")))));
+    Assert.assertEquals(sd, new ScalingDirective("another", 999, 1728998877L, "wow",
+        new ProfileOverlay.Adding(new ProfileOverlay.KVPair("t.r", "jump "), new ProfileOverlay.KVPair("cb.az", "foo # 111"))));
   }
 
   @Test
   public void parseRemovingOverlayWithWhitespace() throws ScalingDirectiveParser.InvalidSyntaxException {
     ScalingDirective sd = parser.parse(" 1728334455  .  also =  77  ,  really  - (  t.r ,  cb.az )  ");
     Assert.assertEquals(sd, new ScalingDirective("also", 77, 1728334455L, "really",
-        new ProfileOverlay.Removing(Lists.newArrayList("t.r", "cb.az"))));
+        new ProfileOverlay.Removing("t.r", "cb.az")));
   }
 
   @Test
-  public void parseAddingOverlayWithUnnamedBaselineProfile() throws ScalingDirectiveParser.InvalidSyntaxException {
+  public void parseAddingOverlayUponUnnamedBaselineProfile() throws ScalingDirectiveParser.InvalidSyntaxException {
     ScalingDirective sd = parser.parse("1728441200.plus_profile=16,+(q.r.s=four,l.m=16)");
     Assert.assertEquals(sd, new ScalingDirective("plus_profile", 16, 1728441200L, WorkforceProfiles.BASELINE_NAME,
-        new ProfileOverlay.Adding(
-            Lists.newArrayList(new ProfileOverlay.KVPair("q.r.s", "four"), new ProfileOverlay.KVPair("l.m", "16")))));
+        new ProfileOverlay.Adding(new ProfileOverlay.KVPair("q.r.s", "four"), new ProfileOverlay.KVPair("l.m", "16"))));
   }
 
   @Test
-  public void parseAddingOverlayWithBaselineProfile() throws ScalingDirectiveParser.InvalidSyntaxException {
+  public void parseAddingOverlayUponBaselineProfilePseudoIdentifier() throws ScalingDirectiveParser.InvalidSyntaxException {
     ScalingDirective sd = parser.parse("1728443640.plus_profile=16,baseline()+(q.r=five,l.m=12)");
     Assert.assertEquals(sd, new ScalingDirective("plus_profile", 16, 1728443640L, WorkforceProfiles.BASELINE_NAME,
-        new ProfileOverlay.Adding(
-            Lists.newArrayList(new ProfileOverlay.KVPair("q.r", "five"), new ProfileOverlay.KVPair("l.m", "12")))));
+        new ProfileOverlay.Adding(new ProfileOverlay.KVPair("q.r", "five"), new ProfileOverlay.KVPair("l.m", "12"))));
   }
 
   @Test
-  public void parseRemovingOverlayWithUnnamedBaselineProfile() throws ScalingDirectiveParser.InvalidSyntaxException {
+  public void parseRemovingOverlayUponUnnamedBaselineProfile() throws ScalingDirectiveParser.InvalidSyntaxException {
     ScalingDirective sd = parser.parse("1728448521.extra_profile=0,-(a.b, c.d)");
     Assert.assertEquals(sd, new ScalingDirective("extra_profile", 0, 1728448521L, WorkforceProfiles.BASELINE_NAME,
-        new ProfileOverlay.Removing(Lists.newArrayList("a.b", "c.d"))));
+        new ProfileOverlay.Removing("a.b", "c.d")));
   }
 
   @Test
-  public void parseRemovingOverlayWithBaselineProfile() throws ScalingDirectiveParser.InvalidSyntaxException {
+  public void parseRemovingOverlayUponBaselineProfilePseudoIdentifier() throws ScalingDirectiveParser.InvalidSyntaxException {
     ScalingDirective sd = parser.parse("4.extra_profile=9,baseline()-(a.b, c.d)");
     Assert.assertEquals(sd, new ScalingDirective("extra_profile", 9, 4L, WorkforceProfiles.BASELINE_NAME,
-        new ProfileOverlay.Removing(Lists.newArrayList("a.b", "c.d"))));
+        new ProfileOverlay.Removing("a.b", "c.d")));
   }
 
   @Test
-  public void parseProfileIdTooLong() throws ScalingDirectiveParser.InvalidSyntaxException {
+  public void parseProfileIdTooLongThrows() throws ScalingDirectiveParser.InvalidSyntaxException {
     BiFunction<String, String, String> fmtRemovingOverlaySyntax = (profileId, basisProfileId) -> {
       return "1728449000." + profileId + "=99," + basisProfileId + "-(foo,bar,baz)";
     };
@@ -209,8 +205,8 @@ public class ScalingDirectiveParserTest {
     Assert.assertNotNull(parser.parse(directive));
   }
 
-  @DataProvider(name = "validDirectivesToRoundTrip")
-  public String[][] validDirectivesForRoundTrip() {
+  @DataProvider(name = "validDirectivesToRoundTripWithAsString")
+  public String[][] validDirectivesToRoundTripWithAsString() {
     return new String[][]{
         { "2.some_profile=15" },
         { "6.extra_profile=9,the_basis+(a.b=foo, c.d=bar)" },
@@ -225,9 +221,9 @@ public class ScalingDirectiveParserTest {
 
   @Test(
       expectedExceptions = {},
-      dataProvider = "validDirectivesToRoundTrip"
+      dataProvider = "validDirectivesToRoundTripWithAsString"
   )
-  public void roundTripAsStringAfterParse(String directive) throws ScalingDirectiveParser.InvalidSyntaxException {
+  public void roundTripAsStringFollowingSuccessfulParse(String directive) throws ScalingDirectiveParser.InvalidSyntaxException {
     Assert.assertEquals(ScalingDirectiveParser.asString(parser.parse(directive)), directive);
   }
 
@@ -269,7 +265,7 @@ public class ScalingDirectiveParserTest {
       expectedExceptions = {},
       dataProvider = "overlayPlaceholderDirectivesWithCompletionDefAndEquivalent"
   )
-  public void verifyPlaceholderEquivalence(String directiveWithPlaceholder, String overlayDefinition, String equivDirective)
+  public void verifyOverlayPlaceholderEquivalence(String directiveWithPlaceholder, String overlayDefinition, String equivDirective)
       throws ScalingDirectiveParser.InvalidSyntaxException {
     try {
       parser.parse(directiveWithPlaceholder);
@@ -360,7 +356,7 @@ public class ScalingDirectiveParserTest {
       expectedExceptions = ScalingDirectiveParser.InvalidSyntaxException.class,
       dataProvider = "invalidDirectives"
   )
-  public void parseInvalidDirectives(String directive) throws ScalingDirectiveParser.InvalidSyntaxException {
+  public void parseInvalidDirectivesThrows(String directive) throws ScalingDirectiveParser.InvalidSyntaxException {
     parser.parse(directive);
   }
 
@@ -386,7 +382,7 @@ public class ScalingDirectiveParserTest {
       expectedExceptions = ScalingDirectiveParser.InvalidSyntaxException.class,
       dataProvider = "overlayPlaceholderDirectivesWithInvalidCompletionDef"
   )
-  public void verifyPlaceholderDefIsInvalid(String directiveWithPlaceholder, String invalidOverlayDefinition)
+  public void parsePlaceholderDefWithInvalidPlaceholderThrows(String directiveWithPlaceholder, String invalidOverlayDefinition)
       throws ScalingDirectiveParser.InvalidSyntaxException {
     try {
       parser.parse(directiveWithPlaceholder);
