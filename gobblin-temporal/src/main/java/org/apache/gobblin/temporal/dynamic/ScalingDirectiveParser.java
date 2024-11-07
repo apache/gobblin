@@ -106,8 +106,7 @@ public class ScalingDirectiveParser {
 
   /** Announce a syntax error within {@link #getDirective()} */
   public static class InvalidSyntaxException extends Exception {
-    @Getter
-    private final String directive;
+    @Getter private final String directive;
 
     public InvalidSyntaxException(String directive, String desc) {
       super("error: " + desc + ", in ==>" + directive + "<==");
@@ -121,8 +120,7 @@ public class ScalingDirectiveParser {
    * When the overlay definition is later recovered, pass it to {@link #retryParsingWithDefinition(String)} to re-attempt the parse.
    */
   public static class OverlayPlaceholderNeedsDefinition extends RuntimeException {
-    @Getter
-    private final String directive;
+    @Getter private final String directive;
     private final String overlaySep;
     private final boolean isAdding;
     // ATTENTION: explicitly manage a reference to `parser`, despite it being the enclosing class instance, instead of making this a non-static inner class.

@@ -34,8 +34,7 @@ public class ProfileDerivation {
 
   /** Flags when the basis profile was NOT found */
   public static class UnknownBasisException extends Exception {
-    @Getter
-    private final String name;
+    @Getter private final String name;
     public UnknownBasisException(String basisName) {
       super("named '" + WorkforceProfiles.renderName(basisName) + "'");
       this.name = basisName;

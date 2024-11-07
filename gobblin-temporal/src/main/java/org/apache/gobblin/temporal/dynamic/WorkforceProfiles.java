@@ -32,8 +32,7 @@ public class WorkforceProfiles implements Function<String, Optional<WorkerProfil
 
   /** Indicates `profileName` NOT found */
   public static class UnknownProfileException extends RuntimeException {
-    @Getter
-    private final String profileName;
+    @Getter private final String profileName;
 
     public UnknownProfileException(String profileName) {
       super("named '" + WorkforceProfiles.renderName(profileName) + "'");
