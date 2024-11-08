@@ -38,8 +38,8 @@ import org.apache.hadoop.fs.Path;
  * A {@link ScalingDirectiveSource} that reads {@link ScalingDirective}s from a {@link FileSystem} directory, where each directive is the name
  * of a single file inside the directory.  Directives too long for one filename path component MUST use the
  * {@link ScalingDirectiveParser#OVERLAY_DEFINITION_PLACEHOLDER} syntax and write their {@link ProfileDerivation} overlay as the file's data/content.
- * Within-length scaling directives are no-data, zero-length files.  When backed by HDFS, reading such zero-length scaling directive files is a
- * NameNode-only operation, while their metadata-only nature additionally conserves NN object count/quota.
+ * Within-length scaling directives are no-data, zero-length files.  When backed by HDFS, reading such zero-length scaling directive filenames is a
+ * NameNode-only operation, with their metadata-only nature conserving NN object count/quota.
  */
 @Slf4j
 public class FsScalingDirectiveSource implements ScalingDirectiveSource {
@@ -61,18 +61,20 @@ public class FsScalingDirectiveSource implements ScalingDirectiveSource {
    * Ignore invalid directives, and, when `optErrorsDirPath` was provided to the ctor, acknowledge each by moving it to a separate "errors" directory.
    * Regardless, always swallow {@link ScalingDirectiveParser.InvalidSyntaxException}.
    *
-   * Like un-parseable directives, so too are out-of-order directives invalid.  This prevents late/out-of-order insertion and/or edits to the directives
+   * Like un-parseable directives, also invalid are out-of-order directives.  This blocks late/out-of-order insertion and/or edits to the directives
    * stream.  Each directive contains its own {@link ScalingDirective#getTimestampEpochMillis()} stated in its filename.  Later-modtime directives are
    * rejected when directive-timestamp-order does not match {@link FileStatus} modtime order.  In the case of a modtime tie, the directive with the
    * alphabetically-later filename is rejected.
    *
-   * NOTE: This returns ALL known directives, even those already returned by a prior invocation.
+   * ATTENTION: This returns ALL known directives, even those already returned by a prior invocation.  When the underlying directory is unchanged
+   * before the next invocation, the result will be equal elements in the same order.
    *
    * @throws IOException when unable to read the directory (or file data, in the case of an overlay definition placeholder)
    */
   @Override
   public List<ScalingDirective> getScalingDirectives() throws IOException {
     List<Map.Entry<ScalingDirective, FileStatus>> directiveWithFileStatus = new ArrayList<>();
+    // TODO: add caching by dir modtime to avoid re-listing the same, unchanged contents, while also avoiding repetitive parsing
     // to begin, just parse w/o worrying about ordering... that comes next
     for (FileStatus fileStatus : fileSystem.listStatus(dirPath)) {
       if (!fileStatus.isFile()) {

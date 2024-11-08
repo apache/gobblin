@@ -30,7 +30,7 @@ import lombok.Getter;
 @ThreadSafe
 public class WorkforceProfiles implements Function<String, Optional<WorkerProfile>> {
 
-  /** Indicates `profileName` NOT found */
+  /** Indicates {@link #getProfileName()} NOT found */
   public static class UnknownProfileException extends RuntimeException {
     @Getter private final String profileName;
 

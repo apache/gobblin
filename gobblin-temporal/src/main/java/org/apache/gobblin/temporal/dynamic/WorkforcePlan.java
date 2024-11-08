@@ -114,10 +114,11 @@ public class WorkforcePlan {
         }
       }
       // TODO - make idempotent, since any retry attempt following failure between `addProfile` and `reviseStaffing` would thereafter fail with
-      // `IllegalRevisionException.Redefinition`, despite us wishing to adjust the set point for that new profile just defined...
-      // how to ensure the profile def is the same / unchanged?  (e.g. compare full profile `Config` equality)?
+      // `IllegalRevisionException.Redefinition`, despite us wishing to adjust the set point for that new profile defined just before the failure.
+      //   - how to ensure the profile def is the same / unchanged?  (e.g. compare full profile `Config` equality)?
       // NOTE: the current outcome would be a profile defined in `WorkforceProfiles` with no set point in `WorkforceStaffing`.  fortunately,
-      // that would NOT lead to `calcStaffingDeltas` throwing {@link WorkforceProfiles.UnknownProfileException}!
+      // that would NOT lead to `calcStaffingDeltas` throwing {@link WorkforceProfiles.UnknownProfileException}!  The out-of-band (manual)
+      // workaround/repair would be revision by another, later directive that provides the set point for that profile (WITHOUT providing the definition)
 
       this.staffing.reviseStaffing(name, directive.getSetPoint(), directive.getTimestampEpochMillis());
       this.lastRevisionEpochMillis = directive.getTimestampEpochMillis();

@@ -31,9 +31,14 @@ import lombok.Data;
 
 
 /**
- * Collection to map {@link WorkerProfile} names, each to a given set point.  It might be "managed" by a {@link WorkforcePlan}, to reflect
- * desired staffing, or else "unmanaged", where it might represent the current, actual per-worker scaling level.  Those two might then be compared via
- * {@link WorkforcePlan#calcStaffingDeltas(WorkforceStaffing)} to calculate {@link StaffingDeltas} against the "managed" workforce plan.
+ * Collection to map {@link WorkerProfile} names, each to a given set point.
+ *
+ * An instance might be "managed" by a {@link WorkforcePlan}, to reflect desired staffing, or else "unmanaged", where it might represent the
+ * current, actual per-worker scaling level.  Those two could be compared via {@link #calcDeltas(WorkforceStaffing, WorkforceProfiles)}, to
+ * calculate the {@link StaffingDeltas} between the two (i.e. between the staffing for the "managed" workforce plan of record vs. the independently
+ * maintained, "unmanaged" staffing levels).
+ *
+ * TIP: for encapsulation simplicity, invoke the "managed" form through {@link WorkforcePlan#calcStaffingDeltas(WorkforceStaffing)}
  */
 @ThreadSafe
 public class WorkforceStaffing {
@@ -42,8 +47,8 @@ public class WorkforceStaffing {
   public static final long UNKNOWN_PROVENANCE_EPOCH_MILLIS = -1L;
 
   /**
-   * internal rep. for a set point, with associated provenance timestamp, that will be returned by {@link #calcDeltas(WorkforceStaffing, WorkforceProfiles)},
-   * to inform debugging
+   * internal rep. for a set point, with associated provenance timestamp, to inform debugging, when returned by
+   * {@link #calcDeltas(WorkforceStaffing, WorkforceProfiles)}
    */
   @Data
   private static class SetPoint {

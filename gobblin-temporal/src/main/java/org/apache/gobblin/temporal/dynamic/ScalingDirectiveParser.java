@@ -35,27 +35,31 @@ import lombok.extern.slf4j.Slf4j;
  * Parser for {@link ScalingDirective} syntax of the form:
  *   TIMESTAMP '.' PROFILE_NAME '=' SET_POINT [ ( ',' | ';' ) PROFILE_NAME ( '+(' KV_PAIR (<SEP> KV_PAIR)* ')' | '-( KEY (<SEP> KEY)* ')' ) ]
  * where:
- *   only ( TIMESTAMP '.' PROFILE_NAME '=' SET_POINT ) are non-optional
+ *   only ( TIMESTAMP '.' PROFILE_NAME '=' SET_POINT ) are non-optional.  An optional trailing definition for that profile may name the
+ *   "basis" profile to derive from through an "adding" or "removing" overlay.
  *
- *   <SEP> is either ',' or ';' (whichever did follow SET_POINT)
+ *   <SEP> is either ',' or ';' (whichever did follow SET_POINT); choose which to minimize escaping (a KV_PAIR's VALUE, by URL-encoding).
  *
- *   TIMESTAMP is millis-since-epoch
+ *   TIMESTAMP is millis-since-epoch.
  *
  *   PROFILE_NAME is a simple [a-zA-Z0-9_]+ identifier familiar from many programming languages.  The special name "baseline()" is reserved
  *   for the baseline profile, which may alternatively be spelled as the empty identifier ("").
  *
  *   SET_POINT must be a non-negative integer ('0' indicates no instances desired).
  *
- *   The first form introduced by '+' is an "adding" (upsert) overlay; the second form with '-' is a "removing" overlay.
+ *   When an overlay is present, the form introduced by '+' is an "adding" (upsert) overlay and the form prefixed by '-' is a "removing" overlay.
+ *   @see ProfileOverlay for {@link ProfileOverlay.Adding} and {@link ProfileOverlay.Removing} semantics.
  *
  *   KV_PAIR (for "adding") is an '='-delimited (KEY '=' VALUE), where VALUE may use URL-encoding to escape characters.
  *
- *   KEY (for "removing" and in the "adding" KV_PAIR) is a '.'-separated sequence of alphanumeric identifier segments, as in a {@link java.util.Properties}
+ *   KEY (for "removing"; also in the "adding" KV_PAIR) is a '.'-separated sequence of alphanumeric identifier segments, as in a {@link java.util.Properties}
  *   or {@link com.typesafe.config.Config} name.
  *
- *   Whitespace may appear around any tokens, though not within a KEY or a VALUE.  Comments are unsupported.
+ *   Whitespace may appear around any tokens, though not within a KEY or a VALUE.
  *
- * As an alternative to inlining a lengthy adding or removing overlay definition, {@link #OVERLAY_DEFINITION_PLACEHOLDER} may stand in to indicate that
+ *   Comments are unsupported.
+ *
+ * As an alternative to inlining a lengthy "adding" or "removing" overlay definition, {@link #OVERLAY_DEFINITION_PLACEHOLDER} may stand in to indicate that
  * the definition itself will be supplied separately.  Supply it and {@link OverlayPlaceholderNeedsDefinition#retryParsingWithDefinition(String)}, upon
  * the same UNCHECKED exception (originally thrown by {@link #parse(String)}).
  *
@@ -82,8 +86,9 @@ import lombok.extern.slf4j.Slf4j;
  *      1728439210.new_profile=16,bar+(a.b.c=7,l.m=sixteen)
  *      1728439223.new_profile=16;bar+(a.b.c=7;l.m=sixteen)
  *
- *  - similar derivation, but demonstrating URL-encoding (to preserve ',' and literal space in the value):
+ *  - similar derivation, but demonstrating URL-encoding, to preserve ',' and/or literal space in the value (equiv. forms):
  *      1728460832.new_profile=16,bar+(a.b.c=7,l.m=sixteen%2C%20again)
+ *      1728460832.new_profile=16;bar+(a.b.c=7;l.m=sixteen,%20again)
  *
  *  - define a new profile, `other_profile`, with a set point of 9 by deriving via "removing" overlay from the existing profile, `my_profile` (equiv. forms):
  *      1728436436.other_profile=9,my_profile-(x,y.z)
@@ -150,7 +155,7 @@ public class ScalingDirectiveParser {
       }
     }
 
-    /** encapsulate the intricacies of splicing `overlayDefinition` into `directiveWithPlaceholder`, after attending to the necessary URL-encoding */
+    /** encapsulate the intricacies of splicing `overlayDefinition` into `directiveWithPlaceholder`, while performing the necessary URL-encoding */
     @VisibleForTesting
     protected static String definePlaceholder(String directiveWithPlaceholder, String overlaySep, boolean isAdding, String overlayDefinition) {
       // use care to selectively `urlEncode` parts (but NOT the entire string), to avoid disrupting syntactic chars, like [,;=]
@@ -190,7 +195,7 @@ public class ScalingDirectiveParser {
   /**
    * Parse `directive` into a {@link ScalingDirective} or throw {@link InvalidSyntaxException}
    *
-   * When an overlay definition was not inlined because {@link #OVERLAY_DEFINITION_PLACEHOLDER} was used instead, throw the UNCHECKED exception
+   * When an overlay definition is not inlined and {@link #OVERLAY_DEFINITION_PLACEHOLDER} is used instead, throw the UNCHECKED exception
    * {@link OverlayPlaceholderNeedsDefinition}, which facilitates a subsequent attempt to supply the overlay definition and
    * {@link OverlayPlaceholderNeedsDefinition#retryParsingWithDefinition(String)} (a form of the Proxy pattern).
    */
@@ -250,7 +255,7 @@ public class ScalingDirectiveParser {
    *
    * NOTE: regardless of its length or content, the result inlines the entire overlay def, with {@link #OVERLAY_DEFINITION_PLACEHOLDER} NEVER used
    *
-   * @see #parse(String), the inverse operation (approximately - modulo {@link #OVERLAY_DEFINITION_PLACEHOLDER}, noted above)
+   * @see #parse(String), the (approximate) inverse operation (modulo {@link #OVERLAY_DEFINITION_PLACEHOLDER}, noted above)
    */
   public static String asString(ScalingDirective directive) {
     StringBuilder sb = new StringBuilder();
