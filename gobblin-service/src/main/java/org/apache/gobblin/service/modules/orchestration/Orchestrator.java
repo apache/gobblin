@@ -122,11 +122,13 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Override
   public AddSpecResponse onAddSpec(Spec addedSpec) {
     if (addedSpec instanceof TopologySpec) {
-      _log.info("New Spec detected of type TopologySpec: " + addedSpec);
+      _log.info("Orchestrator - onAdd[Topology]Spec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
     } else if (addedSpec instanceof FlowSpec) {
-      _log.info("New Spec detected of type FlowSpec: " + addedSpec);
+      _log.info("Orchestrator - onAdd[Flow]Spec: " + addedSpec);
       return this.specCompiler.onAddSpec(addedSpec);
+    } else {
+      _log.info("Orchestrator - onAdd[<<Unrecognized>>]Spec (" + addedSpec.getClass() + ") - ignoring!: " + addedSpec);
     }
     return new AddSpecResponse<>(null);
   }
@@ -178,7 +180,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
       FlowSpec flowSpec = (FlowSpec) spec;
-      Config flowConfig = (flowSpec).getConfig();
+      Config flowConfig = flowSpec.getConfig();
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 

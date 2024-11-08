@@ -250,7 +250,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   @Override
   public LeaseAttemptStatus tryAcquireLease(DagActionStore.LeaseParams leaseParams,
       boolean adoptConsensusFlowExecutionId) throws IOException {
-    log.info("Multi-active arbiter about to handle trigger event: {}", leaseParams);
+    log.info("Multi-active arbitration for {}", leaseParams);
     // Query lease arbiter table about this dag action
     Optional<GetEventInfoResult> getResult = getExistingEventInfo(leaseParams);
 

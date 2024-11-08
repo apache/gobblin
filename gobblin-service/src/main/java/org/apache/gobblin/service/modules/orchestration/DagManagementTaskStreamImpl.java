@@ -99,7 +99,7 @@ public class DagManagementTaskStreamImpl implements DagManagement, DagTaskStream
 
   @Override
   public synchronized void addDagAction(DagActionStore.LeaseParams leaseParams) {
-    log.info("Adding {} to queue...", leaseParams);
+    log.info("Enqueuing {}", leaseParams);
     if (!this.leaseParamsQueue.offer(leaseParams)) {
       throw new RuntimeException(String.format("Could not add %s to the queue", leaseParams));
     }

@@ -96,15 +96,13 @@ public class DagActionReminderScheduler {
       boolean isDeadlineReminder) throws SchedulerException {
     DagActionStore.DagAction dagAction = leaseParams.getDagAction();
     JobDetail jobDetail = createReminderJobDetail(leaseParams, isDeadlineReminder);
-    Trigger trigger = createReminderJobTrigger(leaseParams, reminderDurationMillis,
-        System::currentTimeMillis, isDeadlineReminder);
-    log.info("Going to set reminder for dagAction {} to fire after {} ms, isDeadlineTrigger: {}",
-        dagAction, reminderDurationMillis, isDeadlineReminder);
+    Trigger trigger = createReminderJobTrigger(leaseParams, reminderDurationMillis, System::currentTimeMillis, isDeadlineReminder);
+    log.info("Setting reminder for {} in {} ms, isDeadlineTrigger: {}", dagAction, reminderDurationMillis, isDeadlineReminder);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
 
   public void unscheduleReminderJob(DagActionStore.LeaseParams leaseParams, boolean isDeadlineTrigger) throws SchedulerException {
-    log.info("Reminder unset for LeaseParams {}, isDeadlineTrigger: {}", leaseParams, isDeadlineTrigger);
+    log.info("Unsetting reminder for {}, isDeadlineTrigger: {}", leaseParams, isDeadlineTrigger);
     if (!quartzScheduler.deleteJob(createJobKey(leaseParams, isDeadlineTrigger))) {
       log.warn("Reminder not found for {}. Possibly the event is received out-of-order.", leaseParams);
     }

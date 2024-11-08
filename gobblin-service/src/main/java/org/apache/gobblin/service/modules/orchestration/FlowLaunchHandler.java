@@ -120,8 +120,8 @@ public class FlowLaunchHandler {
     long previousEventTimeMillis = leaseParams.getEventTimeMillis();
     LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(leaseParams, adoptConsensusFlowExecutionId);
     if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus
-        && persistLaunchDagAction((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt)) {
-      log.info("Successfully persisted lease: [{}, eventTimestamp: {}] ", leaseAttempt.getConsensusDagAction(),
+        && persistDagAction((LeaseAttemptStatus.LeaseObtainedStatus) leaseAttempt)) {
+      log.info("Successfully persisted: [{}, eventTimestamp: {}] ", leaseAttempt.getConsensusDagAction(),
           previousEventTimeMillis);
     } else { // when NOT successfully `persistDagAction`, set a reminder to re-attempt handling (unless leasing finished)
       calcLeasedToAnotherStatusForReminder(leaseAttempt).ifPresent(leasedToAnother ->
@@ -146,11 +146,13 @@ public class FlowLaunchHandler {
   /**
    * Called after obtaining a lease to both persist to the {@link DagActionStore} and
    * {@link MultiActiveLeaseArbiter#recordLeaseSuccess(LeaseAttemptStatus.LeaseObtainedStatus)}
+   *
+   * Presently used for both `LAUNCH` and `KILL` `DagAction`s
    */
-  private boolean persistLaunchDagAction(LeaseAttemptStatus.LeaseObtainedStatus leaseStatus) {
-    DagActionStore.DagAction launchDagAction = leaseStatus.getConsensusDagAction();
+  private boolean persistDagAction(LeaseAttemptStatus.LeaseObtainedStatus leaseStatus) {
+    DagActionStore.DagAction dagAction = leaseStatus.getConsensusDagAction();
     try {
-      this.dagManagementStateStore.addDagAction(launchDagAction);
+      this.dagManagementStateStore.addDagAction(dagAction);
       this.numFlowsSubmitted.mark();
       // after successfully persisting, close the lease
       return this.multiActiveLeaseArbiter.recordLeaseSuccess(leaseStatus);
