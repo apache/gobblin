@@ -26,7 +26,6 @@ import org.testng.annotations.Test;
 import org.testng.annotations.BeforeMethod;
 
 import java.io.IOException;
-import java.sql.Date;
 import java.util.Properties;
 
 public class TimeBasedSnapshotCleanupPolicyTest {
@@ -38,7 +37,7 @@ public class TimeBasedSnapshotCleanupPolicyTest {
         // Initialize the cleanup policy with a retention period (e.g., 1 day)
         Properties properties = new Properties();
         properties.setProperty(MockTimeBasedSnapshotCleanupPolicy.SNAPSHOT_RETENTION_POLICY_MINUTES_KEY, "1440"); // 1440 minutes = 1 day
-        properties.setProperty(MockTimeBasedSnapshotCleanupPolicy.USE_UTC_COMPARISON_KEY, "true");
+        properties.setProperty(MockTimeBasedSnapshotCleanupPolicy.RETENTION_SNAPSHOT_TIMEZONE, "UTC");
         // Mock the cutoff time to be 2024-10-30 01:01:00 UTC
         cleanupPolicy = new MockTimeBasedSnapshotCleanupPolicy(properties, new DateTime(2024, 10, 30, 1, 1));
     }
@@ -76,32 +75,23 @@ public class TimeBasedSnapshotCleanupPolicyTest {
 
         public static final String SNAPSHOT_RETENTION_POLICY_MINUTES_KEY = "gobblin.trash.snapshot.retention.minutes";
         public static final int SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT = 1440; // one day
-        public static final String USE_UTC_COMPARISON_KEY = "gobblin.trash.snapshot.retention.comparison.useUTC";
-        public static final boolean USE_UTC_COMPARISON_DEFAULT = false;
+        public static final String RETENTION_SNAPSHOT_TIMEZONE = "gobblin.trash.snapshot.retention.timezone";
 
         private final int retentionMinutes;
-        private final boolean useUTCComparison;
         private final DateTime MOCK_CURRENT_TIME;
+        private final DateTimeZone retentionSnapshotTimezone;
 
         public MockTimeBasedSnapshotCleanupPolicy(Properties props, DateTime mockCurrentTime) {
             this.retentionMinutes = Integer.parseInt(props.getProperty(SNAPSHOT_RETENTION_POLICY_MINUTES_KEY,
                 Integer.toString(SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT)));
-            this.useUTCComparison = Boolean.parseBoolean(props.getProperty(USE_UTC_COMPARISON_KEY, 
-                Boolean.toString(USE_UTC_COMPARISON_DEFAULT)));
             this.MOCK_CURRENT_TIME = mockCurrentTime;
+            this.retentionSnapshotTimezone = props.containsKey(RETENTION_SNAPSHOT_TIMEZONE) ? DateTimeZone.forID(props.getProperty(RETENTION_SNAPSHOT_TIMEZONE)) : DateTimeZone.getDefault();
         }
 
         @Override
         public boolean shouldDeleteSnapshot(FileStatus snapshot, Trash trash) {
             DateTime snapshotTime = Trash.TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(snapshot.getPath().getName());
-
-            if (this.useUTCComparison) {
-                // Ensure that the comparison between snapshotTime and the current time is done in the same time zone (UTC)
-                return snapshotTime.plusMinutes(this.retentionMinutes).isBefore(this.MOCK_CURRENT_TIME.withZoneRetainFields(DateTimeZone.UTC));
-            } else {
-                // Default to use system time zone
-                return snapshotTime.plusMinutes(this.retentionMinutes).isBefore(this.MOCK_CURRENT_TIME);
-            }
+            return snapshotTime.plusMinutes(this.retentionMinutes).isBefore(this.MOCK_CURRENT_TIME.withZoneRetainFields(this.retentionSnapshotTimezone));
         }
     }
 
