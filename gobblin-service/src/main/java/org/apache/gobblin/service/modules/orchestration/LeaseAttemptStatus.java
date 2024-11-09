@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
 
+import com.google.common.annotations.VisibleForTesting;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -29,23 +30,16 @@ import lombok.Getter;
  * Hierarchy to convey the specific outcome of attempted lease acquisition via the {@link MultiActiveLeaseArbiter},
  * with each derived type carrying outcome-specific status info.
  *
- * IMPL. NOTE: {@link LeaseAttemptStatus#getConsensusDagAction} and {@link LeaseAttemptStatus#getMinimumLingerDurationMillis}
+ * IMPL. NOTE: {@link LeaseAttemptStatus#getConsensusLeaseParams()} and {@link LeaseAttemptStatus#getMinimumLingerDurationMillis}
  * intended for `@Override`.
  */
 public abstract class LeaseAttemptStatus {
   /**
-   * @return the {@link DagActionStore.LeaseParams}, containing the dagAction, eventTimeMillis of the event, and boolean
-   * indicating if it's a reminder event; {@see MultiActiveLeaseArbiter#tryAcquireLease}
+   * @return the {@link DagActionStore.LeaseParams} containing the {@link DagActionStore.DagAction}, which may now have an updated
+   * flowExecutionId that MUST henceforth be used
+   * @see MultiActiveLeaseArbiter#tryAcquireLease
    */
   public DagActionStore.LeaseParams getConsensusLeaseParams() {
-    return null;
-  }
-
-  /**
-   * @return the {@link DagActionStore.DagAction}, which may now have an updated flowExecutionId that MUST henceforth be
-   * used; {@see MultiActiveLeaseArbiter#tryAcquireLease}
-   */
-  public DagActionStore.DagAction getConsensusDagAction() {
     return null;
   }
 
@@ -79,11 +73,6 @@ public abstract class LeaseAttemptStatus {
     @Getter(AccessLevel.NONE)
     private final MultiActiveLeaseArbiter multiActiveLeaseArbiter;
 
-    @Override
-    public DagActionStore.DagAction getConsensusDagAction() {
-      return consensusLeaseParams.getDagAction();
-    }
-
     /**
      * Completes the lease referenced by this status object if it has not expired.
      * @return true if able to complete lease, false otherwise.
@@ -93,7 +82,8 @@ public abstract class LeaseAttemptStatus {
       return multiActiveLeaseArbiter.recordLeaseSuccess(this);
     }
 
-    public long getEventTimeMillis() {
+    @VisibleForTesting
+    protected long getEventTimeMillis() {
       return consensusLeaseParams.getEventTimeMillis();
     }
   }
@@ -112,12 +102,8 @@ public abstract class LeaseAttemptStatus {
     private final DagActionStore.LeaseParams consensusLeaseParams;
     private final long minimumLingerDurationMillis;
 
-    @Override
-    public DagActionStore.DagAction getConsensusDagAction() {
-      return consensusLeaseParams.getDagAction();
-    }
-
-    public long getEventTimeMillis() {
+    @VisibleForTesting
+    protected long getEventTimeMillis() {
       return consensusLeaseParams.getEventTimeMillis();
     }
   }
