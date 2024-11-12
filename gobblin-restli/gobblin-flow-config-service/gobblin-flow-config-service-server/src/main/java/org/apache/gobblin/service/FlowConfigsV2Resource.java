@@ -106,7 +106,7 @@ public class FlowConfigsV2Resource extends ComplexKeyResourceTemplate<FlowId, Fl
 
   /**
    * Get all {@link FlowConfig}s that matches the provided parameters. All the parameters are optional.
-   * If a parameter is null, it is ignored. {@see FlowConfigV2Resource#getFilteredFlows}
+   * If a parameter is null, it is ignored.
    */
   @Finder("filterFlows")
   public List<FlowConfig> getFilteredFlows(@Context PagingContext context,

@@ -119,7 +119,7 @@ public abstract class DagProc<T> {
 
   /** @return `message` formatted with class name and {@link #getDagId()} */
   public String contextualizeStatus(String message) {
-    return String.format("{} - {} - dagId : {}", getClass().getSimpleName(), message, this.dagId);
+    return String.format("%s - %s - dagId : %s", getClass().getSimpleName(), message, this.dagId);
   }
 
   /** INFO-level logging for `message` with class name and {@link #getDagId()} */
