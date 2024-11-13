@@ -73,20 +73,11 @@ public class TimeBasedSnapshotCleanupPolicyTest {
      */
     public class MockTimeBasedSnapshotCleanupPolicy extends TimeBasedSnapshotCleanupPolicy {
 
-        public static final String SNAPSHOT_RETENTION_POLICY_MINUTES_KEY = "gobblin.trash.snapshot.retention.minutes";
-        public static final int SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT = 1440; // one day
-        public static final String RETENTION_SNAPSHOT_TIMEZONE = "gobblin.trash.snapshot.retention.timezone";
-
-        private final int retentionMinutes;
         private final DateTime MOCK_CURRENT_TIME;
-        private final DateTimeZone retentionSnapshotTimezone;
 
         public MockTimeBasedSnapshotCleanupPolicy(Properties props, DateTime mockCurrentTime) {
             super(props);
-            this.retentionMinutes = Integer.parseInt(props.getProperty(SNAPSHOT_RETENTION_POLICY_MINUTES_KEY,
-                Integer.toString(SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT)));
             this.MOCK_CURRENT_TIME = mockCurrentTime;
-            this.retentionSnapshotTimezone = props.containsKey(RETENTION_SNAPSHOT_TIMEZONE) ? DateTimeZone.forID(props.getProperty(RETENTION_SNAPSHOT_TIMEZONE)) : DateTimeZone.getDefault();
         }
 
         @Override

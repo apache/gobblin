@@ -33,8 +33,8 @@ public class TimeBasedSnapshotCleanupPolicy implements SnapshotCleanupPolicy {
   public static final int SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT = 1440; // one day
   public static final String RETENTION_SNAPSHOT_TIMEZONE = "gobblin.trash.snapshot.retention.timezone";
 
-  private final int retentionMinutes;
-  private final DateTimeZone retentionSnapshotTimezone;
+  protected final int retentionMinutes;
+  protected final DateTimeZone retentionSnapshotTimezone;
 
   public TimeBasedSnapshotCleanupPolicy(Properties props) {
     this.retentionMinutes = Integer.parseInt(props.getProperty(SNAPSHOT_RETENTION_POLICY_MINUTES_KEY,
