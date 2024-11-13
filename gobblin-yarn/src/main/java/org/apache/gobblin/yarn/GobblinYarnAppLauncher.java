@@ -37,6 +37,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.avro.Schema;
 import org.apache.commons.io.FileUtils;
+import org.apache.commons.lang.StringUtils;
 import org.apache.commons.mail.EmailException;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -209,6 +210,7 @@ public class GobblinYarnAppLauncher {
   private final long appReportIntervalMinutes;
 
   private final Optional<String> appMasterJvmArgs;
+  private final String proxyJvmArgs;
 
   private final String sinkLogRootDir;
 
@@ -279,6 +281,13 @@ public class GobblinYarnAppLauncher {
     this.appMasterJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.APP_MASTER_JVM_ARGS_KEY) ?
         Optional.of(config.getString(GobblinYarnConfigurationKeys.APP_MASTER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
+
+    String proxyConfigValue = config.hasPath(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) ?
+        config.getString(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) : StringUtils.EMPTY;
+
+    //We get config value as emptyStringPlaceholder when the string is actually supposed to be empty
+    this.proxyJvmArgs = proxyConfigValue.equals(GobblinYarnConfigurationKeys.EMPTY_STRING_PLACEHOLDER)
+        ? StringUtils.EMPTY : proxyConfigValue;
 
     this.sinkLogRootDir = ConfigUtils.getString(config, GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY, null);
 
@@ -829,6 +838,7 @@ public class GobblinYarnAppLauncher {
         .append(" -D").append(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY).append("=").append(config.getString(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY))
         .append(" -D").append(GobblinYarnConfigurationKeys.YARN_APPLICATION_LIB_JAR_LIST).append("=").append(String.join(",", this.libJarNames))
         .append(" ").append(JvmUtils.formatJvmArguments(this.appMasterJvmArgs))
+        .append(" ").append(this.proxyJvmArgs)
         .append(" ").append(appMasterClass.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)

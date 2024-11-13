@@ -36,6 +36,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
+import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -157,6 +158,7 @@ class YarnService extends AbstractIdleService {
 
   private final Optional<String> containerJvmArgs;
   private final String containerTimezone;
+  private final String proxyJvmArgs;
 
   @Getter(AccessLevel.PROTECTED)
   private volatile Optional<Resource> maxResourceCapacity = Optional.absent();
@@ -239,6 +241,13 @@ class YarnService extends AbstractIdleService {
     this.containerJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY) ?
         Optional.of(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
+
+    String proxyConfigValue = config.hasPath(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) ?
+        config.getString(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) : StringUtils.EMPTY;
+
+    //We get config value as emptyStringPlaceholder when the string is actually supposed to be empty
+    this.proxyJvmArgs = proxyConfigValue.equals(GobblinYarnConfigurationKeys.EMPTY_STRING_PLACEHOLDER)
+        ? StringUtils.EMPTY : proxyConfigValue;
 
     int numContainerLaunchThreads =
         ConfigUtils.getInt(config, GobblinYarnConfigurationKeys.MAX_CONTAINER_LAUNCH_THREADS_KEY,
@@ -594,6 +603,7 @@ class YarnService extends AbstractIdleService {
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME).append("=").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME).append("=").append(containerProcessName).append(".").append(ApplicationConstants.STDOUT)
         .append(" ").append(JvmUtils.formatJvmArguments(this.containerJvmArgs))
+        .append(" ").append(this.proxyJvmArgs)
         .append(" ").append(GobblinTemporalYarnTaskRunner.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
