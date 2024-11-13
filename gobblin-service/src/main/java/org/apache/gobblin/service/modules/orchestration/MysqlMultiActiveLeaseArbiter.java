@@ -302,8 +302,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
 
       // TODO: check whether reminder event before replacing flowExecutionId
       if (adoptConsensusFlowExecutionId) {
-        log.info("NOTE: Multi-active arbiter will use current DB epoch millis ({}) to launder {}", dbCurrentTimestamp.getTime(),
-            contextualizeLeasing(leaseParams));
+        log.info("Multi-active will use DB time ({}) to launder {}", dbCurrentTimestamp.getTime(), contextualizeLeasing(leaseParams));
       }
       /* Note that we use `adoptConsensusFlowExecutionId` parameter's value to determine whether we should use the db
       laundered event timestamp as the flowExecutionId or maintain the original one

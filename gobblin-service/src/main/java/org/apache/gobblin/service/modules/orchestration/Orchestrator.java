@@ -190,8 +190,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(launchDagAction, isReminderEvent, triggerTimestampMillis);
       // `flowSpec.isScheduled()` ==> adopt consensus `flowExecutionId` as clock drift safeguard, yet w/o disrupting API-layer's ad hoc ID assignment
       flowLaunchHandler.handleFlowLaunchTriggerEvent(jobProps, leaseParams, flowSpec.isScheduled());
-      _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
-          launchDagAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
+      _log.info("Multi-active scheduler finished handling {}", leaseParams);
     } else {
       Instrumented.markMeter(this.flowOrchestrationFailedMeter);
       throw new RuntimeException("Spec not of type FlowSpec, cannot orchestrate: " + spec);

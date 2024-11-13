@@ -117,6 +117,7 @@ public class FlowLaunchHandler {
 
   private void handleFlowTriggerEvent(Properties jobProps, DagActionStore.LeaseParams leaseParams, boolean adoptConsensusFlowExecutionId)
       throws IOException {
+    log.info("Handling trigger {} (adoptConsensusTimestamp: {})", leaseParams, adoptConsensusFlowExecutionId);
     long origEventTimeMillis = leaseParams.getEventTimeMillis();
     LeaseAttemptStatus leaseAttempt = this.multiActiveLeaseArbiter.tryAcquireLease(leaseParams, adoptConsensusFlowExecutionId);
     if (leaseAttempt instanceof LeaseAttemptStatus.LeaseObtainedStatus
