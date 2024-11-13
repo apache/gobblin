@@ -71,7 +71,7 @@ public class TimeBasedSnapshotCleanupPolicyTest {
      * Why? The current time is used to determine if a snapshot is older than the retention period, 
      * and given that the current time is always changing, it is difficult to test the method shouldDeleteSnapshot()
      */
-    public class MockTimeBasedSnapshotCleanupPolicy implements SnapshotCleanupPolicy {
+    public class MockTimeBasedSnapshotCleanupPolicy extends TimeBasedSnapshotCleanupPolicy {
 
         public static final String SNAPSHOT_RETENTION_POLICY_MINUTES_KEY = "gobblin.trash.snapshot.retention.minutes";
         public static final int SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT = 1440; // one day
@@ -82,6 +82,7 @@ public class TimeBasedSnapshotCleanupPolicyTest {
         private final DateTimeZone retentionSnapshotTimezone;
 
         public MockTimeBasedSnapshotCleanupPolicy(Properties props, DateTime mockCurrentTime) {
+            super(props);
             this.retentionMinutes = Integer.parseInt(props.getProperty(SNAPSHOT_RETENTION_POLICY_MINUTES_KEY,
                 Integer.toString(SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT)));
             this.MOCK_CURRENT_TIME = mockCurrentTime;
