@@ -215,7 +215,7 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
         .resolve();
   }
 
-  @Test
+  @Test(dependsOnMethods = "testCreateHelixCluster")
   public void testBuildApplicationMasterCommand() {
     String command = this.gobblinYarnAppLauncher.buildApplicationMasterCommand("application_1234_3456", 64);
 
@@ -353,6 +353,23 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
 
     // Give Helix sometime to handle the message
     assertWithBackoff.assertEquals(getInstanceMessageNum, 0, "all controller messages processed");
+  }
+
+  @Test(dependsOnMethods = "testCreateHelixCluster")
+  public void testProxyJvmArgs() throws IOException {
+    this.config = this.config.withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS,
+        ConfigValueFactory.fromAnyRef("-Dhttp.proxyHost=foo-bar.baz.org -Dhttp.proxyPort=1234"));
+    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(this.config, clusterConf);
+
+    String command = this.gobblinYarnAppLauncher.buildApplicationMasterCommand("application_1234_3456", 64);
+    Assert.assertTrue(command.contains("-Dhttp.proxyHost=foo-bar.baz.org -Dhttp.proxyPort=1234"));
+
+    this.config = this.config.withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS,
+        ConfigValueFactory.fromAnyRef("emptyStringPlaceholder"));
+    this.gobblinYarnAppLauncher = new GobblinYarnAppLauncher(this.config, clusterConf);
+
+    command = this.gobblinYarnAppLauncher.buildApplicationMasterCommand("application_1234_3456", 64);
+    Assert.assertFalse(command.contains("emptyStringPlaceholder"));
   }
 
   @AfterClass

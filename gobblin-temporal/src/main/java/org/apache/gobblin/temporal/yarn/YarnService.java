@@ -246,7 +246,7 @@ class YarnService extends AbstractIdleService {
         config.getString(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) : StringUtils.EMPTY;
 
     //We get config value as emptyStringPlaceholder when the string is actually supposed to be empty
-    this.proxyJvmArgs = proxyConfigValue.equals(GobblinYarnConfigurationKeys.EMPTY_STRING_PLACEHOLDER)
+    this.proxyJvmArgs = proxyConfigValue.contains(GobblinYarnConfigurationKeys.EMPTY_STRING_PLACEHOLDER)
         ? StringUtils.EMPTY : proxyConfigValue;
 
     int numContainerLaunchThreads =

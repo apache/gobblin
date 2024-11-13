@@ -129,7 +129,9 @@ public class YarnServiceTest {
 
     Config modifiedConfig = this.config
         .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, ConfigValueFactory.fromAnyRef("10"))
-        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef("0.8"));
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef("0.8"))
+        .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS,
+        ConfigValueFactory.fromAnyRef("-Dhttp.proxyHost=foo-bar.baz.org -Dhttp.proxyPort=1234"));
     TestYarnService yarnService = new TestYarnService(modifiedConfig, "testApp2", "appId2",
             this.clusterConf, FileSystem.getLocal(new Configuration()), this.eventBus);
 
@@ -147,6 +149,7 @@ public class YarnServiceTest {
     Assert.assertTrue(command.contains(String.format("--%s %s", HELIX_INSTANCE_NAME_OPTION_NAME, helixInstance)));
     Assert.assertTrue(command.contains(String.format("--%s %s", HELIX_INSTANCE_TAGS_OPTION_NAME, helixTag)));
     Assert.assertTrue(command.endsWith("1><LOG_DIR>/GobblinYarnTaskRunner.stdout 2><LOG_DIR>/GobblinYarnTaskRunner.stderr"));
+    Assert.assertFalse(command.contains("-Dhttp.proxyHost=foo-bar.baz.org -Dhttp.proxyPort=1234"));
   }
 
   static class TestYarnService extends YarnService {
