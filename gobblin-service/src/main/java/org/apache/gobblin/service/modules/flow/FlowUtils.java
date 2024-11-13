@@ -17,10 +17,11 @@
 package org.apache.gobblin.service.modules.flow;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
+
 public class FlowUtils {
   /**
    * A FlowSpec contains a FlowExecutionId if it is a runOnce flow.
-   * Refer {@link FlowConfigResourceLocalHandler#createFlowSpecForConfig} for details.
+   * Refer {@link org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler#createFlowSpecForConfig} for details.
    * @param spec flow spec
    * @return flow execution id
    */

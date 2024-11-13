@@ -140,16 +140,16 @@ public class DagProcessingEngine extends AbstractIdleService {
         DagTask dagTask = dagTaskStream.next(); // blocking call
         if (dagTask == null) {
           //todo - add a metrics to count the times dagTask was null
-          log.warn("Received a null dag task, ignoring.");
+          log.warn("Ignoring null dag task!");
           continue;
         }
         DagProc<?> dagProc = dagTask.host(dagProcFactory);
         try {
           dagProc.process(dagManagementStateStore, dagProcEngineMetrics);
           dagTask.conclude();
-          log.info("Concluded dagTask : {}", dagTask);
+          log.info(dagProc.contextualizeStatus("concluded dagTask"));
         } catch (Exception e) {
-          log.error("DagProcEngineThread encountered exception while processing dag " + dagProc.getDagId(), e);
+          log.error("DagProcEngineThread: " + dagProc.contextualizeStatus("error"), e);
           dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
         }
       }

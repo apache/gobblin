@@ -240,7 +240,7 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
 
   @Override
   public boolean deleteDagAction(DagActionStore.DagAction dagAction) throws IOException {
-    log.info("Deleting Dag Action {}", dagAction);
+    log.info("Deleting {}", dagAction);
     return this.dagActionStore.deleteDagAction(dagAction);
   }
 

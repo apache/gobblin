@@ -102,8 +102,7 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
    */
   @Override
   protected void handleDagAction(DagActionStore.DagAction dagAction, boolean isStartup) {
-    log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") DagAction change ({}) received for flow: {}",
-        dagAction.getDagActionType(), dagAction);
+    log.info("(" + (isStartup ? "on-startup" : "post-startup") + ") Handling {} for {}", dagAction.getDagActionType(), dagAction);
     try {
       switch (dagAction.getDagActionType()) {
         case ENFORCE_FLOW_FINISH_DEADLINE:

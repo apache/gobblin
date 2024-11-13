@@ -122,11 +122,13 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   @Override
   public AddSpecResponse onAddSpec(Spec addedSpec) {
     if (addedSpec instanceof TopologySpec) {
-      _log.info("New Spec detected of type TopologySpec: " + addedSpec);
+      _log.info("Orchestrator - onAdd[Topology]Spec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
     } else if (addedSpec instanceof FlowSpec) {
-      _log.info("New Spec detected of type FlowSpec: " + addedSpec);
+      _log.info("Orchestrator - onAdd[Flow]Spec: " + addedSpec);
       return this.specCompiler.onAddSpec(addedSpec);
+    } else {
+      _log.info("Orchestrator - onAdd[<<Unrecognized>>]Spec (" + addedSpec.getClass() + ") - ignoring!: " + addedSpec);
     }
     return new AddSpecResponse<>(null);
   }
@@ -178,18 +180,17 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     long startTime = System.nanoTime();
     if (spec instanceof FlowSpec) {
       FlowSpec flowSpec = (FlowSpec) spec;
-      Config flowConfig = (flowSpec).getConfig();
+      Config flowConfig = flowSpec.getConfig();
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
       sharedFlowMetricsSingleton.addFlowGauge(spec, flowConfig, flowGroup, flowName);
       DagActionStore.DagAction launchDagAction = DagActionStore.DagAction.forFlow(flowGroup, flowName,
           FlowUtils.getOrCreateFlowExecutionId(flowSpec), DagActionStore.DagActionType.LAUNCH);
-      DagActionStore.LeaseParams leaseObject = new DagActionStore.LeaseParams(launchDagAction, isReminderEvent, triggerTimestampMillis);
+      DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(launchDagAction, isReminderEvent, triggerTimestampMillis);
       // `flowSpec.isScheduled()` ==> adopt consensus `flowExecutionId` as clock drift safeguard, yet w/o disrupting API-layer's ad hoc ID assignment
-      flowLaunchHandler.handleFlowLaunchTriggerEvent(jobProps, leaseObject, flowSpec.isScheduled());
-      _log.info("Multi-active scheduler finished handling trigger event: [{}, is: {}, triggerEventTimestamp: {}]",
-          launchDagAction, isReminderEvent ? "reminder" : "original", triggerTimestampMillis);
+      flowLaunchHandler.handleFlowLaunchTriggerEvent(jobProps, leaseParams, flowSpec.isScheduled());
+      _log.info("Multi-active scheduler finished handling {}", leaseParams);
     } else {
       Instrumented.markMeter(this.flowOrchestrationFailedMeter);
       throw new RuntimeException("Spec not of type FlowSpec, cannot orchestrate: " + spec);

@@ -264,13 +264,13 @@ public class DagProcUtils {
       String flowName, long flowExecutionId, String jobName) {
     DagActionStore.DagAction enforceJobStartDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
         flowExecutionId, jobName, DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
-    log.info("Deleting dag action {}", enforceJobStartDeadlineDagAction);
+    log.info("Deleting (job start) deadline: {}", enforceJobStartDeadlineDagAction);
     // todo - add metrics
 
     try {
       dagManagementStateStore.deleteDagAction(enforceJobStartDeadlineDagAction);
     } catch (IOException e) {
-      log.warn("Failed to delete dag action {}", enforceJobStartDeadlineDagAction);
+      log.warn("Failed to delete (job start) deadline: {}", enforceJobStartDeadlineDagAction);
     }
   }
 
@@ -278,13 +278,13 @@ public class DagProcUtils {
     DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = DagActionStore.DagAction.forFlow(dagId.getFlowGroup(),
         dagId.getFlowName(), dagId.getFlowExecutionId(),
         DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
-    log.info("Deleting dag action {}", enforceFlowFinishDeadlineDagAction);
+    log.info("Deleting (flow finish) deadline: {}", enforceFlowFinishDeadlineDagAction);
     // todo - add metrics
 
     try {
       dagManagementStateStore.deleteDagAction(enforceFlowFinishDeadlineDagAction);
     } catch (IOException e) {
-      log.warn("Failed to delete dag action {}", enforceFlowFinishDeadlineDagAction);
+      log.warn("Failed to delete (flow finish) deadline: {}", enforceFlowFinishDeadlineDagAction);
     }
   }
 

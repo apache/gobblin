@@ -85,6 +85,7 @@ public abstract class DagProc<T> {
       DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     T state;
     try {
+      logContextualizedInfo("initializing");
       state = initialize(dagManagementStateStore);
       dagProcEngineMetrics.markDagActionsInitialize(getDagActionType(), true);
     } catch (Exception e) {
@@ -92,8 +93,9 @@ public abstract class DagProc<T> {
       throw e;
     }
     try {
+      logContextualizedInfo("ready to process");
       act(dagManagementStateStore, state, dagProcEngineMetrics);
-      log.info("{} processed dagId : {}", getClass().getSimpleName(), this.dagId);
+      logContextualizedInfo("processed");
     } catch (Exception e) {
       if (isNonTransientException(e)) {
         log.error("Ignoring non transient exception. DagTask {} will conclude and will not be retried. Exception - {} ",
@@ -113,6 +115,16 @@ public abstract class DagProc<T> {
 
   public DagActionStore.DagActionType getDagActionType() {
     return this.dagTask.getDagAction().getDagActionType();
+  }
+
+  /** @return `message` formatted with class name and {@link #getDagId()} */
+  public String contextualizeStatus(String message) {
+    return String.format("%s - %s - dagId : %s", getClass().getSimpleName(), message, this.dagId);
+  }
+
+  /** INFO-level logging for `message` with class name and {@link #getDagId()} */
+  public void logContextualizedInfo(String message) {
+    log.info(contextualizeStatus(message));
   }
 
   protected boolean isNonTransientException(Exception e) {

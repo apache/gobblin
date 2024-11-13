@@ -24,7 +24,7 @@ import com.linkedin.restli.common.HttpStatus;
 import com.linkedin.restli.server.RestLiServiceException;
 
 /**
- * Exception thrown by {@link FlowConfigsResourceHandler} when it cannot handle Restli gracefully.
+ * Exception thrown by {@link FlowConfigsResourceHandlerInterface} when it cannot handle Restli gracefully.
  */
 public class FlowConfigLoggedException extends RestLiServiceException {
   private static final Logger log = LoggerFactory.getLogger(FlowConfigLoggedException.class);
