@@ -78,7 +78,7 @@ public class WorkforcePlan {
   }
 
   private final WorkforceProfiles profiles;
-  private final WorkforceStaffing staffing;
+  @Getter private final WorkforceStaffing staffing;
   @Getter private volatile long lastRevisionEpochMillis;
 
   /** create new plan with the initial, baseline worker profile using `baselineConfig` at `initialSetPoint` */

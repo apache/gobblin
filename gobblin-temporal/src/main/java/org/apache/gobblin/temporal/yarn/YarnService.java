@@ -109,6 +109,8 @@ import org.apache.gobblin.yarn.YarnHelixUtils;
 import org.apache.gobblin.yarn.event.ContainerReleaseRequest;
 import org.apache.gobblin.yarn.event.ContainerShutdownRequest;
 import org.apache.gobblin.yarn.event.NewContainerRequest;
+import org.apache.gobblin.temporal.dynamic.StaffingDeltas;
+import org.apache.gobblin.temporal.dynamic.WorkerProfile;
 
 /**
  * This class is responsible for all Yarn-related stuffs including ApplicationMaster registration,
@@ -443,6 +445,22 @@ class YarnService extends AbstractIdleService {
     requestContainers(numContainers, Resource.newInstance(defaultContainerMemoryMbs, defaultContainerCores));
     LOGGER.info("Current tag-container desired count:{}, tag-container allocated: {}", numContainers, this.allocatedContainerCountMap);
     return true;
+  }
+
+  public synchronized void requestNewContainers(StaffingDeltas deltas) {
+    deltas.getPerProfileDeltas().forEach(profileDelta -> {
+      if (profileDelta.getDelta() > 0) {
+        LOGGER.info("Requesting {} new containers for profile {}", profileDelta.getDelta(), profileDelta.getProfile());
+        requestContainersForWorkerProfile(profileDelta.getProfile(), profileDelta.getDelta());
+      }
+      // TODO: Decide how to handle negative deltas
+    });
+  }
+
+  private synchronized void requestContainersForWorkerProfile(WorkerProfile workerProfile, int numContainers) {
+    int containerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
+    int containerCores = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
+    requestContainers(numContainers, Resource.newInstance(containerMemoryMbs, containerCores));
   }
 
   // Request initial containers with default resource and helix tag
