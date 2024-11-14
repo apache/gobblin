@@ -19,6 +19,8 @@ package org.apache.gobblin.util;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.commons.lang.StringUtils;
+
 import com.google.common.base.Splitter;
 import com.google.common.collect.ImmutableBiMap;
 
@@ -28,7 +30,19 @@ import com.google.common.collect.ImmutableBiMap;
 public class AzkabanLauncherUtils {
   public static final String PLACEHOLDER_MAP_KEY = "placeholderMap";
 
+  /**
+   * Reverts properties that were converted to placeholders back to their original values.
+   * It checks if the properties contain placeholderMap key and, if so, uses it as an inverse map
+   * to replace placeholder values with their original values.
+   *
+   * @param appProperties the properties object containing the application properties alongwith the inverse map
+   * @return a new Properties object with placeholders reverted to their original values, or the original properties if no placeholderMap
+   */
   public static Properties undoPlaceholderConversion(Properties appProperties) {
+    if (StringUtils.EMPTY.equals(appProperties.getProperty(PLACEHOLDER_MAP_KEY, StringUtils.EMPTY))) {
+      return appProperties;
+    }
+
     Properties convertedProperties = new Properties();
     convertedProperties.putAll(appProperties);
 

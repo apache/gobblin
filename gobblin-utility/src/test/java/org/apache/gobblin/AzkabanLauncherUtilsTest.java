@@ -40,12 +40,31 @@ public class AzkabanLauncherUtilsTest {
     props.setProperty("key5", "123emptyStringPlaceholder");
 
     props = AzkabanLauncherUtils.undoPlaceholderConversion(props);
-    Assert.assertEquals("", props.get("key1").toString());
-    Assert.assertEquals(" ", props.get("key2").toString());
-    Assert.assertEquals("\\t", props.get("key3").toString());
-    Assert.assertEquals("someOtherValue", props.get("key4").toString());
+    Assert.assertEquals(props.get("key1").toString(), "");
+    Assert.assertEquals(props.get("key2").toString(), " ");
+    Assert.assertEquals(props.get("key3").toString(), "\\t");
+    Assert.assertEquals(props.get("key4").toString(), "someOtherValue");
 
     // should replace exact matches only
-    Assert.assertEquals("123emptyStringPlaceholder", props.get("key5").toString());
+    Assert.assertEquals(props.get("key5").toString(), "123emptyStringPlaceholder");
+  }
+
+  @Test
+  public void testPlaceholderMapMissing() {
+    Properties props = new Properties();
+    props.setProperty("key1", "emptyStringPlaceholder");
+
+    props = AzkabanLauncherUtils.undoPlaceholderConversion(props);
+    Assert.assertEquals(props.get("key1").toString(), "emptyStringPlaceholder");
+  }
+
+  @Test
+  public void testEmptyPlaceholderMap() {
+    Properties props = new Properties();
+    props.setProperty("placeholderMap", "");
+    props.setProperty("key1", "emptyStringPlaceholder");
+
+    props = AzkabanLauncherUtils.undoPlaceholderConversion(props);
+    Assert.assertEquals(props.get("key1").toString(), "emptyStringPlaceholder");
   }
 }

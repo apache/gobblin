@@ -57,6 +57,10 @@ public class GobblinYarnConfigurationKeys {
 
   public static final String YARN_APPLICATION_LIB_JAR_LIST = GOBBLIN_YARN_PREFIX + "lib.jar.list";
 
+  /**
+   * Config for setting http/https proxy host and port.
+   * The value for this property is expected in format -DproxySet=true -Dhttps.proxyHost=[hostname] -Dhttps.proxyPort=[port]
+   */
   public static final String YARN_APPLICATION_PROXY_JVM_ARGS = GOBBLIN_YARN_PREFIX + "proxy.jvm.args";
 
   // Used to store the start time of the app launcher to propagate to workers and appmaster
