@@ -32,6 +32,7 @@ import com.typesafe.config.ConfigValueFactory;
 import azkaban.jobExecutor.AbstractJob;
 import lombok.Getter;
 
+import org.apache.gobblin.util.AzkabanLauncherUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.yarn.GobblinYarnAppLauncher;
 import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
@@ -63,7 +64,7 @@ public class AzkabanGobblinYarnAppLauncher extends AbstractJob {
   public AzkabanGobblinYarnAppLauncher(String jobId, Properties gobblinProps)
       throws IOException {
     super(jobId, LOGGER);
-
+    gobblinProps = AzkabanLauncherUtils.undoPlaceholderConversion(gobblinProps);
     addRuntimeProperties(gobblinProps);
 
     Config gobblinConfig = ConfigUtils.propertiesToConfig(gobblinProps);
