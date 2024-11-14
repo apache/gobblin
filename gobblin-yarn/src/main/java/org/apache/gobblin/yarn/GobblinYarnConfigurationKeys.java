@@ -59,9 +59,6 @@ public class GobblinYarnConfigurationKeys {
 
   public static final String YARN_APPLICATION_PROXY_JVM_ARGS = GOBBLIN_YARN_PREFIX + "proxy.jvm.args";
 
-  //Config value for proxy jvm args when absent
-  public static final String EMPTY_STRING_PLACEHOLDER = "emptyStringPlaceholder";
-
   // Used to store the start time of the app launcher to propagate to workers and appmaster
   public static final String YARN_APPLICATION_LAUNCHER_START_TIME_KEY = GOBBLIN_YARN_PREFIX + "application.start.time";
 

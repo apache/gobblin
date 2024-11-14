@@ -282,12 +282,8 @@ public class GobblinYarnAppLauncher {
         Optional.of(config.getString(GobblinYarnConfigurationKeys.APP_MASTER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
-    String proxyConfigValue = config.hasPath(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) ?
+    this.proxyJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) ?
         config.getString(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) : StringUtils.EMPTY;
-
-    //We get config value as emptyStringPlaceholder when the string is actually supposed to be empty
-    this.proxyJvmArgs = proxyConfigValue.contains(GobblinYarnConfigurationKeys.EMPTY_STRING_PLACEHOLDER)
-        ? StringUtils.EMPTY : proxyConfigValue;
 
     this.sinkLogRootDir = ConfigUtils.getString(config, GobblinYarnConfigurationKeys.LOGS_SINK_ROOT_DIR_KEY, null);
 
