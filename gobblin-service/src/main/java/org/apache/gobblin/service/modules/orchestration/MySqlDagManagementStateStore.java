@@ -65,6 +65,7 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   // todo - these two stores should merge
   private DagStateStoreWithDagNodes dagStateStore;
   private DagStateStoreWithDagNodes failedDagStateStore;
+  private MultiActiveLeaseArbiter multiActiveLeaseArbiter;
   private final JobStatusRetriever jobStatusRetriever;
   private boolean dagStoresInitialized = false;
   private final UserQuotaManager quotaManager;
@@ -79,13 +80,14 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
 
   @Inject
   public MySqlDagManagementStateStore(Config config, FlowCatalog flowCatalog, UserQuotaManager userQuotaManager,
-      JobStatusRetriever jobStatusRetriever, DagActionStore dagActionStore) {
+      JobStatusRetriever jobStatusRetriever, DagActionStore dagActionStore, MultiActiveLeaseArbiter multiActiveLeaseArbiter) {
     this.quotaManager = userQuotaManager;
     this.config = config;
     this.flowCatalog = flowCatalog;
     this.jobStatusRetriever = jobStatusRetriever;
     this.dagManagerMetrics.activate();
     this.dagActionStore = dagActionStore;
+    this.multiActiveLeaseArbiter = multiActiveLeaseArbiter;
    }
 
   // It should be called after topology spec map is set
@@ -166,6 +168,11 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   public synchronized void updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode)
       throws IOException {
     this.dagStateStore.updateDagNode(dagNode);
+  }
+
+  @Override
+  public boolean existsLeasableEntity(DagActionStore.LeaseParams leaseParams) throws IOException {
+    return multiActiveLeaseArbiter.existsLeasableEntity(leaseParams);
   }
 
   @Override

@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import com.linkedin.restli.common.HttpStatus;
+import com.linkedin.restli.server.RestLiServiceException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -24,6 +26,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
+import org.apache.gobblin.runtime.api.LeaseUnavailableException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -78,6 +81,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final SpecCompiler specCompiler;
   protected final TopologyCatalog topologyCatalog;
   private final JobStatusRetriever jobStatusRetriever;
+  private final DagManagementStateStore dagManagementStateStore;
 
   protected final MetricContext metricContext;
 
@@ -100,6 +104,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     this.topologyCatalog = topologyCatalog;
     this.flowLaunchHandler = flowLaunchHandler;
     this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
+    this.dagManagementStateStore = dagManagementStateStore;
     this.jobStatusRetriever = jobStatusRetriever;
     this.specCompiler = flowCompilationValidationHelper.getSpecCompiler();
     // todo remove the need to set topology factory outside of constructor GOBBLIN-2056
@@ -125,12 +130,32 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       _log.info("Orchestrator - onAdd[Topology]Spec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
     } else if (addedSpec instanceof FlowSpec) {
+      validateAdhocFlowLeasability((FlowSpec) addedSpec);
       _log.info("Orchestrator - onAdd[Flow]Spec: " + addedSpec);
       return this.specCompiler.onAddSpec(addedSpec);
     } else {
       _log.info("Orchestrator - onAdd[<<Unrecognized>>]Spec (" + addedSpec.getClass() + ") - ignoring!: " + addedSpec);
     }
     return new AddSpecResponse<>(null);
+  }
+
+  private void validateAdhocFlowLeasability(FlowSpec flowSpec) {
+    if (!flowSpec.isScheduled()) {
+      Config flowConfig = flowSpec.getConfig();
+      String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+      String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+      DagActionStore.DagAction dagAction = DagActionStore.DagAction.forFlow(flowGroup, flowName,
+          FlowUtils.getOrCreateFlowExecutionId(flowSpec), DagActionStore.DagActionType.LAUNCH);
+      DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(dagAction, System.currentTimeMillis());
+      try {
+        if (!dagManagementStateStore.existsLeasableEntity(leaseParams)) {
+          throw new LeaseUnavailableException("Lease already occupied by another execution of this flow");
+        }
+      } catch (IOException exception) {
+        _log.error(String.format("Failed to query leaseArbiterTable for existing flow details: %s", flowSpec), exception);
+        throw new RuntimeException("Error querying leaseArbiterTable", exception);
+      }
+    }
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {

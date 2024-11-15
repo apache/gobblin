@@ -61,6 +61,9 @@ public interface MultiActiveLeaseArbiter {
   LeaseAttemptStatus tryAcquireLease(DagActionStore.LeaseParams leaseParams, boolean adoptConsensusFlowExecutionId)
       throws IOException;
 
+  boolean existsLeasableEntity(DagActionStore.LeaseParams leaseParams)
+      throws IOException;
+
   /**
    * This method is used to indicate the owner of the lease has successfully completed required actions while holding
    * the lease of the dag action event. It marks the lease as "no longer leasing", if the eventTimeMillis and

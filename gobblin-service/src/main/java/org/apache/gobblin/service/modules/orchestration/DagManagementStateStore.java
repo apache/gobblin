@@ -104,6 +104,11 @@ public interface DagManagementStateStore {
   void updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
   /**
+   * Returns true if lease can be acquired on entity, else returns false
+   */
+  boolean existsLeasableEntity(DagActionStore.LeaseParams leaseParams) throws IOException;
+
+  /**
    * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} and its {@link JobStatus}.
    * Both params are returned as optional and are empty if not present in the store.
    * JobStatus can be non-empty only if DagNode is non-empty.

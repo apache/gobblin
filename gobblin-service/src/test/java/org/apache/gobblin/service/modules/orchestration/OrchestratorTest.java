@@ -18,13 +18,19 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.File;
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.runtime.api.LeaseUnavailableException;
+import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
+import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.hadoop.fs.Path;
+import org.mockito.Mockito;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -86,6 +92,8 @@ public class OrchestratorTest {
   private FlowSpec flowSpec;
   private ITestMetastoreDatabase testMetastoreDatabase;
   private Orchestrator dagMgrNotFlowLaunchHandlerBasedOrchestrator;
+  private DagManagementStateStore dagManagementStateStore;
+  private SpecCompiler specCompiler;
 
   @BeforeClass
   public void setUpClass() throws Exception {
@@ -107,7 +115,7 @@ public class OrchestratorTest {
     flowProperties.put("specStore.fs.dir", FLOW_SPEC_STORE_DIR);
 
     this.serviceLauncher = new ServiceBasedAppLauncher(orchestratorProperties, "OrchestratorCatalogTest");
-
+    this.specCompiler = Mockito.mock(SpecCompiler.class);
     this.topologyCatalog = new TopologyCatalog(ConfigUtils.propertiesToConfig(topologyProperties),
         Optional.of(logger));
     this.serviceLauncher.addService(topologyCatalog);
@@ -116,9 +124,10 @@ public class OrchestratorTest {
     this.flowCatalog = new FlowCatalog(ConfigUtils.propertiesToConfig(flowProperties), Optional.of(logger), Optional.absent(), true);
 
     this.serviceLauncher.addService(flowCatalog);
-
+    MultiActiveLeaseArbiter leaseArbiter = Mockito.mock(MultiActiveLeaseArbiter.class);
     MySqlDagManagementStateStore dagManagementStateStore =
         spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
+    this.dagManagementStateStore=dagManagementStateStore;
 
     SharedFlowMetricsSingleton sharedFlowMetricsSingleton = new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(orchestratorProperties));
 
@@ -309,6 +318,39 @@ public class OrchestratorTest {
     // Orchestrator is a no-op listener for any new FlowSpecs
     Assert.assertEquals(sei.getProducer().get().listSpecs().get().size(), 0,
         "SpecProducer should contain 0 Spec after addition");
+  }
+
+  /*
+     If another flow has already acquired lease for this flowspec details within
+     epsilon time, then we do not execute this flow, hence do not process and store the spec
+     and throw LeaseUnavailableException
+   */
+  @Test(expectedExceptions = LeaseUnavailableException.class)
+  public void testOnAddSpec_withFlowSpec_leaseUnavailable() throws IOException {
+    ConfigBuilder configBuilder = ConfigBuilder.create()
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup")
+        .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "testName");
+    Config config = configBuilder.build();
+    FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
+    Mockito.when(dagManagementStateStore.existsLeasableEntity(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(false);
+    dagMgrNotFlowLaunchHandlerBasedOrchestrator.onAddSpec(flowSpec);
+  }
+
+  @Test
+  public void testOnAddSpec_withFlowSpec_Available() throws IOException {
+    ConfigBuilder configBuilder = ConfigBuilder.create()
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup")
+        .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "testName")
+        .addPrimitive(ConfigurationKeys.JOB_SCHEDULE_KEY, "0 1/0 * ? * *")
+        .addPrimitive("gobblin.flow.sourceIdentifier", "source")
+        .addPrimitive("gobblin.flow.destinationIdentifier", "destination");
+    Config config = configBuilder.build();
+    FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
+    Mockito.when(dagManagementStateStore.existsLeasableEntity(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
+    AddSpecResponse response = new AddSpecResponse<>(new Object());
+    Mockito.when(specCompiler.onAddSpec(flowSpec)).thenReturn(response);
+    AddSpecResponse addSpecResponse = dagMgrNotFlowLaunchHandlerBasedOrchestrator.onAddSpec(flowSpec);
+    Assert.assertNotNull(addSpecResponse);
   }
 
   @Test
