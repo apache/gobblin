@@ -104,9 +104,11 @@ public interface DagManagementStateStore {
   void updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
   /**
-   * Returns true if lease can be acquired on entity, else returns false
+   * Returns true if lease can be acquired on entity provided in leaseParams.
+   * @param leaseParams   uniquely identifies the flow, the present action upon it, the time the action
+   *                      was triggered, and if the dag action event we're checking on is a reminder event
    */
-  boolean existsLeasableEntity(DagActionStore.LeaseParams leaseParams) throws IOException;
+  boolean canAcquireLeaseOnEntity(DagActionStore.LeaseParams leaseParams) throws IOException;
 
   /**
    * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} and its {@link JobStatus}.

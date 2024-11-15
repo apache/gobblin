@@ -148,7 +148,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
           FlowUtils.getOrCreateFlowExecutionId(flowSpec), DagActionStore.DagActionType.LAUNCH);
       DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(dagAction, System.currentTimeMillis());
       try {
-        if (!dagManagementStateStore.existsLeasableEntity(leaseParams)) {
+        if (!dagManagementStateStore.canAcquireLeaseOnEntity(leaseParams)) {
           throw new LeaseUnavailableException("Lease already occupied by another execution of this flow");
         }
       } catch (IOException exception) {

@@ -171,8 +171,8 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   }
 
   @Override
-  public boolean existsLeasableEntity(DagActionStore.LeaseParams leaseParams) throws IOException {
-    return multiActiveLeaseArbiter.existsLeasableEntity(leaseParams);
+  public boolean canAcquireLeaseOnEntity(DagActionStore.LeaseParams leaseParams) throws IOException {
+    return multiActiveLeaseArbiter.canAcquireLeaseOnEntity(leaseParams);
   }
 
   @Override

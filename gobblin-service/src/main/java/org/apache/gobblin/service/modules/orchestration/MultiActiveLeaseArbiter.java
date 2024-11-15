@@ -61,7 +61,14 @@ public interface MultiActiveLeaseArbiter {
   LeaseAttemptStatus tryAcquireLease(DagActionStore.LeaseParams leaseParams, boolean adoptConsensusFlowExecutionId)
       throws IOException;
 
-  boolean existsLeasableEntity(DagActionStore.LeaseParams leaseParams)
+  /**
+   * This method checks if lease can be acquired on provided flow in lease params
+   * returns true if entry for the same flow does not exists within epsilon time
+   * in leaseArbiterStore
+   * @param leaseParams   uniquely identifies the flow, the present action upon it, the time the action
+   *                      was triggered, and if the dag action event we're checking on is a reminder event
+   */
+  boolean canAcquireLeaseOnEntity(DagActionStore.LeaseParams leaseParams)
       throws IOException;
 
   /**

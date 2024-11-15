@@ -332,7 +332,7 @@ public class OrchestratorTest {
         .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "testName");
     Config config = configBuilder.build();
     FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
-    Mockito.when(dagManagementStateStore.existsLeasableEntity(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(false);
+    Mockito.when(dagManagementStateStore.canAcquireLeaseOnEntity(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(false);
     dagMgrNotFlowLaunchHandlerBasedOrchestrator.onAddSpec(flowSpec);
   }
 
@@ -346,7 +346,7 @@ public class OrchestratorTest {
         .addPrimitive("gobblin.flow.destinationIdentifier", "destination");
     Config config = configBuilder.build();
     FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
-    Mockito.when(dagManagementStateStore.existsLeasableEntity(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
+    Mockito.when(dagManagementStateStore.canAcquireLeaseOnEntity(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
     AddSpecResponse response = new AddSpecResponse<>(new Object());
     Mockito.when(specCompiler.onAddSpec(flowSpec)).thenReturn(response);
     AddSpecResponse addSpecResponse = dagMgrNotFlowLaunchHandlerBasedOrchestrator.onAddSpec(flowSpec);

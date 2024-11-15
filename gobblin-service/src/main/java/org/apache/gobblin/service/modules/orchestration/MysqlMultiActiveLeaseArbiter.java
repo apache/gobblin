@@ -363,7 +363,7 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
   }
 
   @Override
-  public boolean existsLeasableEntity(DagActionStore.LeaseParams leaseParams) throws IOException {
+  public boolean canAcquireLeaseOnEntity(DagActionStore.LeaseParams leaseParams) throws IOException {
     Optional<GetEventInfoResult> infoResult = getExistingEventInfo(leaseParams);
     return infoResult.isPresent() ? !infoResult.get().isWithinEpsilon() : true;
   }

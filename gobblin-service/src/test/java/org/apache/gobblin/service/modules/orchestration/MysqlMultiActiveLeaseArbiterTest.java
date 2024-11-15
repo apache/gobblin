@@ -223,7 +223,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     Assert.assertTrue(firstLaunchStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
     completeLeaseHelper(launchLeaseParams3);
     Thread.sleep(LESS_THAN_EPSILON);
-    Assert.assertFalse(mysqlMultiActiveLeaseArbiter.existsLeasableEntity(launchLeaseParams3));
+    Assert.assertFalse(mysqlMultiActiveLeaseArbiter.canAcquireLeaseOnEntity(launchLeaseParams3));
   }
 
   /*
@@ -236,7 +236,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
     Assert.assertTrue(firstLaunchStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
     completeLeaseHelper(launchLeaseParams4);
     Thread.sleep(MORE_THAN_EPSILON);
-    Assert.assertTrue(mysqlMultiActiveLeaseArbiter.existsLeasableEntity(launchLeaseParams4));
+    Assert.assertTrue(mysqlMultiActiveLeaseArbiter.canAcquireLeaseOnEntity(launchLeaseParams4));
   }
 
   /*
