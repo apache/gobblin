@@ -326,18 +326,40 @@ public class OrchestratorTest {
      and throw LeaseUnavailableException
    */
   @Test(expectedExceptions = LeaseUnavailableException.class)
-  public void testOnAddSpec_withFlowSpec_leaseUnavailable() throws IOException {
+  public void onAddSpecForAdhocFlowThrowLeaseUnavailable() throws IOException {
     ConfigBuilder configBuilder = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup")
         .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "testName");
     Config config = configBuilder.build();
     FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
-    Mockito.when(dagManagementStateStore.canAcquireLeaseOnEntity(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(false);
+    Mockito.when(dagManagementStateStore.isLeaseAcquirable(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(false);
     dagMgrNotFlowLaunchHandlerBasedOrchestrator.onAddSpec(flowSpec);
   }
 
+  /*
+   If no other flow has acquired lease within the epsilon time, then flow
+   compilation and addition to the store occurs normally
+ */
   @Test
-  public void testOnAddSpec_withFlowSpec_Available() throws IOException {
+  public void onAddSpecForAdhocFlowLeaseAvailable() throws IOException {
+    ConfigBuilder configBuilder = ConfigBuilder.create()
+        .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup")
+        .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "testName")
+        .addPrimitive("gobblin.flow.sourceIdentifier", "source")
+        .addPrimitive("gobblin.flow.destinationIdentifier", "destination");
+    Config config = configBuilder.build();
+    FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
+    Mockito.when(dagManagementStateStore.isLeaseAcquirable(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
+    AddSpecResponse addSpecResponse = dagMgrNotFlowLaunchHandlerBasedOrchestrator.onAddSpec(flowSpec);
+    Assert.assertNotNull(addSpecResponse);
+  }
+
+  /*
+    For Scheduled flow lease acquirable check does not occur,
+    and flow compilation occurs successfully
+   */
+  @Test
+  public void onAddSpecForScheduledFlow() throws IOException {
     ConfigBuilder configBuilder = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup")
         .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "testName")
@@ -346,7 +368,6 @@ public class OrchestratorTest {
         .addPrimitive("gobblin.flow.destinationIdentifier", "destination");
     Config config = configBuilder.build();
     FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
-    Mockito.when(dagManagementStateStore.canAcquireLeaseOnEntity(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
     AddSpecResponse response = new AddSpecResponse<>(new Object());
     Mockito.when(specCompiler.onAddSpec(flowSpec)).thenReturn(response);
     AddSpecResponse addSpecResponse = dagMgrNotFlowLaunchHandlerBasedOrchestrator.onAddSpec(flowSpec);

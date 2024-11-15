@@ -97,12 +97,12 @@ public class MySqlDagManagementStateStoreTest {
 
   @Test
   public void testcanAcquireLeaseOnEntity() throws Exception{
-    Mockito.when(leaseArbiter.canAcquireLeaseOnEntity(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
+    Mockito.when(leaseArbiter.isLeaseAcquirable(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
     String flowName = "testFlow";
     String flowGroup = "testGroup";
     DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowName, flowGroup, System.currentTimeMillis(), "testJob", DagActionStore.DagActionType.LAUNCH);
     DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(dagAction);
-    Assert.assertTrue(dagManagementStateStore.canAcquireLeaseOnEntity(leaseParams));
+    Assert.assertTrue(dagManagementStateStore.isLeaseAcquirable(leaseParams));
   }
 
   @Test

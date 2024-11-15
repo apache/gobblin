@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
-import com.linkedin.restli.common.HttpStatus;
-import com.linkedin.restli.server.RestLiServiceException;
 import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
@@ -139,16 +137,22 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     return new AddSpecResponse<>(null);
   }
 
+  /*
+    validates if lease can be acquired on the provided flowSpec,
+    else throw LeaseUnavailableException
+   */
   private void validateAdhocFlowLeasability(FlowSpec flowSpec) {
     if (!flowSpec.isScheduled()) {
       Config flowConfig = flowSpec.getConfig();
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+
       DagActionStore.DagAction dagAction = DagActionStore.DagAction.forFlow(flowGroup, flowName,
           FlowUtils.getOrCreateFlowExecutionId(flowSpec), DagActionStore.DagActionType.LAUNCH);
       DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(dagAction, System.currentTimeMillis());
+      _log.info("validation of lease acquirability of adhoc flow with lease params: " + leaseParams);
       try {
-        if (!dagManagementStateStore.canAcquireLeaseOnEntity(leaseParams)) {
+        if (!dagManagementStateStore.isLeaseAcquirable(leaseParams)) {
           throw new LeaseUnavailableException("Lease already occupied by another execution of this flow");
         }
       } catch (IOException exception) {
