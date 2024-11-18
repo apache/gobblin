@@ -36,7 +36,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
 import java.util.stream.IntStream;
 
-import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -109,8 +108,8 @@ import org.apache.gobblin.yarn.YarnHelixUtils;
 import org.apache.gobblin.yarn.event.ContainerReleaseRequest;
 import org.apache.gobblin.yarn.event.ContainerShutdownRequest;
 import org.apache.gobblin.yarn.event.NewContainerRequest;
-import org.apache.gobblin.temporal.dynamic.StaffingDeltas;
 import org.apache.gobblin.temporal.dynamic.WorkerProfile;
+import org.apache.gobblin.temporal.dynamic.WorkforceProfiles;
 
 /**
  * This class is responsible for all Yarn-related stuffs including ApplicationMaster registration,
@@ -133,6 +132,7 @@ class YarnService extends AbstractIdleService {
   //Default helix instance tag derived from cluster level config
   private final String helixInstanceTags;
 
+  @Getter(AccessLevel.PROTECTED)
   private final Config config;
 
   private final EventBus eventBus;
@@ -149,6 +149,7 @@ class YarnService extends AbstractIdleService {
   private final NMClientAsync nmClientAsync;
   private final ExecutorService containerLaunchExecutor;
 
+  @Getter(AccessLevel.PROTECTED)
   private final int initialContainers;
   private final int requestedContainerMemoryMbs;
   private final int requestedContainerCores;
@@ -160,7 +161,6 @@ class YarnService extends AbstractIdleService {
 
   private final Optional<String> containerJvmArgs;
   private final String containerTimezone;
-  private final String proxyJvmArgs;
 
   @Getter(AccessLevel.PROTECTED)
   private volatile Optional<Resource> maxResourceCapacity = Optional.absent();
@@ -202,6 +202,8 @@ class YarnService extends AbstractIdleService {
   private volatile boolean shutdownInProgress = false;
 
   private final boolean jarCacheEnabled;
+  protected final WorkerProfile baselineWorkerProfile;
+  protected final ConcurrentMap<Long, WorkerProfile> allocationRequestIdToWorkerProfile = new ConcurrentHashMap<>();
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus) throws Exception {
@@ -244,9 +246,6 @@ class YarnService extends AbstractIdleService {
         Optional.of(config.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
-    this.proxyJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) ?
-        config.getString(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) : StringUtils.EMPTY;
-
     int numContainerLaunchThreads =
         ConfigUtils.getInt(config, GobblinYarnConfigurationKeys.MAX_CONTAINER_LAUNCH_THREADS_KEY,
             GobblinYarnConfigurationKeys.DEFAULT_MAX_CONTAINER_LAUNCH_THREADS);
@@ -280,6 +279,9 @@ class YarnService extends AbstractIdleService {
     this.containerTimezone = ConfigUtils.getString(this.config, GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_TIMEZONE,
         GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_CONTAINER_TIMEZONE);
     this.jarCacheEnabled = ConfigUtils.getBoolean(this.config, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED_DEFAULT);
+
+    // Initialising this baseline worker profile to use as default worker profile in case allocation request id is not in map
+    this.baselineWorkerProfile = new WorkerProfile(WorkforceProfiles.BASELINE_NAME, this.config);
   }
 
   @SuppressWarnings("unused")
@@ -442,25 +444,9 @@ class YarnService extends AbstractIdleService {
     LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
         numContainers, inUseInstances.size(), this.containerMap.size());
 
-    requestContainers(numContainers, Resource.newInstance(defaultContainerMemoryMbs, defaultContainerCores));
+    requestContainers(numContainers, Resource.newInstance(defaultContainerMemoryMbs, defaultContainerCores), Optional.absent());
     LOGGER.info("Current tag-container desired count:{}, tag-container allocated: {}", numContainers, this.allocatedContainerCountMap);
     return true;
-  }
-
-  public synchronized void requestNewContainers(StaffingDeltas deltas) {
-    deltas.getPerProfileDeltas().forEach(profileDelta -> {
-      if (profileDelta.getDelta() > 0) {
-        LOGGER.info("Requesting {} new containers for profile {}", profileDelta.getDelta(), profileDelta.getProfile());
-        requestContainersForWorkerProfile(profileDelta.getProfile(), profileDelta.getDelta());
-      }
-      // TODO: Decide how to handle negative deltas
-    });
-  }
-
-  private synchronized void requestContainersForWorkerProfile(WorkerProfile workerProfile, int numContainers) {
-    int containerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
-    int containerCores = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
-    requestContainers(numContainers, Resource.newInstance(containerMemoryMbs, containerCores));
   }
 
   // Request initial containers with default resource and helix tag
@@ -471,7 +457,7 @@ class YarnService extends AbstractIdleService {
   private void requestContainer(Optional<String> preferredNode, Optional<Resource> resourceOptional) {
     Resource desiredResource = resourceOptional.or(Resource.newInstance(
         this.requestedContainerMemoryMbs, this.requestedContainerCores));
-    requestContainer(preferredNode, desiredResource);
+    requestContainer(preferredNode, desiredResource, Optional.absent());
   }
 
   /**
@@ -480,14 +466,14 @@ class YarnService extends AbstractIdleService {
    * @param numContainers
    * @param resource
    */
-  private void requestContainers(int numContainers, Resource resource) {
-    LOGGER.info("Requesting {} containers with resource={}", numContainers, resource);
+  protected void requestContainers(int numContainers, Resource resource, Optional<Long> allocationRequestId) {
+    LOGGER.info("Requesting {} containers with resource={} and allocation request id = {}", numContainers, resource, allocationRequestId);
     IntStream.range(0, numContainers)
-        .forEach(i -> requestContainer(Optional.absent(), resource));
+        .forEach(i -> requestContainer(Optional.absent(), resource, allocationRequestId));
   }
 
   // Request containers with specific resource requirement
-  private void requestContainer(Optional<String> preferredNode, Resource resource) {
+  private void requestContainer(Optional<String> preferredNode, Resource resource, Optional<Long> allocationRequestId) {
     // Fail if Yarn cannot meet container resource requirements
     Preconditions.checkArgument(resource.getMemory() <= this.maxResourceCapacity.get().getMemory() &&
             resource.getVirtualCores() <= this.maxResourceCapacity.get().getVirtualCores(),
@@ -503,8 +489,11 @@ class YarnService extends AbstractIdleService {
     priority.setPriority(priorityNum);
 
     String[] preferredNodes = preferredNode.isPresent() ? new String[] {preferredNode.get()} : null;
+
+    long allocationRequestID = allocationRequestId.isPresent() ? allocationRequestId.get() : 0L;
+
     this.amrmClientAsync.addContainerRequest(
-        new AMRMClient.ContainerRequest(resource, preferredNodes, null, priority));
+        new AMRMClient.ContainerRequest(resource, preferredNodes, null, priority, allocationRequestID));
   }
 
   protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
@@ -608,16 +597,32 @@ class YarnService extends AbstractIdleService {
 
   @VisibleForTesting
   protected String buildContainerCommand(Container container, String helixParticipantId, String helixInstanceTag) {
+    long allocationRequestID = container.getAllocationRequestId();
+    WorkerProfile workerProfile = this.allocationRequestIdToWorkerProfile.getOrDefault(allocationRequestID,
+        this.baselineWorkerProfile);
+    Config workerProfileConfig = workerProfile.getConfig();
+
+    double workerJvmMemoryXmxRatio = ConfigUtils.getDouble(workerProfileConfig,
+        GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY,
+        GobblinYarnConfigurationKeys.DEFAULT_CONTAINER_JVM_MEMORY_XMX_RATIO);
+
+    int workerJvmMemoryOverheadMbs = ConfigUtils.getInt(workerProfileConfig,
+        GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY,
+        GobblinYarnConfigurationKeys.DEFAULT_CONTAINER_JVM_MEMORY_OVERHEAD_MBS);
+
+    Optional<String> workerJvmArgs = workerProfileConfig.hasPath(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY) ?
+        Optional.of(workerProfileConfig.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
+        Optional.<String>absent();
+
     String containerProcessName = GobblinTemporalYarnTaskRunner.class.getSimpleName();
     StringBuilder containerCommand = new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
-        .append(" -Xmx").append((int) (container.getResource().getMemory() * this.jvmMemoryXmxRatio) -
-            this.jvmMemoryOverheadMbs).append("M")
+        .append(" -Xmx").append((int) (container.getResource().getMemory() * workerJvmMemoryXmxRatio) -
+            workerJvmMemoryOverheadMbs).append("M")
         .append(" -D").append(GobblinYarnConfigurationKeys.JVM_USER_TIMEZONE_CONFIG).append("=").append(this.containerTimezone)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME).append("=").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME).append("=").append(containerProcessName).append(".").append(ApplicationConstants.STDOUT)
-        .append(" ").append(JvmUtils.formatJvmArguments(this.containerJvmArgs))
-        .append(" ").append(this.proxyJvmArgs)
+        .append(" ").append(JvmUtils.formatJvmArguments(workerJvmArgs))
         .append(" ").append(GobblinTemporalYarnTaskRunner.class.getName())
         .append(" --").append(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME)
         .append(" ").append(this.applicationName)
