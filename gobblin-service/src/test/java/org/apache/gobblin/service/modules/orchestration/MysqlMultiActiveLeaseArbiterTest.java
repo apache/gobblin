@@ -59,6 +59,7 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String flowName = "testFlowName";
   private static final String jobName = "testJobName";
   private static final long flowExecutionId = 12345677L;
+  private static final long flowExecutionId1 = 12345996L;
   private static final long eventTimeMillis = 1710451837L;
   // Dag actions with the same flow info but different flow action types are considered unique
   private static final DagActionStore.DagAction launchDagAction =
@@ -81,6 +82,14 @@ public class MysqlMultiActiveLeaseArbiterTest {
       new DagActionStore.DagAction(flowGroup4, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
   private static final DagActionStore.LeaseParams
       launchLeaseParams4 = new DagActionStore.LeaseParams(launchDagAction4, false, eventTimeMillis);
+  private static final DagActionStore.DagAction launchDagAction3_similar =
+      new DagActionStore.DagAction(flowGroup3, flowName, flowExecutionId1, jobName, DagActionStore.DagActionType.LAUNCH);
+  private static final DagActionStore.LeaseParams
+      launchLeaseParams3_similar = new DagActionStore.LeaseParams(launchDagAction3_similar, false, eventTimeMillis);
+  private static final DagActionStore.DagAction launchDagAction4_similar =
+      new DagActionStore.DagAction(flowGroup4, flowName, flowExecutionId1, jobName, DagActionStore.DagActionType.LAUNCH);
+  private static final DagActionStore.LeaseParams
+      launchLeaseParams4_similar = new DagActionStore.LeaseParams(launchDagAction4_similar, false, eventTimeMillis);
   private static final Timestamp dummyTimestamp = new Timestamp(99999);
   private ITestMetastoreDatabase testDb;
   private MysqlMultiActiveLeaseArbiter mysqlMultiActiveLeaseArbiter;
@@ -217,26 +226,26 @@ public class MysqlMultiActiveLeaseArbiterTest {
    to account for clock drift
   */
   @Test
-  public void testWhenLeasableEntityUnavailable() throws Exception{
+  public void testExistsSimilarLeaseWithinConsolidationPeriod() throws Exception{
     LeaseAttemptStatus firstLaunchStatus =
         mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams3, true);
     Assert.assertTrue(firstLaunchStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
     completeLeaseHelper(launchLeaseParams3);
     Thread.sleep(LESS_THAN_EPSILON);
-    Assert.assertFalse(mysqlMultiActiveLeaseArbiter.isLeaseAcquirable(launchLeaseParams3));
+    Assert.assertTrue(mysqlMultiActiveLeaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(launchLeaseParams3_similar));
   }
 
   /*
      test to verify if leasable entity exists post epsilon time
    */
   @Test
-  public void testWhenLeasableEntityAvailable() throws Exception{
+  public void testDoesNotExistsSimilarLeaseWithinConsolidationPeriod() throws Exception{
     LeaseAttemptStatus firstLaunchStatus =
         mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams4, true);
     Assert.assertTrue(firstLaunchStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
     completeLeaseHelper(launchLeaseParams4);
     Thread.sleep(MORE_THAN_EPSILON);
-    Assert.assertTrue(mysqlMultiActiveLeaseArbiter.isLeaseAcquirable(launchLeaseParams4));
+    Assert.assertFalse(mysqlMultiActiveLeaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(launchLeaseParams4_similar));
   }
 
   /*

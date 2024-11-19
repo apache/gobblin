@@ -48,8 +48,7 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.CompletedFuture;
 
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
@@ -96,13 +95,19 @@ public class MySqlDagManagementStateStoreTest {
   }
 
   @Test
-  public void testcanAcquireLeaseOnEntity() throws Exception{
-    Mockito.when(leaseArbiter.isLeaseAcquirable(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
+  public void testExistsCurrentlyLaunchingSimilarFlowGivesTrue() throws Exception{
+    Mockito.when(leaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
     String flowName = "testFlow";
     String flowGroup = "testGroup";
-    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowName, flowGroup, System.currentTimeMillis(), "testJob", DagActionStore.DagActionType.LAUNCH);
-    DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(dagAction);
-    Assert.assertTrue(dagManagementStateStore.isLeaseAcquirable(leaseParams));
+    Assert.assertTrue(dagManagementStateStore.existsCurrentlyLaunchingSimilarFlow(flowGroup, flowName, any(Long.class)));
+  }
+
+  @Test
+  public void testExistsCurrentlyLaunchingSimilarFlowGivesFalse() throws Exception{
+    Mockito.when(leaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(false);
+    String flowName = "testFlow";
+    String flowGroup = "testGroup";
+    Assert.assertFalse(dagManagementStateStore.existsCurrentlyLaunchingSimilarFlow(flowGroup, flowName, any(Long.class)));
   }
 
   @Test

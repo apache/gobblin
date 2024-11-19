@@ -20,8 +20,15 @@ package org.apache.gobblin.runtime.api;
 /**
  * An {@link RuntimeException} thrown when lease cannot be acquired on provided entity.
  */
-public class LeaseUnavailableException extends RuntimeException {
-  public LeaseUnavailableException(String message) {
+public class TooSoonToRerunSameFlowException extends RuntimeException {
+  private final FlowSpec flowSpec;
+
+  public TooSoonToRerunSameFlowException(String message, FlowSpec flowSpec) {
     super(message);
+    this.flowSpec = flowSpec;
+  }
+
+  public FlowSpec getFlowSpec() {
+    return flowSpec;
   }
 }

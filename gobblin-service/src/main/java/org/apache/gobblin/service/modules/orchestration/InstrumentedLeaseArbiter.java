@@ -91,8 +91,8 @@ public class InstrumentedLeaseArbiter implements MultiActiveLeaseArbiter {
   }
 
   @Override
-  public boolean isLeaseAcquirable(DagActionStore.LeaseParams leaseParams) throws IOException {
-    return decoratedMultiActiveLeaseArbiter.isLeaseAcquirable(leaseParams);
+  public boolean existsSimilarLeaseWithinConsolidationPeriod(DagActionStore.LeaseParams leaseParams) throws IOException {
+    return decoratedMultiActiveLeaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(leaseParams);
   }
 
   @Override

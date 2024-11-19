@@ -26,8 +26,9 @@ import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.config.ConfigBuilder;
-import org.apache.gobblin.runtime.api.LeaseUnavailableException;
+import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
+import org.apache.gobblin.service.modules.flow.FlowUtils;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.hadoop.fs.Path;
 import org.mockito.Mockito;
@@ -69,6 +70,7 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PathUtils;
 
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 
@@ -91,7 +93,7 @@ public class OrchestratorTest {
   private FlowCatalog flowCatalog;
   private FlowSpec flowSpec;
   private ITestMetastoreDatabase testMetastoreDatabase;
-  private Orchestrator dagMgrNotFlowLaunchHandlerBasedOrchestrator;
+  private Orchestrator orchestrator;
   private DagManagementStateStore dagManagementStateStore;
   private SpecCompiler specCompiler;
 
@@ -127,18 +129,18 @@ public class OrchestratorTest {
     MultiActiveLeaseArbiter leaseArbiter = Mockito.mock(MultiActiveLeaseArbiter.class);
     MySqlDagManagementStateStore dagManagementStateStore =
         spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
-    this.dagManagementStateStore=dagManagementStateStore;
+    this.dagManagementStateStore = dagManagementStateStore;
 
     SharedFlowMetricsSingleton sharedFlowMetricsSingleton = new SharedFlowMetricsSingleton(ConfigUtils.propertiesToConfig(orchestratorProperties));
 
     FlowCompilationValidationHelper flowCompilationValidationHelper = new FlowCompilationValidationHelper(ConfigFactory.empty(),
         sharedFlowMetricsSingleton, mock(UserQuotaManager.class), dagManagementStateStore);
-    this.dagMgrNotFlowLaunchHandlerBasedOrchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
+    this.orchestrator = new Orchestrator(ConfigUtils.propertiesToConfig(orchestratorProperties),
         this.topologyCatalog, Optional.of(logger), mock(FlowLaunchHandler.class), sharedFlowMetricsSingleton, dagManagementStateStore,
         flowCompilationValidationHelper, mock(JobStatusRetriever.class));
 
-    this.topologyCatalog.addListener(dagMgrNotFlowLaunchHandlerBasedOrchestrator);
-    this.flowCatalog.addListener(dagMgrNotFlowLaunchHandlerBasedOrchestrator);
+    this.topologyCatalog.addListener(orchestrator);
+    this.flowCatalog.addListener(orchestrator);
     // Start application
     this.serviceLauncher.start();
     // Create Spec to play with
@@ -242,7 +244,7 @@ public class OrchestratorTest {
   // TODO: this test doesn't exercise `Orchestrator` and so belongs elsewhere - move it, then rework into `@BeforeMethod` init (since others depend on this)
   @Test
   public void createTopologySpec() {
-    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.getSpecCompiler();
+    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
 
     // List Current Specs
     Collection<Spec> specs = topologyCatalog.getSpecs();
@@ -281,7 +283,7 @@ public class OrchestratorTest {
     // TODO: fix this lingering inter-test dep from when `@BeforeClass` init, which we've since replaced by `Mockito.verify`-friendly `@BeforeMethod`
     createTopologySpec(); // make 1 Topology with 1 SpecProducer available and responsible for our new FlowSpec
 
-    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.getSpecCompiler();
+    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
     SpecExecutor sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutor();
 
     // List Current Specs
@@ -325,15 +327,18 @@ public class OrchestratorTest {
      epsilon time, then we do not execute this flow, hence do not process and store the spec
      and throw LeaseUnavailableException
    */
-  @Test(expectedExceptions = LeaseUnavailableException.class)
-  public void onAddSpecForAdhocFlowThrowLeaseUnavailable() throws IOException {
+  @Test(expectedExceptions = TooSoonToRerunSameFlowException.class)
+  public void onAddSpecForAdhocFlowWhenSimilarExistingFlowIsCurrentlyLaunching() throws IOException {
     ConfigBuilder configBuilder = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup")
-        .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "testName");
+        .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "testName")
+        .addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis())
+        .addPrimitive("gobblin.flow.sourceIdentifier", "source")
+        .addPrimitive("gobblin.flow.destinationIdentifier", "destination");
     Config config = configBuilder.build();
     FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
-    Mockito.when(dagManagementStateStore.isLeaseAcquirable(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(false);
-    dagMgrNotFlowLaunchHandlerBasedOrchestrator.onAddSpec(flowSpec);
+    Mockito.when(dagManagementStateStore.existsCurrentlyLaunchingSimilarFlow("testGroup","testName", FlowUtils.getOrCreateFlowExecutionId(flowSpec))).thenReturn(true);
+    orchestrator.onAddSpec(flowSpec);
   }
 
   /*
@@ -341,16 +346,17 @@ public class OrchestratorTest {
    compilation and addition to the store occurs normally
  */
   @Test
-  public void onAddSpecForAdhocFlowLeaseAvailable() throws IOException {
+  public void onAddSpecForAdhocFlowWhenNoExistingFlowIsCurrentlyLaunching() throws IOException {
     ConfigBuilder configBuilder = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup")
         .addPrimitive(ConfigurationKeys.FLOW_NAME_KEY, "testName")
+        .addPrimitive(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, System.currentTimeMillis())
         .addPrimitive("gobblin.flow.sourceIdentifier", "source")
         .addPrimitive("gobblin.flow.destinationIdentifier", "destination");
     Config config = configBuilder.build();
     FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
-    Mockito.when(dagManagementStateStore.isLeaseAcquirable(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
-    AddSpecResponse addSpecResponse = dagMgrNotFlowLaunchHandlerBasedOrchestrator.onAddSpec(flowSpec);
+    Mockito.when(dagManagementStateStore.existsCurrentlyLaunchingSimilarFlow("testGroup","testName", FlowUtils.getOrCreateFlowExecutionId(flowSpec))).thenReturn(false);
+    AddSpecResponse addSpecResponse = orchestrator.onAddSpec(flowSpec);
     Assert.assertNotNull(addSpecResponse);
   }
 
@@ -370,8 +376,10 @@ public class OrchestratorTest {
     FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
     AddSpecResponse response = new AddSpecResponse<>(new Object());
     Mockito.when(specCompiler.onAddSpec(flowSpec)).thenReturn(response);
-    AddSpecResponse addSpecResponse = dagMgrNotFlowLaunchHandlerBasedOrchestrator.onAddSpec(flowSpec);
+    AddSpecResponse addSpecResponse = orchestrator.onAddSpec(flowSpec);
     Assert.assertNotNull(addSpecResponse);
+    // Verifying that for scheduled flow isLeaseAcquirable is not called
+    Mockito.verify(dagManagementStateStore, Mockito.times(0)).existsCurrentlyLaunchingSimilarFlow(anyString(), anyString(), anyLong());
   }
 
   @Test
@@ -379,7 +387,7 @@ public class OrchestratorTest {
     // TODO: fix this lingering inter-test dep from when `@BeforeClass` init, which we've since replaced by `Mockito.verify`-friendly `@BeforeMethod`
     createFlowSpec(); // make 1 Flow available (for deletion herein)
 
-    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.getSpecCompiler();
+    IdentityFlowToJobSpecCompiler specCompiler = (IdentityFlowToJobSpecCompiler) this.orchestrator.getSpecCompiler();
     SpecExecutor sei = specCompiler.getTopologySpecMap().values().iterator().next().getSpecExecutor();
 
     // List Current Specs
@@ -422,19 +430,19 @@ public class OrchestratorTest {
     createTopologySpec(); // for flow compilation to pass
 
     FlowId flowId = GobblinServiceManagerTest.createFlowIdWithUniqueName(TEST_FLOW_GROUP_NAME);
-    MetricContext metricContext = this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.getSharedFlowMetricsSingleton().getMetricContext();
+    MetricContext metricContext = this.orchestrator.getSharedFlowMetricsSingleton().getMetricContext();
     String metricName = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, flowId.getFlowGroup(), flowId.getFlowName(), ServiceMetricNames.COMPILED);
 
     this.topologyCatalog.getInitComplete().countDown(); // unblock orchestration
 
     FlowSpec adhocSpec = createBasicFlowSpecForFlowId(flowId);
-    this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.orchestrate(adhocSpec, new Properties(), 0, false);
+    this.orchestrator.orchestrate(adhocSpec, new Properties(), 0, false);
     Assert.assertNull(metricContext.getParent().get().getGauges().get(metricName));
 
     Properties scheduledProps = new Properties();
     scheduledProps.setProperty("job.schedule", "0/2 * * * * ?");
     FlowSpec scheduledSpec = createBasicFlowSpecForFlowId(flowId, scheduledProps);
-    this.dagMgrNotFlowLaunchHandlerBasedOrchestrator.orchestrate(scheduledSpec, new Properties(), 0, false);
+    this.orchestrator.orchestrate(scheduledSpec, new Properties(), 0, false);
     Assert.assertNotNull(metricContext.getParent().get().getGauges().get(metricName));
   }
 

@@ -24,7 +24,7 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.runtime.api.LeaseUnavailableException;
+import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -128,7 +128,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       _log.info("Orchestrator - onAdd[Topology]Spec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
     } else if (addedSpec instanceof FlowSpec) {
-      validateAdhocFlowLeasability((FlowSpec) addedSpec);
+      enforceSimilarAdhocFlowExistence((FlowSpec) addedSpec);
       _log.info("Orchestrator - onAdd[Flow]Spec: " + addedSpec);
       return this.specCompiler.onAddSpec(addedSpec);
     } else {
@@ -138,26 +138,23 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   /*
-    validates if lease can be acquired on the provided flowSpec,
-    else throw LeaseUnavailableException
+    enforces that a similar flow is not launching,
+    else throw TooSoonToRerunSameFlowException
    */
-  private void validateAdhocFlowLeasability(FlowSpec flowSpec) {
+  private void enforceSimilarAdhocFlowExistence(FlowSpec flowSpec) {
     if (!flowSpec.isScheduled()) {
       Config flowConfig = flowSpec.getConfig();
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
-      DagActionStore.DagAction dagAction = DagActionStore.DagAction.forFlow(flowGroup, flowName,
-          FlowUtils.getOrCreateFlowExecutionId(flowSpec), DagActionStore.DagActionType.LAUNCH);
-      DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(dagAction, System.currentTimeMillis());
-      _log.info("validation of lease acquirability of adhoc flow with lease params: " + leaseParams);
+      _log.info("checking existing adhoc flow existence for " + flowGroup + "." + flowName);
       try {
-        if (!dagManagementStateStore.isLeaseAcquirable(leaseParams)) {
-          throw new LeaseUnavailableException("Lease already occupied by another execution of this flow");
+        if (dagManagementStateStore.existsCurrentlyLaunchingSimilarFlow(flowGroup, flowName, FlowUtils.getOrCreateFlowExecutionId(flowSpec))) {
+          throw new TooSoonToRerunSameFlowException("Lease already occupied by another execution of this flow", flowSpec);
         }
       } catch (IOException exception) {
-        _log.error(String.format("Failed to query leaseArbiterTable for existing flow details: %s", flowSpec), exception);
-        throw new RuntimeException("Error querying leaseArbiterTable", exception);
+        _log.error("unable to check whether similar flow exists " +  flowGroup + "." + flowName);
+        throw new RuntimeException("unable to check whether similar flow exists " +  flowGroup + "." + flowName, exception);
       }
     }
   }
