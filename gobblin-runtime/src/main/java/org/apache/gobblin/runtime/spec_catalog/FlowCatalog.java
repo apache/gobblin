@@ -29,6 +29,7 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
+import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -392,7 +393,12 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       // If flow fails compilation, the result will have a non-empty string with the error
       if (!response.getValue().getFailures().isEmpty()) {
         for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getFailures().entrySet()) {
-          throw entry.getValue().getError().getCause();
+          Throwable error = entry.getValue().getError();
+          if (error instanceof TooSoonToRerunSameFlowException) {
+            throw (TooSoonToRerunSameFlowException) error;
+          } else {
+            throw error.getCause();
+          }
         }
       }
     }
