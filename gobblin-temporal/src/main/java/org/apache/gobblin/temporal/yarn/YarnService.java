@@ -34,6 +34,7 @@ import java.util.concurrent.ConcurrentMap;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicInteger;
+import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 import org.apache.hadoop.conf.Configuration;
@@ -202,8 +203,9 @@ class YarnService extends AbstractIdleService {
   private volatile boolean shutdownInProgress = false;
 
   private final boolean jarCacheEnabled;
-  protected final WorkerProfile baselineWorkerProfile;
-  protected final ConcurrentMap<Long, WorkerProfile> allocationRequestIdToWorkerProfile = new ConcurrentHashMap<>();
+  private final WorkerProfile baselineWorkerProfile;
+  private final AtomicLong allocationRequestIdGenerator = new AtomicLong(0L);
+  private final ConcurrentMap<Long, WorkerProfile> allocationRequestIdToWorkerProfile = new ConcurrentHashMap<>();
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus) throws Exception {
@@ -282,6 +284,9 @@ class YarnService extends AbstractIdleService {
 
     // Initialising this baseline worker profile to use as default worker profile in case allocation request id is not in map
     this.baselineWorkerProfile = new WorkerProfile(WorkforceProfiles.BASELINE_NAME, this.config);
+
+    // Putting baseline profile in the map for default allocation request id (0)
+    this.allocationRequestIdToWorkerProfile.put(allocationRequestIdGenerator.getAndIncrement(), this.baselineWorkerProfile);
   }
 
   @SuppressWarnings("unused")
@@ -490,7 +495,7 @@ class YarnService extends AbstractIdleService {
 
     String[] preferredNodes = preferredNode.isPresent() ? new String[] {preferredNode.get()} : null;
 
-    long allocationRequestID = allocationRequestId.isPresent() ? allocationRequestId.get() : 0L;
+    long allocationRequestID = allocationRequestId.or(0L);
 
     this.amrmClientAsync.addContainerRequest(
         new AMRMClient.ContainerRequest(resource, preferredNodes, null, priority, allocationRequestID));
@@ -776,6 +781,18 @@ class YarnService extends AbstractIdleService {
     }
 
     return eventMetadataBuilder;
+  }
+
+  /**
+   * Generates a unique allocation request ID for the given worker profile and store the id to profile mapping.
+   *
+   * @param workerProfile the worker profile for which the allocation request ID is generated
+   * @return the generated allocation request ID
+   */
+  protected long generateAllocationRequestId(WorkerProfile workerProfile) {
+    long allocationRequestId = allocationRequestIdGenerator.getAndIncrement();
+    this.allocationRequestIdToWorkerProfile.put(allocationRequestId, workerProfile);
+    return allocationRequestId;
   }
 
   /**

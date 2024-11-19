@@ -1,3 +1,20 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.temporal.yarn;
 
 import java.io.IOException;
@@ -60,23 +77,23 @@ public class DynamicScalingYarnServiceManager extends AbstractIdleService {
         Optional.ofNullable(this.config.getString(DYNAMIC_SCALING_ERRORS_DIR))
     );
 
-    log.info("Starting the " + DynamicScalingYarnServiceManager.class.getSimpleName());
+    log.info("Starting the " + this.getClass().getSimpleName());
     log.info("Scheduling the dynamic scaling task with an interval of {} seconds", scheduleInterval);
 
     this.dynamicScalingExecutor.scheduleAtFixedRate(
-        new DynamicScalingYarnServiceRunnable(this.dynamicScalingYarnService, scalingDirectiveSource),
+        new GetScalingDirectivesRunnable(this.dynamicScalingYarnService, scalingDirectiveSource),
         initialDelay, scheduleInterval, TimeUnit.SECONDS
     );
   }
 
   @Override
   protected void shutDown() {
-    log.info("Stopping the " + DynamicScalingYarnServiceManager.class.getSimpleName());
+    log.info("Stopping the " + this.getClass().getSimpleName());
     ExecutorsUtils.shutdownExecutorService(this.dynamicScalingExecutor, com.google.common.base.Optional.of(log));
   }
 
   @AllArgsConstructor
-  static class DynamicScalingYarnServiceRunnable implements Runnable {
+  static class GetScalingDirectivesRunnable implements Runnable {
     private final DynamicScalingYarnService dynamicScalingYarnService;
     private final ScalingDirectiveSource scalingDirectiveSource;
 
