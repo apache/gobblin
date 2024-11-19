@@ -104,14 +104,13 @@ public interface DagManagementStateStore {
   void updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
   /**
-   * Returns true if lease can be acquired on entity provided in leaseParams.
-   * Check if an action exists in dagAction store by flow group, flow name, flow execution id, and job name.
-   * @param flowGroup flow group for the dag action
-   * @param flowName flow name for the dag action
-   * @param flowExecutionId flow execution for the dag action
+   * Returns true if a flow has been launched recently with same flow name and flow group.
+   * @param flowGroup flow group for the flow
+   * @param flowName flow name for the flow
+   * @param flowExecutionId flow execution for the flow
    * @throws IOException
    */
-  boolean existsCurrentlyLaunchingSimilarFlow(String flowGroup, String flowName, long flowExecutionId) throws IOException;
+  boolean existsCurrentlyLaunchingExecOfSameFlow(String flowGroup, String flowName, long flowExecutionId) throws IOException;
 
   /**
    * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} and its {@link JobStatus}.

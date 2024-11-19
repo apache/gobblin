@@ -58,8 +58,8 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String flowGroup4 = "testFlowGroup4";
   private static final String flowName = "testFlowName";
   private static final String jobName = "testJobName";
-  private static final long flowExecutionId = 12345677L;
-  private static final long flowExecutionId1 = 12345996L;
+  private static final long flowExecutionId = 12345677213L;
+  private static final long flowExecutionId1 = 12345996546L;
   private static final long eventTimeMillis = 1710451837L;
   // Dag actions with the same flow info but different flow action types are considered unique
   private static final DagActionStore.DagAction launchDagAction =
@@ -74,22 +74,18 @@ public class MysqlMultiActiveLeaseArbiterTest {
       new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
   private static final DagActionStore.LeaseParams
       launchLeaseParams2 = new DagActionStore.LeaseParams(launchDagAction2, false, eventTimeMillis);
-  private static final DagActionStore.DagAction launchDagAction3 =
-      new DagActionStore.DagAction(flowGroup3, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
   private static final DagActionStore.LeaseParams
-      launchLeaseParams3 = new DagActionStore.LeaseParams(launchDagAction3, false, eventTimeMillis);
-  private static final DagActionStore.DagAction launchDagAction4 =
-      new DagActionStore.DagAction(flowGroup4, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
+      launchLeaseParams3 = new DagActionStore.LeaseParams(new DagActionStore.DagAction(flowGroup3, flowName, flowExecutionId, jobName,
+      DagActionStore.DagActionType.LAUNCH), false, eventTimeMillis);
   private static final DagActionStore.LeaseParams
-      launchLeaseParams4 = new DagActionStore.LeaseParams(launchDagAction4, false, eventTimeMillis);
-  private static final DagActionStore.DagAction launchDagAction3_similar =
-      new DagActionStore.DagAction(flowGroup3, flowName, flowExecutionId1, jobName, DagActionStore.DagActionType.LAUNCH);
+      launchLeaseParams3_similar = new DagActionStore.LeaseParams(new DagActionStore.DagAction(flowGroup3, flowName, flowExecutionId1, jobName,
+      DagActionStore.DagActionType.LAUNCH), false, eventTimeMillis);
   private static final DagActionStore.LeaseParams
-      launchLeaseParams3_similar = new DagActionStore.LeaseParams(launchDagAction3_similar, false, eventTimeMillis);
-  private static final DagActionStore.DagAction launchDagAction4_similar =
-      new DagActionStore.DagAction(flowGroup4, flowName, flowExecutionId1, jobName, DagActionStore.DagActionType.LAUNCH);
+      launchLeaseParams4 = new DagActionStore.LeaseParams(new DagActionStore.DagAction(flowGroup4, flowName, flowExecutionId, jobName,
+      DagActionStore.DagActionType.LAUNCH), false, eventTimeMillis);
   private static final DagActionStore.LeaseParams
-      launchLeaseParams4_similar = new DagActionStore.LeaseParams(launchDagAction4_similar, false, eventTimeMillis);
+      launchLeaseParams4_similar = new DagActionStore.LeaseParams(new DagActionStore.DagAction(flowGroup4, flowName, flowExecutionId1, jobName,
+      DagActionStore.DagActionType.LAUNCH), false, eventTimeMillis);
   private static final Timestamp dummyTimestamp = new Timestamp(99999);
   private ITestMetastoreDatabase testDb;
   private MysqlMultiActiveLeaseArbiter mysqlMultiActiveLeaseArbiter;

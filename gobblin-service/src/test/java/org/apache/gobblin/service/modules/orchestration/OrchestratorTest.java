@@ -26,7 +26,6 @@ import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.config.ConfigBuilder;
-import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.service.modules.flow.FlowUtils;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
@@ -324,10 +323,10 @@ public class OrchestratorTest {
 
   /*
      If another flow has already acquired lease for this flowspec details within
-     epsilon time, then we do not execute this flow, hence do not process and store the spec
-     and throw LeaseUnavailableException
+     lease consolidation time, then we do not execute this flow, hence do not process and store the spec
+     and throw RuntimeException
    */
-  @Test(expectedExceptions = TooSoonToRerunSameFlowException.class)
+  @Test(expectedExceptions = RuntimeException.class)
   public void onAddSpecForAdhocFlowWhenSimilarExistingFlowIsCurrentlyLaunching() throws IOException {
     ConfigBuilder configBuilder = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup")
@@ -337,7 +336,7 @@ public class OrchestratorTest {
         .addPrimitive("gobblin.flow.destinationIdentifier", "destination");
     Config config = configBuilder.build();
     FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
-    Mockito.when(dagManagementStateStore.existsCurrentlyLaunchingSimilarFlow("testGroup","testName", FlowUtils.getOrCreateFlowExecutionId(flowSpec))).thenReturn(true);
+    Mockito.when(dagManagementStateStore.existsCurrentlyLaunchingExecOfSameFlow("testGroup","testName", FlowUtils.getOrCreateFlowExecutionId(flowSpec))).thenReturn(true);
     orchestrator.onAddSpec(flowSpec);
   }
 
@@ -355,7 +354,7 @@ public class OrchestratorTest {
         .addPrimitive("gobblin.flow.destinationIdentifier", "destination");
     Config config = configBuilder.build();
     FlowSpec flowSpec = FlowSpec.builder().withConfig(config).build();
-    Mockito.when(dagManagementStateStore.existsCurrentlyLaunchingSimilarFlow("testGroup","testName", FlowUtils.getOrCreateFlowExecutionId(flowSpec))).thenReturn(false);
+    Mockito.when(dagManagementStateStore.existsCurrentlyLaunchingExecOfSameFlow("testGroup","testName", FlowUtils.getOrCreateFlowExecutionId(flowSpec))).thenReturn(false);
     AddSpecResponse addSpecResponse = orchestrator.onAddSpec(flowSpec);
     Assert.assertNotNull(addSpecResponse);
   }
@@ -378,8 +377,8 @@ public class OrchestratorTest {
     Mockito.when(specCompiler.onAddSpec(flowSpec)).thenReturn(response);
     AddSpecResponse addSpecResponse = orchestrator.onAddSpec(flowSpec);
     Assert.assertNotNull(addSpecResponse);
-    // Verifying that for scheduled flow isLeaseAcquirable is not called
-    Mockito.verify(dagManagementStateStore, Mockito.times(0)).existsCurrentlyLaunchingSimilarFlow(anyString(), anyString(), anyLong());
+    // Verifying that for scheduled flow existsCurrentlyLaunchingExecOfSameFlow is not called
+    Mockito.verify(dagManagementStateStore, Mockito.never()).existsCurrentlyLaunchingExecOfSameFlow(anyString(), anyString(), anyLong());
   }
 
   @Test

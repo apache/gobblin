@@ -128,7 +128,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       _log.info("Orchestrator - onAdd[Topology]Spec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
     } else if (addedSpec instanceof FlowSpec) {
-      enforceSimilarAdhocFlowExistence((FlowSpec) addedSpec);
+      enforceNoRecentAdhocExecOfSameFlow((FlowSpec) addedSpec);
       _log.info("Orchestrator - onAdd[Flow]Spec: " + addedSpec);
       return this.specCompiler.onAddSpec(addedSpec);
     } else {
@@ -138,23 +138,24 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   }
 
   /*
-    enforces that a similar flow is not launching,
+    enforces that a similar adhoc flow is not launching,
     else throw TooSoonToRerunSameFlowException
    */
-  private void enforceSimilarAdhocFlowExistence(FlowSpec flowSpec) {
+  private void enforceNoRecentAdhocExecOfSameFlow(FlowSpec flowSpec) {
     if (!flowSpec.isScheduled()) {
       Config flowConfig = flowSpec.getConfig();
       String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
       String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
 
-      _log.info("checking existing adhoc flow existence for " + flowGroup + "." + flowName);
+      _log.info("Checking existing adhoc flow entry for " + flowGroup + "." + flowName);
       try {
-        if (dagManagementStateStore.existsCurrentlyLaunchingSimilarFlow(flowGroup, flowName, FlowUtils.getOrCreateFlowExecutionId(flowSpec))) {
-          throw new TooSoonToRerunSameFlowException("Lease already occupied by another execution of this flow", flowSpec);
+        if (dagManagementStateStore.existsCurrentlyLaunchingExecOfSameFlow(flowGroup, flowName, FlowUtils.getOrCreateFlowExecutionId(flowSpec))) {
+          _log.warn("Another recent adhoc flow execution found for " + flowGroup + "." + flowName);
+          throw new RuntimeException(new TooSoonToRerunSameFlowException(flowSpec));
         }
       } catch (IOException exception) {
-        _log.error("unable to check whether similar flow exists " +  flowGroup + "." + flowName);
-        throw new RuntimeException("unable to check whether similar flow exists " +  flowGroup + "." + flowName, exception);
+        _log.error("Unable to check whether similar flow exists " +  flowGroup + "." + flowName);
+        throw new RuntimeException("Unable to check whether similar flow exists " +  flowGroup + "." + flowName, exception);
       }
     }
   }

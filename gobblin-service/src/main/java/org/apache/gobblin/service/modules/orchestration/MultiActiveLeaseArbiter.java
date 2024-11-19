@@ -62,12 +62,12 @@ public interface MultiActiveLeaseArbiter {
       throws IOException;
 
   /**
-   * This method checks if lease can be acquired on provided flow in lease params
-   * returns true if entry for the same flow does not exists within Lease Consolidation Period
-   * in leaseArbiterStore, else returns false
+   * This method checks if entry for same flow name and flow group exists within the lease consolidation period
+   * returns true if entry for the same flow exists within Lease Consolidation Period (aka. epsilon)
+   * else returns false
    * @param leaseParams   uniquely identifies the flow, the present action upon it, the time the action
    *                      was triggered, and if the dag action event we're checking on is a reminder event
-   * @return true if lease can be acquired on the flow passed in the lease params, false otherwise
+   * @return true if lease for a recently launched flow already exists for the flow details in leaseParams
    */
   boolean existsSimilarLeaseWithinConsolidationPeriod(DagActionStore.LeaseParams leaseParams)
       throws IOException;

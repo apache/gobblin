@@ -17,18 +17,18 @@
 
 package org.apache.gobblin.runtime.api;
 
+import lombok.Getter;
+
+
 /**
  * An {@link RuntimeException} thrown when lease cannot be acquired on provided entity.
  */
 public class TooSoonToRerunSameFlowException extends RuntimeException {
+  @Getter
   private final FlowSpec flowSpec;
 
-  public TooSoonToRerunSameFlowException(String message, FlowSpec flowSpec) {
-    super(message);
+  public TooSoonToRerunSameFlowException(FlowSpec flowSpec) {
+    super("Lease already occupied by another recent execution of this flow: " + flowSpec);
     this.flowSpec = flowSpec;
-  }
-
-  public FlowSpec getFlowSpec() {
-    return flowSpec;
   }
 }

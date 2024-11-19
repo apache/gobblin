@@ -171,7 +171,7 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   }
 
   @Override
-  public boolean existsCurrentlyLaunchingSimilarFlow(String flowGroup, String flowName, long flowExecutionId) throws IOException {
+  public boolean existsCurrentlyLaunchingExecOfSameFlow(String flowGroup, String flowName, long flowExecutionId) throws IOException {
     DagActionStore.DagAction dagAction = DagActionStore.DagAction.forFlow(flowGroup, flowName,
         flowExecutionId, DagActionStore.DagActionType.LAUNCH);
     DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(dagAction, System.currentTimeMillis());

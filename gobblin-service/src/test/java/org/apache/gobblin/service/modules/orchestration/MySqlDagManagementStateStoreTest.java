@@ -99,7 +99,7 @@ public class MySqlDagManagementStateStoreTest {
     Mockito.when(leaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
     String flowName = "testFlow";
     String flowGroup = "testGroup";
-    Assert.assertTrue(dagManagementStateStore.existsCurrentlyLaunchingSimilarFlow(flowGroup, flowName, any(Long.class)));
+    Assert.assertTrue(dagManagementStateStore.existsCurrentlyLaunchingExecOfSameFlow(flowGroup, flowName, System.currentTimeMillis()));
   }
 
   @Test
@@ -107,7 +107,7 @@ public class MySqlDagManagementStateStoreTest {
     Mockito.when(leaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(false);
     String flowName = "testFlow";
     String flowGroup = "testGroup";
-    Assert.assertFalse(dagManagementStateStore.existsCurrentlyLaunchingSimilarFlow(flowGroup, flowName, any(Long.class)));
+    Assert.assertFalse(dagManagementStateStore.existsCurrentlyLaunchingExecOfSameFlow(flowGroup, flowName, System.currentTimeMillis()));
   }
 
   @Test

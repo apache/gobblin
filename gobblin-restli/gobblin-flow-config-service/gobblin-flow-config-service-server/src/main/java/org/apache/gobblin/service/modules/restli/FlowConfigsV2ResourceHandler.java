@@ -259,7 +259,7 @@ public class FlowConfigsV2ResourceHandler implements FlowConfigsResourceHandlerI
       throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
     } catch(TooSoonToRerunSameFlowException e) {
       return new CreateKVResponse<>(new RestLiServiceException(HttpStatus.S_409_CONFLICT,
-          "FlowSpec with URI " + flowSpec.getUri() + " was launched within the lease consolidation period, no action will be taken"));
+          "FlowSpec with URI " + flowSpec.getUri() + " was previously launched within the lease consolidation period, no action will be taken"));
     } catch (Throwable e) {
       // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
       log.warn(String.format("Failed to add flow configuration %s.%s to catalog due to", flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName()), e);

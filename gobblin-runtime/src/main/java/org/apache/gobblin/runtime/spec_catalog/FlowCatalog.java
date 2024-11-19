@@ -29,7 +29,6 @@ import java.util.Map;
 import java.util.Properties;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
-import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -58,6 +57,7 @@ import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.api.SpecSearchObject;
 import org.apache.gobblin.runtime.api.SpecSerDe;
 import org.apache.gobblin.runtime.api.SpecStore;
+import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.apache.gobblin.runtime.spec_serde.JavaSpecSerDe;
 import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -394,8 +394,8 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
       if (!response.getValue().getFailures().isEmpty()) {
         for (Map.Entry<SpecCatalogListener, CallbackResult<AddSpecResponse>> entry : response.getValue().getFailures().entrySet()) {
           Throwable error = entry.getValue().getError();
-          if (error instanceof TooSoonToRerunSameFlowException) {
-            throw (TooSoonToRerunSameFlowException) error;
+          if (error instanceof RuntimeException && error.getCause() instanceof TooSoonToRerunSameFlowException) {
+            throw (TooSoonToRerunSameFlowException) error.getCause();
           } else {
             throw error.getCause();
           }
