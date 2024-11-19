@@ -104,6 +104,15 @@ public interface DagManagementStateStore {
   void updateDagNode(Dag.DagNode<JobExecutionPlan> dagNode) throws IOException;
 
   /**
+   * Returns true if a flow has been launched recently with same flow name and flow group.
+   * @param flowGroup flow group for the flow
+   * @param flowName flow name for the flow
+   * @param flowExecutionId flow execution for the flow
+   * @throws IOException
+   */
+  boolean existsCurrentlyLaunchingExecOfSameFlow(String flowGroup, String flowName, long flowExecutionId) throws IOException;
+
+  /**
    * Returns the requested {@link  org.apache.gobblin.service.modules.flowgraph.Dag.DagNode} and its {@link JobStatus}.
    * Both params are returned as optional and are empty if not present in the store.
    * JobStatus can be non-empty only if DagNode is non-empty.

@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -47,8 +48,7 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.CompletedFuture;
 
-import static org.mockito.ArgumentMatchers.anyLong;
-import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.*;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.mock;
 
@@ -59,6 +59,7 @@ import static org.mockito.Mockito.mock;
 public class MySqlDagManagementStateStoreTest {
 
   private ITestMetastoreDatabase testDb;
+  private static MultiActiveLeaseArbiter leaseArbiter;
   private MySqlDagManagementStateStore dagManagementStateStore;
   private static final String TEST_USER = "testUser";
   public static final String TEST_PASSWORD = "testPassword";
@@ -68,6 +69,7 @@ public class MySqlDagManagementStateStoreTest {
   @BeforeClass
   public void setUp() throws Exception {
     // Setting up mock DB
+    this.leaseArbiter = mock(MultiActiveLeaseArbiter.class);
     this.testDb = TestMetastoreDatabaseFactory.get();
     this.dagManagementStateStore = getDummyDMSS(this.testDb);
   }
@@ -90,6 +92,22 @@ public class MySqlDagManagementStateStoreTest {
       }
     }
     return true;
+  }
+
+  @Test
+  public void testExistsCurrentlyLaunchingSimilarFlowGivesTrue() throws Exception{
+    Mockito.when(leaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(true);
+    String flowName = "testFlow";
+    String flowGroup = "testGroup";
+    Assert.assertTrue(dagManagementStateStore.existsCurrentlyLaunchingExecOfSameFlow(flowGroup, flowName, System.currentTimeMillis()));
+  }
+
+  @Test
+  public void testExistsCurrentlyLaunchingSimilarFlowGivesFalse() throws Exception{
+    Mockito.when(leaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(Mockito.any(DagActionStore.LeaseParams.class))).thenReturn(false);
+    String flowName = "testFlow";
+    String flowGroup = "testGroup";
+    Assert.assertFalse(dagManagementStateStore.existsCurrentlyLaunchingExecOfSameFlow(flowGroup, flowName, System.currentTimeMillis()));
   }
 
   @Test
@@ -150,9 +168,11 @@ public class MySqlDagManagementStateStoreTest {
     TopologySpec topologySpec = LaunchDagProcTest.buildNaiveTopologySpec(TEST_SPEC_EXECUTOR_URI);
     URI specExecURI = new URI(TEST_SPEC_EXECUTOR_URI);
     topologySpecMap.put(specExecURI, topologySpec);
+    MultiActiveLeaseArbiter multiActiveLeaseArbiter = Mockito.mock(MultiActiveLeaseArbiter.class);
+    leaseArbiter = multiActiveLeaseArbiter;
     MySqlDagManagementStateStore dagManagementStateStore =
         new MySqlDagManagementStateStore(config, null, null, jobStatusRetriever,
-            MysqlDagActionStoreTest.getTestDagActionStore(testMetastoreDatabase));
+            MysqlDagActionStoreTest.getTestDagActionStore(testMetastoreDatabase), multiActiveLeaseArbiter);
     dagManagementStateStore.setTopologySpecMap(topologySpecMap);
     return dagManagementStateStore;
   }

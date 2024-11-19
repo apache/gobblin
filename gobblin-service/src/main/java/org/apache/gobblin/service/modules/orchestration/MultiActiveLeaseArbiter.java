@@ -62,6 +62,17 @@ public interface MultiActiveLeaseArbiter {
       throws IOException;
 
   /**
+   * This method checks if entry for same flow name and flow group exists within the lease consolidation period
+   * returns true if entry for the same flow exists within Lease Consolidation Period (aka. epsilon)
+   * else returns false
+   * @param leaseParams   uniquely identifies the flow, the present action upon it, the time the action
+   *                      was triggered, and if the dag action event we're checking on is a reminder event
+   * @return true if lease for a recently launched flow already exists for the flow details in leaseParams
+   */
+  boolean existsSimilarLeaseWithinConsolidationPeriod(DagActionStore.LeaseParams leaseParams)
+      throws IOException;
+
+  /**
    * This method is used to indicate the owner of the lease has successfully completed required actions while holding
    * the lease of the dag action event. It marks the lease as "no longer leasing", if the eventTimeMillis and
    * leaseAcquisitionTimeMillis values have not changed since this owner acquired the lease (indicating the lease did

@@ -60,6 +60,7 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.FlowSpecSearchObject;
+import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
@@ -256,6 +257,9 @@ public class FlowConfigsV2ResourceHandler implements FlowConfigsResourceHandlerI
       responseMap = this.flowCatalog.put(flowSpec, true);
     } catch (QuotaExceededException e) {
       throw new RestLiServiceException(HttpStatus.S_503_SERVICE_UNAVAILABLE, e.getMessage());
+    } catch(TooSoonToRerunSameFlowException e) {
+      return new CreateKVResponse<>(new RestLiServiceException(HttpStatus.S_409_CONFLICT,
+          "FlowSpec with URI " + flowSpec.getUri() + " was previously launched within the lease consolidation period, no action will be taken"));
     } catch (Throwable e) {
       // TODO: Compilation errors should fall under throwable exceptions as well instead of checking for strings
       log.warn(String.format("Failed to add flow configuration %s.%s to catalog due to", flowConfig.getId().getFlowGroup(), flowConfig.getId().getFlowName()), e);

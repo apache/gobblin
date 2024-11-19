@@ -362,6 +362,12 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     }
   }
 
+  @Override
+  public boolean existsSimilarLeaseWithinConsolidationPeriod(DagActionStore.LeaseParams leaseParams) throws IOException {
+    Optional<GetEventInfoResult> infoResult = getExistingEventInfo(leaseParams);
+    return infoResult.isPresent() ? infoResult.get().isWithinEpsilon() : false;
+  }
+
   /**
    * Checks leaseArbiterTable for an existing entry for this dag action and event time
    */

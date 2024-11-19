@@ -44,6 +44,7 @@ import org.apache.gobblin.util.ExponentialBackoff;
 public class MysqlMultiActiveLeaseArbiterTest {
   private static final long EPSILON = 10000L;
   private static final long MORE_THAN_EPSILON = (long) (EPSILON * 1.1);
+  private static final long LESS_THAN_EPSILON = (long) (EPSILON * 0.90);
   // NOTE: `sleep`ing this long SIGNIFICANTLY slows tests, but we need a large enough value that exec. variability won't cause spurious failure
   private static final long LINGER = 20000L;
   private static final long MORE_THAN_LINGER = (long) (LINGER * 1.1);
@@ -53,9 +54,12 @@ public class MysqlMultiActiveLeaseArbiterTest {
   private static final String CONSTANTS_TABLE = "constants_store";
   private static final String flowGroup = "testFlowGroup";
   private static final String flowGroup2 = "testFlowGroup2";
+  private static final String flowGroup3 = "testFlowGroup3";
+  private static final String flowGroup4 = "testFlowGroup4";
   private static final String flowName = "testFlowName";
   private static final String jobName = "testJobName";
-  private static final long flowExecutionId = 12345677L;
+  private static final long flowExecutionId = 12345677213L;
+  private static final long flowExecutionId1 = 12345996546L;
   private static final long eventTimeMillis = 1710451837L;
   // Dag actions with the same flow info but different flow action types are considered unique
   private static final DagActionStore.DagAction launchDagAction =
@@ -70,6 +74,18 @@ public class MysqlMultiActiveLeaseArbiterTest {
       new DagActionStore.DagAction(flowGroup2, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.LAUNCH);
   private static final DagActionStore.LeaseParams
       launchLeaseParams2 = new DagActionStore.LeaseParams(launchDagAction2, false, eventTimeMillis);
+  private static final DagActionStore.LeaseParams
+      launchLeaseParams3 = new DagActionStore.LeaseParams(new DagActionStore.DagAction(flowGroup3, flowName, flowExecutionId, jobName,
+      DagActionStore.DagActionType.LAUNCH), false, eventTimeMillis);
+  private static final DagActionStore.LeaseParams
+      launchLeaseParams3_similar = new DagActionStore.LeaseParams(new DagActionStore.DagAction(flowGroup3, flowName, flowExecutionId1, jobName,
+      DagActionStore.DagActionType.LAUNCH), false, eventTimeMillis);
+  private static final DagActionStore.LeaseParams
+      launchLeaseParams4 = new DagActionStore.LeaseParams(new DagActionStore.DagAction(flowGroup4, flowName, flowExecutionId, jobName,
+      DagActionStore.DagActionType.LAUNCH), false, eventTimeMillis);
+  private static final DagActionStore.LeaseParams
+      launchLeaseParams4_similar = new DagActionStore.LeaseParams(new DagActionStore.DagAction(flowGroup4, flowName, flowExecutionId1, jobName,
+      DagActionStore.DagActionType.LAUNCH), false, eventTimeMillis);
   private static final Timestamp dummyTimestamp = new Timestamp(99999);
   private ITestMetastoreDatabase testDb;
   private MysqlMultiActiveLeaseArbiter mysqlMultiActiveLeaseArbiter;
@@ -199,6 +215,33 @@ public class MysqlMultiActiveLeaseArbiterTest {
         (LeaseAttemptStatus.LeaseObtainedStatus) sixthLaunchStatus;
     Assert.assertTrue(sixthObtainedStatus.getEventTimeMillis()
         <= sixthObtainedStatus.getLeaseAcquisitionTimestamp());
+  }
+
+  /*
+   test to verify if leasable entity is unavailable before epsilon time
+   to account for clock drift
+  */
+  @Test
+  public void testExistsSimilarLeaseWithinConsolidationPeriod() throws Exception{
+    LeaseAttemptStatus firstLaunchStatus =
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams3, true);
+    Assert.assertTrue(firstLaunchStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
+    completeLeaseHelper(launchLeaseParams3);
+    Thread.sleep(LESS_THAN_EPSILON);
+    Assert.assertTrue(mysqlMultiActiveLeaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(launchLeaseParams3_similar));
+  }
+
+  /*
+     test to verify if leasable entity exists post epsilon time
+   */
+  @Test
+  public void testDoesNotExistsSimilarLeaseWithinConsolidationPeriod() throws Exception{
+    LeaseAttemptStatus firstLaunchStatus =
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(launchLeaseParams4, true);
+    Assert.assertTrue(firstLaunchStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus);
+    completeLeaseHelper(launchLeaseParams4);
+    Thread.sleep(MORE_THAN_EPSILON);
+    Assert.assertFalse(mysqlMultiActiveLeaseArbiter.existsSimilarLeaseWithinConsolidationPeriod(launchLeaseParams4_similar));
   }
 
   /*

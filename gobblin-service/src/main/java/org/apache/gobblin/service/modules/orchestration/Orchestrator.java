@@ -53,6 +53,7 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.service.modules.flow.FlowUtils;
@@ -78,6 +79,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
   protected final SpecCompiler specCompiler;
   protected final TopologyCatalog topologyCatalog;
   private final JobStatusRetriever jobStatusRetriever;
+  private final DagManagementStateStore dagManagementStateStore;
 
   protected final MetricContext metricContext;
 
@@ -100,6 +102,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
     this.topologyCatalog = topologyCatalog;
     this.flowLaunchHandler = flowLaunchHandler;
     this.sharedFlowMetricsSingleton = sharedFlowMetricsSingleton;
+    this.dagManagementStateStore = dagManagementStateStore;
     this.jobStatusRetriever = jobStatusRetriever;
     this.specCompiler = flowCompilationValidationHelper.getSpecCompiler();
     // todo remove the need to set topology factory outside of constructor GOBBLIN-2056
@@ -125,12 +128,36 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       _log.info("Orchestrator - onAdd[Topology]Spec: " + addedSpec);
       this.specCompiler.onAddSpec(addedSpec);
     } else if (addedSpec instanceof FlowSpec) {
+      enforceNoRecentAdhocExecOfSameFlow((FlowSpec) addedSpec);
       _log.info("Orchestrator - onAdd[Flow]Spec: " + addedSpec);
       return this.specCompiler.onAddSpec(addedSpec);
     } else {
       _log.info("Orchestrator - onAdd[<<Unrecognized>>]Spec (" + addedSpec.getClass() + ") - ignoring!: " + addedSpec);
     }
     return new AddSpecResponse<>(null);
+  }
+
+  /*
+    enforces that a similar adhoc flow is not launching,
+    else throw {@link TooSoonToRerunSameFlowException}
+   */
+  private void enforceNoRecentAdhocExecOfSameFlow(FlowSpec flowSpec) {
+    if (!flowSpec.isScheduled()) {
+      Config flowConfig = flowSpec.getConfig();
+      String flowGroup = flowConfig.getString(ConfigurationKeys.FLOW_GROUP_KEY);
+      String flowName = flowConfig.getString(ConfigurationKeys.FLOW_NAME_KEY);
+
+      _log.info("Checking existing adhoc flow entry for " + flowGroup + "." + flowName);
+      try {
+        if (dagManagementStateStore.existsCurrentlyLaunchingExecOfSameFlow(flowGroup, flowName, FlowUtils.getOrCreateFlowExecutionId(flowSpec))) {
+          _log.warn("Another recent adhoc flow execution found for " + flowGroup + "." + flowName);
+          throw TooSoonToRerunSameFlowException.wrappedOnce(flowSpec);
+        }
+      } catch (IOException exception) {
+        _log.error("Unable to check whether similar flow exists " +  flowGroup + "." + flowName);
+        throw new RuntimeException("Unable to check whether similar flow exists " +  flowGroup + "." + flowName, exception);
+      }
+    }
   }
 
   public void onDeleteSpec(URI deletedSpecURI, String deletedSpecVersion) {
