@@ -362,10 +362,6 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     }
   }
 
-  /*
-    Determines if a lease can be acquired for the given flow. A lease is acquirable if
-    no existing lease record exists in arbiter table or the record is older then epsilon time
-   */
   @Override
   public boolean existsSimilarLeaseWithinConsolidationPeriod(DagActionStore.LeaseParams leaseParams) throws IOException {
     Optional<GetEventInfoResult> infoResult = getExistingEventInfo(leaseParams);

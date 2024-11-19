@@ -27,8 +27,22 @@ public class TooSoonToRerunSameFlowException extends RuntimeException {
   @Getter
   private final FlowSpec flowSpec;
 
+  /**
+   * Account for unwrapping within @{link FlowCatalog#updateOrAddSpecHelper}`s `CallbackResult` error handling for `SpecCatalogListener`s
+   * @return `TooSoonToRerunSameFlowException` wrapped in another `TooSoonToRerunSameFlowException
+   */
+  public static TooSoonToRerunSameFlowException wrappedOnce(FlowSpec flowSpec) {
+    return new TooSoonToRerunSameFlowException(flowSpec, new TooSoonToRerunSameFlowException(flowSpec));
+  }
+
   public TooSoonToRerunSameFlowException(FlowSpec flowSpec) {
     super("Lease already occupied by another recent execution of this flow: " + flowSpec);
+    this.flowSpec = flowSpec;
+  }
+
+  /** restricted-access ctor: use {@link #wrappedOnce(FlowSpec)} instead */
+  private TooSoonToRerunSameFlowException(FlowSpec flowSpec, Throwable cause) {
+    super("Lease already occupied by another recent execution of this flow: " + flowSpec, cause);
     this.flowSpec = flowSpec;
   }
 }

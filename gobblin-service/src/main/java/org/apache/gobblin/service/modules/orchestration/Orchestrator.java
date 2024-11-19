@@ -24,7 +24,6 @@ import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -54,6 +53,7 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.runtime.api.TopologySpec;
+import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.TopologyCatalog;
 import org.apache.gobblin.service.modules.flow.FlowUtils;
@@ -139,7 +139,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
 
   /*
     enforces that a similar adhoc flow is not launching,
-    else throw TooSoonToRerunSameFlowException
+    else throw {@link TooSoonToRerunSameFlowException}
    */
   private void enforceNoRecentAdhocExecOfSameFlow(FlowSpec flowSpec) {
     if (!flowSpec.isScheduled()) {
@@ -151,7 +151,7 @@ public class Orchestrator implements SpecCatalogListener, Instrumentable {
       try {
         if (dagManagementStateStore.existsCurrentlyLaunchingExecOfSameFlow(flowGroup, flowName, FlowUtils.getOrCreateFlowExecutionId(flowSpec))) {
           _log.warn("Another recent adhoc flow execution found for " + flowGroup + "." + flowName);
-          throw new RuntimeException(new TooSoonToRerunSameFlowException(flowSpec));
+          throw TooSoonToRerunSameFlowException.wrappedOnce(flowSpec);
         }
       } catch (IOException exception) {
         _log.error("Unable to check whether similar flow exists " +  flowGroup + "." + flowName);
