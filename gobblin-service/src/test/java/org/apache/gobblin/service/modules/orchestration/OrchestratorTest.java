@@ -26,6 +26,7 @@ import java.util.Properties;
 
 import org.apache.commons.io.FileUtils;
 import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.runtime.api.TooSoonToRerunSameFlowException;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.service.modules.flow.FlowUtils;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
@@ -324,9 +325,9 @@ public class OrchestratorTest {
   /*
      If another flow has already acquired lease for this flowspec details within
      lease consolidation time, then we do not execute this flow, hence do not process and store the spec
-     and throw RuntimeException
+     and throw TooSoonToRerunSameFlowException
    */
-  @Test(expectedExceptions = RuntimeException.class)
+  @Test(expectedExceptions = TooSoonToRerunSameFlowException.class)
   public void onAddSpecForAdhocFlowWhenSimilarExistingFlowIsCurrentlyLaunching() throws IOException {
     ConfigBuilder configBuilder = ConfigBuilder.create()
         .addPrimitive(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup")

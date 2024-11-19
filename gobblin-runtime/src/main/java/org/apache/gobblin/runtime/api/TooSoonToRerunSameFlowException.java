@@ -21,7 +21,8 @@ import lombok.Getter;
 
 
 /**
- * An {@link RuntimeException} thrown when lease cannot be acquired on provided entity.
+ * An exception thrown when another {@link FlowSpec} with same flow name and flow group
+ * is submitted within lease consolidation time.
  */
 public class TooSoonToRerunSameFlowException extends RuntimeException {
   @Getter
