@@ -21,6 +21,7 @@ import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
 import org.joda.time.DateTime;
 import org.joda.time.DateTimeZone;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 import org.testng.annotations.BeforeMethod;
@@ -51,11 +52,16 @@ public class TimeBasedSnapshotCleanupPolicyTest {
         // Get the current time
         DateTime now = DateTime.now(DateTimeZone.UTC);
 
-        // Create dummy paths with timestamps between 11 and 9 hours ago in UTC
-        FileStatus fs1 = new FileStatus(0, true, 0, 0, 0,
-                new Path(trash.getTrashLocation(), now.minusHours(11).toString(Trash.TRASH_SNAPSHOT_NAME_FORMATTER)));
-        FileStatus fs2 = new FileStatus(0, true, 0, 0, 0,
-                new Path(trash.getTrashLocation(), now.minusHours(9).toString(Trash.TRASH_SNAPSHOT_NAME_FORMATTER)));           
+        // Create dummy paths with timestamps between 11 and 9 hours ago
+        Path path1 = new Path(trash.getTrashLocation(), now.minusHours(11).toString(Trash.TRASH_SNAPSHOT_NAME_FORMATTER));
+        Path path2 = new Path(trash.getTrashLocation(), now.minusHours(9).toString(Trash.TRASH_SNAPSHOT_NAME_FORMATTER));
+
+        // Mock FileStatus to return the desired paths
+        FileStatus fs1 = Mockito.mock(FileStatus.class);
+        Mockito.when(fs1.getPath()).thenReturn(path1);
+
+        FileStatus fs2 = Mockito.mock(FileStatus.class);
+        Mockito.when(fs2.getPath()).thenReturn(path2);         
 
         // Test snapshot (should be deleted)
         Assert.assertTrue(cleanupPolicy.shouldDeleteSnapshot(fs1, trash),"Snapshot should be deleted");
