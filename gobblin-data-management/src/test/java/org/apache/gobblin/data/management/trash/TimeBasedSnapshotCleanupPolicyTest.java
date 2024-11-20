@@ -30,16 +30,15 @@ import java.util.Properties;
 
 public class TimeBasedSnapshotCleanupPolicyTest {
 
-    private MockTimeBasedSnapshotCleanupPolicy cleanupPolicy;
+    private TimeBasedSnapshotCleanupPolicy cleanupPolicy;
 
     @BeforeMethod
     public void setUp()  {
-        // Initialize the cleanup policy with a retention period (e.g., 1 day)
+        // Initialize the cleanup policy with a retention period of 600 minutes (10 hours)
         Properties properties = new Properties();
-        properties.setProperty(MockTimeBasedSnapshotCleanupPolicy.SNAPSHOT_RETENTION_POLICY_MINUTES_KEY, "1440"); // 1440 minutes = 1 day
-        properties.setProperty(MockTimeBasedSnapshotCleanupPolicy.RETENTION_SNAPSHOT_TIMEZONE, "UTC");
-        // Mock the cutoff time to be 2024-10-30 01:01:00 UTC
-        cleanupPolicy = new MockTimeBasedSnapshotCleanupPolicy(properties, new DateTime(2024, 10, 30, 1, 1));
+        properties.setProperty(TimeBasedSnapshotCleanupPolicy.SNAPSHOT_RETENTION_POLICY_MINUTES_KEY, "600"); // 600 minutes = 10 hours
+        cleanupPolicy = new TimeBasedSnapshotCleanupPolicy(properties);
+
     }
 
     @Test
@@ -49,42 +48,18 @@ public class TimeBasedSnapshotCleanupPolicyTest {
         TrashTestBase trashTestBase = new TrashTestBase(new Properties());
         Trash trash = trashTestBase.trash;
 
-        // Create dummy paths
-        FileStatus fs1 = new FileStatus(0, true, 0, 0, 0, 
-                                        new Path(trash.getTrashLocation(), new DateTime(2024, 10, 29, 1, 0, DateTimeZone.UTC).toString(Trash.TRASH_SNAPSHOT_NAME_FORMATTER)));
-        FileStatus fs2 = new FileStatus(0, true, 0, 0, 0, 
-                                        new Path(trash.getTrashLocation(), new DateTime(2024, 10, 29, 2, 0, DateTimeZone.UTC).toString(Trash.TRASH_SNAPSHOT_NAME_FORMATTER)));
+        // Get the current time
+        DateTime now = DateTime.now(DateTimeZone.UTC);
 
-        // Test old snapshot (should be deleted)
-        // 2024-10-29 01:00:00 UTC + 1440 minutes = 2024-10-30 01:00:00 UTC < Cutoff time a.k.a system current_time (2024-10-30 01:01:00 UTC)
-        Assert.assertTrue(cleanupPolicy.shouldDeleteSnapshot(fs1, trash), "Old snapshot should be deleted");
+        // Create dummy paths with timestamps between 11 and 9 hours ago in UTC
+        FileStatus fs1 = new FileStatus(0, true, 0, 0, 0,
+                new Path(trash.getTrashLocation(), now.minusHours(11).toString(Trash.TRASH_SNAPSHOT_NAME_FORMATTER)));
+        FileStatus fs2 = new FileStatus(0, true, 0, 0, 0,
+                new Path(trash.getTrashLocation(), now.minusHours(9).toString(Trash.TRASH_SNAPSHOT_NAME_FORMATTER)));           
 
-        // Test snapshot (should not be deleted)
-        // 2024-10-29 02:00:00 UTC + 1440 minutes = 2024-10-30 02:00:00 UTC > Cutoff time a.k.a system current_time (2024-10-30 01:01:00 UTC)
-        Assert.assertFalse(cleanupPolicy.shouldDeleteSnapshot(fs2, trash), "snapshot should not be deleted");
+        // Test snapshot (should be deleted)
+        Assert.assertTrue(cleanupPolicy.shouldDeleteSnapshot(fs1, trash),"Snapshot should be deleted");
+        // Test snapshot (should NOT be deleted)
+        Assert.assertFalse(cleanupPolicy.shouldDeleteSnapshot(fs2, trash),"Snapshot should NOT be deleted");
     }
-
-    /**
-     * Mock the TimeBasedSnapshotCleanupPolicy for testing purposes
-     * 
-     * In this class, the current time used in the comparison method isBefore() can be mocked 
-     * Why? The current time is used to determine if a snapshot is older than the retention period, 
-     * and given that the current time is always changing, it is difficult to test the method shouldDeleteSnapshot()
-     */
-    public class MockTimeBasedSnapshotCleanupPolicy extends TimeBasedSnapshotCleanupPolicy {
-
-        private final DateTime MOCK_CURRENT_TIME;
-
-        public MockTimeBasedSnapshotCleanupPolicy(Properties props, DateTime mockCurrentTime) {
-            super(props);
-            this.MOCK_CURRENT_TIME = mockCurrentTime;
-        }
-
-        @Override
-        public boolean shouldDeleteSnapshot(FileStatus snapshot, Trash trash) {
-            DateTime snapshotTime = Trash.TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(snapshot.getPath().getName());
-            return snapshotTime.plusMinutes(this.retentionMinutes).isBefore(this.MOCK_CURRENT_TIME.withZoneRetainFields(this.retentionSnapshotTimezone));
-        }
-    }
-
 }

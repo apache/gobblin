@@ -21,7 +21,6 @@ import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.joda.time.DateTime;
-import org.joda.time.DateTimeZone;
 
 
 /**
@@ -31,21 +30,17 @@ public class TimeBasedSnapshotCleanupPolicy implements SnapshotCleanupPolicy {
 
   public static final String SNAPSHOT_RETENTION_POLICY_MINUTES_KEY = "gobblin.trash.snapshot.retention.minutes";
   public static final int SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT = 1440; // one day
-  public static final String RETENTION_SNAPSHOT_TIMEZONE = "gobblin.trash.snapshot.retention.timezone";
 
-  protected final int retentionMinutes;
-  protected final DateTimeZone retentionSnapshotTimezone;
+  private final int retentionMinutes;
 
   public TimeBasedSnapshotCleanupPolicy(Properties props) {
     this.retentionMinutes = Integer.parseInt(props.getProperty(SNAPSHOT_RETENTION_POLICY_MINUTES_KEY,
         Integer.toString(SNAPSHOT_RETENTION_POLICY_MINUTES_DEFAULT)));
-    this.retentionSnapshotTimezone = props.containsKey(RETENTION_SNAPSHOT_TIMEZONE) ? DateTimeZone.forID(props.getProperty(RETENTION_SNAPSHOT_TIMEZONE)) : DateTimeZone.getDefault();
   }
 
   @Override
   public boolean shouldDeleteSnapshot(FileStatus snapshot, Trash trash) {
     DateTime snapshotTime = Trash.TRASH_SNAPSHOT_NAME_FORMATTER.parseDateTime(snapshot.getPath().getName());
-    // Ensure that the comparison between snapshotTime and the current time can be done in the same time zone (UTC) with timezone specified in the propertie (Default to system time zone)
-    return snapshotTime.plusMinutes(this.retentionMinutes).isBefore(DateTime.now(this.retentionSnapshotTimezone));
+    return snapshotTime.plusMinutes(this.retentionMinutes).isBeforeNow();
   }
 }
