@@ -60,8 +60,11 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
   protected void act(DagManagementStateStore dagManagementStateStore, Pair<Optional<Dag.DagNode<JobExecutionPlan>>,
       Optional<JobStatus>> dagNodeWithJobStatus, DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     if (!dagNodeWithJobStatus.getLeft().isPresent()) {
-      // one of the reason this could arise is when the MALA leasing doesn't work cleanly and another DagProc::process
-      // has cleaned up the Dag, yet did not complete the lease before this current one acquired its own
+      // One of the reason this could arise is when the MALA leasing doesn't work cleanly and another DagProc::process
+      // has cleaned up the Dag, yet did not complete the lease before this current one acquired its own.
+      // Another reason could be that LaunchDagProc was unable to compile the FlowSpec or the flow cannot run concurrently.
+      // In these cases FLOW_FAILED and FLOW_SKIPPED events are emitted respectively, which are terminal status and
+      // create a ReevaluateDagProc. But in these cases Dag was never created or never saved.
       log.error("DagNode or its job status not found for a Reevaluate DagAction with dag node id {}", this.dagNodeId);
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       return;
@@ -99,6 +102,8 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // The other ReevaluateDagProc can do that purely out of race condition when the dag is cancelled and ReevaluateDagProcs
       // are being processed for dag node kill requests; or when this DagProc ran into some exception after updating the
       // status and thus gave the other ReevaluateDagProc sufficient time to delete the dag before being retried.
+      // This can also happen when a job is cancelled/failed and dag is cleaned; but we are still processing Reevaluate
+      // dag actions for SKIPPED dependent jobs
       log.warn("Dag not found {}", getDagId());
       return;
     }
@@ -117,7 +122,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     } else if (DagProcUtils.isDagFinished(dag)) {
       String flowEvent = DagProcUtils.calcFlowStatus(dag);
       dag.setFlowEvent(flowEvent);
-      DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag, flowEvent);
+      DagProcUtils.setAndEmitFlowEvent(DagProc.eventSubmitter, dag, flowEvent);
       if (flowEvent.equals(TimingEvent.FlowTimings.FLOW_SUCCEEDED)) {
         // todo - verify if work from PR#3641 is required
         dagManagementStateStore.deleteDag(getDagId());
@@ -159,15 +164,20 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dag.setMessage("Flow failed because job " + jobName + " failed");
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_FAILED);
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorFailed(dagNode);
+        DagProcUtils.sendSkippedEventForDependentJobs(dag, dagNode);
         break;
       case CANCELLED:
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);
+        DagProcUtils.sendSkippedEventForDependentJobs(dag, dagNode);
         break;
       case COMPLETE:
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorSuccess(dagNode);
         if (!DagProcUtils.isDagFinished(dag)) { // this may fail when dag failure option is finish_running and some dag node has failed
           DagProcUtils.submitNextNodes(dagManagementStateStore, dag, getDagId());
         }
+        break;
+      case SKIPPED:
+        // no action needed for a skipped job
         break;
       default:
         log.warn("It should not reach here. Job status {} is unexpected.", executionStatus);
