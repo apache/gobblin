@@ -38,8 +38,13 @@ import org.apache.gobblin.temporal.dynamic.ScalingDirective;
 import org.apache.gobblin.temporal.dynamic.ScalingDirectiveSource;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.temporal.loadgen.dynamic.DummyScalingDirectiveSource;
 
 
+/**
+ * This class manages the dynamic scaling of the {@link YarnService} by periodically polling for scaling directives and passing
+ * the latest scaling directives to the {@link DynamicScalingYarnService} for processing.
+ */
 @Slf4j
 public class DynamicScalingYarnServiceManager extends AbstractIdleService {
 
@@ -71,11 +76,15 @@ public class DynamicScalingYarnServiceManager extends AbstractIdleService {
     int initialDelay = ConfigUtils.getInt(this.config, DYNAMIC_SCALING_INITIAL_DELAY,
         DEFAULT_DYNAMIC_SCALING_INITIAL_DELAY_SECS);
 
-    ScalingDirectiveSource scalingDirectiveSource = new FsScalingDirectiveSource(
+    ScalingDirectiveSource fsScalingDirectiveSource = new FsScalingDirectiveSource(
         this.fs,
         this.config.getString(DYNAMIC_SCALING_DIRECTIVES_DIR),
         Optional.ofNullable(this.config.getString(DYNAMIC_SCALING_ERRORS_DIR))
     );
+
+    // TODO: remove this line later
+    //  Using for testing purposes only
+    ScalingDirectiveSource scalingDirectiveSource = new DummyScalingDirectiveSource();
 
     log.info("Starting the " + this.getClass().getSimpleName());
     log.info("Scheduling the dynamic scaling task with an interval of {} seconds", scheduleInterval);
@@ -92,6 +101,10 @@ public class DynamicScalingYarnServiceManager extends AbstractIdleService {
     ExecutorsUtils.shutdownExecutorService(this.dynamicScalingExecutor, com.google.common.base.Optional.of(log));
   }
 
+  /**
+   * A {@link Runnable} that gets the scaling directives from the {@link ScalingDirectiveSource} and passes them to the
+   * {@link DynamicScalingYarnService} for processing.
+   */
   @AllArgsConstructor
   static class GetScalingDirectivesRunnable implements Runnable {
     private final DynamicScalingYarnService dynamicScalingYarnService;
@@ -101,7 +114,9 @@ public class DynamicScalingYarnServiceManager extends AbstractIdleService {
     public void run() {
       try {
         List<ScalingDirective> scalingDirectives = scalingDirectiveSource.getScalingDirectives();
-        dynamicScalingYarnService.reviseWorkforcePlanAndRequestNewContainers(scalingDirectives);
+        if (!scalingDirectives.isEmpty()) {
+          dynamicScalingYarnService.reviseWorkforcePlanAndRequestNewContainers(scalingDirectives);
+        }
       } catch (IOException e) {
         log.error("Failed to get scaling directives", e);
       }

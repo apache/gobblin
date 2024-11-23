@@ -36,10 +36,16 @@ import org.apache.gobblin.temporal.dynamic.WorkforcePlan;
 import org.apache.gobblin.temporal.dynamic.WorkforceStaffing;
 import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
+/**
+ * Service for dynamically scaling Gobblin containers running on YARN.
+ * This service manages workforce staffing and plans, and requests new containers as needed.
+ */
 @Slf4j
 public class DynamicScalingYarnService extends YarnService {
 
+  /** this holds the current count of containers requested for each worker profile */
   private final WorkforceStaffing workforceStaffing;
+  /** this holds the current total workforce plan as per latest received scaling directives */
   private final WorkforcePlan workforcePlan;
 
   public DynamicScalingYarnService(Config config, String applicationName, String applicationId,
@@ -50,21 +56,29 @@ public class DynamicScalingYarnService extends YarnService {
     this.workforcePlan = new WorkforcePlan(getConfig(), getInitialContainers());
   }
 
+  /**
+   * Revises the workforce plan and requests new containers based on the given scaling directives.
+   *
+   * @param scalingDirectives the list of scaling directives
+   */
   public synchronized void reviseWorkforcePlanAndRequestNewContainers(List<ScalingDirective> scalingDirectives) {
     this.workforcePlan.reviseWhenNewer(scalingDirectives);
     StaffingDeltas deltas = this.workforcePlan.calcStaffingDeltas(this.workforceStaffing);
     requestNewContainersForStaffingDeltas(deltas);
-    // update our staffing after requesting new containers
-    scalingDirectives.forEach(directive -> this.workforceStaffing.reviseStaffing(
-        directive.getProfileName(), directive.getSetPoint(), directive.getTimestampEpochMillis())
-    );
   }
 
   private synchronized void requestNewContainersForStaffingDeltas(StaffingDeltas deltas) {
     deltas.getPerProfileDeltas().forEach(profileDelta -> {
       if (profileDelta.getDelta() > 0) {
-        log.info("Requesting {} new containers for profile {}", profileDelta.getDelta(), profileDelta.getProfile());
-        requestContainersForWorkerProfile(profileDelta.getProfile(), profileDelta.getDelta());
+        WorkerProfile workerProfile = profileDelta.getProfile();
+        String profileName = workerProfile.getName();
+        int curNumContainers = this.workforceStaffing.getStaffing(profileName).orElse(0);
+        int delta = profileDelta.getDelta();
+        log.info("Requesting {} new containers for profile {} having currently {} containers", delta,
+            profileName, curNumContainers);
+        requestContainersForWorkerProfile(workerProfile, delta);
+        // update our staffing after requesting new containers
+        this.workforceStaffing.reviseStaffing(profileName, curNumContainers + delta, System.currentTimeMillis());
       }
       // TODO: Decide how to handle negative deltas
     });
