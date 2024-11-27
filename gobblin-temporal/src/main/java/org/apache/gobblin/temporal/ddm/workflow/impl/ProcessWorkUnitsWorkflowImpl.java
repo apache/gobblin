@@ -72,9 +72,20 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties());
 
     NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec, searchAttributes);
-    int workunitsProcessed =
-        processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0, workSpec.getTuning().getMaxBranchesPerTree(),
-            workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty());
+
+    int workunitsProcessed = 0;
+    try {
+      workunitsProcessed = processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0,
+          workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty());
+    } catch (Exception e) {
+      log.error("Exception occurred in performing workload,proceeding with commit step", e);
+      return proceedWithCommitStepAndReturnCommitStats(workSpec, searchAttributes, workunitsProcessed);
+    }
+    return proceedWithCommitStepAndReturnCommitStats(workSpec, searchAttributes, workunitsProcessed);
+  }
+
+  private CommitStats proceedWithCommitStepAndReturnCommitStats(WUProcessingSpec workSpec,
+      Map<String, Object> searchAttributes, int workunitsProcessed) {
     if (workunitsProcessed > 0) {
       CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
       CommitStats result = commitWorkflow.commit(workSpec);
