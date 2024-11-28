@@ -72,22 +72,25 @@ public class DynamicScalingYarnService extends YarnService {
       if (profileDelta.getDelta() > 0) {
         WorkerProfile workerProfile = profileDelta.getProfile();
         String profileName = workerProfile.getName();
-        int curNumContainers = this.workforceStaffing.getStaffing(profileName).orElse(0);
+        int currNumContainers = this.workforceStaffing.getStaffing(profileName).orElse(0);
         int delta = profileDelta.getDelta();
         log.info("Requesting {} new containers for profile {} having currently {} containers", delta,
-            profileName, curNumContainers);
+            profileName, currNumContainers);
         requestContainersForWorkerProfile(workerProfile, delta);
         // update our staffing after requesting new containers
-        this.workforceStaffing.reviseStaffing(profileName, curNumContainers + delta, System.currentTimeMillis());
+        this.workforceStaffing.reviseStaffing(profileName, currNumContainers + delta, System.currentTimeMillis());
+      } else {
+        // TODO: Decide how to handle negative deltas
+        log.warn("Handling of Negative delta is not supported yet : Profile {} delta {} ",
+            profileDelta.getProfile().getName(), profileDelta.getDelta());
       }
-      // TODO: Decide how to handle negative deltas
     });
   }
 
   private synchronized void requestContainersForWorkerProfile(WorkerProfile workerProfile, int numContainers) {
     int containerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     int containerCores = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
-    long allocationRequestId = generateAllocationRequestId(workerProfile);
+    long allocationRequestId = storeByUniqueAllocationRequestId(workerProfile);
     requestContainers(numContainers, Resource.newInstance(containerMemoryMbs, containerCores), Optional.of(allocationRequestId));
   }
 

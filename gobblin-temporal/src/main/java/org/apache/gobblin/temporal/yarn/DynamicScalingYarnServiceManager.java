@@ -51,18 +51,23 @@ public class DynamicScalingYarnServiceManager extends AbstractIdleService {
   private final String DYNAMIC_SCALING_PREFIX = GobblinTemporalConfigurationKeys.PREFIX + "dynamic.scaling.";
   private final String DYNAMIC_SCALING_DIRECTIVES_DIR = DYNAMIC_SCALING_PREFIX + "directives.dir";
   private final String DYNAMIC_SCALING_ERRORS_DIR = DYNAMIC_SCALING_PREFIX + "errors.dir";
-  private final String DYNAMIC_SCALING_INITIAL_DELAY = DYNAMIC_SCALING_PREFIX + "initial.delay";
-  private final int DEFAULT_DYNAMIC_SCALING_INITIAL_DELAY_SECS = 60;
   private final String DYNAMIC_SCALING_POLLING_INTERVAL = DYNAMIC_SCALING_PREFIX + "polling.interval";
   private final int DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS = 60;
   private final Config config;
-  DynamicScalingYarnService dynamicScalingYarnService;
+  private final DynamicScalingYarnService dynamicScalingYarnService;
   private final ScheduledExecutorService dynamicScalingExecutor;
   private final FileSystem fs;
 
   public DynamicScalingYarnServiceManager(GobblinTemporalApplicationMaster appMaster) {
     this.config = appMaster.getConfig();
-    this.dynamicScalingYarnService = (DynamicScalingYarnService) appMaster.get_yarnService();
+    if (appMaster.get_yarnService() instanceof DynamicScalingYarnService) {
+      this.dynamicScalingYarnService = (DynamicScalingYarnService) appMaster.get_yarnService();
+    } else {
+      String errorMsg = "Failure while getting YarnService Instance from GobblinTemporalApplicationMaster::get_yarnService()"
+          + " YarnService is not an instance of DynamicScalingYarnService";
+      log.error(errorMsg);
+      throw new RuntimeException(errorMsg);
+    }
     this.dynamicScalingExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log),
             com.google.common.base.Optional.of("DynamicScalingExecutor")));
@@ -73,14 +78,12 @@ public class DynamicScalingYarnServiceManager extends AbstractIdleService {
   protected void startUp() {
     int scheduleInterval = ConfigUtils.getInt(this.config, DYNAMIC_SCALING_POLLING_INTERVAL,
         DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS);
-    int initialDelay = ConfigUtils.getInt(this.config, DYNAMIC_SCALING_INITIAL_DELAY,
-        DEFAULT_DYNAMIC_SCALING_INITIAL_DELAY_SECS);
 
-    ScalingDirectiveSource fsScalingDirectiveSource = new FsScalingDirectiveSource(
-        this.fs,
-        this.config.getString(DYNAMIC_SCALING_DIRECTIVES_DIR),
-        Optional.ofNullable(this.config.getString(DYNAMIC_SCALING_ERRORS_DIR))
-    );
+//    ScalingDirectiveSource fsScalingDirectiveSource = new FsScalingDirectiveSource(
+//        this.fs,
+//        this.config.getString(DYNAMIC_SCALING_DIRECTIVES_DIR),
+//        Optional.ofNullable(this.config.getString(DYNAMIC_SCALING_ERRORS_DIR))
+//    );
 
     // TODO: remove this line later
     //  Using for testing purposes only
@@ -91,7 +94,7 @@ public class DynamicScalingYarnServiceManager extends AbstractIdleService {
 
     this.dynamicScalingExecutor.scheduleAtFixedRate(
         new GetScalingDirectivesRunnable(this.dynamicScalingYarnService, scalingDirectiveSource),
-        initialDelay, scheduleInterval, TimeUnit.SECONDS
+        scheduleInterval, scheduleInterval, TimeUnit.SECONDS
     );
   }
 
@@ -119,6 +122,8 @@ public class DynamicScalingYarnServiceManager extends AbstractIdleService {
         }
       } catch (IOException e) {
         log.error("Failed to get scaling directives", e);
+      } catch (Throwable t) {
+        log.error("Suppressing error from GetScalingDirectivesRunnable.run()", t);
       }
     }
   }

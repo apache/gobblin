@@ -203,7 +203,7 @@ class YarnService extends AbstractIdleService {
   private final boolean jarCacheEnabled;
   private final WorkerProfile baselineWorkerProfile;
   private final AtomicLong allocationRequestIdGenerator = new AtomicLong(0L);
-  private final ConcurrentMap<Long, WorkerProfile> allocationRequestIdToWorkerProfile = new ConcurrentHashMap<>();
+  private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus) throws Exception {
@@ -267,7 +267,7 @@ class YarnService extends AbstractIdleService {
     this.baselineWorkerProfile = new WorkerProfile(WorkforceProfiles.BASELINE_NAME, this.config);
 
     // Putting baseline profile in the map for default allocation request id (0)
-    this.allocationRequestIdToWorkerProfile.put(allocationRequestIdGenerator.getAndIncrement(), this.baselineWorkerProfile);
+    this.workerProfileByAllocationRequestId.put(allocationRequestIdGenerator.getAndIncrement(), this.baselineWorkerProfile);
   }
 
   @SuppressWarnings("unused")
@@ -452,14 +452,14 @@ class YarnService extends AbstractIdleService {
    * @param numContainers
    * @param resource
    */
-  protected void requestContainers(int numContainers, Resource resource, Optional<Long> allocationRequestId) {
-    LOGGER.info("Requesting {} containers with resource={} and allocation request id = {}", numContainers, resource, allocationRequestId);
+  protected void requestContainers(int numContainers, Resource resource, Optional<Long> optAllocationRequestId) {
+    LOGGER.info("Requesting {} containers with resource={} and allocation request id = {}", numContainers, resource, optAllocationRequestId);
     IntStream.range(0, numContainers)
-        .forEach(i -> requestContainer(Optional.absent(), resource, allocationRequestId));
+        .forEach(i -> requestContainer(Optional.absent(), resource, optAllocationRequestId));
   }
 
   // Request containers with specific resource requirement
-  private void requestContainer(Optional<String> preferredNode, Resource resource, Optional<Long> allocationRequestId) {
+  private void requestContainer(Optional<String> preferredNode, Resource resource, Optional<Long> optAllocationRequestId) {
     // Fail if Yarn cannot meet container resource requirements
     Preconditions.checkArgument(resource.getMemory() <= this.maxResourceCapacity.get().getMemory() &&
             resource.getVirtualCores() <= this.maxResourceCapacity.get().getVirtualCores(),
@@ -476,10 +476,10 @@ class YarnService extends AbstractIdleService {
 
     String[] preferredNodes = preferredNode.isPresent() ? new String[] {preferredNode.get()} : null;
 
-    long allocationRequestID = allocationRequestId.or(0L);
+    long allocationRequestId = optAllocationRequestId.or(0L);
 
     this.amrmClientAsync.addContainerRequest(
-        new AMRMClient.ContainerRequest(resource, preferredNodes, null, priority, allocationRequestID));
+        new AMRMClient.ContainerRequest(resource, preferredNodes, null, priority, allocationRequestId));
   }
 
   protected ContainerLaunchContext newContainerLaunchContext(ContainerInfo containerInfo)
@@ -583,8 +583,9 @@ class YarnService extends AbstractIdleService {
 
   @VisibleForTesting
   protected String buildContainerCommand(Container container, String helixParticipantId, String helixInstanceTag) {
-    long allocationRequestID = container.getAllocationRequestId();
-    WorkerProfile workerProfile = this.allocationRequestIdToWorkerProfile.getOrDefault(allocationRequestID,
+    long allocationRequestId = container.getAllocationRequestId();
+    // Using getOrDefault for backward-compatibility with containers that don't have allocationRequestId set
+    WorkerProfile workerProfile = this.workerProfileByAllocationRequestId.getOrDefault(allocationRequestId,
         this.baselineWorkerProfile);
     Config workerProfileConfig = workerProfile.getConfig();
 
@@ -782,9 +783,9 @@ class YarnService extends AbstractIdleService {
    * @param workerProfile the worker profile for which the allocation request ID is generated
    * @return the generated allocation request ID
    */
-  protected long generateAllocationRequestId(WorkerProfile workerProfile) {
+  protected long storeByUniqueAllocationRequestId(WorkerProfile workerProfile) {
     long allocationRequestId = allocationRequestIdGenerator.getAndIncrement();
-    this.allocationRequestIdToWorkerProfile.put(allocationRequestId, workerProfile);
+    this.workerProfileByAllocationRequestId.put(allocationRequestId, workerProfile);
     return allocationRequestId;
   }
 
@@ -838,6 +839,7 @@ class YarnService extends AbstractIdleService {
         // YARN does not have a delta request API and the requests are not cleaned up automatically.
         // Try finding a match first with the host as the resource name then fall back to any resource match.
         // Also see YARN-1902. Container count will explode without this logic for removing container requests.
+        // TODO : Add removing by allocation request id first
         List<? extends Collection<AMRMClient.ContainerRequest>> matchingRequests = amrmClientAsync
             .getMatchingRequests(container.getPriority(), container.getNodeHttpAddress(), container.getResource());
 
