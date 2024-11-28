@@ -133,8 +133,6 @@ class YarnService extends AbstractIdleService {
   private final String appViewAcl;
   //Default helix instance tag derived from cluster level config
   private final String helixInstanceTags;
-
-  @Getter(AccessLevel.PROTECTED)
   private final Config config;
 
   private final EventBus eventBus;
@@ -150,9 +148,6 @@ class YarnService extends AbstractIdleService {
   private final AMRMClientAsync<AMRMClient.ContainerRequest> amrmClientAsync;
   private final NMClientAsync nmClientAsync;
   private final ExecutorService containerLaunchExecutor;
-
-  @Getter(AccessLevel.PROTECTED)
-  private final int initialContainers;
   private final int requestedContainerMemoryMbs;
   private final int requestedContainerCores;
   private final boolean containerHostAffinityEnabled;
@@ -201,7 +196,7 @@ class YarnService extends AbstractIdleService {
   private volatile boolean shutdownInProgress = false;
 
   private final boolean jarCacheEnabled;
-  private final WorkerProfile baselineWorkerProfile;
+  protected final WorkerProfile baselineWorkerProfile;
   private final AtomicLong allocationRequestIdGenerator = new AtomicLong(0L);
   private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
 
@@ -233,7 +228,6 @@ class YarnService extends AbstractIdleService {
     this.nmClientAsync = closer.register(NMClientAsync.createNMClientAsync(getNMClientCallbackHandler()));
     this.nmClientAsync.init(this.yarnConfiguration);
 
-    this.initialContainers = config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
     this.requestedContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     this.requestedContainerCores = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
     this.containerHostAffinityEnabled = config.getBoolean(GobblinYarnConfigurationKeys.CONTAINER_HOST_AFFINITY_ENABLED);
@@ -267,7 +261,8 @@ class YarnService extends AbstractIdleService {
     this.baselineWorkerProfile = new WorkerProfile(WorkforceProfiles.BASELINE_NAME, this.config);
 
     // Putting baseline profile in the map for default allocation request id (0)
-    this.workerProfileByAllocationRequestId.put(allocationRequestIdGenerator.getAndIncrement(), this.baselineWorkerProfile);
+    // adding it here to have deterministic allocation request id for baseline worker profile
+    storeByUniqueAllocationRequestId(this.baselineWorkerProfile);
   }
 
   @SuppressWarnings("unused")
@@ -333,8 +328,8 @@ class YarnService extends AbstractIdleService {
     LOGGER.info("ApplicationMaster registration response: " + response);
     this.maxResourceCapacity = Optional.of(response.getMaximumResourceCapability());
 
-    LOGGER.info("Requesting initial containers");
-    requestInitialContainers(this.initialContainers);
+    LOGGER.info("Requesting initial containers using baselineWorkerProfile");
+    requestInitialContainers(this.baselineWorkerProfile);
   }
 
   @Override
@@ -409,35 +404,13 @@ class YarnService extends AbstractIdleService {
         .build();
   }
 
-  /**
-   * Request an allocation of containers. If numTargetContainers is larger than the max of current and expected number
-   * of containers then additional containers are requested.
-   * <p>
-   * If numTargetContainers is less than the current number of allocated containers then release free containers.
-   * Shrinking is relative to the number of currently allocated containers since it takes time for containers
-   * to be allocated and assigned work and we want to avoid releasing a container prematurely before it is assigned
-   * work. This means that a container may not be released even though numTargetContainers is less than the requested
-   * number of containers. The intended usage is for the caller of this method to make periodic calls to attempt to
-   * adjust the cluster towards the desired number of containers.
-   *
-   * @param inUseInstances  a set of in use instances
-   * @return whether successfully requested the target number of containers
-   */
-  public synchronized boolean requestTargetNumberOfContainers(int numContainers, Set<String> inUseInstances) {
-    int defaultContainerMemoryMbs = config.getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
-    int defaultContainerCores = config.getInt(GobblinYarnConfigurationKeys. CONTAINER_CORES_KEY);
-
-    LOGGER.info("Trying to set numTargetContainers={}, in-use helix instances count is {}, container map size is {}",
-        numContainers, inUseInstances.size(), this.containerMap.size());
-
-    requestContainers(numContainers, Resource.newInstance(defaultContainerMemoryMbs, defaultContainerCores), Optional.absent());
-    LOGGER.info("Current tag-container desired count:{}, tag-container allocated: {}", numContainers, this.allocatedContainerCountMap);
-    return true;
-  }
-
-  // Request initial containers with default resource and helix tag
-  private void requestInitialContainers(int containersRequested) {
-    requestTargetNumberOfContainers(containersRequested, Collections.EMPTY_SET);
+  /** Request Initial containers using baselineWorkerProfile */
+  private void requestInitialContainers(WorkerProfile workerProfile) {
+    int containerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
+    int containerCores = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
+    int numContainers = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
+    // Using 0 as allocation id for baseline worker profile
+    requestContainers(numContainers, Resource.newInstance(containerMemoryMbs, containerCores), Optional.of(0L));
   }
 
   private void requestContainer(Optional<String> preferredNode, Optional<Resource> resourceOptional) {

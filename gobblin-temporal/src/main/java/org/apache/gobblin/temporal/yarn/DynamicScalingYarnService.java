@@ -52,8 +52,10 @@ public class DynamicScalingYarnService extends YarnService {
       YarnConfiguration yarnConfiguration, FileSystem fs, EventBus eventBus) throws Exception {
     super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);
 
-    this.workforceStaffing = WorkforceStaffing.initialize(getInitialContainers());
-    this.workforcePlan = new WorkforcePlan(getConfig(), getInitialContainers());
+    int initialContainers = this.baselineWorkerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
+
+    this.workforceStaffing = WorkforceStaffing.initialize(initialContainers);
+    this.workforcePlan = new WorkforcePlan(this.baselineWorkerProfile.getConfig(), initialContainers);
   }
 
   /**
