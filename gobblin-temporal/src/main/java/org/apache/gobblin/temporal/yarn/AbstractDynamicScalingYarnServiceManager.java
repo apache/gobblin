@@ -45,8 +45,7 @@ import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 @Slf4j
 public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractIdleService {
 
-  protected final String DYNAMIC_SCALING_PREFIX = GobblinTemporalConfigurationKeys.PREFIX + "dynamic.scaling.";
-  private final String DYNAMIC_SCALING_POLLING_INTERVAL = DYNAMIC_SCALING_PREFIX + "polling.interval";
+  private final static String DYNAMIC_SCALING_POLLING_INTERVAL = GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_PREFIX + "polling.interval";
   private final int DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS = 60;
   protected final Config config;
   private final DynamicScalingYarnService dynamicScalingYarnService;
