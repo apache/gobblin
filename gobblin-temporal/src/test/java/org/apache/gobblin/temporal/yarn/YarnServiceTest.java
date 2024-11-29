@@ -35,7 +35,8 @@ import org.testng.annotations.Test;
 /** Tests for {@link YarnService}*/
 public class YarnServiceTest {
   private Config defaultConfigs;
-  private YarnConfiguration yarnConfiguration = new YarnConfiguration();
+  private final YarnConfiguration yarnConfiguration = new YarnConfiguration();
+  private final FileSystem mockFileSystem = Mockito.mock(FileSystem.class);
   private final EventBus eventBus = new EventBus("TemporalYarnServiceTest");
 
   @BeforeClass
@@ -44,6 +45,30 @@ public class YarnServiceTest {
         .getResource(YarnServiceTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
     this.defaultConfigs = ConfigFactory.parseURL(url).resolve();
+  }
+
+  @Test
+  public void testBaselineWorkerProfileCreatedWithPassedConfigs() throws Exception {
+    final int containerMemoryMbs = 1500;
+    final int containerCores = 5;
+    final int numContainers = 4;
+    Config config = this.defaultConfigs
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY, ConfigValueFactory.fromAnyRef(containerMemoryMbs))
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY, ConfigValueFactory.fromAnyRef(containerCores))
+        .withValue(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY, ConfigValueFactory.fromAnyRef(numContainers));
+
+    YarnService yarnService = new YarnService(
+        config,
+        "testApplicationName",
+        "testApplicationId",
+        yarnConfiguration,
+        mockFileSystem,
+        eventBus
+    );
+
+    Assert.assertEquals(yarnService.baselineWorkerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY), containerMemoryMbs);
+    Assert.assertEquals(yarnService.baselineWorkerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY), containerCores);
+    Assert.assertEquals(yarnService.baselineWorkerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY), numContainers);
   }
 
   @Test
@@ -67,7 +92,7 @@ public class YarnServiceTest {
         "testApplicationName",
         "testApplicationId",
         yarnConfiguration,
-        Mockito.mock(FileSystem.class),
+        mockFileSystem,
         eventBus
     );
 
