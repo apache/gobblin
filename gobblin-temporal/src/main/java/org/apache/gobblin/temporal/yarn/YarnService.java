@@ -23,7 +23,6 @@ import java.nio.ByteBuffer;
 import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collection;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.Iterator;
 import java.util.List;
@@ -812,23 +811,33 @@ class YarnService extends AbstractIdleService {
         // YARN does not have a delta request API and the requests are not cleaned up automatically.
         // Try finding a match first with the host as the resource name then fall back to any resource match.
         // Also see YARN-1902. Container count will explode without this logic for removing container requests.
-        // TODO : Add removing by allocation request id first
-        List<? extends Collection<AMRMClient.ContainerRequest>> matchingRequests = amrmClientAsync
-            .getMatchingRequests(container.getPriority(), container.getNodeHttpAddress(), container.getResource());
-
-        if (matchingRequests.isEmpty()) {
-          LOGGER.debug("Matching request by host {} not found", container.getNodeHttpAddress());
-
-          matchingRequests = amrmClientAsync
-              .getMatchingRequests(container.getPriority(), ResourceRequest.ANY, container.getResource());
-        }
-
-        if (!matchingRequests.isEmpty()) {
-          AMRMClient.ContainerRequest firstMatchingContainerRequest = matchingRequests.get(0).iterator().next();
+        Collection<AMRMClient.ContainerRequest> matchingRequestsByAllocationRequestId = amrmClientAsync.getMatchingRequests(container.getAllocationRequestId());
+        if (!matchingRequestsByAllocationRequestId.isEmpty()) {
+          AMRMClient.ContainerRequest firstMatchingContainerRequest = matchingRequestsByAllocationRequestId.iterator().next();
           LOGGER.debug("Found matching requests {}, removing first matching request {}",
-              matchingRequests, firstMatchingContainerRequest);
+              matchingRequestsByAllocationRequestId, firstMatchingContainerRequest);
 
           amrmClientAsync.removeContainerRequest(firstMatchingContainerRequest);
+        } else {
+          LOGGER.debug("Matching request by allocation request id {} not found", container.getAllocationRequestId());
+
+          List<? extends Collection<AMRMClient.ContainerRequest>> matchingRequestsByHost = amrmClientAsync
+              .getMatchingRequests(container.getPriority(), container.getNodeHttpAddress(), container.getResource());
+
+          if (matchingRequestsByHost.isEmpty()) {
+            LOGGER.debug("Matching request by host {} not found", container.getNodeHttpAddress());
+
+            matchingRequestsByHost = amrmClientAsync
+                .getMatchingRequests(container.getPriority(), ResourceRequest.ANY, container.getResource());
+          }
+
+          if (!matchingRequestsByHost.isEmpty()) {
+            AMRMClient.ContainerRequest firstMatchingContainerRequest = matchingRequestsByHost.get(0).iterator().next();
+            LOGGER.debug("Found matching requests {}, removing first matching request {}",
+                matchingRequestsByAllocationRequestId, firstMatchingContainerRequest);
+
+            amrmClientAsync.removeContainerRequest(firstMatchingContainerRequest);
+          }
         }
 
         containerLaunchExecutor.submit(new Runnable() {

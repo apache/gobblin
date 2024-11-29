@@ -19,12 +19,9 @@ package org.apache.gobblin.temporal.yarn;
 
 import java.io.IOException;
 import java.util.List;
-import java.util.Optional;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
-
-import org.apache.hadoop.fs.FileSystem;
 
 import com.typesafe.config.Config;
 import com.google.common.util.concurrent.AbstractIdleService;
@@ -32,33 +29,30 @@ import com.google.common.util.concurrent.AbstractIdleService;
 import lombok.AllArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
-import org.apache.gobblin.temporal.dynamic.FsScalingDirectiveSource;
-import org.apache.gobblin.temporal.dynamic.ScalingDirective;
-import org.apache.gobblin.temporal.dynamic.ScalingDirectiveSource;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
-import org.apache.gobblin.temporal.loadgen.dynamic.DummyScalingDirectiveSource;
-
+import org.apache.gobblin.temporal.dynamic.ScalingDirective;
+import org.apache.gobblin.temporal.dynamic.ScalingDirectiveSource;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 
 /**
  * This class manages the dynamic scaling of the {@link YarnService} by periodically polling for scaling directives and passing
  * the latest scaling directives to the {@link DynamicScalingYarnService} for processing.
+ *
+ * This is an abstract class that provides the basic functionality for managing dynamic scaling. Subclasses should implement
+ * {@link #createScalingDirectiveSource()} to provide a {@link ScalingDirectiveSource} that will be used to get scaling directives.
  */
 @Slf4j
-public class DynamicScalingYarnServiceManager extends AbstractIdleService {
+public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractIdleService {
 
-  private final String DYNAMIC_SCALING_PREFIX = GobblinTemporalConfigurationKeys.PREFIX + "dynamic.scaling.";
-  private final String DYNAMIC_SCALING_DIRECTIVES_DIR = DYNAMIC_SCALING_PREFIX + "directives.dir";
-  private final String DYNAMIC_SCALING_ERRORS_DIR = DYNAMIC_SCALING_PREFIX + "errors.dir";
+  protected final String DYNAMIC_SCALING_PREFIX = GobblinTemporalConfigurationKeys.PREFIX + "dynamic.scaling.";
   private final String DYNAMIC_SCALING_POLLING_INTERVAL = DYNAMIC_SCALING_PREFIX + "polling.interval";
   private final int DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS = 60;
-  private final Config config;
+  protected final Config config;
   private final DynamicScalingYarnService dynamicScalingYarnService;
   private final ScheduledExecutorService dynamicScalingExecutor;
-  private final FileSystem fs;
 
-  public DynamicScalingYarnServiceManager(GobblinTemporalApplicationMaster appMaster) {
+  public AbstractDynamicScalingYarnServiceManager(GobblinTemporalApplicationMaster appMaster) {
     this.config = appMaster.getConfig();
     if (appMaster.get_yarnService() instanceof DynamicScalingYarnService) {
       this.dynamicScalingYarnService = (DynamicScalingYarnService) appMaster.get_yarnService();
@@ -71,29 +65,17 @@ public class DynamicScalingYarnServiceManager extends AbstractIdleService {
     this.dynamicScalingExecutor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log),
             com.google.common.base.Optional.of("DynamicScalingExecutor")));
-    this.fs = appMaster.getFs();
   }
 
   @Override
   protected void startUp() {
     int scheduleInterval = ConfigUtils.getInt(this.config, DYNAMIC_SCALING_POLLING_INTERVAL,
         DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS);
-
-//    ScalingDirectiveSource fsScalingDirectiveSource = new FsScalingDirectiveSource(
-//        this.fs,
-//        this.config.getString(DYNAMIC_SCALING_DIRECTIVES_DIR),
-//        Optional.ofNullable(this.config.getString(DYNAMIC_SCALING_ERRORS_DIR))
-//    );
-
-    // TODO: remove this line later
-    //  Using for testing purposes only
-    ScalingDirectiveSource scalingDirectiveSource = new DummyScalingDirectiveSource();
-
     log.info("Starting the " + this.getClass().getSimpleName());
     log.info("Scheduling the dynamic scaling task with an interval of {} seconds", scheduleInterval);
 
     this.dynamicScalingExecutor.scheduleAtFixedRate(
-        new GetScalingDirectivesRunnable(this.dynamicScalingYarnService, scalingDirectiveSource),
+        new GetScalingDirectivesRunnable(this.dynamicScalingYarnService, createScalingDirectiveSource()),
         scheduleInterval, scheduleInterval, TimeUnit.SECONDS
     );
   }
@@ -103,6 +85,11 @@ public class DynamicScalingYarnServiceManager extends AbstractIdleService {
     log.info("Stopping the " + this.getClass().getSimpleName());
     ExecutorsUtils.shutdownExecutorService(this.dynamicScalingExecutor, com.google.common.base.Optional.of(log));
   }
+
+  /**
+   * Create a {@link ScalingDirectiveSource} to use for getting scaling directives.
+   */
+  protected abstract ScalingDirectiveSource createScalingDirectiveSource();
 
   /**
    * A {@link Runnable} that gets the scaling directives from the {@link ScalingDirectiveSource} and passes them to the
