@@ -408,6 +408,7 @@ class YarnService extends AbstractIdleService {
     int containerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     int containerCores = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
     int numContainers = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
+    LOGGER.info("Requesting {} initial containers with default allocation id = 0", numContainers);
     // Using 0 as allocation id for baseline worker profile
     requestContainers(numContainers, Resource.newInstance(containerMemoryMbs, containerCores), Optional.of(0L));
   }

@@ -47,18 +47,17 @@ public class DummyScalingDirectiveSource implements ScalingDirectiveSource {
   }
 
   /**
-   * @return {@link ScalingDirective}s - an impl. may choose to return all known directives or to give only newer
-   * directives than previously returned
+   * @return - A fixed set of  {@link ScalingDirective}s corresponding to the invocation number.
    */
   @Override
   public List<ScalingDirective> getScalingDirectives() {
-    // Note - profile should exist already pr is derived from other profile
+    // Note - profile should exist already or is derived from other profile
     if (this.numInvocations.get() == 0) {
       this.numInvocations.getAndIncrement();
       // here we are returning two new profile with initial container counts and these should be launched
       long currentTime = System.currentTimeMillis();
       // both profiles should have different timestampEpochMillis so that both are processed otherwise
-      // }org.apache.gobblin.temporal.dynamic.WorkforcePlan$IllegalRevisionException$OutOfOrderDirective can occur
+      // org.apache.gobblin.temporal.dynamic.WorkforcePlan$IllegalRevisionException$OutOfOrderDirective can occur
       return Arrays.asList(
           new ScalingDirective("firstProfile", 3, currentTime, this.derivedFromBaseline),
           new ScalingDirective("secondProfile", 2, currentTime + 1, this.derivedFromBaseline)
