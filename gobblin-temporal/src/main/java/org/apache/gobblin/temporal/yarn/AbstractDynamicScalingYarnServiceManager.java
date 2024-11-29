@@ -23,6 +23,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 
+import org.apache.commons.collections.CollectionUtils;
+
 import com.typesafe.config.Config;
 import com.google.common.util.concurrent.AbstractIdleService;
 
@@ -103,7 +105,7 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
     public void run() {
       try {
         List<ScalingDirective> scalingDirectives = scalingDirectiveSource.getScalingDirectives();
-        if (!scalingDirectives.isEmpty()) {
+        if (CollectionUtils.isNotEmpty(scalingDirectives)) {
           dynamicScalingYarnService.reviseWorkforcePlanAndRequestNewContainers(scalingDirectives);
         }
       } catch (IOException e) {
