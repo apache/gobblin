@@ -17,20 +17,24 @@
 
 package org.apache.gobblin.temporal.yarn;
 
-import com.google.common.eventbus.EventBus;
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
-import org.apache.hadoop.yarn.api.records.Container;
 import java.net.URL;
-import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.records.Resource;
+import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
+
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
+
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
+import com.typesafe.config.ConfigValueFactory;
+import com.google.common.eventbus.EventBus;
+
+import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
 /** Tests for {@link YarnService}*/
 public class YarnServiceTest {
