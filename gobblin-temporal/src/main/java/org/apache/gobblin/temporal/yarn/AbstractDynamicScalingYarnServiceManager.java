@@ -26,6 +26,7 @@ import java.util.concurrent.ScheduledExecutorService;
 import org.apache.commons.collections.CollectionUtils;
 
 import com.typesafe.config.Config;
+import com.google.common.base.Optional;
 import com.google.common.util.concurrent.AbstractIdleService;
 
 import lombok.AllArgsConstructor;
@@ -64,8 +65,8 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
       throw new RuntimeException(errorMsg);
     }
     this.dynamicScalingExecutor = Executors.newSingleThreadScheduledExecutor(
-        ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log),
-            com.google.common.base.Optional.of("DynamicScalingExecutor")));
+        ExecutorsUtils.newThreadFactory(Optional.of(log),
+            Optional.of("DynamicScalingExecutor")));
   }
 
   @Override
@@ -84,7 +85,7 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
   @Override
   protected void shutDown() {
     log.info("Stopping the " + this.getClass().getSimpleName());
-    ExecutorsUtils.shutdownExecutorService(this.dynamicScalingExecutor, com.google.common.base.Optional.of(log));
+    ExecutorsUtils.shutdownExecutorService(this.dynamicScalingExecutor, Optional.of(log));
   }
 
   /**

@@ -810,7 +810,8 @@ class YarnService extends AbstractIdleService {
         // Find matching requests and remove the request (YARN-660). We the scheduler are responsible
         // for cleaning up requests after allocation based on the design in the described ticket.
         // YARN does not have a delta request API and the requests are not cleaned up automatically.
-        // Try finding a match first with the host as the resource name then fall back to any resource match.
+        // Try finding a match first with requestAllocationId (which should always be the case) then fall back to
+        // finding a match with the host as the resource name which then will fall back to any resource match.
         // Also see YARN-1902. Container count will explode without this logic for removing container requests.
         Collection<AMRMClient.ContainerRequest> matchingRequestsByAllocationRequestId = amrmClientAsync.getMatchingRequests(container.getAllocationRequestId());
         if (!matchingRequestsByAllocationRequestId.isEmpty()) {
