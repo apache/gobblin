@@ -336,8 +336,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     public void run() {
       log.info("Starting queue processing.. " + Thread.currentThread().getName());
       KafkaConsumerRecord record = null;
-      try {
-        while (true) {
+      while (!shutdownRequested) {
+        try {
           record = queue.take();
           messagesRead.inc();
           HighLevelConsumer.this.processMessage((DecodeableKafkaRecord)record);
@@ -348,13 +348,15 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
             // Committed offset should always be the offset of the next record to be read (hence +1)
             partitionOffsetsToCommit.put(partition, record.getOffset() + 1);
           }
+        } catch (InterruptedException e) {
+          // Stop queue processor and return when encountered InterruptedException
+          log.warn("Thread interrupted while processing queue ", e);
+          Thread.currentThread().interrupt();
+          return;
+        } catch (Exception e) {
+          // Log the error and let the queue processor continue processing
+          log.error("Encountered exception while processing record so stopping queue processing. Record: {} Exception: {}", record, e);
         }
-      } catch (InterruptedException e) {
-        log.warn("Thread interrupted while processing queue ", e);
-        // TODO: evaluate whether we should interrupt the thread or continue processing
-        Thread.currentThread().interrupt();
-      } catch (Exception e) {
-        log.error("Encountered exception while processing record so stopping queue processing. Record: {} Exception: {}", record, e);
       }
     }
   }
