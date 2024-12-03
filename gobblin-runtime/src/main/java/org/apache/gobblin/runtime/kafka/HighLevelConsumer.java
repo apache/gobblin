@@ -336,7 +336,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     public void run() {
       log.info("Starting queue processing.. " + Thread.currentThread().getName());
       KafkaConsumerRecord record = null;
-      while (!shutdownRequested) {
+      while (true) {
         try {
           record = queue.take();
           messagesRead.inc();
@@ -355,7 +355,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
           return;
         } catch (Exception e) {
           // Log the error and let the queue processor continue processing
-          log.error("Encountered exception while processing record so stopping queue processing. Record: {} Exception: {}", record, e);
+          log.error("Encountered exception while processing record. Record: {} Exception: {}", record, e);
         }
       }
     }

@@ -186,7 +186,7 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     //Generate a brand new consumer group id to ensure there are no previously committed offsets for this group id
     String consumerGroupId = Joiner.on("-").join(TOPIC, "auto", System.currentTimeMillis());
     consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + HighLevelConsumer.GROUP_ID_KEY, consumerGroupId);
-    consumerProps.setProperty(HighLevelConsumer.ENABLE_AUTO_COMMIT_KEY, "true");
+    consumerProps.setProperty(HighLevelConsumer.ENABLE_AUTO_COMMIT_KEY, "false");
 
     // Create an instance of MockedHighLevelConsumer using an anonymous class
     MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigUtils.propertiesToConfig(consumerProps), NUM_PARTITIONS) {
@@ -199,8 +199,14 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     };
     consumer.startAsync().awaitRunning();
 
-    // assert all NUM_MSGS messages were processed.
+    // Assert all NUM_MSGS messages were processed
     consumer.awaitExactlyNMessages(NUM_MSGS, 10000);
+
+    // Assert that no message was committed
+    for(int i=0; i< NUM_PARTITIONS; i++) {
+      KafkaPartition partition = new KafkaPartition.Builder().withTopicName(TOPIC).withId(i).build();
+      Assert.assertFalse(consumer.getCommittedOffsets().containsKey(partition));
+    }
     consumer.shutDown();
   }
 
