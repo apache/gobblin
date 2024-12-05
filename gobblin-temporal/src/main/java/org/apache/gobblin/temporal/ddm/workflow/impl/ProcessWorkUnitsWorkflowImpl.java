@@ -76,40 +76,30 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
 
     Optional<Integer> workunitsProcessed = Optional.empty();
     try {
-     workunitsProcessed = Optional.of(processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0,
-          workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty()));
+      workunitsProcessed = Optional.of(processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0,
+          workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(),
+          Optional.empty()));
     } catch (Exception e) {
       log.error("Exception occurred in performing workload,proceeding with commit step", e);
-      // We want to mark the GaaS flow as failure, in case performWorkFlow fails, but we still want to go ahead with commiting the workunits which were processed before failure
-      sendFailureEventToGaaS(workSpec);
-      return proceedWithCommitStepAndReturnCommitStats(workSpec, searchAttributes, workunitsProcessed);
+      performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);
+      throw e;//We want to proceed with partial commit and throw exception so that the parent workflow ExecuteGobblinWorkflowImpl can throw the failure event
     }
-    return proceedWithCommitStepAndReturnCommitStats(workSpec, searchAttributes, workunitsProcessed);
+    return performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);
   }
 
-  private void sendFailureEventToGaaS(WUProcessingSpec workSpec) {
-    TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(workSpec.getEventSubmitterContext());
-    timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).submit();
-  }
-
-  private CommitStats proceedWithCommitStepAndReturnCommitStats(WUProcessingSpec workSpec,
+  private CommitStats performCommitIfAnyWorkUnitsProcessed(WUProcessingSpec workSpec,
       Map<String, Object> searchAttributes, Optional<Integer> workunitsProcessed) {
-    /*
-    !workunitsProcessed.isPresent() condition helps in case of partial commit,
-     workunitsProcessed will be Optional.Empty() only in cases performWorkload throws an exception
-     we are only inhibiting commit when workunitsProcessed actually known to be zero
-    * */
-    if (!workunitsProcessed.isPresent() || workunitsProcessed.get() > 0) {
-      CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
-      CommitStats result = commitWorkflow.commit(workSpec);
-      if (result.getNumCommittedWorkUnits() == 0) {
-        log.warn("No work units committed at the job level. They could have been committed at the task level.");
-      }
-      return result;
-    } else {
+    //  we are only inhibiting commit when workunitsProcessed is actually known to be zero
+    if (workunitsProcessed.filter(n -> n == 0).isPresent()) {
       log.error("No work units processed, so no commit attempted.");
       return CommitStats.createEmpty();
     }
+    CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
+    CommitStats result = commitWorkflow.commit(workSpec);
+    if (result.getNumCommittedWorkUnits() == 0) {
+      log.warn("No work units committed at the job level. They could have been committed at the task level.");
+    }
+    return result;
   }
 
   private Optional<EventTimer> createOptJobEventTimer(WUProcessingSpec workSpec) {
