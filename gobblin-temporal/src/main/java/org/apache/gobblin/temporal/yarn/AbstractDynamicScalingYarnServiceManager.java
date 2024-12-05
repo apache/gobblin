@@ -44,6 +44,8 @@ import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
  *
  * This is an abstract class that provides the basic functionality for managing dynamic scaling. Subclasses should implement
  * {@link #createScalingDirectiveSource()} to provide a {@link ScalingDirectiveSource} that will be used to get scaling directives.
+ *
+ * The actual implemented class needs to be passed as value of config {@link org.apache.gobblin.yarn.GobblinYarnConfigurationKeys#APP_MASTER_SERVICE_CLASSES}
  */
 @Slf4j
 public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractIdleService {
@@ -60,7 +62,7 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
       this.dynamicScalingYarnService = (DynamicScalingYarnService) appMaster.get_yarnService();
     } else {
       String errorMsg = "Failure while getting YarnService Instance from GobblinTemporalApplicationMaster::get_yarnService()"
-          + " YarnService is not an instance of DynamicScalingYarnService";
+          + " YarnService {" + appMaster.get_yarnService().getClass().getSimpleName() + "} is not an instance of DynamicScalingYarnService";
       log.error(errorMsg);
       throw new RuntimeException(errorMsg);
     }
@@ -73,8 +75,7 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
   protected void startUp() {
     int scheduleInterval = ConfigUtils.getInt(this.config, DYNAMIC_SCALING_POLLING_INTERVAL,
         DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS);
-    log.info("Starting the " + this.getClass().getSimpleName());
-    log.info("Scheduling the dynamic scaling task with an interval of {} seconds", scheduleInterval);
+    log.info("Starting the {} with re-scaling interval of {} seconds", this.getClass().getSimpleName(), scheduleInterval);
 
     this.dynamicScalingExecutor.scheduleAtFixedRate(
         new GetScalingDirectivesRunnable(this.dynamicScalingYarnService, createScalingDirectiveSource()),
@@ -112,7 +113,7 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
       } catch (IOException e) {
         log.error("Failed to get scaling directives", e);
       } catch (Throwable t) {
-        log.error("Suppressing error from GetScalingDirectivesRunnable.run()", t);
+        log.error("Unexpected error with dynamic scaling via directives", t);
       }
     }
   }

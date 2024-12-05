@@ -44,7 +44,7 @@ import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 public class DynamicScalingYarnService extends YarnService {
 
   /** this holds the current count of containers requested for each worker profile */
-  private final WorkforceStaffing workforceStaffing;
+  private final WorkforceStaffing actualWorkforceStaffing;
   /** this holds the current total workforce plan as per latest received scaling directives */
   private final WorkforcePlan workforcePlan;
 
@@ -52,10 +52,14 @@ public class DynamicScalingYarnService extends YarnService {
       YarnConfiguration yarnConfiguration, FileSystem fs, EventBus eventBus) throws Exception {
     super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);
 
-    int initialContainers = this.baselineWorkerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
+    this.actualWorkforceStaffing = WorkforceStaffing.initialize(0);
+    this.workforcePlan = new WorkforcePlan(this.config, this.config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY));
+  }
 
-    this.workforceStaffing = WorkforceStaffing.initialize(initialContainers);
-    this.workforcePlan = new WorkforcePlan(this.baselineWorkerProfile.getConfig(), initialContainers);
+  @Override
+  protected void requestInitialContainers() {
+    StaffingDeltas deltas = this.workforcePlan.calcStaffingDeltas(this.actualWorkforceStaffing);
+    requestNewContainersForStaffingDeltas(deltas);
   }
 
   /**
@@ -65,7 +69,7 @@ public class DynamicScalingYarnService extends YarnService {
    */
   public synchronized void reviseWorkforcePlanAndRequestNewContainers(List<ScalingDirective> scalingDirectives) {
     this.workforcePlan.reviseWhenNewer(scalingDirectives);
-    StaffingDeltas deltas = this.workforcePlan.calcStaffingDeltas(this.workforceStaffing);
+    StaffingDeltas deltas = this.workforcePlan.calcStaffingDeltas(this.actualWorkforceStaffing);
     requestNewContainersForStaffingDeltas(deltas);
   }
 
@@ -74,26 +78,19 @@ public class DynamicScalingYarnService extends YarnService {
       if (profileDelta.getDelta() > 0) {
         WorkerProfile workerProfile = profileDelta.getProfile();
         String profileName = workerProfile.getName();
-        int currNumContainers = this.workforceStaffing.getStaffing(profileName).orElse(0);
+        int currNumContainers = this.actualWorkforceStaffing.getStaffing(profileName).orElse(0);
         int delta = profileDelta.getDelta();
         log.info("Requesting {} new containers for profile {} having currently {} containers", delta,
             profileName, currNumContainers);
         requestContainersForWorkerProfile(workerProfile, delta);
         // update our staffing after requesting new containers
-        this.workforceStaffing.reviseStaffing(profileName, currNumContainers + delta, System.currentTimeMillis());
+        this.actualWorkforceStaffing.reviseStaffing(profileName, currNumContainers + delta, System.currentTimeMillis());
       } else {
         // TODO: Decide how to handle negative deltas
         log.warn("Handling of Negative delta is not supported yet : Profile {} delta {} ",
             profileDelta.getProfile().getName(), profileDelta.getDelta());
       }
     });
-  }
-
-  private synchronized void requestContainersForWorkerProfile(WorkerProfile workerProfile, int numContainers) {
-    int containerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
-    int containerCores = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
-    long allocationRequestId = storeByUniqueAllocationRequestId(workerProfile);
-    requestContainers(numContainers, Resource.newInstance(containerMemoryMbs, containerCores), Optional.of(allocationRequestId));
   }
 
 }

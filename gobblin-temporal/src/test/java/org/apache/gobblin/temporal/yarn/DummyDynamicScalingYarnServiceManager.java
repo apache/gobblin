@@ -15,15 +15,15 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.loadgen.dynamic;
+package org.apache.gobblin.temporal.yarn;
 
+import org.apache.gobblin.temporal.dynamic.DummyScalingDirectiveSource;
 import org.apache.gobblin.temporal.dynamic.ScalingDirectiveSource;
-import org.apache.gobblin.temporal.yarn.GobblinTemporalApplicationMaster;
-import org.apache.gobblin.temporal.yarn.AbstractDynamicScalingYarnServiceManager;
 
 /**
  * {@link DummyScalingDirectiveSource} based implementation of {@link AbstractDynamicScalingYarnServiceManager}.
- *  This class is meant to be used for testing purposes only.
+ *  This class is meant to be used for integration testing purposes only.
+ *  This is initialized using config {@link org.apache.gobblin.yarn.GobblinYarnConfigurationKeys#APP_MASTER_SERVICE_CLASSES} while testing
  */
 public class DummyDynamicScalingYarnServiceManager extends AbstractDynamicScalingYarnServiceManager {
 

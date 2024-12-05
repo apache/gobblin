@@ -34,11 +34,11 @@ import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.temporal.dynamic.ScalingDirective;
 import org.apache.gobblin.temporal.dynamic.ScalingDirectiveSource;
-import org.apache.gobblin.temporal.loadgen.dynamic.DummyScalingDirectiveSource;
+import org.apache.gobblin.temporal.dynamic.DummyScalingDirectiveSource;
 
 import static org.apache.gobblin.temporal.yarn.AbstractDynamicScalingYarnServiceManager.DYNAMIC_SCALING_POLLING_INTERVAL;
 
-/** Tests for {@link AbstractDynamicScalingYarnServiceManager.GetScalingDirectivesRunnable}*/
+/** Tests for {@link AbstractDynamicScalingYarnServiceManager}*/
 public class DynamicScalingYarnServiceManagerTest {
 
   @Mock private DynamicScalingYarnService mockDynamicScalingYarnService;
@@ -57,28 +57,17 @@ public class DynamicScalingYarnServiceManagerTest {
   }
 
   @Test
-  public void testWhenScalingDirectivesIsNull() throws IOException, InterruptedException {
-    Mockito.when(mockScalingDirectiveSource.getScalingDirectives()).thenReturn(null);
+  public void testWhenScalingDirectivesIsNulOrEmpty() throws IOException, InterruptedException {
+    Mockito.when(mockScalingDirectiveSource.getScalingDirectives()).thenReturn(null).thenReturn(new ArrayList<>());
     TestDynamicScalingYarnServiceManager testDynamicScalingYarnServiceManager = new TestDynamicScalingYarnServiceManager(
         mockGobblinTemporalApplicationMaster, mockScalingDirectiveSource);
     testDynamicScalingYarnServiceManager.startUp();
-    Thread.sleep(2000);
+    Thread.sleep(3000);
     testDynamicScalingYarnServiceManager.shutDown();
-    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(0)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
+    Mockito.verify(mockDynamicScalingYarnService, Mockito.never()).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
   }
 
-  @Test
-  public void testWhenScalingDirectivesIsEmpty() throws IOException, InterruptedException {
-    Mockito.when(mockScalingDirectiveSource.getScalingDirectives()).thenReturn(new ArrayList<>());
-    TestDynamicScalingYarnServiceManager testDynamicScalingYarnServiceManager = new TestDynamicScalingYarnServiceManager(
-        mockGobblinTemporalApplicationMaster, mockScalingDirectiveSource);
-    testDynamicScalingYarnServiceManager.startUp();
-    Thread.sleep(2000);
-    testDynamicScalingYarnServiceManager.shutDown();
-    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(0)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
-  }
-
-  /** Note : this test uses {@link org.apache.gobblin.temporal.loadgen.dynamic.DummyScalingDirectiveSource}*/
+  /** Note : this test uses {@link DummyScalingDirectiveSource}*/
   @Test
   public void testWithDummyScalingDirectiveSource() throws InterruptedException {
     // DummyScalingDirectiveSource returns 2 scaling directives in first 3 invocations and after that it returns empty list

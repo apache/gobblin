@@ -110,7 +110,6 @@ import org.apache.gobblin.yarn.event.ContainerReleaseRequest;
 import org.apache.gobblin.yarn.event.ContainerShutdownRequest;
 import org.apache.gobblin.yarn.event.NewContainerRequest;
 import org.apache.gobblin.temporal.dynamic.WorkerProfile;
-import org.apache.gobblin.temporal.dynamic.WorkforceProfiles;
 
 /**
  * This class is responsible for all Yarn-related stuffs including ApplicationMaster registration,
@@ -132,7 +131,7 @@ class YarnService extends AbstractIdleService {
   private final String appViewAcl;
   //Default helix instance tag derived from cluster level config
   private final String helixInstanceTags;
-  private final Config config;
+  protected final Config config;
 
   private final EventBus eventBus;
 
@@ -195,7 +194,7 @@ class YarnService extends AbstractIdleService {
   private volatile boolean shutdownInProgress = false;
 
   private final boolean jarCacheEnabled;
-  protected final WorkerProfile baselineWorkerProfile;
+  private final WorkerProfile defaultWorkerProfile;
   private final AtomicLong allocationRequestIdGenerator = new AtomicLong(0L);
   private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
 
@@ -257,11 +256,7 @@ class YarnService extends AbstractIdleService {
     this.jarCacheEnabled = ConfigUtils.getBoolean(this.config, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED_DEFAULT);
 
     // Initialising this baseline worker profile to use as default worker profile in case allocation request id is not in map
-    this.baselineWorkerProfile = new WorkerProfile(WorkforceProfiles.BASELINE_NAME, this.config);
-
-    // Putting baseline profile in the map for default allocation request id (0)
-    // adding it here to have deterministic allocation request id for baseline worker profile
-    storeByUniqueAllocationRequestId(this.baselineWorkerProfile);
+    this.defaultWorkerProfile = new WorkerProfile(this.config);
   }
 
   @SuppressWarnings("unused")
@@ -327,8 +322,8 @@ class YarnService extends AbstractIdleService {
     LOGGER.info("ApplicationMaster registration response: " + response);
     this.maxResourceCapacity = Optional.of(response.getMaximumResourceCapability());
 
-    LOGGER.info("Requesting initial containers using baselineWorkerProfile");
-    requestInitialContainers(this.baselineWorkerProfile);
+    LOGGER.info("Requesting initial containers");
+    requestInitialContainers();
   }
 
   @Override
@@ -403,14 +398,19 @@ class YarnService extends AbstractIdleService {
         .build();
   }
 
-  /** Request Initial containers using baselineWorkerProfile */
-  private void requestInitialContainers(WorkerProfile workerProfile) {
+  /** unless overridden to actually scale, "initial" containers may be the app's *only* containers! */
+  protected void requestInitialContainers() {
+    WorkerProfile baselineWorkerProfile = new WorkerProfile(this.config);
+    int numContainers = baselineWorkerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
+    LOGGER.info("Requesting {} initial (static) containers with baseline (only) profile, never to be re-scaled", numContainers);
+    requestContainersForWorkerProfile(baselineWorkerProfile, numContainers);
+  }
+
+  protected synchronized void requestContainersForWorkerProfile(WorkerProfile workerProfile, int numContainers) {
     int containerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     int containerCores = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY);
-    int numContainers = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
-    LOGGER.info("Requesting {} initial containers with default allocation id = 0", numContainers);
-    // Using 0 as allocation id for baseline worker profile
-    requestContainers(numContainers, Resource.newInstance(containerMemoryMbs, containerCores), Optional.of(0L));
+    long allocationRequestId = storeByUniqueAllocationRequestId(workerProfile);
+    requestContainers(numContainers, Resource.newInstance(containerMemoryMbs, containerCores), Optional.of(allocationRequestId));
   }
 
   private void requestContainer(Optional<String> preferredNode, Optional<Resource> resourceOptional) {
@@ -559,7 +559,7 @@ class YarnService extends AbstractIdleService {
     long allocationRequestId = container.getAllocationRequestId();
     // Using getOrDefault for backward-compatibility with containers that don't have allocationRequestId set
     WorkerProfile workerProfile = this.workerProfileByAllocationRequestId.getOrDefault(allocationRequestId,
-        this.baselineWorkerProfile);
+        this.defaultWorkerProfile);
     Config workerProfileConfig = workerProfile.getConfig();
 
     double workerJvmMemoryXmxRatio = ConfigUtils.getDouble(workerProfileConfig,
@@ -816,18 +816,18 @@ class YarnService extends AbstractIdleService {
         Collection<AMRMClient.ContainerRequest> matchingRequestsByAllocationRequestId = amrmClientAsync.getMatchingRequests(container.getAllocationRequestId());
         if (!matchingRequestsByAllocationRequestId.isEmpty()) {
           AMRMClient.ContainerRequest firstMatchingContainerRequest = matchingRequestsByAllocationRequestId.iterator().next();
-          LOGGER.debug("Found matching requests {}, removing first matching request {}",
+          LOGGER.info("Found matching requests {}, removing first matching request {}",
               matchingRequestsByAllocationRequestId, firstMatchingContainerRequest);
 
           amrmClientAsync.removeContainerRequest(firstMatchingContainerRequest);
         } else {
-          LOGGER.debug("Matching request by allocation request id {} not found", container.getAllocationRequestId());
+          LOGGER.info("Matching request by allocation request id {} not found", container.getAllocationRequestId());
 
           List<? extends Collection<AMRMClient.ContainerRequest>> matchingRequestsByHost = amrmClientAsync
               .getMatchingRequests(container.getPriority(), container.getNodeHttpAddress(), container.getResource());
 
           if (matchingRequestsByHost.isEmpty()) {
-            LOGGER.debug("Matching request by host {} not found", container.getNodeHttpAddress());
+            LOGGER.info("Matching request by host {} not found", container.getNodeHttpAddress());
 
             matchingRequestsByHost = amrmClientAsync
                 .getMatchingRequests(container.getPriority(), ResourceRequest.ANY, container.getResource());
@@ -835,7 +835,7 @@ class YarnService extends AbstractIdleService {
 
           if (!matchingRequestsByHost.isEmpty()) {
             AMRMClient.ContainerRequest firstMatchingContainerRequest = matchingRequestsByHost.get(0).iterator().next();
-            LOGGER.debug("Found matching requests {}, removing first matching request {}",
+            LOGGER.info("Found matching requests {}, removing first matching request {}",
                 matchingRequestsByAllocationRequestId, firstMatchingContainerRequest);
 
             amrmClientAsync.removeContainerRequest(firstMatchingContainerRequest);

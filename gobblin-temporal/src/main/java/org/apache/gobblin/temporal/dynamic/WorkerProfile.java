@@ -18,12 +18,19 @@
 package org.apache.gobblin.temporal.dynamic;
 
 import com.typesafe.config.Config;
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 
 /** A named worker {@link Config} */
 @Data
+@AllArgsConstructor
 public class WorkerProfile {
   private final String name;
   private final Config config;
+
+  public WorkerProfile(Config config) {
+    this.name = WorkforceProfiles.BASELINE_NAME;
+    this.config = config;
+  }
 }

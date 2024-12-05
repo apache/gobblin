@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.loadgen.dynamic;
+package org.apache.gobblin.temporal.dynamic;
 
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -24,11 +24,6 @@ import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
-import org.apache.gobblin.temporal.dynamic.ProfileDerivation;
-import org.apache.gobblin.temporal.dynamic.ProfileOverlay;
-import org.apache.gobblin.temporal.dynamic.ScalingDirective;
-import org.apache.gobblin.temporal.dynamic.ScalingDirectiveSource;
-import org.apache.gobblin.temporal.dynamic.WorkforceProfiles;
 
 
 /**
@@ -52,29 +47,25 @@ public class DummyScalingDirectiveSource implements ScalingDirectiveSource {
   @Override
   public List<ScalingDirective> getScalingDirectives() {
     // Note - profile should exist already or is derived from other profile
-    if (this.numInvocations.get() == 0) {
-      this.numInvocations.getAndIncrement();
+    int currNumInvocations = this.numInvocations.getAndIncrement();
+    long currentTime = System.currentTimeMillis();
+    if (currNumInvocations == 0) {
       // here we are returning two new profile with initial container counts and these should be launched
-      long currentTime = System.currentTimeMillis();
       // both profiles should have different timestampEpochMillis so that both are processed otherwise
       // org.apache.gobblin.temporal.dynamic.WorkforcePlan$IllegalRevisionException$OutOfOrderDirective can occur
       return Arrays.asList(
           new ScalingDirective("firstProfile", 3, currentTime, this.derivedFromBaseline),
           new ScalingDirective("secondProfile", 2, currentTime + 1, this.derivedFromBaseline)
       );
-    } else if (this.numInvocations.get() == 1) {
-      this.numInvocations.getAndIncrement();
+    } else if (currNumInvocations == 1) {
       // here we are increasing containers to 5 for firstProfile and 3 for secondProfile so that 2 new extra containers
       // should be launched for firstProfile and 1 new extra container for secondProfile
-      long currentTime = System.currentTimeMillis();
       return Arrays.asList(
           new ScalingDirective("firstProfile", 5, currentTime),
           new ScalingDirective("secondProfile", 3, currentTime + 1)
       );
-    } else if (this.numInvocations.get() == 2) {
-      this.numInvocations.getAndIncrement();
+    } else if (currNumInvocations == 2) {
       // the count is same as previous invocation so no new containers should be launched
-      long currentTime = System.currentTimeMillis();
       return Arrays.asList(
           new ScalingDirective("firstProfile", 5, currentTime),
           new ScalingDirective("secondProfile", 3, currentTime + 1)

@@ -17,13 +17,21 @@
 
 package org.apache.gobblin.temporal.yarn;
 
+import java.io.IOException;
 import java.net.URL;
 
 import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.Container;
+import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
+import org.apache.hadoop.yarn.client.api.async.impl.AMRMClientAsyncImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
+import com.google.common.base.Optional;
+
+import org.apache.hadoop.yarn.exceptions.YarnException;
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
@@ -36,33 +44,48 @@ import com.google.common.eventbus.EventBus;
 
 import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
-/** Tests for {@link YarnService}*/
+import static org.mockito.Mockito.*;
+
+
+/**
+ * Tests for {@link YarnService}
+ *
+ * NOTE : This test is a partial clone of {@link org.apache.gobblin.yarn.YarnServiceTest}
+ * */
 public class YarnServiceTest {
   private Config defaultConfigs;
   private final YarnConfiguration yarnConfiguration = new YarnConfiguration();
   private final FileSystem mockFileSystem = Mockito.mock(FileSystem.class);
   private final EventBus eventBus = new EventBus("TemporalYarnServiceTest");
+  AMRMClientAsync mockAMRMClient;
+  RegisterApplicationMasterResponse mockRegisterApplicationMasterResponse;
 
   @BeforeClass
-  public void setup() {
+  public void setup() throws IOException, YarnException {
+    mockAMRMClient = mock(AMRMClientAsync.class);
+    mockRegisterApplicationMasterResponse = mock(RegisterApplicationMasterResponse.class);
+
     URL url = YarnServiceTest.class.getClassLoader()
         .getResource(YarnServiceTest.class.getSimpleName() + ".conf");
     Assert.assertNotNull(url, "Could not find resource " + url);
     this.defaultConfigs = ConfigFactory.parseURL(url).resolve();
+
+    MockedStatic<AMRMClientAsync> amrmClientAsyncMockStatic = mockStatic(AMRMClientAsync.class);
+
+    amrmClientAsyncMockStatic.when(() -> AMRMClientAsync.createAMRMClientAsync(anyInt(), any(AMRMClientAsync.CallbackHandler.class)))
+        .thenReturn(mockAMRMClient);
+    doNothing().when(mockAMRMClient).init(any(YarnConfiguration.class));
+
+    when(mockAMRMClient.registerApplicationMaster(anyString(), anyInt(), anyString()))
+        .thenReturn(mockRegisterApplicationMasterResponse);
+    when(mockRegisterApplicationMasterResponse.getMaximumResourceCapability())
+        .thenReturn(Mockito.mock(Resource.class));
   }
 
   @Test
   public void testBaselineWorkerProfileCreatedWithPassedConfigs() throws Exception {
-    final int containerMemoryMbs = 1500;
-    final int containerCores = 5;
-    final int numContainers = 4;
-    Config config = this.defaultConfigs
-        .withValue(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY, ConfigValueFactory.fromAnyRef(containerMemoryMbs))
-        .withValue(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY, ConfigValueFactory.fromAnyRef(containerCores))
-        .withValue(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY, ConfigValueFactory.fromAnyRef(numContainers));
-
     YarnService yarnService = new YarnService(
-        config,
+        this.defaultConfigs,
         "testApplicationName",
         "testApplicationId",
         yarnConfiguration,
@@ -70,9 +93,11 @@ public class YarnServiceTest {
         eventBus
     );
 
-    Assert.assertEquals(yarnService.baselineWorkerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY), containerMemoryMbs);
-    Assert.assertEquals(yarnService.baselineWorkerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_CORES_KEY), containerCores);
-    Assert.assertEquals(yarnService.baselineWorkerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY), numContainers);
+    yarnService.startUp();
+
+    Mockito.verify(yarnService, Mockito.never())
+        .requestContainers(1, Mockito.any(Resource.class), Mockito.any(Optional.class));
+
   }
 
   @Test
@@ -82,7 +107,8 @@ public class YarnServiceTest {
     final int resourceMemoryMB = 3072;
     final int expectedJvmMemory = (int) (resourceMemoryMB * jvmMemoryXmxRatio) - jvmMemoryOverheadMbs;
 
-    Config config = this.defaultConfigs.withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef(jvmMemoryXmxRatio))
+    Config config = this.defaultConfigs
+        .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef(jvmMemoryXmxRatio))
         .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, ConfigValueFactory.fromAnyRef(jvmMemoryOverheadMbs));
 
     Resource resource = Resource.newInstance(resourceMemoryMB, 2);
