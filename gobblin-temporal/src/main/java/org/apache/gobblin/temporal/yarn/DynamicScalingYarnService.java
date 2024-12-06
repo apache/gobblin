@@ -19,6 +19,7 @@ package org.apache.gobblin.temporal.yarn;
 
 import java.util.List;
 
+import org.apache.commons.collections.CollectionUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
@@ -66,6 +67,9 @@ public class DynamicScalingYarnService extends YarnService {
    * @param scalingDirectives the list of scaling directives
    */
   public synchronized void reviseWorkforcePlanAndRequestNewContainers(List<ScalingDirective> scalingDirectives) {
+    if (CollectionUtils.isEmpty(scalingDirectives)) {
+      return;
+    }
     this.workforcePlan.reviseWhenNewer(scalingDirectives);
     StaffingDeltas deltas = this.workforcePlan.calcStaffingDeltas(this.actualWorkforceStaffing);
     requestNewContainersForStaffingDeltas(deltas);

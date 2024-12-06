@@ -56,8 +56,8 @@ public class YarnServiceTest {
   private final YarnConfiguration yarnConfiguration = new YarnConfiguration();
   private final FileSystem mockFileSystem = Mockito.mock(FileSystem.class);
   private final EventBus eventBus = new EventBus("TemporalYarnServiceTest");
-  AMRMClientAsync mockAMRMClient;
-  RegisterApplicationMasterResponse mockRegisterApplicationMasterResponse;
+  private AMRMClientAsync mockAMRMClient;
+  private RegisterApplicationMasterResponse mockRegisterApplicationMasterResponse;
 
   @BeforeClass
   public void setup() throws IOException, YarnException {
