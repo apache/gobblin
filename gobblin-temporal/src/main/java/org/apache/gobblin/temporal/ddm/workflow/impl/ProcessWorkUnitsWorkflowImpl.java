@@ -26,7 +26,6 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
@@ -80,9 +79,9 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
           workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(),
           Optional.empty()));
     } catch (Exception e) {
-      log.error("Exception occurred in performing workload,proceeding with commit step", e);
+      log.error("ProcessWorkUnits failure - will attempt partial commit before announcing error", e);
       performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);
-      throw e;//We want to proceed with partial commit and throw exception so that the parent workflow ExecuteGobblinWorkflowImpl can throw the failure event
+      throw e; //We want to proceed with partial commit and throw exception so that the parent workflow ExecuteGobblinWorkflowImpl can throw the failure event
     }
     return performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);
   }
