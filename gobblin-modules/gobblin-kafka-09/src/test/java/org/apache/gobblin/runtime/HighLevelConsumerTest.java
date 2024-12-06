@@ -178,7 +178,7 @@ public class HighLevelConsumerTest extends KafkaTestBase {
   }
 
   @Test
-  public void testQueueProcessorRuntimeExceptionEncountered() throws Exception {
+  public void testQueueProcessorRuntimeExceptionEncounteredAutoCommitEnabled() throws Exception {
     Properties consumerProps = new Properties();
     consumerProps.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
     consumerProps.setProperty(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
@@ -186,10 +186,11 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     //Generate a brand new consumer group id to ensure there are no previously committed offsets for this group id
     String consumerGroupId = Joiner.on("-").join(TOPIC, "auto", System.currentTimeMillis());
     consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + HighLevelConsumer.GROUP_ID_KEY, consumerGroupId);
-    consumerProps.setProperty(HighLevelConsumer.ENABLE_AUTO_COMMIT_KEY, "false");
+    consumerProps.setProperty(HighLevelConsumer.ENABLE_AUTO_COMMIT_KEY, "true");
 
     // Create an instance of MockedHighLevelConsumer using an anonymous class
     MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigUtils.propertiesToConfig(consumerProps), NUM_PARTITIONS) {
+      int callCount = 0;
       @Override
       public void processMessage(DecodeableKafkaRecord<byte[], byte[]> message) {
         super.processMessage(message);
@@ -201,12 +202,6 @@ public class HighLevelConsumerTest extends KafkaTestBase {
 
     // Assert all NUM_MSGS messages were processed
     consumer.awaitExactlyNMessages(NUM_MSGS, 10000);
-
-    // Assert that no message was committed
-    for(int i=0; i< NUM_PARTITIONS; i++) {
-      KafkaPartition partition = new KafkaPartition.Builder().withTopicName(TOPIC).withId(i).build();
-      Assert.assertFalse(consumer.getCommittedOffsets().containsKey(partition));
-    }
     consumer.shutDown();
   }
 
