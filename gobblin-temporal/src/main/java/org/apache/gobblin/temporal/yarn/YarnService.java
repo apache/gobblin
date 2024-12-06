@@ -194,7 +194,6 @@ class YarnService extends AbstractIdleService {
   private volatile boolean shutdownInProgress = false;
 
   private final boolean jarCacheEnabled;
-  private final WorkerProfile defaultWorkerProfile;
   private final long DEFAULT_ALLOCATION_REQUEST_ID = 0L;
   private final AtomicLong allocationRequestIdGenerator = new AtomicLong(DEFAULT_ALLOCATION_REQUEST_ID);
   private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
@@ -256,8 +255,6 @@ class YarnService extends AbstractIdleService {
         GobblinYarnConfigurationKeys.DEFAULT_GOBBLIN_YARN_CONTAINER_TIMEZONE);
     this.jarCacheEnabled = ConfigUtils.getBoolean(this.config, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED_DEFAULT);
 
-    // Initialising this baseline worker profile to use as default worker profile in case allocation request id is not in map
-    this.defaultWorkerProfile = new WorkerProfile(this.config);
   }
 
   @SuppressWarnings("unused")
