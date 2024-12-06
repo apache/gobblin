@@ -20,10 +20,8 @@ package org.apache.gobblin.temporal.yarn;
 import java.util.List;
 
 import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
-import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 
@@ -43,7 +41,7 @@ import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 @Slf4j
 public class DynamicScalingYarnService extends YarnService {
 
-  /** this holds the current count of containers requested for each worker profile */
+  /** this holds the current count of containers already requested for each worker profile */
   private final WorkforceStaffing actualWorkforceStaffing;
   /** this holds the current total workforce plan as per latest received scaling directives */
   private final WorkforcePlan workforcePlan;
@@ -57,7 +55,7 @@ public class DynamicScalingYarnService extends YarnService {
   }
 
   @Override
-  protected void requestInitialContainers() {
+  protected synchronized void requestInitialContainers() {
     StaffingDeltas deltas = this.workforcePlan.calcStaffingDeltas(this.actualWorkforceStaffing);
     requestNewContainersForStaffingDeltas(deltas);
   }
@@ -75,7 +73,7 @@ public class DynamicScalingYarnService extends YarnService {
 
   private synchronized void requestNewContainersForStaffingDeltas(StaffingDeltas deltas) {
     deltas.getPerProfileDeltas().forEach(profileDelta -> {
-      if (profileDelta.getDelta() > 0) {
+      if (profileDelta.getDelta() > 0) { // scale up!
         WorkerProfile workerProfile = profileDelta.getProfile();
         String profileName = workerProfile.getName();
         int currNumContainers = this.actualWorkforceStaffing.getStaffing(profileName).orElse(0);
@@ -85,11 +83,11 @@ public class DynamicScalingYarnService extends YarnService {
         requestContainersForWorkerProfile(workerProfile, delta);
         // update our staffing after requesting new containers
         this.actualWorkforceStaffing.reviseStaffing(profileName, currNumContainers + delta, System.currentTimeMillis());
-      } else {
+      } else if (profileDelta.getDelta() < 0) { // scale down!
         // TODO: Decide how to handle negative deltas
         log.warn("Handling of Negative delta is not supported yet : Profile {} delta {} ",
             profileDelta.getProfile().getName(), profileDelta.getDelta());
-      }
+      } // else, already at staffing plan (or at least have requested, so in-progress)
     });
   }
 

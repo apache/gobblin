@@ -29,8 +29,12 @@ public class WorkerProfile {
   private final String name;
   private final Config config;
 
+  /**
+   * Constructs a `WorkerProfile` with the baseline name and the specified configuration.
+   *
+   * @param config the configuration for the worker profile
+   */
   public WorkerProfile(Config config) {
-    this.name = WorkforceProfiles.BASELINE_NAME;
-    this.config = config;
+    this(WorkforceProfiles.BASELINE_NAME, config);
   }
 }

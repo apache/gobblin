@@ -25,7 +25,6 @@ import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterRespo
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
-import org.apache.hadoop.yarn.client.api.async.impl.AMRMClientAsyncImpl;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
 
 import com.google.common.base.Optional;
@@ -83,21 +82,15 @@ public class YarnServiceTest {
   }
 
   @Test
-  public void testBaselineWorkerProfileCreatedWithPassedConfigs() throws Exception {
-    YarnService yarnService = new YarnService(
-        this.defaultConfigs,
-        "testApplicationName",
-        "testApplicationId",
-        yarnConfiguration,
-        mockFileSystem,
-        eventBus
-    );
-
+  public void testYarnServiceStartupWithInitialContainers() throws Exception {
+    int expectedNumContainers = 0;
+    YarnService yarnService = new YarnService(this.defaultConfigs, "testApplicationName", "testApplicationId", yarnConfiguration, mockFileSystem, eventBus) {
+      @Override
+      protected void requestContainers(int numContainers, Resource resource, Optional<Long> allocationRequestId) {
+        Assert.assertEquals(numContainers, expectedNumContainers);
+      }
+    };
     yarnService.startUp();
-
-    Mockito.verify(yarnService, Mockito.never())
-        .requestContainers(1, Mockito.any(Resource.class), Mockito.any(Optional.class));
-
   }
 
   @Test
@@ -125,6 +118,8 @@ public class YarnServiceTest {
         mockFileSystem,
         eventBus
     );
+
+    yarnService.startUp();
 
     String command = yarnService.buildContainerCommand(mockContainer, "testHelixParticipantId", "testHelixInstanceTag");
     Assert.assertTrue(command.contains("-Xmx" + expectedJvmMemory + "M"));

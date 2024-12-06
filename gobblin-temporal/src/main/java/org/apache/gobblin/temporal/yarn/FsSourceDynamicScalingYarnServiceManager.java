@@ -29,6 +29,7 @@ import org.apache.gobblin.temporal.dynamic.ScalingDirectiveSource;
  * {@link FsScalingDirectiveSource} based implementation of {@link AbstractDynamicScalingYarnServiceManager}.
  */
 public class FsSourceDynamicScalingYarnServiceManager extends AbstractDynamicScalingYarnServiceManager {
+  // TODO: replace fetching of these configs using a new method similar to JobStateUtils::getWorkDirRoot
   public final static String DYNAMIC_SCALING_DIRECTIVES_DIR = GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_PREFIX + "directives.dir";
   public final static String DYNAMIC_SCALING_ERRORS_DIR = GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_PREFIX + "errors.dir";
   private final FileSystem fs;

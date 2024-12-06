@@ -195,7 +195,8 @@ class YarnService extends AbstractIdleService {
 
   private final boolean jarCacheEnabled;
   private final WorkerProfile defaultWorkerProfile;
-  private final AtomicLong allocationRequestIdGenerator = new AtomicLong(0L);
+  private final long DEFAULT_ALLOCATION_REQUEST_ID = 0L;
+  private final AtomicLong allocationRequestIdGenerator = new AtomicLong(DEFAULT_ALLOCATION_REQUEST_ID);
   private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
@@ -398,10 +399,10 @@ class YarnService extends AbstractIdleService {
         .build();
   }
 
-  /** unless overridden to actually scale, "initial" containers may be the app's *only* containers! */
-  protected void requestInitialContainers() {
+  /** unless overridden to actually scale, "initial" containers will be the app's *only* containers! */
+  protected synchronized void requestInitialContainers() {
     WorkerProfile baselineWorkerProfile = new WorkerProfile(this.config);
-    int numContainers = baselineWorkerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
+    int numContainers = this.config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
     LOGGER.info("Requesting {} initial (static) containers with baseline (only) profile, never to be re-scaled", numContainers);
     requestContainersForWorkerProfile(baselineWorkerProfile, numContainers);
   }
@@ -449,7 +450,7 @@ class YarnService extends AbstractIdleService {
 
     String[] preferredNodes = preferredNode.isPresent() ? new String[] {preferredNode.get()} : null;
 
-    long allocationRequestId = optAllocationRequestId.or(0L);
+    long allocationRequestId = optAllocationRequestId.or(DEFAULT_ALLOCATION_REQUEST_ID);
 
     this.amrmClientAsync.addContainerRequest(
         new AMRMClient.ContainerRequest(resource, preferredNodes, null, priority, allocationRequestId));
@@ -558,8 +559,11 @@ class YarnService extends AbstractIdleService {
   protected String buildContainerCommand(Container container, String helixParticipantId, String helixInstanceTag) {
     long allocationRequestId = container.getAllocationRequestId();
     // Using getOrDefault for backward-compatibility with containers that don't have allocationRequestId set
-    WorkerProfile workerProfile = this.workerProfileByAllocationRequestId.getOrDefault(allocationRequestId,
-        this.defaultWorkerProfile);
+    WorkerProfile workerProfile = Optional.fromNullable(this.workerProfileByAllocationRequestId.get(allocationRequestId))
+        .or(() -> {
+          LOGGER.warn("No Worker Profile found for {} ... falling back... ", allocationRequestId);
+          return this.workerProfileByAllocationRequestId.get(DEFAULT_ALLOCATION_REQUEST_ID);
+        });
     Config workerProfileConfig = workerProfile.getConfig();
 
     double workerJvmMemoryXmxRatio = ConfigUtils.getDouble(workerProfileConfig,

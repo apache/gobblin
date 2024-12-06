@@ -62,7 +62,7 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
       this.dynamicScalingYarnService = (DynamicScalingYarnService) appMaster.get_yarnService();
     } else {
       String errorMsg = "Failure while getting YarnService Instance from GobblinTemporalApplicationMaster::get_yarnService()"
-          + " YarnService {" + appMaster.get_yarnService().getClass().getSimpleName() + "} is not an instance of DynamicScalingYarnService";
+          + " YarnService {" + appMaster.get_yarnService().getClass().getName() + "} is not an instance of DynamicScalingYarnService";
       log.error(errorMsg);
       throw new RuntimeException(errorMsg);
     }
