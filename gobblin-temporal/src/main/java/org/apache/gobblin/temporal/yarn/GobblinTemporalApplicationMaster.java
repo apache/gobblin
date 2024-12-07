@@ -114,7 +114,7 @@ public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterMana
   protected YarnService buildTemporalYarnService(Config config, String applicationName, String applicationId,
       YarnConfiguration yarnConfiguration, FileSystem fs)
       throws Exception {
-    return new YarnService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus);
+    return new DynamicScalingYarnService(config, applicationName, applicationId, yarnConfiguration, fs, this.eventBus);
   }
 
   /**
