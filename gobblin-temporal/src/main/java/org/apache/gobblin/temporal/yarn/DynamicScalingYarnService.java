@@ -32,6 +32,7 @@ import org.apache.gobblin.temporal.dynamic.ScalingDirective;
 import org.apache.gobblin.temporal.dynamic.StaffingDeltas;
 import org.apache.gobblin.temporal.dynamic.WorkerProfile;
 import org.apache.gobblin.temporal.dynamic.WorkforcePlan;
+import org.apache.gobblin.temporal.dynamic.WorkforceProfiles;
 import org.apache.gobblin.temporal.dynamic.WorkforceStaffing;
 import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
@@ -83,7 +84,7 @@ public class DynamicScalingYarnService extends YarnService {
         int currNumContainers = this.actualWorkforceStaffing.getStaffing(profileName).orElse(0);
         int delta = profileDelta.getDelta();
         log.info("Requesting {} new containers for profile {} having currently {} containers", delta,
-            profileName, currNumContainers);
+            WorkforceProfiles.renderName(profileName), currNumContainers);
         requestContainersForWorkerProfile(workerProfile, delta);
         // update our staffing after requesting new containers
         this.actualWorkforceStaffing.reviseStaffing(profileName, currNumContainers + delta, System.currentTimeMillis());
