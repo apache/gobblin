@@ -126,6 +126,14 @@ public class IcebergTableTest extends HiveMetastoreTest {
     Assert.fail("expected an exception when using table ID '" + bogusTableId + "'");
   }
 
+  /** Verify failure when attempting to get current snapshot info for an empty table */
+  @Test(expectedExceptions = IcebergTable.NoSnapshotFoundException.class)
+  public void testGetCurrentSnapshotInfoOnEmptyTable() throws IOException {
+    IcebergSnapshotInfo snapshotInfo = new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri,
+        catalog.loadTable(tableId)).getCurrentSnapshotInfo();
+    Assert.fail("expected an exception when using table ID '" + tableId + "'");
+  }
+
   /** Verify info about all (full) snapshots */
   @Test
   public void testGetAllSnapshotInfosIterator() throws IOException {
@@ -251,18 +259,6 @@ public class IcebergTableTest extends HiveMetastoreTest {
     Predicate<StructLike> alwaysFalsePredicate = partition -> false;
     Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysTruePredicate).size(), 5);
     Assert.assertEquals(icebergTable.getPartitionSpecificDataFiles(alwaysFalsePredicate).size(), 0);
-  }
-
-  @Test
-  public void testGetPartitionSpecificDataFilesThrowsExceptionWhenNoSnapshotsFound() throws IOException {
-    IcebergTable icebergTable = new IcebergTable(tableId,
-        catalog.newTableOps(tableId),
-        catalogUri,
-        catalog.loadTable(tableId));
-    // Using AlwaysTrue Predicate to avoid mocking of predicate class
-    Predicate<StructLike> alwaysTruePredicate = partition -> true;
-    IOException exception = Assert.expectThrows(IOException.class, () -> icebergTable.getPartitionSpecificDataFiles(alwaysTruePredicate));
-    Assert.assertEquals(exception.getMessage(), String.format("~%s~ No snapshots found", tableId));
   }
 
   /** Verify that overwritePartition replace data files belonging to given partition col and value */

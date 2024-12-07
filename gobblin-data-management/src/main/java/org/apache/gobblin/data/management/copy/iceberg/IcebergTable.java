@@ -79,6 +79,12 @@ public class IcebergTable {
     }
   }
 
+  public static class NoSnapshotFoundException extends IOException {
+    public NoSnapshotFoundException(TableIdentifier tableId) {
+      super("No Snapshot found: '" + tableId + "'");
+    }
+  }
+
   @Getter
   private final TableIdentifier tableId;
   /** allow the {@link IcebergCatalog} creating this table to qualify its {@link DatasetDescriptor#getName()} used for lineage, etc. */
@@ -97,19 +103,22 @@ public class IcebergTable {
   /** @return metadata info limited to the most recent (current) snapshot */
   public IcebergSnapshotInfo getCurrentSnapshotInfo() throws IOException {
     TableMetadata current = accessTableMetadata();
-    return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()), Optional.of(current));
+    Snapshot currentSnapshot = accessCurrentSnapshot(current);
+    return createSnapshotInfo(currentSnapshot, Optional.of(current.metadataFileLocation()), Optional.of(current));
   }
 
   /** @return metadata info for most recent snapshot, wherein manifests and their child data files ARE NOT listed */
   public IcebergSnapshotInfo getCurrentSnapshotInfoOverviewOnly() throws IOException {
     TableMetadata current = accessTableMetadata();
-    return createSnapshotInfo(current.currentSnapshot(), Optional.of(current.metadataFileLocation()), Optional.of(current), true);
+    Snapshot currentSnapshot = accessCurrentSnapshot(current);
+    return createSnapshotInfo(currentSnapshot, Optional.of(current.metadataFileLocation()), Optional.of(current), true);
   }
 
   /** @return metadata info for all known snapshots, ordered historically, with *most recent last* */
   public Iterator<IcebergSnapshotInfo> getAllSnapshotInfosIterator() throws IOException {
     TableMetadata current = accessTableMetadata();
-    long currentSnapshotId = current.currentSnapshot().snapshotId();
+    Snapshot currentSnapshot = accessCurrentSnapshot(current);
+    long currentSnapshotId = currentSnapshot.snapshotId();
     List<Snapshot> snapshots = current.snapshots();
     return Iterators.transform(snapshots.iterator(), snapshot -> {
       try {
@@ -170,6 +179,12 @@ public class IcebergTable {
   protected TableMetadata accessTableMetadata() throws TableNotFoundException {
     TableMetadata current = this.tableOps.current();
     return Optional.ofNullable(current).orElseThrow(() -> new TableNotFoundException(this.tableId));
+  }
+
+  /** @throws {@link IcebergTable.NoSnapshotFoundException} when table is empty i.e. table has zero snapshot */
+  protected Snapshot accessCurrentSnapshot(TableMetadata tableMetadata) throws NoSnapshotFoundException {
+    Snapshot currentSnapshot = tableMetadata.currentSnapshot();
+    return Optional.ofNullable(currentSnapshot).orElseThrow(() -> new NoSnapshotFoundException(this.tableId));
   }
 
   protected IcebergSnapshotInfo createSnapshotInfo(Snapshot snapshot, Optional<String> metadataFileLocation, Optional<TableMetadata> currentTableMetadata)
@@ -239,8 +254,7 @@ public class IcebergTable {
   public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate)
       throws IOException {
     TableMetadata tableMetadata = accessTableMetadata();
-    Snapshot currentSnapshot = Optional.ofNullable(tableMetadata.currentSnapshot())
-        .orElseThrow(() -> new IOException(String.format("~%s~ No snapshots found", tableId)));
+    Snapshot currentSnapshot = accessCurrentSnapshot(tableMetadata);
     long currentSnapshotId = currentSnapshot.snapshotId();
     List<DataFile> knownDataFiles = new ArrayList<>();
     GrowthMilestoneTracker growthMilestoneTracker = new GrowthMilestoneTracker();
@@ -287,10 +301,10 @@ public class IcebergTable {
       return;
     }
     TableMetadata tableMetadata = accessTableMetadata();
-    Optional<Snapshot> currentSnapshot = Optional.ofNullable(tableMetadata.currentSnapshot());
-    if (currentSnapshot.isPresent()) {
-      log.info("~{}~ SnapshotId before overwrite: {}", tableId, currentSnapshot.get().snapshotId());
-    } else {
+    try {
+      Snapshot currentSnapshot = accessCurrentSnapshot(tableMetadata);
+      log.info("~{}~ SnapshotId before overwrite: {}", tableId, currentSnapshot.snapshotId());
+    } catch (NoSnapshotFoundException e) {
       log.warn("~{}~ No current snapshot found before overwrite", tableId);
     }
     OverwriteFiles overwriteFiles = this.table.newOverwrite();
