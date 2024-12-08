@@ -117,7 +117,7 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
 
     GrowthMilestoneTracker growthTracker = new GrowthMilestoneTracker();
     Long iteration = 0L;
-    LOG.info("Starting processing files from {} to {}", lowWaterMarkDate, currentDay);
+    LOG.info("~{}~ Starting collecting files to process from {} to {}", sourceDir, lowWaterMarkDate, currentDay);
 
     for (DateTime date = lowWaterMarkDate; !date.isAfter(currentDay) && filesToProcess.size() < maxFilesToReturn;
         date = date.withFieldAdded(incrementalUnit, 1)) {
@@ -136,12 +136,11 @@ public class DatePartitionedNestedRetriever implements PartitionAwareFileRetriev
       }
 
       if (growthTracker.isAnotherMilestone(iteration++)) {
-        LOG.info("~{}~ collected files to process", filesToProcess.size());
-        LOG.info("Last Source Path processed : ~{}~", sourcePath);
+        LOG.info("~{}~ collected {} files to process; most-recent source path: ~{}~", sourceDir, filesToProcess.size(), sourcePath);
       }
     }
 
-    LOG.info("Finished processing files");
+    LOG.info("~{}~ Finished collecting {} files to process", sourceDir, filesToProcess.size());
 
     return filesToProcess;
   }

@@ -17,13 +17,12 @@
 
 package org.apache.gobblin.source;
 
-import java.io.IOException;
 import java.net.URI;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
+import java.io.IOException;
 
 import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.fs.FileSystem;
@@ -32,8 +31,6 @@ import org.joda.time.DateTime;
 import org.joda.time.Duration;
 import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 
 import com.google.common.base.Throwables;
 
@@ -147,8 +144,6 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
   */
   private static final int DEFAULT_DATE_PARTITIONED_SOURCE_MIN_WATERMARK_VALUE = 0;
 
-  private static final Logger LOG = LoggerFactory.getLogger(PartitionedFileSourceBase.class);
-
   // Instance variables
   private SourceState sourceState;
   private FileSystem fs;
@@ -220,9 +215,9 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
     // Initialize all instance variables for this object
     init(state);
 
-    LOG.info("Will pull data from " + formatter.print(this.lowWaterMark) + " until " + this.maxFilesPerJob
+    log.info("Will pull data from " + formatter.print(this.lowWaterMark) + " until " + this.maxFilesPerJob
         + " files have been processed, or until there is no more data to consume");
-    LOG.info("Creating workunits");
+    log.info("Creating workunits");
 
     // Weighted MultiWorkUnitWeightedQueue, the job will add new WorkUnits to the queue along with a weight for each
     // WorkUnit. The queue will take care of balancing the WorkUnits amongst a set number of MultiWorkUnits
@@ -233,7 +228,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
 
     // If the file count has not exceeded maxFilesPerJob then start adding new WorkUnits to for this job
     if (this.fileCount >= this.maxFilesPerJob) {
-      LOG.info(
+      log.info(
           "The number of work units from previous job has already reached the upper limit, no more workunits will be made");
       return multiWorkUnitWeightedQueue.getQueueAsList();
     }
@@ -281,7 +276,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
         Throwables.propagate(e);
       }
 
-      LOG.info(
+      log.info(
           "Will process file from previous workunit: " + wu.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL));
 
       this.fileCount++;
@@ -299,7 +294,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
 
       extract = new Extract(this.tableType, namespace, topicName);
 
-      LOG.info("Created extract: " + extract.getExtractId() + " for path " + topicName);
+      log.info("Created extract: " + extract.getExtractId() + " for path " + topicName);
       extractMap.put(file.getWatermarkMsSinceEpoch(), extract);
     }
 
@@ -323,7 +318,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
       for (PartitionAwareFileRetriever.FileInfo file : filesToPull) {
         Extract extract = getExtractForFile(file, topicName, namespace, extractMap);
 
-        LOG.info("Will process file " + file.getFilePath());
+        log.info("Will process file " + file.getFilePath());
 
         WorkUnit singleWorkUnit = WorkUnit.create(extract);
         singleWorkUnit.setProp(ConfigurationKeys.SOURCE_ENTITY, topicName);
@@ -342,7 +337,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
         this.fileCount++;
       }
 
-      LOG.info("Total number of files extracted for the current run: " + filesToPull.size());
+      log.info("Total number of files extracted for the current run: " + filesToPull.size());
     } catch (IOException e) {
       Throwables.propagate(e);
     }
@@ -369,11 +364,9 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
    */
   private long getLowWaterMark(Iterable<WorkUnitState> previousStates, String lowWaterMark) {
 
+    // If the lookback time is set get LWM from the lookback time
     if (StringUtils.isNotEmpty(this.lookBackTime)) {
-      Optional<Duration> lookBackDuration = PartitionAwareFileRetrieverUtils.getLookbackTimeDuration(this.lookBackTime);
-      if (lookBackDuration.isPresent()) {
-        return new DateTime().minus(lookBackDuration.get()).getMillis();
-      }
+      return getLowWaterMarkFromLookbackTime(this.lookBackTime);
     }
 
     long lowWaterMarkValue = retriever.getWatermarkFromString(lowWaterMark);
@@ -391,11 +384,22 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
     return lowWaterMarkValue + getRetriever().getWatermarkIncrementMs();
   }
 
+  /** Returns the low watermark value based on lookback which is equal to current time minus lookback time. */
+  private long getLowWaterMarkFromLookbackTime(String lookBackTime) {
+    try {
+      Duration lookBackDuration = PartitionAwareFileRetrieverUtils.getLookbackTimeDuration(lookBackTime);
+      return new DateTime().minus(lookBackDuration).getMillis();
+    } catch (IOException e) {
+      Throwables.propagate(e);
+    }
+    return 0;
+  }
+
   protected PartitionAwareFileRetriever getRetriever() {
     return retriever;
   }
 
-  private String getLookBackTimeProp(SourceState state) {
+  private static String getLookBackTimeProp(SourceState state) {
     if (state.contains(DATE_PARTITIONED_SOURCE_LOOKBACK_TIME)) {
       return state.getProp(DATE_PARTITIONED_SOURCE_LOOKBACK_TIME);
     }
