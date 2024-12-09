@@ -340,18 +340,29 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
         while (true) {
           record = queue.take();
           messagesRead.inc();
-          HighLevelConsumer.this.processMessage((DecodeableKafkaRecord)record);
-          recordsProcessed.incrementAndGet();
+          try {
+            HighLevelConsumer.this.processMessage((DecodeableKafkaRecord) record);
+            recordsProcessed.incrementAndGet();
+          }
+          catch (Exception e) {
+            // Rethrow exception in case auto commit is disabled
+            if (!HighLevelConsumer.this.enableAutoCommit) {
+              throw e;
+            }
+            // Continue with processing next records in case auto commit is enabled
+            log.error("Encountered exception while processing record. Record: {} Exception: {}", record, e);
+          }
 
-          if(!HighLevelConsumer.this.enableAutoCommit) {
-            KafkaPartition partition = new KafkaPartition.Builder().withId(record.getPartition()).withTopicName(HighLevelConsumer.this.topic).build();
+          if (!HighLevelConsumer.this.enableAutoCommit) {
+            KafkaPartition partition =
+                new KafkaPartition.Builder().withId(record.getPartition()).withTopicName(HighLevelConsumer.this.topic)
+                    .build();
             // Committed offset should always be the offset of the next record to be read (hence +1)
             partitionOffsetsToCommit.put(partition, record.getOffset() + 1);
           }
         }
-      } catch (InterruptedException e) {
+      } catch(InterruptedException e){
         log.warn("Thread interrupted while processing queue ", e);
-        // TODO: evaluate whether we should interrupt the thread or continue processing
         Thread.currentThread().interrupt();
       } catch (Exception e) {
         log.error("Encountered exception while processing record so stopping queue processing. Record: {} Exception: {}", record, e);

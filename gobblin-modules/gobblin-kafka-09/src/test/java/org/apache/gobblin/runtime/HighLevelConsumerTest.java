@@ -40,6 +40,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.client.AbstractBaseKafkaConsumerClient;
+import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
 import org.apache.gobblin.kafka.writer.Kafka09DataWriter;
 import org.apache.gobblin.kafka.writer.KafkaWriterConfigurationKeys;
@@ -174,6 +175,34 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     };
     Long produceTimestamp = 1000L;
     Assert.assertTrue(consumer.calcMillisSince(produceTimestamp).equals(234L));
+  }
+
+  @Test
+  public void testQueueProcessorRuntimeExceptionEncounteredAutoCommitEnabled() throws Exception {
+    Properties consumerProps = new Properties();
+    consumerProps.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
+    consumerProps.setProperty(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + KAFKA_AUTO_OFFSET_RESET_KEY, "earliest");
+    //Generate a brand new consumer group id to ensure there are no previously committed offsets for this group id
+    String consumerGroupId = Joiner.on("-").join(TOPIC, "auto", System.currentTimeMillis());
+    consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + HighLevelConsumer.GROUP_ID_KEY, consumerGroupId);
+    consumerProps.setProperty(HighLevelConsumer.ENABLE_AUTO_COMMIT_KEY, "true");
+
+    // Create an instance of MockedHighLevelConsumer using an anonymous class
+    MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigUtils.propertiesToConfig(consumerProps), NUM_PARTITIONS) {
+      int callCount = 0;
+      @Override
+      public void processMessage(DecodeableKafkaRecord<byte[], byte[]> message) {
+        super.processMessage(message);
+        // Override the method to throw a custom exception
+        throw new RuntimeException("Simulated exception in processMessage");
+      }
+    };
+    consumer.startAsync().awaitRunning();
+
+    // Assert all NUM_MSGS messages were processed
+    consumer.awaitExactlyNMessages(NUM_MSGS, 10000);
+    consumer.shutDown();
   }
 
   private List<byte[]> createByteArrayMessages() {
