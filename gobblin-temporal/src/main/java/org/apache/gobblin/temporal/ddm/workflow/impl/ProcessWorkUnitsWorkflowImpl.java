@@ -72,20 +72,33 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties());
 
     NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec, searchAttributes);
-    int workunitsProcessed =
-        processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0, workSpec.getTuning().getMaxBranchesPerTree(),
-            workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty());
-    if (workunitsProcessed > 0) {
-      CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
-      CommitStats result = commitWorkflow.commit(workSpec);
-      if (result.getNumCommittedWorkUnits() == 0) {
-        log.warn("No work units committed at the job level. They could have been committed at the task level.");
-      }
-      return result;
-    } else {
+
+    Optional<Integer> workunitsProcessed = Optional.empty();
+    try {
+      workunitsProcessed = Optional.of(processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0,
+          workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(),
+          Optional.empty()));
+    } catch (Exception e) {
+      log.error("ProcessWorkUnits failure - will attempt partial commit before announcing error", e);
+      performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);
+      throw e; //We want to proceed with partial commit and throw exception so that the parent workflow ExecuteGobblinWorkflowImpl can throw the failure event
+    }
+    return performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);
+  }
+
+  private CommitStats performCommitIfAnyWorkUnitsProcessed(WUProcessingSpec workSpec,
+      Map<String, Object> searchAttributes, Optional<Integer> workunitsProcessed) {
+    //  we are only inhibiting commit when workunitsProcessed is actually known to be zero
+    if (workunitsProcessed.filter(n -> n == 0).isPresent()) {
       log.error("No work units processed, so no commit attempted.");
       return CommitStats.createEmpty();
     }
+    CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
+    CommitStats result = commitWorkflow.commit(workSpec);
+    if (result.getNumCommittedWorkUnits() == 0) {
+      log.warn("No work units committed at the job level. They could have been committed at the task level.");
+    }
+    return result;
   }
 
   private Optional<EventTimer> createOptJobEventTimer(WUProcessingSpec workSpec) {
