@@ -19,11 +19,13 @@ package org.apache.gobblin.temporal.ddm.work;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.experimental.Accessors;
 
 
 /**
@@ -34,11 +36,13 @@ import lombok.RequiredArgsConstructor;
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
+@Accessors(chain = true)
 public class CommitStats {
   @NonNull private Map<String, DatasetStats> datasetStats;
   @NonNull private int numCommittedWorkUnits;
+  @NonNull private Optional<Exception> optFailure;
 
   public static CommitStats createEmpty() {
-    return new CommitStats(new HashMap<>(), 0);
+    return new CommitStats(new HashMap<>(), 0, Optional.empty());
   }
 }
