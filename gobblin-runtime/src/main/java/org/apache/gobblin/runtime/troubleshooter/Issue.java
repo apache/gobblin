@@ -50,7 +50,7 @@ public class Issue {
    *
    * It can be used for making programmatic decisions on how to handle and recover from this issue.
    *
-   * The code length should be less than {@link Issue.MAX_ISSUE_CODE_LENGTH}
+   * The code length should be less than {@link Issue#MAX_ISSUE_CODE_LENGTH}
    * */
   private final String code;
 
@@ -71,14 +71,14 @@ public class Issue {
    *
    * This is a full name of the class that logged the error or generated the issue.
    *
-   * The class name length should be less than {@link Issue.MAX_CLASSNAME_LENGTH}
+   * The class name length should be less than {@link Issue#MAX_CLASSNAME_LENGTH}
    * */
   private final String sourceClass;
 
   /**
    * If the issue was generated from an exception, then a full exception class name should be stored here.
    *
-   * The class name length should be less than {@link Issue.MAX_CLASSNAME_LENGTH}
+   * The class name length should be less than {@link Issue#MAX_CLASSNAME_LENGTH}
    */
   private final String exceptionClass;
 

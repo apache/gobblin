@@ -44,7 +44,7 @@ import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 
 
 /**
- * Collects messages from log4j and converts them into issues that are used in {@link AutomaticTroubleshooter}.
+ * Collects messages from log4j and converts them into {@link Issue}s used by the {@link org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter}.
  */
 @Slf4j
 @ThreadSafe
