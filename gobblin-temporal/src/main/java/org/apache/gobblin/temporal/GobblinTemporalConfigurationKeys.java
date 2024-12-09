@@ -64,4 +64,9 @@ public interface GobblinTemporalConfigurationKeys {
   String TEMPORAL_NUM_WORKERS_PER_CONTAINER = PREFIX + "num.workers.per.container";
   int DEFAULT_TEMPORAL_NUM_WORKERS_PER_CONTAINERS = 1;
   String TEMPORAL_CONNECTION_STRING = PREFIX + "connection.string";
+
+  /**
+   * Prefix for Gobblin-on-Temporal Dynamic Scaling
+   */
+  String DYNAMIC_SCALING_PREFIX = PREFIX + "dynamic.scaling.";
 }
