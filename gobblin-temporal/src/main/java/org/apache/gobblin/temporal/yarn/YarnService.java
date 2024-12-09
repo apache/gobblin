@@ -194,7 +194,7 @@ class YarnService extends AbstractIdleService {
   private volatile boolean shutdownInProgress = false;
 
   private final boolean jarCacheEnabled;
-  private final long DEFAULT_ALLOCATION_REQUEST_ID = 0L;
+  private static final long DEFAULT_ALLOCATION_REQUEST_ID = 0L;
   private final AtomicLong allocationRequestIdGenerator = new AtomicLong(DEFAULT_ALLOCATION_REQUEST_ID);
   private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
 
@@ -555,11 +555,13 @@ class YarnService extends AbstractIdleService {
   @VisibleForTesting
   protected String buildContainerCommand(Container container, String helixParticipantId, String helixInstanceTag) {
     long allocationRequestId = container.getAllocationRequestId();
-    // Using getOrDefault for backward-compatibility with containers that don't have allocationRequestId set
     WorkerProfile workerProfile = Optional.fromNullable(this.workerProfileByAllocationRequestId.get(allocationRequestId))
         .or(() -> {
-          LOGGER.warn("No Worker Profile found for {} ... falling back... ", allocationRequestId);
-          return this.workerProfileByAllocationRequestId.get(DEFAULT_ALLOCATION_REQUEST_ID);
+          LOGGER.warn("No Worker Profile found for {}, so falling back to default", allocationRequestId);
+          return this.workerProfileByAllocationRequestId.computeIfAbsent(DEFAULT_ALLOCATION_REQUEST_ID, k -> {
+            LOGGER.warn("WARNING: (LIKELY) UNEXPECTED CONCURRENCY: No Worker Profile even yet mapped to the default allocation request ID {} - creating one now", DEFAULT_ALLOCATION_REQUEST_ID);
+            return new WorkerProfile(this.config);
+          });
         });
     Config workerProfileConfig = workerProfile.getConfig();
 

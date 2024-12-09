@@ -54,13 +54,11 @@ public class DynamicScalingYarnServiceTest {
   @Test
   public void testReviseWorkforcePlanAndRequestNewContainers() throws Exception {
     int numNewContainers = 5;
-    DynamicScalingYarnService dynamicScalingYarnService = new DynamicScalingYarnService(this.defaultConfigs, "testApp", "testAppId", yarnConfiguration, mockFileSystem, eventBus) {
-      @Override
-      protected void requestContainers(int numContainers, Resource resource, Optional<Long> allocationRequestId) {
-        Assert.assertEquals(numContainers, numNewContainers);
-      }
-    };
+    DynamicScalingYarnService dynamicScalingYarnService = new DynamicScalingYarnService(this.defaultConfigs, "testApp", "testAppId", yarnConfiguration, mockFileSystem, eventBus);
+    DynamicScalingYarnService dynamicScalingYarnServiceSpy = Mockito.spy(dynamicScalingYarnService);
+    Mockito.doNothing().when(dynamicScalingYarnServiceSpy).requestContainers(Mockito.anyInt(), Mockito.any(Resource.class), Mockito.any(Optional.class));
     ScalingDirective baseScalingDirective = new ScalingDirective(WorkforceProfiles.BASELINE_NAME, numNewContainers, System.currentTimeMillis());
-    dynamicScalingYarnService.reviseWorkforcePlanAndRequestNewContainers(Collections.singletonList(baseScalingDirective));
+    dynamicScalingYarnServiceSpy.reviseWorkforcePlanAndRequestNewContainers(Collections.singletonList(baseScalingDirective));
+    Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(1)).requestContainers(Mockito.eq(numNewContainers), Mockito.any(Resource.class), Mockito.any(Optional.class));
   }
 }

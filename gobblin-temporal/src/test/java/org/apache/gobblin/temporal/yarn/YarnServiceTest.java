@@ -83,14 +83,13 @@ public class YarnServiceTest {
 
   @Test
   public void testYarnServiceStartupWithInitialContainers() throws Exception {
-    int expectedNumContainers = 0;
-    YarnService yarnService = new YarnService(this.defaultConfigs, "testApplicationName", "testApplicationId", yarnConfiguration, mockFileSystem, eventBus) {
-      @Override
-      protected void requestContainers(int numContainers, Resource resource, Optional<Long> allocationRequestId) {
-        Assert.assertEquals(numContainers, expectedNumContainers);
-      }
-    };
-    yarnService.startUp();
+    int expectedNumContainers = 3;
+    Config config = this.defaultConfigs.withValue(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY, ConfigValueFactory.fromAnyRef(expectedNumContainers));
+    YarnService yarnService = new YarnService(config, "testApplicationName", "testApplicationId", yarnConfiguration, mockFileSystem, eventBus);
+    YarnService yarnServiceSpy = Mockito.spy(yarnService);
+    Mockito.doNothing().when(yarnServiceSpy).requestContainers(Mockito.anyInt(), Mockito.any(Resource.class), Mockito.any(Optional.class));
+    yarnServiceSpy.startUp();
+    Mockito.verify(yarnServiceSpy, Mockito.times(1)).requestContainers(Mockito.eq(expectedNumContainers), Mockito.any(Resource.class), Mockito.any(Optional.class));
   }
 
   @Test
