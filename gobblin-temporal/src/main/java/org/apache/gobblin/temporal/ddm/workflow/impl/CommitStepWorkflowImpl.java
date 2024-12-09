@@ -19,6 +19,7 @@ package org.apache.gobblin.temporal.ddm.workflow.impl;
 
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 
 import java.time.Duration;
@@ -36,6 +37,7 @@ import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.DatasetStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow;
+import org.apache.gobblin.temporal.exception.FailedDatasetUrnsException;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
 
 
@@ -59,10 +61,19 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
   @Override
   public CommitStats commit(WUProcessingSpec workSpec) {
     CommitStats commitGobblinStats = activityStub.commit(workSpec);
-    TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(workSpec.getEventSubmitterContext());
-    timerFactory.create(TimingEvent.LauncherTimings.JOB_SUMMARY)
-        .withMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(convertDatasetStatsToTaskSummaries(commitGobblinStats.getDatasetStats())))
-        .submit();
+
+    if(!commitGobblinStats.getOptFailure().isPresent() || commitGobblinStats.getNumCommittedWorkUnits() > 0) {
+      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(workSpec.getEventSubmitterContext());
+      timerFactory.create(TimingEvent.LauncherTimings.JOB_SUMMARY)
+          .withMetadata(TimingEvent.DATASET_TASK_SUMMARIES, GsonUtils.GSON_WITH_DATE_HANDLING.toJson(
+              convertDatasetStatsToTaskSummaries(commitGobblinStats.getDatasetStats())))
+          .submit();
+    }
+    if(commitGobblinStats.getOptFailure().isPresent()){
+      throw ApplicationFailure.newNonRetryableFailureWithCause(
+          String.format("Failed to commit dataset state for some dataset(s)"), FailedDatasetUrnsException.class.toString(),
+          commitGobblinStats.getOptFailure().get());
+    }
     return commitGobblinStats;
   }
 
