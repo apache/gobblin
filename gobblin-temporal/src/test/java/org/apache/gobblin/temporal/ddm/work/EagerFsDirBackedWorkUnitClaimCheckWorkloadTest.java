@@ -99,7 +99,7 @@ public class EagerFsDirBackedWorkUnitClaimCheckWorkloadTest {
     }
   }
 
-  private FileStatus createMockFileStatus(String path) {
+  private static FileStatus createMockFileStatus(String path) {
     FileStatus fileStatus = Mockito.mock(FileStatus.class);
     Path filePath = new Path(path);
     Mockito.when(fileStatus.getPath()).thenReturn(filePath);

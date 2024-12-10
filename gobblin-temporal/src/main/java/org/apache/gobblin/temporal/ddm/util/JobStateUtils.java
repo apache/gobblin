@@ -153,7 +153,7 @@ public class JobStateUtils {
 
   /**
    * write serialized {@link WorkUnit}s in parallel into files named to tunnel {@link org.apache.gobblin.util.WorkUnitSizeInfo}.
-   * Size info is to be later recovered by {@link EagerFsDirBackedWorkUnitClaimCheckWorkload}
+   * {@link EagerFsDirBackedWorkUnitClaimCheckWorkload} (and possibly others) may later recover such size info.
    */
   public static void writeWorkUnits(List<WorkUnit> workUnits, Path workDirRootPath, JobState jobState, FileSystem fs)
       throws IOException {

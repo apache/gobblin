@@ -212,7 +212,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   /**
    * Historical practice counted {@link org.apache.gobblin.source.workunit.WorkUnit}s with {@link int} (see e.g. {@link JobState#getTaskCount()}).
    * Updated counting now uses {@link long}, although much code still presumes {@link int}.  While we don't presently anticipate jobs exceeding 2 billion
-   * `WorkUnit`s, if it were ever to happen, this method will fail-fast to prevent further processing.
+   * `WorkUnit`s, if it were ever to happen, this method will fail-fast to flag the need to address.
    * @throws {@link IllegalArgumentException} if the count exceeds {@link Integer#MAX_VALUE}
    */
   protected static int safelyCastNumConstituentWorkUnitsOrThrow(WorkUnitsSizeSummary wuSizeSummary) {

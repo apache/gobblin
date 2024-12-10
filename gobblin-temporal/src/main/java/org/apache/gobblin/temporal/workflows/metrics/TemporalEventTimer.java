@@ -108,7 +108,7 @@ public class TemporalEventTimer implements EventTimer {
     public TemporalEventTimer createJobTimer() {
       TemporalEventTimer startTimer = create(TimingEvent.LauncherTimings.JOB_START); // update GaaS: `ExecutionStatus.RUNNING`
       startTimer.stop(Instant.EPOCH); // Emit start job event containing a stub end time
-      // [upon `.stop()`] update GaaS: `ExecutionStatus.RUNNING`; `TimingEvent.JOB_END_TIME`:
+      // [upon `.stop()`] update GaaS: `ExecutionStatus.RUNNING`, `TimingEvent.JOB_END_TIME`:
       return create(TimingEvent.LauncherTimings.JOB_SUCCEEDED, startTimer.startTime);
     }
   }

@@ -75,7 +75,8 @@ public class JobLauncherUtils {
     }
 
     /**
-     * Calc where to serialize {@link WorkUnit}, using a filename that tunnels {@link WorkUnitSizeInfo}, vs. repeating the task/job ID, as was legacy practice
+     * Calc where to serialize {@link WorkUnit}, using a filename that tunnels {@link WorkUnitSizeInfo} (vs. repeating the task/job ID, as was legacy practice)
+     * This provides a direct and simple way to tunnel limited, but crucial, metadata that incurs no additional access cost (nor adds FS load).
      * @return `Path` beneath `basePath` to serialize `workUnit`
      */
     public Path calcNextPathWithTunneledSizeInfo(WorkUnit workUnit, String jobId, Path basePath) {

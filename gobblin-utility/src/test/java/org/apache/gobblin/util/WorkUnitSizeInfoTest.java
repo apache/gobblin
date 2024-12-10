@@ -76,7 +76,7 @@ public class WorkUnitSizeInfoTest {
     WorkUnitSizeInfo original = new WorkUnitSizeInfo(20, 21000L, 1100.0, 1050.0, 576.628);
     String encoded = original.encode();
 
-    Assert.assertEquals(encoded, "n=20-total=21000-median=1100.000-mean=1050.000-stddev=576.628");
+    Assert.assertEquals(encoded, "n=20-total=21000-median=1100.00-mean=1050.00-stddev=576.63");
 
     Optional<WorkUnitSizeInfo> optDecoded = WorkUnitSizeInfo.decode(encoded);
     Assert.assertTrue(optDecoded.isPresent());

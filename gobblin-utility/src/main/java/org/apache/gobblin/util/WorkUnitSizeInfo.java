@@ -37,7 +37,17 @@ import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 
 
-/** Bare-bones size information about a {@link WorkUnit}, possibly a {@link MultiWorkUnit} */
+/**
+ * Bare-bones size information about a {@link WorkUnit}, possibly a {@link MultiWorkUnit}, where a constituent work unit is one with no children - a leaf.
+ *
+ * Measurement currently requires the `WorkUnit` to define {@link ServiceConfigKeys#WORK_UNIT_SIZE}, otherwise sizes will be 0 with merely the count of
+ * constituent `WorkUnits`.  For the most part, at present, that key is supplied only by {@link org.apache.gobblin.data.management.copy.CopySource}.
+ * Nonetheless, the "contract" for any {@link org.apache.gobblin.source.Source} is both clear and reasonable: just add "size" to your `WorkUnit`s to
+ * participate.
+ *
+ * Some sources might count bytes, others num records, possibly with those size-weighted; and of course not all sources extract a definite
+ * amount of data, known up front.  In such cases, the {@link #numConstituents} (aka. parallelism potential) may be most informative.
+ */
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
@@ -59,7 +69,8 @@ public class WorkUnitSizeInfo {
    * @returns {@link #empty()} when the `WorkUnit` is not measurable by defining {@link ServiceConfigKeys#WORK_UNIT_SIZE}
    */
   public static WorkUnitSizeInfo forWorkUnit(WorkUnit workUnit) {
-    if (!workUnit.isMultiWorkUnit()) {
+    // NOTE: redundant `instanceof` merely to appease FindBugs - "Unchecked/unconfirmed cast ..."
+    if (!workUnit.isMultiWorkUnit() || !(workUnit instanceof MultiWorkUnit)) {
       long wuSize = workUnit.getPropAsLong(ServiceConfigKeys.WORK_UNIT_SIZE, 0);
       return new WorkUnitSizeInfo(1, wuSize, wuSize, wuSize, 0.0);
     } else {
@@ -102,7 +113,7 @@ public class WorkUnitSizeInfo {
    */
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   public String encode() {
-    return String.format("n=%d-total=%d-median=%.3f-mean=%.3f-stddev=%.3f",
+    return String.format("n=%d-total=%d-median=%.2f-mean=%.2f-stddev=%.2f",
         numConstituents, totalSize, medianSize, meanSize, stddevSize);
   }
 
