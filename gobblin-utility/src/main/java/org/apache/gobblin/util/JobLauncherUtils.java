@@ -33,14 +33,14 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
 
+import lombok.extern.slf4j.Slf4j;
+
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.google.common.collect.Lists;
 import com.google.common.io.Closer;
-
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -66,11 +66,23 @@ public class JobLauncherUtils {
   public static class WorkUnitPathCalculator {
     private final AtomicInteger nextMultiWorkUnitTaskId = new AtomicInteger(0);
 
-    // Serialize each work unit into a file named after the task ID
+    /** @return `Path` beneath `basePath` to serialize `workUnit`, with file named after the task ID (itself named after the job ID) */
     public Path calcNextPath(WorkUnit workUnit, String jobId, Path basePath) {
       String workUnitFileName = workUnit.isMultiWorkUnit()
           ? JobLauncherUtils.newMultiTaskId(jobId, nextMultiWorkUnitTaskId.getAndIncrement()) + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION
           : workUnit.getProp(ConfigurationKeys.TASK_ID_KEY) + JobLauncherUtils.WORK_UNIT_FILE_EXTENSION;
+      return new Path(basePath, workUnitFileName);
+    }
+
+    /**
+     * Calc where to serialize {@link WorkUnit}, using a filename that tunnels {@link WorkUnitSizeInfo}, vs. repeating the task/job ID, as was legacy practice
+     * @return `Path` beneath `basePath` to serialize `workUnit`
+     */
+    public Path calcNextPathWithTunneledSizeInfo(WorkUnit workUnit, String jobId, Path basePath) {
+      String encodedSizeInfo = WorkUnitSizeInfo.forWorkUnit(workUnit).encode();
+      String workUnitFileName = workUnit.isMultiWorkUnit()
+          ? Id.MultiTask.create(encodedSizeInfo, nextMultiWorkUnitTaskId.getAndIncrement()) + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION
+          : Id.Task.create(encodedSizeInfo, workUnit.getPropAsInt(ConfigurationKeys.TASK_KEY_KEY)) + JobLauncherUtils.WORK_UNIT_FILE_EXTENSION;
       return new Path(basePath, workUnitFileName);
     }
   }

@@ -49,6 +49,7 @@ import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.DirDeletionResult;
 import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
+import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow;
@@ -97,14 +98,15 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   @Override
   public ExecGobblinStats execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
-    timerFactory.create(TimingEvent.LauncherTimings.JOB_PREPARE).submit();
-    EventTimer timer = timerFactory.createJobTimer();
+    timerFactory.create(TimingEvent.LauncherTimings.JOB_PREPARE).submit(); // update GaaS: `TimingEvent.JOB_START_TIME`
+    EventTimer jobSuccessTimer = timerFactory.createJobTimer();
     Optional<GenerateWorkUnitsResult> generateWorkUnitResultsOpt = Optional.empty();
     WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
     boolean isSuccessful = false;
     try {
       generateWorkUnitResultsOpt = Optional.of(genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext));
-      int numWUsGenerated = generateWorkUnitResultsOpt.get().getGeneratedWuCount();
+      WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResultsOpt.get().getWorkUnitsSizeSummary();
+      int numWUsGenerated = safelyCastNumConstituentWorkUnitsOrThrow(wuSizeSummary);
       int numWUsCommitted = 0;
       CommitStats commitStats = CommitStats.createEmpty();
       if (numWUsGenerated > 0) {
@@ -112,18 +114,16 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         commitStats = processWUsWorkflow.process(wuSpec);
         numWUsCommitted = commitStats.getNumCommittedWorkUnits();
       }
-      timer.stop();
+      jobSuccessTimer.stop();
       isSuccessful = true;
       return new ExecGobblinStats(numWUsGenerated, numWUsCommitted, jobProps.getProperty(Help.USER_TO_PROXY_KEY),
           commitStats.getDatasetStats());
     } catch (Exception e) {
       // Emit a failed GobblinTrackingEvent to record job failures
-      timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).submit();
+      timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).submit(); // update GaaS: `ExecutionStatus.FAILED`; `TimingEvent.JOB_END_TIME`
       throw ApplicationFailure.newNonRetryableFailureWithCause(
           String.format("Failed Gobblin job %s", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)),
-          e.getClass().getName(),
-          e
-      );
+          e.getClass().getName(), e);
     } finally {
       // TODO: Cleanup WorkUnit/Taskstate Directory for jobs cancelled mid flight
       try {
@@ -138,9 +138,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         if (isSuccessful) {
           throw ApplicationFailure.newNonRetryableFailureWithCause(
               String.format("Failed cleaning Gobblin job %s", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)),
-              e.getClass().getName(),
-              e
-          );
+              e.getClass().getName(), e);
         }
         log.error("Failed to cleanup work dirs", e);
       }
@@ -209,5 +207,19 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       throw new IOException("Found directories set to delete not associated with job " + jobId + ": " + nonJobDirs + ". Please validate staging and output directories");
     }
     return resultSet;
+  }
+
+  /**
+   * Historical practice counted {@link org.apache.gobblin.source.workunit.WorkUnit}s with {@link int} (see e.g. {@link JobState#getTaskCount()}).
+   * Updated counting now uses {@link long}, although much code still presumes {@link int}.  While we don't presently anticipate jobs exceeding 2 billion
+   * `WorkUnit`s, if it were ever to happen, this method will fail-fast to prevent further processing.
+   * @throws {@link IllegalArgumentException} if the count exceeds {@link Integer#MAX_VALUE}
+   */
+  protected static int safelyCastNumConstituentWorkUnitsOrThrow(WorkUnitsSizeSummary wuSizeSummary) {
+    long n = wuSizeSummary.getConstituentWorkUnitsCount();
+    if (n > Integer.MAX_VALUE) {
+      throw new IllegalArgumentException("Too many constituent WorkUnits (" + n + ") - exceeds `Integer.MAX_VALUE`!");
+    }
+    return (int) n;
   }
 }
