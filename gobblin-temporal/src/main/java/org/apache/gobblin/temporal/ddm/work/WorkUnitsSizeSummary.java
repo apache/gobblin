@@ -33,6 +33,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  * and individual constituent (purely {@link WorkUnit}s), where:
  *   * a top-level work unit is one with no parent - a root
  *   * a constituent work unit is one with no children - a leaf
+ * @see org.apache.gobblin.util.WorkUnitSizeInfo
  */
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
