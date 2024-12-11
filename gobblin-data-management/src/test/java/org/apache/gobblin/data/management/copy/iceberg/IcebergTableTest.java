@@ -126,6 +126,14 @@ public class IcebergTableTest extends HiveMetastoreTest {
     Assert.fail("expected an exception when using table ID '" + bogusTableId + "'");
   }
 
+  /** Verify failure when attempting to get current snapshot info for an empty table */
+  @Test(expectedExceptions = IcebergTable.NoSnapshotFoundException.class)
+  public void testGetCurrentSnapshotInfoOnEmptyTable() throws IOException {
+    IcebergSnapshotInfo snapshotInfo = new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri,
+        catalog.loadTable(tableId)).getCurrentSnapshotInfo();
+    Assert.fail("expected an exception when using table ID '" + tableId + "'");
+  }
+
   /** Verify info about all (full) snapshots */
   @Test
   public void testGetAllSnapshotInfosIterator() throws IOException {
