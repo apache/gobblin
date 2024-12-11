@@ -19,11 +19,14 @@ package org.apache.gobblin.temporal.ddm.work;
 
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Optional;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+
+import org.apache.gobblin.temporal.exception.FailedDatasetUrnsException;
 
 
 /**
@@ -37,8 +40,9 @@ import lombok.RequiredArgsConstructor;
 public class CommitStats {
   @NonNull private Map<String, DatasetStats> datasetStats;
   @NonNull private int numCommittedWorkUnits;
+  @NonNull private Optional<FailedDatasetUrnsException> optFailure;
 
   public static CommitStats createEmpty() {
-    return new CommitStats(new HashMap<>(), 0);
+    return new CommitStats(new HashMap<>(), 0, Optional.empty());
   }
 }

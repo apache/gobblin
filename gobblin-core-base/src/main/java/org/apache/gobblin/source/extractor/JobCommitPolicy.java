@@ -19,6 +19,8 @@ package org.apache.gobblin.source.extractor;
 
 import java.util.Properties;
 
+import lombok.Getter;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 
@@ -33,7 +35,7 @@ public enum JobCommitPolicy {
   /**
    * Commit output data of a job if and only if all of its tasks successfully complete.
    */
-  COMMIT_ON_FULL_SUCCESS("full"),
+  COMMIT_ON_FULL_SUCCESS("full", false),
 
   /**
    * Commit a job even if some of its tasks fail. It's up to the {@link org.apache.gobblin.publisher.DataPublisher} to
@@ -43,7 +45,7 @@ public enum JobCommitPolicy {
    *             and should cover most use cases when {@link #COMMIT_ON_FULL_SUCCESS} is not appropriate.
    */
   @Deprecated
-  COMMIT_ON_PARTIAL_SUCCESS("partial"),
+  COMMIT_ON_PARTIAL_SUCCESS("partial", true),
 
   /**
    * Commit output data of tasks that successfully complete.
@@ -51,12 +53,14 @@ public enum JobCommitPolicy {
    * It is recommended to use this commit policy in conjunction with task-level data publishing (i.e., when
    * {@link ConfigurationKeys#PUBLISH_DATA_AT_JOB_LEVEL} is set to {@code false}).
    */
-  COMMIT_SUCCESSFUL_TASKS("successful");
+  COMMIT_SUCCESSFUL_TASKS("successful", true);
 
   private final String name;
+  @Getter private final boolean allowPartialCommit;// Indicates if the commit policy allows partial task commits
 
-  JobCommitPolicy(String name) {
+  JobCommitPolicy(String name, boolean allowPartialCommit) {
     this.name = name;
+    this.allowPartialCommit = allowPartialCommit;
   }
 
   /**

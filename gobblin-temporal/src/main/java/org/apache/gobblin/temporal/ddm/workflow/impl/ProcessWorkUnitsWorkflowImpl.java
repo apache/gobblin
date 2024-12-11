@@ -22,6 +22,7 @@ import java.util.Optional;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.api.enums.v1.ParentClosePolicy;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
@@ -72,20 +73,48 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties());
 
     NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec, searchAttributes);
-    int workunitsProcessed =
-        processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0, workSpec.getTuning().getMaxBranchesPerTree(),
-            workSpec.getTuning().getMaxSubTreesPerTree(), Optional.empty());
-    if (workunitsProcessed > 0) {
-      CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
-      CommitStats result = commitWorkflow.commit(workSpec);
-      if (result.getNumCommittedWorkUnits() == 0) {
-        log.warn("No work units committed at the job level. They could have been committed at the task level.");
+
+    Optional<Integer> workunitsProcessed = Optional.empty();
+    try {
+      workunitsProcessed = Optional.of(processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0,
+          workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(),
+          Optional.empty()));
+    } catch (Exception e) {
+      log.error("ProcessWorkUnits failure - attempting partial commit before re-throwing exception", e);
+
+      try {
+        performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);// Attempt partial commit before surfacing the failure
+      } catch (Exception commitException) {
+        // Combine current and commit exception messages for a more complete context
+        String combinedMessage = String.format(
+            "Processing failure: %s. Commit workflow failure: %s",
+            e.getMessage(),
+            commitException.getMessage()
+        );
+        log.error(combinedMessage);
+        throw ApplicationFailure.newNonRetryableFailureWithCause(
+            String.format("Processing failure: %s. Partial commit failure: %s", combinedMessage, commitException),
+            Exception.class.toString(),
+            new Exception(e)); // Wrap the original exception for stack trace preservation
       }
-      return result;
-    } else {
+      throw e;// Re-throw after any partial commit, to fail the parent workflow in case commitWorkflow didn't flow (unlikely)
+    }
+    return performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);
+  }
+
+  private CommitStats performCommitIfAnyWorkUnitsProcessed(WUProcessingSpec workSpec,
+      Map<String, Object> searchAttributes, Optional<Integer> workunitsProcessed) {
+    //  we are only inhibiting commit when workunitsProcessed is actually known to be zero
+    if (workunitsProcessed.filter(n -> n == 0).isPresent()) {
       log.error("No work units processed, so no commit attempted.");
       return CommitStats.createEmpty();
     }
+    CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
+    CommitStats result = commitWorkflow.commit(workSpec);
+    if (result.getNumCommittedWorkUnits() == 0) {
+      log.warn("No work units committed at the job level. They could have been committed at the task level.");
+    }
+    return result;
   }
 
   private Optional<EventTimer> createOptJobEventTimer(WUProcessingSpec workSpec) {
