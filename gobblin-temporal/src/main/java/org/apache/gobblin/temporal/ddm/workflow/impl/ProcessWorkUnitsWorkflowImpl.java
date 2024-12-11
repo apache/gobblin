@@ -22,6 +22,7 @@ import java.util.Optional;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.api.enums.v1.ParentClosePolicy;
+import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
@@ -79,9 +80,24 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
           workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(),
           Optional.empty()));
     } catch (Exception e) {
-      log.error("ProcessWorkUnits failure - will attempt partial commit before announcing error", e);
-      performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);
-      throw e; //We want to proceed with partial commit and throw exception so that the parent workflow ExecuteGobblinWorkflowImpl can throw the failure event
+      log.error("ProcessWorkUnits failure - attempting partial commit before re-throwing exception", e);
+
+      try {
+        performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);// Attempt partial commit before surfacing the failure
+      } catch (Exception commitException) {
+        // Combine current and commit exception messages for a more complete context
+        String combinedMessage = String.format(
+            "Processing failure: %s. Commit workflow failure: %s",
+            e.getMessage(),
+            commitException.getMessage()
+        );
+        log.error(combinedMessage);
+        throw ApplicationFailure.newNonRetryableFailureWithCause(
+            String.format("Processing failure: %s. Partial commit failure: %s", combinedMessage, commitException),
+            Exception.class.toString(),
+            new Exception(e)); // Wrap the original exception for stack trace preservation
+      }
+      throw e;// Re-throw after any partial commit, to fail the parent workflow in case commitWorkflow didn't flow (unlikely)
     }
     return performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);
   }

@@ -16,21 +16,45 @@
  */
 package org.apache.gobblin.temporal.exception;
 
+
 import java.io.IOException;
+import java.util.HashSet;
+import java.util.Set;
+
+import com.fasterxml.jackson.annotation.JsonIgnoreProperties;
+import lombok.Getter;
+
 
 /**
  * An exception thrown when a set of dataset URNs fail to be processed.
  */
+
+@JsonIgnoreProperties(ignoreUnknown = true)
 public class FailedDatasetUrnsException extends IOException {
 
+  @Getter
+  private final Set<String> failedDatasetUrns;
 
   /**
    * Creates a new instance of this exception with the failed dataset URNs.
    *
-   * @param failedDatasetUrns the String of failed dataset URNs joined by comma
+   * @param failedDatasetUrns a set containing the URNs of the datasets that failed to process
    */
-  public FailedDatasetUrnsException(String failedDatasetUrns) {
-    super("Failed to process the following dataset URNs: " + failedDatasetUrns);
+  public FailedDatasetUrnsException(Set<String> failedDatasetUrns) {
+    super("Failed to process the following dataset URNs: " + String.join(",", failedDatasetUrns));
+    this.failedDatasetUrns = failedDatasetUrns;
   }
 
+  /**
+   * Default constructor for {@code FailedDatasetUrnsException}.
+   * <p>
+   * This constructor initializes an empty {@link HashSet} for {@code failedDatasetUrns}.
+   * It is provided to support frameworks like Jackson that require a no-argument constructor
+   * for deserialization purposes.
+   * </p>
+   * */
+  public FailedDatasetUrnsException() {
+    super();
+    this.failedDatasetUrns = new HashSet<>();
+  }
 }

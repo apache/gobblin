@@ -63,11 +63,11 @@ import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.DatasetStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
+import org.apache.gobblin.temporal.exception.FailedDatasetUrnsException;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
-import org.apache.gobblin.temporal.exception.FailedDatasetUrnsException;
 
 
 @Slf4j
@@ -99,20 +99,22 @@ public class CommitActivityImpl implements CommitActivity {
       Map<String, JobState.DatasetState> datasetStatesByUrns = jobState.calculateDatasetStatesByUrns(ImmutableList.copyOf(taskStates), Lists.newArrayList());
       TaskState firstTaskState = taskStates.get(0);
       log.info("TaskState (commit) [{}] (**first of {}**): {}", firstTaskState.getTaskId(), taskStates.size(), firstTaskState.toJsonString(true));
-      CommitStats commitStats = CommitStats.createEmpty();
+      Optional<FailedDatasetUrnsException> optFailure = Optional.empty();
       try {
         commitTaskStates(jobState, datasetStatesByUrns, jobContext);
       } catch (FailedDatasetUrnsException exception) {
-        log.info("Some datasets failed to be committed, proceeding with publishing commit step");
-        commitStats.setOptFailure(Optional.of(exception));
+        log.warn("Some datasets failed to be committed, proceeding with publishing commit step", exception);
+        optFailure = Optional.of(exception);
       }
 
       boolean shouldIncludeFailedTasks = PropertiesUtils.getPropAsBoolean(jobState.getProperties(), ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS, "false");
 
       Map<String, DatasetStats> datasetTaskSummaries = summarizeDatasetOutcomes(datasetStatesByUrns, jobContext.getJobCommitPolicy(), shouldIncludeFailedTasks);
-      return commitStats.setDatasetStats(datasetTaskSummaries)
-          .setNumCommittedWorkUnits(
-              datasetTaskSummaries.values().stream().mapToInt(DatasetStats::getNumCommittedWorkunits).sum());
+      return new CommitStats(
+          datasetTaskSummaries,
+          datasetTaskSummaries.values().stream().mapToInt(DatasetStats::getNumCommittedWorkunits).sum(),
+          optFailure
+      );
     } catch (Exception e) {
       //TODO: IMPROVE GRANULARITY OF RETRIES
       throw ApplicationFailure.newNonRetryableFailureWithCause(
@@ -175,7 +177,7 @@ public class CommitActivityImpl implements CommitActivity {
       if (!failedDatasetUrns.isEmpty()) {
         String allFailedDatasets = String.join(", ", failedDatasetUrns);
         log.error("Failed to commit dataset state for dataset(s) {}", allFailedDatasets);
-        throw new FailedDatasetUrnsException(allFailedDatasets);
+        throw new FailedDatasetUrnsException(failedDatasetUrns);
       }
       if (!IteratorExecutor.verifyAllSuccessful(result)) {
         // TODO: propagate cause of failure and determine whether or not this is retryable to throw a non-retryable failure exception
@@ -215,7 +217,7 @@ public class CommitActivityImpl implements CommitActivity {
     // Only process successful datasets unless configuration to process failed datasets is set
     for (JobState.DatasetState datasetState : datasetStatesByUrns.values()) {
       if (datasetState.getState() == JobState.RunningState.COMMITTED || (datasetState.getState() == JobState.RunningState.FAILED
-          && (commitPolicy == JobCommitPolicy.COMMIT_SUCCESSFUL_TASKS || commitPolicy == JobCommitPolicy.COMMIT_ON_PARTIAL_SUCCESS))) {
+          && commitPolicy.isAllowPartialCommit())) {
         long totalBytesWritten = 0;
         long totalRecordsWritten = 0;
         int totalCommittedTasks = 0;

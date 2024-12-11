@@ -25,7 +25,8 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
-import lombok.experimental.Accessors;
+
+import org.apache.gobblin.temporal.exception.FailedDatasetUrnsException;
 
 
 /**
@@ -36,11 +37,10 @@ import lombok.experimental.Accessors;
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
-@Accessors(chain = true)
 public class CommitStats {
   @NonNull private Map<String, DatasetStats> datasetStats;
   @NonNull private int numCommittedWorkUnits;
-  @NonNull private Optional<Exception> optFailure;
+  @NonNull private Optional<FailedDatasetUrnsException> optFailure;
 
   public static CommitStats createEmpty() {
     return new CommitStats(new HashMap<>(), 0, Optional.empty());
