@@ -66,8 +66,8 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     try {
       jobState = Help.loadJobState(workSpec, Help.loadFileSystem(workSpec));
     } catch (Exception e) {
-      log.error("Exception occured during loading jobState", e);
-      throw new RuntimeException("Exception occured during loading jobState", e);
+      log.error("Error loading jobState", e);
+      throw new RuntimeException("Error loading jobState", e);
     }
     searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties());
 

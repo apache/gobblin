@@ -26,12 +26,14 @@ import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.LoggerFactory;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.workunit.Extract;
 import org.apache.gobblin.source.workunit.Extract.TableType;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
@@ -48,6 +50,8 @@ public class JobLauncherUtilsTest {
 
   private static final String JOB_NAME = "foo";
   private static final Pattern PATTERN = Pattern.compile("job_" + JOB_NAME + "_\\d+");
+  private final Path wuBasePath = new Path("/abs/base/path");
+  private final String wuPathJobId = Id.Task.create("test_wu_path_JobId", 6).toString();
   private String jobId;
 
   @Test
@@ -85,6 +89,92 @@ public class JobLauncherUtilsTest {
         WorkUnit.createEmpty(), multiWorkUnit1, multiWorkUnit2);
 
     Assert.assertEquals(JobLauncherUtils.flattenWorkUnits(workUnitsAndMultiWorkUnits).size(), 9);
+  }
+
+  @Test
+  public void testCalcNextPathSingleWorkUnit() {
+    WorkUnit workUnit = WorkUnit.createEmpty();
+    workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, "task1");
+
+    JobLauncherUtils.WorkUnitPathCalculator pathCalc = new JobLauncherUtils.WorkUnitPathCalculator();
+    Path resultPath = pathCalc.calcNextPath(workUnit, wuPathJobId, wuBasePath);
+
+    Assert.assertEquals(resultPath, new Path(wuBasePath, "task1" + JobLauncherUtils.WORK_UNIT_FILE_EXTENSION));
+  }
+
+  @Test
+  public void testCalcNextPathWithTunneledSizeInfoSingleWorkUnit() {
+    WorkUnit workUnit = WorkUnit.createEmpty();
+    workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, "task1");
+    workUnit.setProp(ConfigurationKeys.TASK_KEY_KEY, "789");
+    workUnit.setProp(ServiceConfigKeys.WORK_UNIT_SIZE, "120");
+
+    JobLauncherUtils.WorkUnitPathCalculator pathCalc = new JobLauncherUtils.WorkUnitPathCalculator();
+    Path resultPath = pathCalc.calcNextPathWithTunneledSizeInfo(workUnit, jobId, wuBasePath);
+
+    String encodedSizeInfo = WorkUnitSizeInfo.forWorkUnit(workUnit).encode();
+    String expectedFileName = Id.Task.PREFIX + "_" + encodedSizeInfo + "_789" + JobLauncherUtils.WORK_UNIT_FILE_EXTENSION;
+    Assert.assertEquals(resultPath, new Path(wuBasePath, expectedFileName));
+  }
+
+  @Test
+  public void testCalcNextPathMultiWorkUnit() {
+    MultiWorkUnit multiWorkUnitA = MultiWorkUnit.createEmpty();
+    for (int i = 0; i < 5; i++) {
+      WorkUnit workUnit = WorkUnit.createEmpty();
+      workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, Id.Task.PREFIX + "_A" + i);
+      multiWorkUnitA.addWorkUnit(workUnit);
+    }
+    MultiWorkUnit multiWorkUnitB = MultiWorkUnit.createEmpty();
+    for (int i = 0; i < 3; i++) {
+      WorkUnit workUnit = WorkUnit.createEmpty();
+      workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, Id.Task.PREFIX + "_B" + i);
+      multiWorkUnitB.addWorkUnit(workUnit);
+    }
+
+    JobLauncherUtils.WorkUnitPathCalculator pathCalc = new JobLauncherUtils.WorkUnitPathCalculator();
+    Path resultPathA0 = pathCalc.calcNextPath(multiWorkUnitA, wuPathJobId, wuBasePath);
+    Path resultPathB1 = pathCalc.calcNextPath(multiWorkUnitB, wuPathJobId, wuBasePath);
+    Path resultPathB2 = pathCalc.calcNextPath(multiWorkUnitB, wuPathJobId, wuBasePath);
+
+    String expectedFileNameA0 = Id.MultiTask.PREFIX + "_" + wuPathJobId.replace("task_", "") + "_0" + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
+    String expectedFileNameB1 = Id.MultiTask.PREFIX + "_" + wuPathJobId.replace("task_", "") + "_1" + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
+    String expectedFileNameB2 = Id.MultiTask.PREFIX + "_" + wuPathJobId.replace("task_", "") + "_2" + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
+    Assert.assertEquals(resultPathA0, new Path(wuBasePath, expectedFileNameA0));
+    Assert.assertEquals(resultPathB1, new Path(wuBasePath, expectedFileNameB1));
+    Assert.assertEquals(resultPathB2, new Path(wuBasePath, expectedFileNameB2));
+  }
+
+  @Test
+  public void testCalcNextPathWithTunneledSizeInfoMultiWorkUnit() {
+    MultiWorkUnit multiWorkUnitA = MultiWorkUnit.createEmpty();
+    for (int i = 0; i < 5; i++) {
+      WorkUnit workUnit = WorkUnit.createEmpty();
+      workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, Id.Task.PREFIX + "_A" + i);
+      workUnit.setProp(ServiceConfigKeys.WORK_UNIT_SIZE, String.valueOf((i + 1) * 75));
+      multiWorkUnitA.addWorkUnit(workUnit);
+    }
+    MultiWorkUnit multiWorkUnitB = MultiWorkUnit.createEmpty();
+    for (int i = 0; i < 3; i++) {
+      WorkUnit workUnit = WorkUnit.createEmpty();
+      workUnit.setProp(ConfigurationKeys.TASK_ID_KEY, Id.Task.PREFIX + "_B" + i);
+      workUnit.setProp(ServiceConfigKeys.WORK_UNIT_SIZE, String.valueOf((i + 1) * 66));
+      multiWorkUnitB.addWorkUnit(workUnit);
+    }
+
+    JobLauncherUtils.WorkUnitPathCalculator pathCalc = new JobLauncherUtils.WorkUnitPathCalculator();
+    Path resultPathA0 = pathCalc.calcNextPathWithTunneledSizeInfo(multiWorkUnitA, wuPathJobId, wuBasePath);
+    Path resultPathB1 = pathCalc.calcNextPathWithTunneledSizeInfo(multiWorkUnitB, wuPathJobId, wuBasePath);
+    Path resultPathB2 = pathCalc.calcNextPathWithTunneledSizeInfo(multiWorkUnitB, wuPathJobId, wuBasePath);
+
+    String encodedSizeInfoA = WorkUnitSizeInfo.forWorkUnit(multiWorkUnitA).encode();
+    String encodedSizeInfoB = WorkUnitSizeInfo.forWorkUnit(multiWorkUnitB).encode();
+    String expectedFileNameA0 = Id.MultiTask.PREFIX + "_" + encodedSizeInfoA + "_0" + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
+    String expectedFileNameB1 = Id.MultiTask.PREFIX + "_" + encodedSizeInfoB + "_1" + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
+    String expectedFileNameB2 = Id.MultiTask.PREFIX + "_" + encodedSizeInfoB + "_2" + JobLauncherUtils.MULTI_WORK_UNIT_FILE_EXTENSION;
+    Assert.assertEquals(resultPathA0, new Path(wuBasePath, expectedFileNameA0));
+    Assert.assertEquals(resultPathB1, new Path(wuBasePath, expectedFileNameB1));
+    Assert.assertEquals(resultPathB2, new Path(wuBasePath, expectedFileNameB2));
   }
 
   @Test

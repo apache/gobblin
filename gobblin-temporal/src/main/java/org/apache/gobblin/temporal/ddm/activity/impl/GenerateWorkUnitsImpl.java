@@ -23,17 +23,23 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import com.google.api.client.util.Lists;
-import com.google.common.io.Closer;
-
 import io.temporal.failure.ApplicationFailure;
+import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.api.client.util.Lists;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.io.Closer;
+import com.tdunning.math.stats.TDigest;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -41,6 +47,7 @@ import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
 import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
@@ -50,6 +57,7 @@ import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
+import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
@@ -57,6 +65,39 @@ import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
 @Slf4j
 public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
+
+  /** [Internal, implementation class] Size sketch/digest of a collection of {@link MultiWorkUnit}s */
+  @Data
+  @VisibleForTesting
+  protected static class WorkUnitsSizeDigest {
+    private final long totalSize;
+    /** a top-level work unit has no parent - a root */
+    private final TDigest topLevelWorkUnitsSizeDigest;
+    /** a constituent work unit has no children - a leaf */
+    private final TDigest constituentWorkUnitsSizeDigest;
+
+    public WorkUnitsSizeSummary asSizeSummary(int numQuantiles) {
+      Preconditions.checkArgument(numQuantiles > 0, "numQuantiles must be > 0");
+      final double quantilesWidth = 1.0 / numQuantiles;
+
+      List<Double> topLevelQuantileValues = getQuantiles(topLevelWorkUnitsSizeDigest, numQuantiles);
+      List<Double> constituentQuantileValues = getQuantiles(constituentWorkUnitsSizeDigest, numQuantiles);
+      return new WorkUnitsSizeSummary(
+          totalSize,
+          topLevelWorkUnitsSizeDigest.size(), constituentWorkUnitsSizeDigest.size(),
+          numQuantiles, quantilesWidth,
+          topLevelQuantileValues, constituentQuantileValues);
+    }
+
+    private static List<Double> getQuantiles(TDigest digest, int numQuantiles) {
+      List<Double> quantileMinSizes = Lists.newArrayList();
+      for (int i = 1; i <= numQuantiles; i++) {
+        quantileMinSizes.add(digest.quantile((i * 1.0) / numQuantiles));
+      }
+      return quantileMinSizes;
+    }
+  }
+
 
   @Override
   public GenerateWorkUnitsResult generateWorkUnits(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
@@ -80,12 +121,18 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       FileSystem fs = JobStateUtils.openFileSystem(jobState);
       fs.mkdirs(workDirRoot);
 
-      Set<String> resourcesToCleanUp = new HashSet<>();
-      List<WorkUnit> workUnits = generateWorkUnitsForJobStateAndCollectCleanupPaths(jobState, eventSubmitterContext, closer, resourcesToCleanUp);
-      JobStateUtils.writeWorkUnits(workUnits, workDirRoot, jobState, fs);
-      JobStateUtils.writeJobState(jobState, workDirRoot, fs);
+      Set<String> pathsToCleanUp = new HashSet<>();
+      List<WorkUnit> workUnits = generateWorkUnitsForJobStateAndCollectCleanupPaths(jobState, eventSubmitterContext, closer, pathsToCleanUp);
 
-      return new GenerateWorkUnitsResult(jobState.getTaskCount(), resourcesToCleanUp);
+      int numSizeSummaryQuantiles = getConfiguredNumSizeSummaryQuantiles(jobState);
+      WorkUnitsSizeSummary wuSizeSummary = digestWorkUnitsSize(workUnits).asSizeSummary(numSizeSummaryQuantiles);
+      log.info("Discovered WorkUnits: {}", wuSizeSummary);
+
+      JobStateUtils.writeWorkUnits(workUnits, workDirRoot, jobState, fs);
+      JobStateUtils.writeJobState(jobState, workDirRoot, fs); // ATTENTION: the writing of `JobState` after all WUs signifies WU gen+serialization now complete
+
+      String sourceClassName = JobStateUtils.getSourceClassName(jobState);
+      return new GenerateWorkUnitsResult(jobState.getTaskCount(), sourceClassName, wuSizeSummary, pathsToCleanUp);
     } catch (ReflectiveOperationException roe) {
       String errMsg = "Unable to construct a source for generating workunits for job " + jobState.getJobId();
       log.error(errMsg, roe);
@@ -101,7 +148,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
   }
 
   protected List<WorkUnit> generateWorkUnitsForJobStateAndCollectCleanupPaths(JobState jobState, EventSubmitterContext eventSubmitterContext, Closer closer,
-      Set<String> resourcesToCleanUp)
+      Set<String> pathsToCleanUp)
       throws ReflectiveOperationException {
     Source<?, ?> source = JobStateUtils.createSource(jobState);
     WorkUnitStream workUnitStream = source instanceof WorkUnitStreamSource
@@ -127,7 +174,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     DestinationDatasetHandlerService datasetHandlerService = closer.register(
         new DestinationDatasetHandlerService(jobState, canCleanUpTempDirs, eventSubmitterContext.create()));
     WorkUnitStream handledWorkUnitStream = datasetHandlerService.executeHandlers(workUnitStream);
-    resourcesToCleanUp.addAll(calculateWorkDirsToCleanup(handledWorkUnitStream));
+    pathsToCleanUp.addAll(calculateWorkDirsToCleanup(handledWorkUnitStream));
     // initialize writer and converter(s)
     // TODO: determine whether registration here is effective, or the lifecycle of this activity is too brief (as is likely!)
     closer.register(WriterInitializerFactory.newInstace(jobState, handledWorkUnitStream)).initialize();
@@ -151,7 +198,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
   }
 
   protected static Set<String> calculateWorkDirsToCleanup(WorkUnitStream workUnitStream) {
-    Set<String> resourcesToCleanUp = new HashSet<>();
+    Set<String> workDirPaths = new HashSet<>();
     // Validate every workunit if they have the temp dir props since some workunits may be commit steps
     Iterator<WorkUnit> workUnitIterator = workUnitStream.getWorkUnits();
     while (workUnitIterator.hasNext()) {
@@ -159,15 +206,15 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       if (workUnit.isMultiWorkUnit()) {
         List<WorkUnit> workUnitList = ((MultiWorkUnit) workUnit).getWorkUnits();
         for (WorkUnit wu : workUnitList) {
-          resourcesToCleanUp.addAll(collectTaskStagingAndOutputDirsFromWorkUnit(wu));
+          // WARNING/TODO: NOT resilient to nested multi-workunits... should it be?
+          workDirPaths.addAll(collectTaskStagingAndOutputDirsFromWorkUnit(wu));
         }
       } else {
-        resourcesToCleanUp.addAll(collectTaskStagingAndOutputDirsFromWorkUnit(workUnit));
+        workDirPaths.addAll(collectTaskStagingAndOutputDirsFromWorkUnit(workUnit));
       }
     }
-    return resourcesToCleanUp;
+    return workDirPaths;
   }
-
 
   private static Set<String> collectTaskStagingAndOutputDirsFromWorkUnit(WorkUnit workUnit) {
     Set<String> resourcesToCleanUp = new HashSet<>();
@@ -182,5 +229,42 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       resourcesToCleanUp.add(workUnit.getProp(ConfigurationKeys.ROW_LEVEL_ERR_FILE));
     }
     return resourcesToCleanUp;
+  }
+
+  /** @return the {@link WorkUnitsSizeDigest} for `workUnits` */
+  protected static WorkUnitsSizeDigest digestWorkUnitsSize(List<WorkUnit> workUnits) {
+    AtomicLong totalSize = new AtomicLong(0L);
+    TDigest topLevelWorkUnitsDigest = TDigest.createDigest(100);
+    TDigest constituentWorkUnitsDigest = TDigest.createDigest(100);
+
+    Iterator<WorkUnit> workUnitIterator = workUnits.iterator();
+    while (workUnitIterator.hasNext()) {
+      WorkUnit workUnit = workUnitIterator.next();
+      if (workUnit.isMultiWorkUnit()) {
+        List<WorkUnit> subWorkUnitsList = ((MultiWorkUnit) workUnit).getWorkUnits();
+        AtomicLong mwuAggSize = new AtomicLong(0L);
+        // WARNING/TODO: NOT resilient to nested multi-workunits... should it be?
+        subWorkUnitsList.stream().mapToLong(wu -> wu.getPropAsLong(ServiceConfigKeys.WORK_UNIT_SIZE, 0)).forEach(wuSize -> {
+          constituentWorkUnitsDigest.add(wuSize);
+          mwuAggSize.addAndGet(wuSize);
+        });
+        totalSize.addAndGet(mwuAggSize.get());
+        topLevelWorkUnitsDigest.add(mwuAggSize.get());
+      } else {
+        long wuSize = workUnit.getPropAsLong(ServiceConfigKeys.WORK_UNIT_SIZE, 0);
+        totalSize.addAndGet(wuSize);
+        constituentWorkUnitsDigest.add(wuSize);
+        topLevelWorkUnitsDigest.add(wuSize);
+      }
+    }
+
+    // TODO - decide whether helpful/necessary to `.compress()`
+    topLevelWorkUnitsDigest.compress();
+    constituentWorkUnitsDigest.compress();
+    return new WorkUnitsSizeDigest(totalSize.get(), topLevelWorkUnitsDigest, constituentWorkUnitsDigest);
+  }
+
+  public static int getConfiguredNumSizeSummaryQuantiles(State state) {
+    return state.getPropAsInt(GenerateWorkUnits.NUM_WORK_UNITS_SIZE_SUMMARY_QUANTILES, GenerateWorkUnits.DEFAULT_NUM_WORK_UNITS_SIZE_SUMMARY_QUANTILES);
   }
 }

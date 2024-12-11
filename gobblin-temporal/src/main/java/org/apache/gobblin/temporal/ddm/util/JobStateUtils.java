@@ -46,6 +46,7 @@ import org.apache.gobblin.runtime.SourceDecorator;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.temporal.ddm.work.EagerFsDirBackedWorkUnitClaimCheckWorkload;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.ParallelRunner;
@@ -76,9 +77,14 @@ public class JobStateUtils {
     return Help.loadFileSystemForUriForce(getFileSystemUri(jobState), jobState);
   }
 
-  /** @return a new instance of {@link Source} identified by {@link ConfigurationKeys#SOURCE_CLASS_KEY} */
+  /** @return the FQ class name, presumed configured as {@link ConfigurationKeys#SOURCE_CLASS_KEY} */
+  public static String getSourceClassName(JobState jobState) {
+    return jobState.getProp(ConfigurationKeys.SOURCE_CLASS_KEY);
+  }
+
+  /** @return a new instance of {@link Source}, identified by {@link ConfigurationKeys#SOURCE_CLASS_KEY} */
   public static Source<?, ?> createSource(JobState jobState) throws ReflectiveOperationException {
-    Class<?> sourceClass = Class.forName(jobState.getProp(ConfigurationKeys.SOURCE_CLASS_KEY));
+    Class<?> sourceClass = Class.forName(getSourceClassName(jobState));
     log.info("Creating source: '{}'", sourceClass.getName());
     Source<?, ?> source = new SourceDecorator<>(
         Source.class.cast(sourceClass.newInstance()),
@@ -145,7 +151,10 @@ public class JobStateUtils {
     return fs.makeQualified(jobOutputPath);
   }
 
-  /** write serialized {@link WorkUnit}s in parallel into files named after the jobID and task IDs */
+  /**
+   * write serialized {@link WorkUnit}s in parallel into files named to tunnel {@link org.apache.gobblin.util.WorkUnitSizeInfo}.
+   * {@link EagerFsDirBackedWorkUnitClaimCheckWorkload} (and possibly others) may later recover such size info.
+   */
   public static void writeWorkUnits(List<WorkUnit> workUnits, Path workDirRootPath, JobState jobState, FileSystem fs)
       throws IOException {
     String jobId = jobState.getJobId();
@@ -159,7 +168,8 @@ public class JobStateUtils {
       JobLauncherUtils.WorkUnitPathCalculator pathCalculator = new JobLauncherUtils.WorkUnitPathCalculator();
       int i = 0;
       for (WorkUnit workUnit : workUnits) {
-        Path workUnitFile = pathCalculator.calcNextPath(workUnit, jobId, targetDirPath);
+        // tunnel each WU's size info via its filename, for `EagerFsDirBackedWorkUnitClaimCheckWorkload#extractTunneledWorkUnitSizeInfo`
+        Path workUnitFile = pathCalculator.calcNextPathWithTunneledSizeInfo(workUnit, jobId, targetDirPath);
         if (i++ == 0) {
           log.info("Writing work unit file [first of {}]: '{}'", workUnits.size(), workUnitFile);
         }

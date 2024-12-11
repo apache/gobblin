@@ -62,6 +62,7 @@ dependencies {
     compile (externalDependency.helix) {
         exclude group: 'io.dropwizard.metrics', module: 'metrics-core'
     }
+    compile externalDependency.tdigest
     compile externalDependency."temporal-sdk"
     testCompile project(path: ':gobblin-cluster', configuration: 'tests')
     testCompile project(":gobblin-example")

@@ -33,7 +33,10 @@ import lombok.RequiredArgsConstructor;
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class GenerateWorkUnitsResult {
+  // NOTE: `@NonNull` to include field in `@RequiredArgsConstructor`, despite - "warning: @NonNull is meaningless on a primitive... @RequiredArgsConstructor"
   @NonNull private int generatedWuCount;
+  @NonNull private String sourceClass;
+  @NonNull private WorkUnitsSizeSummary workUnitsSizeSummary;
   // Resources that the Temporal Job Launcher should clean up for Gobblin temporary work directory paths in writers
   @NonNull private Set<String> workDirPathsToDelete;
 }

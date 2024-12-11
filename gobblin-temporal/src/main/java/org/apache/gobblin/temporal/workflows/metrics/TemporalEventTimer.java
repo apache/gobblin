@@ -30,7 +30,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 
 
 /**
- * Boiler plate for tracking elapsed time of events that is compatible with {@link Workflow}
+ * Boilerplate for tracking elapsed time of events that is compatible with {@link Workflow}
  * by using activities to record time
  *
  * This class is very similar to {@link TimingEvent} but uses {@link Workflow} compatible APIs. It's possible to refactor
@@ -106,9 +106,9 @@ public class TemporalEventTimer implements EventTimer {
      * @return a timer that emits an event at the beginning of the job and a completion event ends at the end of the job
      */
     public TemporalEventTimer createJobTimer() {
-      TemporalEventTimer startTimer = create(TimingEvent.LauncherTimings.JOB_START);
+      TemporalEventTimer startTimer = create(TimingEvent.LauncherTimings.JOB_START); // update GaaS: `ExecutionStatus.RUNNING`
       startTimer.stop(Instant.EPOCH); // Emit start job event containing a stub end time
-      // GaaS job status monitor tracks for SUCCEEDED events or FAILED events for job completion
+      // [upon `.stop()`] update GaaS: `ExecutionStatus.RUNNING`, `TimingEvent.JOB_END_TIME`:
       return create(TimingEvent.LauncherTimings.JOB_SUCCEEDED, startTimer.startTime);
     }
   }

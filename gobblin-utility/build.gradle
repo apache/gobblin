@@ -40,6 +40,7 @@ dependencies {
   compile externalDependency.metricsCore
   compile externalDependency.guavaretrying
   compile externalDependency.guice
+  compile externalDependency.tdigest
   compile externalDependency.typesafeConfig
   compile externalDependency.commonsPool
   compile externalDependency.hadoopClientCommon

@@ -70,6 +70,7 @@ import org.apache.gobblin.metrics.RootMetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.reporter.util.MetricReportUtils;
+import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory;
@@ -223,6 +224,9 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
 
     // Add a shutdown hook so the task scheduler gets properly shutdown
     addShutdownHook();
+
+    // Update authenticator if set
+    AbstractJobLauncher.setDefaultAuthenticator(ConfigUtils.configToProperties(this.clusterConfig));
 
     try {
       for (int i = 0; i < this.numTemporalWorkers; i++) {
