@@ -45,9 +45,8 @@ import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.testing.AssertWithBackoff;
 
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.doReturn;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.spy;
+import static org.mockito.Mockito.*;
+
 
 @Slf4j
 public class DagProcessingEngineTest {
@@ -196,9 +195,15 @@ public class DagProcessingEngineTest {
         10000L, "dagTaskStream was not called " + expectedNumOfInvocations + " number of times. "
             + "Actual number of invocations " + Mockito.mockingDetails(this.dagTaskStream).getInvocations().size(),
         log, 1, 1000L);
-
+    // Currently we are treating all exceptions as non retryable and totalExceptionCount will be equal to count of non retryable exceptions
     Assert.assertEquals(dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
-    Assert.assertEquals(dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.getCount(),  expectedNonRetryableExceptions);
+    Assert.assertEquals(dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.getCount(),  expectedExceptions);
+  }
+
+  @Test
+  public void isNonTransientExceptionTest(){
+    Assert.assertTrue(!DagProcessingEngine.isTransientException(new RuntimeException("Simulating a non retryable exception!")));
+    Assert.assertTrue(!DagProcessingEngine.isTransientException(new AzkabanClientException("Simulating a retryable exception!")));
   }
 
   private enum ExceptionType {
