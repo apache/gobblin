@@ -22,7 +22,7 @@ import java.util.List;
 
 
 /** An opaque source of {@link org.apache.gobblin.temporal.dynamic.ScalingDirective}s */
-public interface ScalingDirectiveSource extends Cloneable {
+public interface ScalingDirectiveSource {
   /** @return {@link ScalingDirective}s - an impl. may choose to return all known directives or to give only newer directives than previously returned */
   List<ScalingDirective> getScalingDirectives() throws IOException;
 }

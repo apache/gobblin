@@ -17,26 +17,34 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.Set;
+import java.util.List;
 
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 
+import org.apache.gobblin.source.workunit.MultiWorkUnit;
+import org.apache.gobblin.source.workunit.WorkUnit;
+
 
 /**
- * Data structure representing the result of generating work units, where it returns the number of generated work units and
- * the folders should be cleaned up after the full job execution is completed
+ * Total size, counts, and size distributions for a collection of {@link MultiWorkUnit}s, both with regard to top-level (possibly multi) {@link WorkUnit}s
+ * and individual constituent (purely {@link WorkUnit}s), where:
+ *   * a top-level work unit is one with no parent - a root
+ *   * a constituent work unit is one with no children - a leaf
+ * @see org.apache.gobblin.util.WorkUnitSizeInfo
  */
 @Data
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
-public class GenerateWorkUnitsResult {
+public class WorkUnitsSizeSummary {
   // NOTE: `@NonNull` to include field in `@RequiredArgsConstructor`, despite - "warning: @NonNull is meaningless on a primitive... @RequiredArgsConstructor"
-  @NonNull private int generatedWuCount;
-  @NonNull private String sourceClass;
-  @NonNull private WorkUnitsSizeSummary workUnitsSizeSummary;
-  // Resources that the Temporal Job Launcher should clean up for Gobblin temporary work directory paths in writers
-  @NonNull private Set<String> workDirPathsToDelete;
+  @NonNull private long totalSize;
+  @NonNull private long topLevelWorkUnitsCount;
+  @NonNull private long constituentWorkUnitsCount;
+  @NonNull private int quantilesCount;
+  @NonNull private double quantilesWidth;
+  @NonNull private List<Double> topLevelQuantilesMinSizes;
+  @NonNull private List<Double> constituentQuantilesMinSizes;
 }

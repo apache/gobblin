@@ -19,12 +19,19 @@ package org.apache.gobblin.temporal.ddm.work;
 
 import java.net.URI;
 import java.util.Comparator;
+import java.util.Optional;
 
 import org.apache.hadoop.fs.FileStatus;
+import org.apache.hadoop.fs.Path;
+
+import lombok.extern.slf4j.Slf4j;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
+import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+import org.apache.gobblin.util.Id;
+import org.apache.gobblin.util.WorkUnitSizeInfo;
 
 
 /**
@@ -33,6 +40,7 @@ import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
  */
 @lombok.NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @lombok.ToString(callSuper = true)
+@Slf4j
 public class EagerFsDirBackedWorkUnitClaimCheckWorkload extends AbstractEagerFsDirBackedWorkload<WorkUnitClaimCheck> {
   private EventSubmitterContext eventSubmitterContext;
 
@@ -43,8 +51,9 @@ public class EagerFsDirBackedWorkUnitClaimCheckWorkload extends AbstractEagerFsD
 
   @Override
   protected WorkUnitClaimCheck fromFileStatus(FileStatus fileStatus) {
-    // begin by setting all correlators to empty
-    return new WorkUnitClaimCheck("", this.getFileSystemUri(), fileStatus.getPath().toString(), this.eventSubmitterContext);
+    // begin by setting all correlators to empty string - later we'll `acknowledgeOrdering()`
+    Path filePath = fileStatus.getPath();
+    return new WorkUnitClaimCheck("", this.getFileSystemUri(), filePath.toString(), extractTunneledWorkUnitSizeInfo(filePath), this.eventSubmitterContext);
   }
 
   @Override
@@ -57,5 +66,21 @@ public class EagerFsDirBackedWorkUnitClaimCheckWorkload extends AbstractEagerFsD
   protected void acknowledgeOrdering(int index, WorkUnitClaimCheck item) {
     // later, after the post-total-ordering indices are know, use each item's index as its correlator
     item.setCorrelator(Integer.toString(index));
+  }
+
+  /**
+   * @return the {@link WorkUnitSizeInfo}, when encoded in the filename; otherwise {@link WorkUnitSizeInfo#empty()} when no size info about {@link WorkUnit}
+   * @see org.apache.gobblin.util.JobLauncherUtils.WorkUnitPathCalculator#calcNextPathWithTunneledSizeInfo(WorkUnit, String, Path)
+   */
+  protected static WorkUnitSizeInfo extractTunneledWorkUnitSizeInfo(Path filePath) {
+    String fileName = filePath.getName();
+    Optional<WorkUnitSizeInfo> optSizeInfo = Optional.empty();
+    try {
+      String maybeEncodedSizeInfo = Id.parse(fileName.substring(0, fileName.lastIndexOf('.'))).getName(); // strip extension
+      optSizeInfo = WorkUnitSizeInfo.decode(maybeEncodedSizeInfo);
+    } catch (Exception e) { // log, but swallow any `Id.parse` error
+      log.warn("Filename NOT `Id.parse`able: '" + filePath + "' - " + e.getMessage());
+    }
+    return optSizeInfo.orElse(WorkUnitSizeInfo.empty());
   }
 }

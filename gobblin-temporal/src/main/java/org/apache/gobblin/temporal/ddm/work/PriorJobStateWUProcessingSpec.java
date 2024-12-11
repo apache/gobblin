@@ -48,8 +48,7 @@ import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 @EqualsAndHashCode(callSuper = true) // to prevent findbugs warning - "equals method overrides equals in superclass and may not be symmetric"
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 public class PriorJobStateWUProcessingSpec extends WUProcessingSpec {
-  @NonNull
-  private List<Tag<?>> tags = new ArrayList<>();
+  @NonNull private List<Tag<?>> tags = new ArrayList<>();
   @NonNull private String metricsSuffix = GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX;
 
   public PriorJobStateWUProcessingSpec(URI fileSystemUri, String workUnitsDir, EventSubmitterContext eventSubmitterContext) {

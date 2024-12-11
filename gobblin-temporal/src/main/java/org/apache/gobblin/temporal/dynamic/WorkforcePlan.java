@@ -167,7 +167,7 @@ public class WorkforcePlan {
     return profiles.getOrThrow(profileName);
   }
 
-  /** @return [for testing/debugging] the baseline {@link WorkerProfile} - it should NEVER {@link WorkforceProfiles.UnknownProfileException} */
+  /** @return [for testing/debugging] the baseline {@link WorkerProfile} - it should NEVER throw {@link WorkforceProfiles.UnknownProfileException} */
   @VisibleForTesting
   WorkerProfile peepBaselineProfile() throws WorkforceProfiles.UnknownProfileException {
     return profiles.getOrThrow(WorkforceProfiles.BASELINE_NAME);
