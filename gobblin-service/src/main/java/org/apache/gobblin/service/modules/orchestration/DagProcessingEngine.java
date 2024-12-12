@@ -158,7 +158,7 @@ public class DagProcessingEngine extends AbstractIdleService {
           dagTask.conclude();
           log.info(dagProc.contextualizeStatus("concluded dagTask"));
         } catch (Exception e) {
-          if(!DagProcessingEngine.isTransientException(e)){
+          if(!DagProcessingEngine.isTransientException(e)) {
             log.error("Ignoring non transient exception. DagTask {} will conclude and will not be retried. Exception - {} ",
                 dagTask, e);
             dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.mark();
