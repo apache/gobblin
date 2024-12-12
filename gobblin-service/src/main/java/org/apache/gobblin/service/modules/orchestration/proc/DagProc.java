@@ -33,7 +33,6 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.util.ExceptionUtils;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -92,20 +91,9 @@ public abstract class DagProc<T> {
       dagProcEngineMetrics.markDagActionsInitialize(getDagActionType(), false);
       throw e;
     }
-    try {
       logContextualizedInfo("ready to process");
       act(dagManagementStateStore, state, dagProcEngineMetrics);
       logContextualizedInfo("processed");
-    } catch (Exception e) {
-      if (isNonTransientException(e)) {
-        log.error("Ignoring non transient exception. DagTask {} will conclude and will not be retried. Exception - {} ",
-            getDagTask(), e);
-        dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.mark();
-        dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
-      } else {
-        throw e;
-      }
-    }
   }
 
   protected abstract T initialize(DagManagementStateStore dagManagementStateStore) throws IOException;
@@ -125,9 +113,5 @@ public abstract class DagProc<T> {
   /** INFO-level logging for `message` with class name and {@link #getDagId()} */
   public void logContextualizedInfo(String message) {
     log.info(contextualizeStatus(message));
-  }
-
-  protected boolean isNonTransientException(Exception e) {
-    return ExceptionUtils.isExceptionInstanceOf(e, this.nonRetryableExceptions);
   }
 }
