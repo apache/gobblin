@@ -70,7 +70,7 @@ public class DagProcessingEngine extends AbstractIdleService {
   public static final String DEFAULT_JOB_START_DEADLINE_TIME_MS = "defaultJobStartDeadlineTimeMillis";
   @Getter static long defaultJobStartDeadlineTimeMillis;
   public static final String DEFAULT_FLOW_FAILURE_OPTION = FailureOption.FINISH_ALL_POSSIBLE.name();
-  // Todo Update to fetch list from config once transient exception handling is implemented and retryable exceptions defined
+  // TODO Update to fetch list from config once transient exception handling is implemented and retryable exceptions defined
   public static List<Class<? extends Exception>> retryableExceptions = Collections.EMPTY_LIST;
 
   @Inject
@@ -159,12 +159,16 @@ public class DagProcessingEngine extends AbstractIdleService {
           log.info(dagProc.contextualizeStatus("concluded dagTask"));
         } catch (Exception e) {
           if(!DagProcessingEngine.isTransientException(e)) {
-            log.error("Ignoring non transient exception. DagTask {} will conclude and will not be retried. Exception - {} ",
-                dagTask, e);
+            DagActionStore.DagAction dagAction = dagTask.getDagAction();
+            if(dagAction!=null) {
+              log.error(
+                  "Ignoring non transient exception. DagTask with dagId: {} and dagAction: {} will conclude and will not be retried.",
+                  dagAction.getDagId(), dagAction.getDagActionType(), e);
+            }
             dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.mark();
             dagTask.conclude();
           }
-          // Todo add the else block for transient exceptions and add conclude task only if retry limit is not breached
+          // TODO add the else block for transient exceptions and add conclude task only if retry limit is not breached
           log.error("DagProcEngineThread: " + dagProc.contextualizeStatus("error"), e);
           dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
         }
