@@ -627,6 +627,7 @@ public class KafkaAvroJobStatusMonitorTest {
     //Submit GobblinTrackingEvents to Kafka
     ImmutableList.of(
         createFlowCompiledEvent(),
+        createJobStartEvent(),
         createWorkUnitTimingEvent(),
         createJobSucceededEvent()
     ).forEach(event -> {
@@ -651,19 +652,31 @@ public class KafkaAvroJobStatusMonitorTest {
     State state = getNextJobStatusState(jobStatusMonitor, recordIterator, "NA", "NA");
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPILED.name());
 
+    state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
+    Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.RUNNING.name());
+
     getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
 
     // Only the COMPLETE event should create a GaaSJobObservabilityEvent
     List<GaaSJobObservabilityEvent> emittedEvents = mockEventProducer.getTestEmittedJobEvents();
+    Assert.assertEquals(emittedEvents.size(), 3);
     Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
-    GaaSJobObservabilityEvent event1 = iterator.next();
-    Assert.assertEquals(event1.getJobStatus(), JobStatus.SUCCEEDED);
-    Assert.assertEquals(event1.getFlowName(), this.flowName);
-    Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);
-    Assert.assertEquals(event1.getJobPlanningStartTimestamp(), Long.valueOf(2));
-    Assert.assertEquals(event1.getJobPlanningEndTimestamp(), Long.valueOf(3));
+    GaaSJobObservabilityEvent event = iterator.next();
+    Assert.assertEquals(event.getJobStatus(), JobStatus.COMPILED);
+    Assert.assertEquals(event.getFlowName(), this.flowName);
+    Assert.assertEquals(event.getFlowGroup(), this.flowGroup);
+    event = iterator.next();
+    Assert.assertEquals(event.getJobStatus(), JobStatus.RUNNING);
+    Assert.assertEquals(event.getFlowName(), this.flowName);
+    Assert.assertEquals(event.getFlowGroup(), this.flowGroup);
+    event = iterator.next();
+    Assert.assertEquals(event.getJobStatus(), JobStatus.SUCCEEDED);
+    Assert.assertEquals(event.getFlowName(), this.flowName);
+    Assert.assertEquals(event.getFlowGroup(), this.flowGroup);
+    Assert.assertEquals(event.getJobPlanningStartTimestamp(), Long.valueOf(2));
+    Assert.assertEquals(event.getJobPlanningEndTimestamp(), Long.valueOf(3));
     jobStatusMonitor.shutDown();
   }
 
@@ -706,12 +719,16 @@ public class KafkaAvroJobStatusMonitorTest {
 
     // Only the COMPLETE event should create a GaaSJobObservabilityEvent
     List<GaaSJobObservabilityEvent> emittedEvents = mockEventProducer.getTestEmittedJobEvents();
-    Assert.assertEquals(emittedEvents.size(), 1);
+    Assert.assertEquals(emittedEvents.size(), 2);
     Iterator<GaaSJobObservabilityEvent> iterator = emittedEvents.iterator();
-    GaaSJobObservabilityEvent event1 = iterator.next();
-    Assert.assertEquals(event1.getJobStatus(), JobStatus.CANCELLED);
-    Assert.assertEquals(event1.getFlowName(), this.flowName);
-    Assert.assertEquals(event1.getFlowGroup(), this.flowGroup);
+    GaaSJobObservabilityEvent event = iterator.next();
+    Assert.assertEquals(event.getJobStatus(), JobStatus.COMPILED);
+    Assert.assertEquals(event.getFlowName(), this.flowName);
+    Assert.assertEquals(event.getFlowGroup(), this.flowGroup);
+    event = iterator.next();
+    Assert.assertEquals(event.getJobStatus(), JobStatus.CANCELLED);
+    Assert.assertEquals(event.getFlowName(), this.flowName);
+    Assert.assertEquals(event.getFlowGroup(), this.flowGroup);
 
     jobStatusMonitor.shutDown();
   }
@@ -766,9 +783,13 @@ public class KafkaAvroJobStatusMonitorTest {
 
     // Only the COMPLETE event should create a GaaSFlowObservabilityEvent
     List<GaaSFlowObservabilityEvent> emittedFlowEvents = mockEventProducer.getTestEmittedFlowEvents();
-    Assert.assertEquals(emittedFlowEvents.size(), 1);
+    Assert.assertEquals(emittedFlowEvents.size(), 2);
     Iterator<GaaSFlowObservabilityEvent> flowIterator = emittedFlowEvents.iterator();
     GaaSFlowObservabilityEvent flowEvent = flowIterator.next();
+    Assert.assertEquals(flowEvent.getFlowStatus(), FlowStatus.COMPILED);
+    Assert.assertEquals(flowEvent.getFlowName(), this.flowName);
+    Assert.assertEquals(flowEvent.getFlowGroup(), this.flowGroup);
+    flowEvent = flowIterator.next();
     Assert.assertEquals(flowEvent.getFlowStatus(), FlowStatus.SUCCEEDED);
     Assert.assertEquals(flowEvent.getFlowName(), this.flowName);
     Assert.assertEquals(flowEvent.getFlowGroup(), this.flowGroup);
@@ -826,9 +847,13 @@ public class KafkaAvroJobStatusMonitorTest {
 
     // Only the COMPLETE event should create a GaaSFlowObservabilityEvent
     List<GaaSFlowObservabilityEvent> emittedFlowEvents = mockEventProducer.getTestEmittedFlowEvents();
-    Assert.assertEquals(emittedFlowEvents.size(), 1);
+    Assert.assertEquals(emittedFlowEvents.size(), 2);
     Iterator<GaaSFlowObservabilityEvent> flowIterator = emittedFlowEvents.iterator();
     GaaSFlowObservabilityEvent flowEvent = flowIterator.next();
+    Assert.assertEquals(flowEvent.getFlowStatus(), FlowStatus.COMPILED);
+    Assert.assertEquals(flowEvent.getFlowName(), this.flowName);
+    Assert.assertEquals(flowEvent.getFlowGroup(), this.flowGroup);
+    flowEvent = flowIterator.next();
     Assert.assertEquals(flowEvent.getFlowStatus(), FlowStatus.EXECUTION_FAILURE);
     Assert.assertEquals(flowEvent.getFlowName(), this.flowName);
     Assert.assertEquals(flowEvent.getFlowGroup(), this.flowGroup);

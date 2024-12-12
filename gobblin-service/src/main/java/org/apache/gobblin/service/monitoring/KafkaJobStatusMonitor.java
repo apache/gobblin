@@ -22,6 +22,7 @@ import java.sql.SQLIntegrityConstraintViolationException;
 import java.time.Duration;
 import java.util.Collections;
 import java.util.List;
+import java.util.Objects;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.ExecutionException;
@@ -233,6 +234,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           // as much as FAILED does if we chose to emit ObservabilityEvent for FAILED_PENDING_RETRY
           boolean retryRequired = modifyStateIfRetryRequired(jobStatus);
 
+          if (Objects.equals(status, "COMPILED")) {
+            this.eventProducer.emitObservabilityEvent(jobStatus);
+          }
+          if (updatedJobStatus.getRight() == NewState.RUNNING) {
+            this.eventProducer.emitObservabilityEvent(jobStatus);
+          }
           if (updatedJobStatus.getRight() == NewState.FINISHED && !retryRequired) {
             // do not send event if retry is required, because it can alert users to re-submit a job that is already set to be retried by GaaS
             this.eventProducer.emitObservabilityEvent(jobStatus);
