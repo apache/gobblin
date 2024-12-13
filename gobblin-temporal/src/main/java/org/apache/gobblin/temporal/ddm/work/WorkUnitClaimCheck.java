@@ -21,10 +21,12 @@ import java.net.URI;
 
 import org.apache.hadoop.fs.Path;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 
@@ -42,10 +44,11 @@ import org.apache.gobblin.util.WorkUnitSizeInfo;
  * @see <a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/claim-check">Claim-Check Pattern</a>
  */
 @Data
+@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class WorkUnitClaimCheck implements FileSystemApt, FileSystemJobStateful {
-  @NonNull private String correlator;
+  @NonNull @Setter(AccessLevel.PACKAGE) private String correlator;
   @NonNull private URI fileSystemUri;
   @NonNull private String workUnitPath;
   @NonNull private WorkUnitSizeInfo workUnitSizeInfo;

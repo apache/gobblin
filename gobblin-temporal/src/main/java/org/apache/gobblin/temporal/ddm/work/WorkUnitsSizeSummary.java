@@ -19,10 +19,12 @@ package org.apache.gobblin.temporal.ddm.work;
 
 import java.util.List;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -36,6 +38,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  * @see org.apache.gobblin.util.WorkUnitSizeInfo
  */
 @Data
+@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class WorkUnitsSizeSummary {

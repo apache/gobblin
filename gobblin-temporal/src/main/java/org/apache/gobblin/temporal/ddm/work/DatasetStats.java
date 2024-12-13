@@ -17,17 +17,19 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 
 /**
  * Stats for a dataset that was committed.
  */
 @Data
-@NonNull
+@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @RequiredArgsConstructor
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 public class DatasetStats {

@@ -20,10 +20,12 @@ package org.apache.gobblin.temporal.ddm.work;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 
 /**
@@ -32,6 +34,7 @@ import lombok.RequiredArgsConstructor;
  * and {@link org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow#commit(WUProcessingSpec)}.
  */
 @Data
+@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class CommitStats {
