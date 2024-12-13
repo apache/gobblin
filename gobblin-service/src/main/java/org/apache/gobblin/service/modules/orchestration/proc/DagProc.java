@@ -18,8 +18,6 @@
 package org.apache.gobblin.service.modules.orchestration.proc;
 
 import java.io.IOException;
-import java.util.List;
-import java.util.stream.Collectors;
 
 import com.typesafe.config.Config;
 
@@ -33,14 +31,12 @@ import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -61,7 +57,6 @@ public abstract class DagProc<T> {
   @Getter protected final Dag.DagId dagId;
   @Getter protected final DagNodeId dagNodeId;
   protected static final MetricContext metricContext = Instrumented.getMetricContext(new State(), DagProc.class);
-  protected final List<Class<? extends Exception>> nonRetryableExceptions;
   protected static final EventSubmitter eventSubmitter = new EventSubmitter.Builder(
       metricContext, "org.apache.gobblin.service").build();
 
@@ -70,14 +65,6 @@ public abstract class DagProc<T> {
     this.dagId = DagUtils.generateDagId(this.dagTask.getDagAction().getFlowGroup(),
         this.dagTask.getDagAction().getFlowName(), this.dagTask.getDagAction().getFlowExecutionId());
     this.dagNodeId = this.dagTask.getDagAction().getDagNodeId();
-    this.nonRetryableExceptions = ConfigUtils.getStringList(config, ServiceConfigKeys.DAG_PROC_ENGINE_NON_RETRYABLE_EXCEPTIONS_KEY)
-        .stream().map(className -> {
-          try {
-            return (Class<? extends Exception>) Class.forName(className);
-          } catch (ClassNotFoundException e) {
-            throw new RuntimeException(e);
-          }
-        }).collect(Collectors.toList());
   }
 
   public final void process(DagManagementStateStore dagManagementStateStore,

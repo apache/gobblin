@@ -71,7 +71,7 @@ public class DagProcessingEngine extends AbstractIdleService {
   @Getter static long defaultJobStartDeadlineTimeMillis;
   public static final String DEFAULT_FLOW_FAILURE_OPTION = FailureOption.FINISH_ALL_POSSIBLE.name();
   // TODO Update to fetch list from config once transient exception handling is implemented and retryable exceptions defined
-  public static List<Class<? extends Exception>> retryableExceptions = Collections.EMPTY_LIST;
+  public static final List<Class<? extends Exception>> retryableExceptions = Collections.EMPTY_LIST;
 
   @Inject
   public DagProcessingEngine(Config config, DagTaskStream dagTaskStream, DagProcFactory dagProcFactory,
@@ -158,12 +158,11 @@ public class DagProcessingEngine extends AbstractIdleService {
           dagTask.conclude();
           log.info(dagProc.contextualizeStatus("concluded dagTask"));
         } catch (Exception e) {
-          if(!DagProcessingEngine.isTransientException(e)) {
+          log.error("DagProcEngineThread: " + dagProc.contextualizeStatus("error"), e);
+          if (!DagProcessingEngine.isTransientException(e)) {
             DagActionStore.DagAction dagAction = dagTask.getDagAction();
-            if(dagAction!=null) {
-              log.error(
-                  "Ignoring non transient exception. DagTask with dagId: {} and dagAction: {} will conclude and will not be retried.",
-                  dagAction.getDagId(), dagAction.getDagActionType(), e);
+            if (dagAction != null) {
+              log.warn(dagProc.contextualizeStatus("ignoring non-transient exception by concluding so no retries"));
             }
             dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.mark();
             dagTask.conclude();

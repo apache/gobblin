@@ -1,3 +1,21 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
+
 package org.apache.gobblin.service.modules.orchestration.proc;
 
 import com.typesafe.config.Config;
@@ -9,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
+import java.util.stream.Collectors;
 import org.apache.gobblin.config.ConfigBuilder;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.runtime.api.FlowSpec;
@@ -20,6 +39,7 @@ import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
 import org.apache.gobblin.runtime.spec_executorInstance.MockedSpecExecutor;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerMetrics;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
@@ -41,16 +61,20 @@ public class DagProcUtilsTest {
   @Test
   public void testSubmitNextNodesSuccess() throws URISyntaxException, IOException {
     Dag.DagId dagId = new Dag.DagId("testFlowGroup", "testFlowName", 2345678);
-    List<Dag.DagNode<JobExecutionPlan>> dagNodeList = new ArrayList<>();
     List<JobExecutionPlan> jobExecutionPlans = getJobExecutionPlans();
-    for(JobExecutionPlan jobExecutionPlan: jobExecutionPlans){
-      Dag.DagNode<JobExecutionPlan> dagNode = new Dag.DagNode<>(jobExecutionPlan);
-      dagNodeList.add(dagNode);
-    }
+    List<Dag.DagNode<JobExecutionPlan>> dagNodeList = jobExecutionPlans.stream()
+        .map(Dag.DagNode<JobExecutionPlan>::new)
+        .collect(Collectors.toList());
     Dag<JobExecutionPlan> dag = new Dag<>(dagNodeList);
     Mockito.doNothing().when(dagManagementStateStore).addJobDagAction(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.anyString(), Mockito.any());
     DagProcUtils.submitNextNodes(dagManagementStateStore, dag, dagId);
-    Mockito.verify(dagManagementStateStore, Mockito.times(jobExecutionPlans.size())).addJobDagAction(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.anyString(), Mockito.any());
+    for (JobExecutionPlan jobExecutionPlan : jobExecutionPlans) {
+      Mockito.verify(dagManagementStateStore, Mockito.times(1))
+          .addJobDagAction(jobExecutionPlan.getFlowGroup(), jobExecutionPlan.getFlowName(),
+              jobExecutionPlan.getFlowExecutionId(), jobExecutionPlan.getJobName(),
+              DagActionStore.DagActionType.REEVALUATE);
+    }
+
   }
 
   @Test
@@ -111,13 +135,14 @@ public class DagProcUtilsTest {
     for (int i = 0; i < 3; i++) {
       Config jobConfig = jobConfigs.get(i);
       FlowSpec flowSpec = FlowSpec.builder("testFlowSpec").withConfig(flowConfigs.get(i)).build();
-      if(i==2){
-        jobExecutionPlans.add(new JobExecutionPlan.Factory().createPlan(flowSpec, jobConfig.withValue(ConfigurationKeys.JOB_TEMPLATE_PATH,
-            ConfigValueFactory.fromAnyRef("testUri")), mockSpecExecutor, 0L, ConfigFactory.empty()));
-      }
-      else{
-        jobExecutionPlans.add(new JobExecutionPlan.Factory().createPlan(flowSpec, jobConfig.withValue(ConfigurationKeys.JOB_TEMPLATE_PATH,
-            ConfigValueFactory.fromAnyRef("testUri")), new InMemorySpecExecutor(ConfigFactory.empty()), 0L, ConfigFactory.empty()));
+      if (i == 2) {
+        jobExecutionPlans.add(new JobExecutionPlan.Factory().createPlan(flowSpec,
+            jobConfig.withValue(ConfigurationKeys.JOB_TEMPLATE_PATH, ConfigValueFactory.fromAnyRef("testUri")),
+            mockSpecExecutor, 0L, ConfigFactory.empty()));
+      } else {
+        jobExecutionPlans.add(new JobExecutionPlan.Factory().createPlan(flowSpec,
+            jobConfig.withValue(ConfigurationKeys.JOB_TEMPLATE_PATH, ConfigValueFactory.fromAnyRef("testUri")),
+            new InMemorySpecExecutor(ConfigFactory.empty()), 0L, ConfigFactory.empty()));
       }
     }
     return jobExecutionPlans;

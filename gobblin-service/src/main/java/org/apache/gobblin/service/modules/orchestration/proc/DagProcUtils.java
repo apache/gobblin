@@ -141,7 +141,7 @@ public class DagProcUtils {
       String message = "Cannot submit job " + DagUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
       log.error(message, e);
       // Only mark the job as failed in case of non transient exceptions
-      if(!DagProcessingEngine.isTransientException(e)) {
+      if (!DagProcessingEngine.isTransientException(e)) {
         TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
         jobMetadata.put(TimingEvent.METADATA_MESSAGE, message + " due to " + e.getMessage());
         if (jobFailedTimer != null) {
