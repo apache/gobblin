@@ -45,7 +45,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerMetrics;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.mockito.Mockito;
-import org.testng.annotations.BeforeTest;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 public class DagProcUtilsTest {
@@ -53,7 +53,7 @@ public class DagProcUtilsTest {
   DagManagementStateStore dagManagementStateStore;
   SpecExecutor mockSpecExecutor;
 
-  @BeforeTest
+  @BeforeMethod
   public void setUp() {
     dagManagementStateStore = Mockito.mock(DagManagementStateStore.class);
     mockSpecExecutor = new MockedSpecExecutor(Mockito.mock(Config.class));
@@ -78,7 +78,7 @@ public class DagProcUtilsTest {
     Mockito.verifyNoMoreInteractions(dagManagementStateStore);
   }
 
-  @Test(dependsOnMethods = "testSubmitNextNodesSuccess")
+  @Test
   public void testWhenSubmitToExecutorSuccess() throws URISyntaxException, IOException {
     Dag.DagId dagId = new Dag.DagId("flowGroup1", "flowName1", 2345680);
     List<Dag.DagNode<JobExecutionPlan>> dagNodeList = new ArrayList<>();
@@ -101,7 +101,7 @@ public class DagProcUtilsTest {
     Mockito.verifyNoMoreInteractions(dagManagementStateStore);
   }
 
-  @Test(expectedExceptions = RuntimeException.class, dependsOnMethods = "testWhenSubmitToExecutorSuccess")
+  @Test(expectedExceptions = RuntimeException.class)
   public void testWhenSubmitToExecutorGivesRuntimeException() throws URISyntaxException, IOException, ExecutionException, InterruptedException{
     Dag.DagId dagId = new Dag.DagId("flowGroup3", "flowName3", 2345678);
     List<Dag.DagNode<JobExecutionPlan>> dagNodeList = new ArrayList<>();
