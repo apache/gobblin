@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.util.Collections;
+import java.util.List;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
@@ -39,6 +41,7 @@ import org.apache.gobblin.service.modules.orchestration.proc.DagProc;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.DagTask;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExceptionUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 
 
@@ -67,6 +70,8 @@ public class DagProcessingEngine extends AbstractIdleService {
   public static final String DEFAULT_JOB_START_DEADLINE_TIME_MS = "defaultJobStartDeadlineTimeMillis";
   @Getter static long defaultJobStartDeadlineTimeMillis;
   public static final String DEFAULT_FLOW_FAILURE_OPTION = FailureOption.FINISH_ALL_POSSIBLE.name();
+  // TODO Update to fetch list from config once transient exception handling is implemented and retryable exceptions defined
+  public static final List<Class<? extends Exception>> retryableExceptions = Collections.EMPTY_LIST;
 
   @Inject
   public DagProcessingEngine(Config config, DagTaskStream dagTaskStream, DagProcFactory dagProcFactory,
@@ -83,6 +88,10 @@ public class DagProcessingEngine extends AbstractIdleService {
 
   private static void setDefaultJobStartDeadlineTimeMs(long deadlineTimeMs) {
     defaultJobStartDeadlineTimeMillis = deadlineTimeMs;
+  }
+
+  public static boolean isTransientException(Exception e) {
+    return ExceptionUtils.isExceptionInstanceOf(e, retryableExceptions);
   }
 
   @Override
@@ -151,6 +160,12 @@ public class DagProcessingEngine extends AbstractIdleService {
         } catch (Exception e) {
           log.error("DagProcEngineThread: " + dagProc.contextualizeStatus("error"), e);
           dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
+          if (!DagProcessingEngine.isTransientException(e)) {
+            log.warn(dagProc.contextualizeStatus("ignoring non-transient exception by concluding so no retries"));
+            dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.mark();
+            dagTask.conclude();
+          }
+          // TODO add the else block for transient exceptions and add conclude task only if retry limit is not breached
         }
       }
     }

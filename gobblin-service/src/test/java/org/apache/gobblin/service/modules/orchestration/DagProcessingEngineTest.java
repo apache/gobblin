@@ -190,15 +190,24 @@ public class DagProcessingEngineTest {
     // (MAX_NUM_OF_TASKS + 1) th call
     int expectedNumOfInvocations = MockedDagTaskStream.MAX_NUM_OF_TASKS + ServiceConfigKeys.DEFAULT_NUM_DAG_PROC_THREADS;
     int expectedExceptions = MockedDagTaskStream.MAX_NUM_OF_TASKS / MockedDagTaskStream.FAILING_DAGS_FREQUENCY;
-    int expectedNonRetryableExceptions = MockedDagTaskStream.MAX_NUM_OF_TASKS / MockedDagTaskStream.FAILING_DAGS_WITH_NON_RETRYABLE_EXCEPTIONS_FREQUENCY;
 
     AssertWithBackoff.assertTrue(input -> Mockito.mockingDetails(this.dagTaskStream).getInvocations().size() == expectedNumOfInvocations,
         10000L, "dagTaskStream was not called " + expectedNumOfInvocations + " number of times. "
             + "Actual number of invocations " + Mockito.mockingDetails(this.dagTaskStream).getInvocations().size(),
         log, 1, 1000L);
-
+    // Currently we are treating all exceptions as non retryable and totalExceptionCount will be equal to count of non retryable exceptions
     Assert.assertEquals(dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.getCount(),  expectedExceptions);
-    Assert.assertEquals(dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.getCount(),  expectedNonRetryableExceptions);
+    Assert.assertEquals(dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.getCount(),  expectedExceptions);
+  }
+
+  @Test
+  public void isNonTransientExceptionTest(){
+    /*
+      These exceptions examples are solely for testing purpose, ultimately it would come down
+      to the config defined for the transient exceptions, when we implement retry logic
+     */
+    Assert.assertTrue(!DagProcessingEngine.isTransientException(new RuntimeException("Simulating a non retryable exception!")));
+    Assert.assertTrue(!DagProcessingEngine.isTransientException(new AzkabanClientException("Simulating a retryable exception!")));
   }
 
   private enum ExceptionType {

@@ -74,7 +74,6 @@ public class DagProcUtils {
   public static void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
       Dag.DagId dagId) throws IOException {
     Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagUtils.getNext(dag);
-
     if (nextNodes.size() == 1) {
       Dag.DagNode<JobExecutionPlan> dagNode = nextNodes.iterator().next();
       DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, dagId);
@@ -139,12 +138,15 @@ public class DagProcUtils {
       dagManagementStateStore.updateDagNode(dagNode);
       sendEnforceJobStartDeadlineDagAction(dagManagementStateStore, dagNode);
     } catch (Exception e) {
-      TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
       String message = "Cannot submit job " + DagUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
       log.error(message, e);
-      jobMetadata.put(TimingEvent.METADATA_MESSAGE, message + " due to " + e.getMessage());
-      if (jobFailedTimer != null) {
-        jobFailedTimer.stop(jobMetadata);
+      // Only mark the job as failed in case of non transient exceptions
+      if (!DagProcessingEngine.isTransientException(e)) {
+        TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
+        jobMetadata.put(TimingEvent.METADATA_MESSAGE, message + " due to " + e.getMessage());
+        if (jobFailedTimer != null) {
+          jobFailedTimer.stop(jobMetadata);
+        }
       }
       try {
         // when there is no exception, quota will be released in job status monitor or re-evaluate dag proc
