@@ -159,17 +159,13 @@ public class DagProcessingEngine extends AbstractIdleService {
           log.info(dagProc.contextualizeStatus("concluded dagTask"));
         } catch (Exception e) {
           log.error("DagProcEngineThread: " + dagProc.contextualizeStatus("error"), e);
+          dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
           if (!DagProcessingEngine.isTransientException(e)) {
-            DagActionStore.DagAction dagAction = dagTask.getDagAction();
-            if (dagAction != null) {
-              log.warn(dagProc.contextualizeStatus("ignoring non-transient exception by concluding so no retries"));
-            }
+            log.warn(dagProc.contextualizeStatus("ignoring non-transient exception by concluding so no retries"));
             dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.mark();
             dagTask.conclude();
           }
           // TODO add the else block for transient exceptions and add conclude task only if retry limit is not breached
-          log.error("DagProcEngineThread: " + dagProc.contextualizeStatus("error"), e);
-          dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
         }
       }
     }

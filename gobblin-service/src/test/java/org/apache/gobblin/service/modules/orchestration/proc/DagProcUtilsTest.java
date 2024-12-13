@@ -25,6 +25,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
@@ -74,10 +75,10 @@ public class DagProcUtilsTest {
               jobExecutionPlan.getFlowExecutionId(), jobExecutionPlan.getJobName(),
               DagActionStore.DagActionType.REEVALUATE);
     }
-
+    Mockito.verifyNoMoreInteractions(dagManagementStateStore);
   }
 
-  @Test
+  @Test(dependsOnMethods = "testSubmitNextNodesSuccess")
   public void testWhenSubmitToExecutorSuccess() throws URISyntaxException, IOException {
     Dag.DagId dagId = new Dag.DagId("flowGroup1", "flowName1", 2345680);
     List<Dag.DagNode<JobExecutionPlan>> dagNodeList = new ArrayList<>();
@@ -91,9 +92,13 @@ public class DagProcUtilsTest {
     Mockito.doNothing().when(metrics).incrementJobsSentToExecutor(dagNode);
     DagProcUtils.submitNextNodes(dagManagementStateStore, dag, dagId);
     Mockito.verify(dagManagementStateStore, Mockito.times(2)).getDagManagerMetrics();
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).tryAcquireQuota(Collections.singleton(dagNode));
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).updateDagNode(dagNode);
+    Mockito.verify(dagManagementStateStore, Mockito.times(1)).addDagAction(Mockito.any(DagActionStore.DagAction.class));
+
     Mockito.verify(metrics, Mockito.times(1)).incrementRunningJobMetrics(dagNode);
     Mockito.verify(metrics, Mockito.times(1)).incrementJobsSentToExecutor(dagNode);
+    Mockito.verifyNoMoreInteractions(dagManagementStateStore);
   }
 
   @Test(expectedExceptions = RuntimeException.class, dependsOnMethods = "testWhenSubmitToExecutorSuccess")
@@ -113,6 +118,7 @@ public class DagProcUtilsTest {
     Mockito.verify(mockedSpecProducer, Mockito.times(1)).addSpec(Mockito.any(JobSpec.class));
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).getDagManagerMetrics();
     Mockito.verify(metrics, Mockito.times(1)).incrementRunningJobMetrics(dagNode);
+    Mockito.verifyNoMoreInteractions(dagManagementStateStore);
   }
 
   private List<JobExecutionPlan> getJobExecutionPlans() throws URISyntaxException {

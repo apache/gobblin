@@ -202,6 +202,10 @@ public class DagProcessingEngineTest {
 
   @Test
   public void isNonTransientExceptionTest(){
+    /*
+      These exceptions examples are solely for testing purpose, ultimately it would come down
+      to the config defined for the transient exceptions, when we implement retry logic
+     */
     Assert.assertTrue(!DagProcessingEngine.isTransientException(new RuntimeException("Simulating a non retryable exception!")));
     Assert.assertTrue(!DagProcessingEngine.isTransientException(new AzkabanClientException("Simulating a retryable exception!")));
   }
