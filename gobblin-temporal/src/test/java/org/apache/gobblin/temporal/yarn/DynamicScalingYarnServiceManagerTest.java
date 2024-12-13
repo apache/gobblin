@@ -69,7 +69,7 @@ public class DynamicScalingYarnServiceManagerTest {
 
   /** Note : this test uses {@link DummyScalingDirectiveSource}*/
   @Test
-  public void testWithDummyScalingDirectiveSource() throws InterruptedException {
+  public void testWithDummyScalingDirectiveSource() throws IOException, InterruptedException {
     // DummyScalingDirectiveSource returns 2 scaling directives in first 3 invocations and after that it returns empty list
     // so the total number of invocations after three invocations should always be 3
     TestDynamicScalingYarnServiceManager testDynamicScalingYarnServiceManager = new TestDynamicScalingYarnServiceManager(

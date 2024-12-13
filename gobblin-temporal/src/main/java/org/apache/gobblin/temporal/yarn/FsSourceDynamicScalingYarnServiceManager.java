@@ -17,34 +17,35 @@
 
 package org.apache.gobblin.temporal.yarn;
 
+import java.io.IOException;
 import java.util.Optional;
 
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.FileSystem;
 
-import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.dynamic.FsScalingDirectiveSource;
 import org.apache.gobblin.temporal.dynamic.ScalingDirectiveSource;
+
 
 /**
  * {@link FsScalingDirectiveSource} based implementation of {@link AbstractDynamicScalingYarnServiceManager}.
  */
 public class FsSourceDynamicScalingYarnServiceManager extends AbstractDynamicScalingYarnServiceManager {
-  // TODO: replace fetching of these configs using a new method similar to JobStateUtils::getWorkDirRoot
-  public final static String DYNAMIC_SCALING_DIRECTIVES_DIR = GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_PREFIX + "directives.dir";
-  public final static String DYNAMIC_SCALING_ERRORS_DIR = GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_PREFIX + "errors.dir";
-  private final FileSystem fs;
 
   public FsSourceDynamicScalingYarnServiceManager(GobblinTemporalApplicationMaster appMaster) {
     super(appMaster);
-    this.fs = appMaster.getFs();
   }
 
   @Override
-  protected ScalingDirectiveSource createScalingDirectiveSource() {
+  protected ScalingDirectiveSource createScalingDirectiveSource() throws IOException {
+    JobState jobState = new JobState(ConfigUtils.configToProperties(this.config));
+    FileSystem fs = JobStateUtils.openFileSystem(jobState);
     return new FsScalingDirectiveSource(
-        this.fs,
-        this.config.getString(DYNAMIC_SCALING_DIRECTIVES_DIR),
-        Optional.ofNullable(this.config.getString(DYNAMIC_SCALING_ERRORS_DIR))
+        fs,
+        JobStateUtils.getDynamicScalingPath(JobStateUtils.getWorkDirRoot(jobState)),
+        Optional.of(JobStateUtils.getDynamicScalingErrorsPath(JobStateUtils.getWorkDirRoot(jobState)))
     );
   }
 }

@@ -72,7 +72,7 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
   }
 
   @Override
-  protected void startUp() {
+  protected void startUp() throws IOException{
     int scheduleInterval = ConfigUtils.getInt(this.config, DYNAMIC_SCALING_POLLING_INTERVAL,
         DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS);
     log.info("Starting the {} with re-scaling interval of {} seconds", this.getClass().getSimpleName(), scheduleInterval);
@@ -92,7 +92,7 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
   /**
    * Create a {@link ScalingDirectiveSource} to use for getting scaling directives.
    */
-  protected abstract ScalingDirectiveSource createScalingDirectiveSource();
+  protected abstract ScalingDirectiveSource createScalingDirectiveSource() throws IOException;
 
   /**
    * A {@link Runnable} that gets the scaling directives from the {@link ScalingDirectiveSource} and passes them to the

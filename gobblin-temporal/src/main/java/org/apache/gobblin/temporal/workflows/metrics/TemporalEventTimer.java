@@ -20,9 +20,11 @@ package org.apache.gobblin.temporal.workflows.metrics;
 import java.time.Duration;
 import java.time.Instant;
 
+import lombok.Getter;
+import lombok.RequiredArgsConstructor;
+
 import io.temporal.activity.ActivityOptions;
 import io.temporal.workflow.Workflow;
-import lombok.RequiredArgsConstructor;
 
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
@@ -42,7 +44,7 @@ public class TemporalEventTimer implements EventTimer {
   private final SubmitGTEActivity trackingEventActivity;
   private final GobblinEventBuilder eventBuilder;
   private final EventSubmitterContext eventSubmitterContext;
-  private final Instant startTime;
+  @Getter private final Instant startTime;
 
   // Alias to stop()
   public void submit() {
@@ -69,7 +71,11 @@ public class TemporalEventTimer implements EventTimer {
     trackingEventActivity.submitGTE(this.eventBuilder, eventSubmitterContext);
   }
 
-  private static Instant getCurrentTime() {
+  /**
+   * {@link Workflow}-safe (i.e. deterministic) way for equivalent of {@link System#currentTimeMillis()}
+   * WARNING: DO NOT use from an {@link io.temporal.activity.Activity}
+   */
+  public static Instant getCurrentTime() {
     return Instant.ofEpochMilli(Workflow.currentTimeMillis());
   }
 

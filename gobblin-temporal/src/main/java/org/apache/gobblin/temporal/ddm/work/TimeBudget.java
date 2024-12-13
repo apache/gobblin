@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.Set;
-
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -28,19 +26,22 @@ import lombok.Setter;
 
 
 /**
- * Data structure representing the result of generating work units, where it returns the number of generated work units and
- * the folders should be cleaned up after the full job execution is completed
+ * Duration for whatever work to complete, with a permitted overage to indicate firm-ness/soft-ness.
+ * Values are in minutes, befitting the granularity of inevitable companion activities, like:
+ *   - network operations - opening connections, I/O, retries
+ *   - starting/scaling workers
  */
 @Data
 @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
-public class GenerateWorkUnitsResult {
+public class TimeBudget {
   // NOTE: `@NonNull` to include field in `@RequiredArgsConstructor`, despite - "warning: @NonNull is meaningless on a primitive... @RequiredArgsConstructor"
-  @NonNull private int generatedWuCount;
-  // TODO: characterize the WUs more thoroughly, by also including destination info, and with more specifics, like src+dest location, I/O config, throttling...
-  @NonNull private String sourceClass;
-  @NonNull private WorkUnitsSizeSummary workUnitsSizeSummary;
-  // Resources that the Temporal Job Launcher should clean up for Gobblin temporary work directory paths in writers
-  @NonNull private Set<String> workDirPathsToDelete;
+  @NonNull private long maxDurationDesiredMinutes;
+  @NonNull private long permittedOverageMinutes;
+
+  /** construct w/ {@link #permittedOverageMinutes} expressed as a percentage of {@link #maxDurationDesiredMinutes} */
+  public static TimeBudget withOveragePercentage(long maxDurationDesiredMinutes, double permittedOveragePercentage) {
+    return new TimeBudget(maxDurationDesiredMinutes, (long) (maxDurationDesiredMinutes * permittedOveragePercentage));
+  }
 }

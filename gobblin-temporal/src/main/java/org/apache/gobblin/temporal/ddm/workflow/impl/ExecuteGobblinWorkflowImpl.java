@@ -20,13 +20,19 @@ package org.apache.gobblin.temporal.ddm.workflow.impl;
 import java.io.IOException;
 import java.net.URI;
 import java.time.Duration;
+import java.time.Instant;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
+import lombok.extern.slf4j.Slf4j;
 
 import com.typesafe.config.ConfigFactory;
 
@@ -36,28 +42,32 @@ import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
+import org.apache.gobblin.temporal.ddm.activity.RecommendScalingForWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.DirDeletionResult;
 import org.apache.gobblin.temporal.ddm.work.ExecGobblinStats;
 import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
+import org.apache.gobblin.temporal.ddm.work.TimeBudget;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow;
 import org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow;
+import org.apache.gobblin.temporal.dynamic.FsScalingDirectivesRecipient;
+import org.apache.gobblin.temporal.dynamic.ScalingDirective;
+import org.apache.gobblin.temporal.dynamic.ScalingDirectivesRecipient;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
-import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
 
@@ -79,8 +89,21 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       .setRetryOptions(GEN_WUS_ACTIVITY_RETRY_OPTS)
       .build();
 
-  private final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
-      GEN_WUS_ACTIVITY_OPTS);
+  private final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class, GEN_WUS_ACTIVITY_OPTS);
+
+  private static final RetryOptions RECOMMEND_SCALING_RETRY_OPTS = RetryOptions.newBuilder()
+      .setInitialInterval(Duration.ofSeconds(3))
+      .setMaximumInterval(Duration.ofSeconds(100))
+      .setBackoffCoefficient(2)
+      .setMaximumAttempts(4)
+      .build();
+
+  private static final ActivityOptions RECOMMEND_SCALING_ACTIVITY_OPTS = ActivityOptions.newBuilder()
+      .setStartToCloseTimeout(Duration.ofMinutes(5))
+      .setRetryOptions(RECOMMEND_SCALING_RETRY_OPTS)
+      .build();
+  private final RecommendScalingForWorkUnits recommendScalingStub = Workflow.newActivityStub(RecommendScalingForWorkUnits.class,
+      RECOMMEND_SCALING_ACTIVITY_OPTS);
 
   private static final RetryOptions DELETE_WORK_DIRS_RETRY_OPTS = RetryOptions.newBuilder()
       .setInitialInterval(Duration.ofSeconds(3))
@@ -100,16 +123,32 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
     timerFactory.create(TimingEvent.LauncherTimings.JOB_PREPARE).submit(); // update GaaS: `TimingEvent.JOB_START_TIME`
     EventTimer jobSuccessTimer = timerFactory.createJobTimer();
-    Optional<GenerateWorkUnitsResult> generateWorkUnitResultsOpt = Optional.empty();
+    Optional<GenerateWorkUnitsResult> optGenerateWorkUnitResult = Optional.empty();
     WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
     boolean isSuccessful = false;
     try {
-      generateWorkUnitResultsOpt = Optional.of(genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext));
-      WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResultsOpt.get().getWorkUnitsSizeSummary();
+      GenerateWorkUnitsResult generateWorkUnitResult = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
+      optGenerateWorkUnitResult = Optional.of(generateWorkUnitResult);
+      WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();
       int numWUsGenerated = safelyCastNumConstituentWorkUnitsOrThrow(wuSizeSummary);
       int numWUsCommitted = 0;
       CommitStats commitStats = CommitStats.createEmpty();
       if (numWUsGenerated > 0) {
+        TimeBudget timeBudget = calcWUProcTimeBudget(jobSuccessTimer.getStartTime(), wuSizeSummary, jobProps);
+        List<ScalingDirective> scalingDirectives =
+            recommendScalingStub.recommendScaling(wuSizeSummary, generateWorkUnitResult.getSourceClass(), timeBudget, jobProps);
+        log.info("Recommended scaling to process WUs within {}: {}", timeBudget, scalingDirectives);
+        try {
+          ScalingDirectivesRecipient recipient = createScalingDirectivesRecipient(jobProps);
+          List<ScalingDirective> adjustedScalingDirectives = adjustRecommendedScaling(scalingDirectives);
+          log.info("Submitting (adjusted) scaling directives: {}", adjustedScalingDirectives);
+          recipient.receive(adjustedScalingDirectives);
+          // TODO: when eliminating the "GenWUs Worker", pause/block until scaling is complete
+        } catch (IOException e) {
+          // TODO: decide whether this should be a hard failure; for now, "gracefully degrade" by continuing processing
+          log.error("Failed to send re-scaling directive", e);
+        }
+
         ProcessWorkUnitsWorkflow processWUsWorkflow = createProcessWorkUnitsWorkflow(jobProps);
         commitStats = processWUsWorkflow.process(wuSpec);
         numWUsCommitted = commitStats.getNumCommittedWorkUnits();
@@ -128,8 +167,8 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       // TODO: Cleanup WorkUnit/Taskstate Directory for jobs cancelled mid flight
       try {
         log.info("Cleaning up work dirs for job {}", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
-        if (generateWorkUnitResultsOpt.isPresent()) {
-          cleanupWorkDirs(wuSpec, eventSubmitterContext, generateWorkUnitResultsOpt.get().getWorkDirPathsToDelete());
+        if (optGenerateWorkUnitResult.isPresent()) {
+          cleanupWorkDirs(wuSpec, eventSubmitterContext, optGenerateWorkUnitResult.get().getWorkDirPathsToDelete());
         } else {
           log.warn("Skipping cleanup of work dirs for job due to no output from GenerateWorkUnits");
         }
@@ -154,6 +193,35 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     return Workflow.newChildWorkflowStub(ProcessWorkUnitsWorkflow.class, childOpts);
   }
 
+  protected TimeBudget calcWUProcTimeBudget(Instant jobStartTime, WorkUnitsSizeSummary wuSizeSummary, Properties jobProps) {
+    // TODO: make configurable!  for now, aim for:
+    //  - total job runtime of 2 hours
+    //  - at least 15 minutes for the `CommitStepWorkflow`
+    //  - leave at least 1 hour for the `ProcessWorkUnitsWorkflow` (so deduct at most 45 minutes for WU generation thus far)
+    long totalTimeMins = 120;
+    long maxGenWUsMins = 45;
+    long commitStepMins = 15;
+    double permittedOveragePercentage = .2;
+    Duration genWUsDuration = Duration.between(jobStartTime, TemporalEventTimer.getCurrentTime());
+    long remainingMins = totalTimeMins - Math.min(genWUsDuration.toMinutes(), maxGenWUsMins) - commitStepMins;
+    return TimeBudget.withOveragePercentage(remainingMins, permittedOveragePercentage);
+  }
+
+  protected List<ScalingDirective> adjustRecommendedScaling(List<ScalingDirective> recommendedScalingDirectives) {
+    // TODO: make any adjustments - e.g. decide whether to shutdown the (often oversize) `GenerateWorkUnits` worker or alternatively to deduct one to count it
+    if (recommendedScalingDirectives.size() == 0) {
+      return recommendedScalingDirectives;
+    }
+    // TODO: be more robust and code more defensively, rather than presuming the impl of `RecommendScalingForWorkUnitsLinearHeuristicImpl`
+    ArrayList<ScalingDirective> adjustedScaling = new ArrayList<>(recommendedScalingDirectives);
+    ScalingDirective firstDirective = adjustedScaling.get(0);
+    // deduct one for the (already existing) `GenerateWorkUnits` worker
+    adjustedScaling.set(0, firstDirective.updateSetPoint(firstDirective.getSetPoint() - 1));
+    // CAUTION: filter out set point zero, which (depending upon `.getProfileName()`) *could* down-scale away our only current worker
+    // TODO: consider whether to allow either a) "pre-defining" a profile w/ set point zero, available for later use OR b) down-scaling to zero to pause worker
+    return adjustedScaling.stream().filter(sd -> sd.getSetPoint() > 0).collect(Collectors.toList());
+  }
+
   protected static WUProcessingSpec createProcessingSpec(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     JobState jobState = new JobState(jobProps);
     URI fileSystemUri = JobStateUtils.getFileSystemUri(jobState);
@@ -167,6 +235,13 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       wuSpec.setTuning(new WUProcessingSpec.Tuning(maxBranchesPerTree, maxSubTreesPerTree));
     }
     return wuSpec;
+  }
+
+  protected ScalingDirectivesRecipient createScalingDirectivesRecipient(Properties jobProps) throws IOException {
+    JobState jobState = new JobState(jobProps);
+    FileSystem fs = JobStateUtils.openFileSystem(jobState);
+    Path directivesDirPath = JobStateUtils.getDynamicScalingPath(JobStateUtils.getWorkDirRoot(jobState));
+    return new FsScalingDirectivesRecipient(fs, directivesDirPath);
   }
 
   private void cleanupWorkDirs(WUProcessingSpec workSpec, EventSubmitterContext eventSubmitterContext, Set<String> directoriesToClean)

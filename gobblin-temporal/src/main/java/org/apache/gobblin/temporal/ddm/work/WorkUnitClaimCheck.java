@@ -42,6 +42,12 @@ import org.apache.gobblin.util.WorkUnitSizeInfo;
  * Conveys a {@link org.apache.gobblin.source.workunit.WorkUnit} by claim-check, where the `workUnitPath` is resolved
  * against the {@link org.apache.hadoop.fs.FileSystem} given by `nameNodeUri`.  see:
  * @see <a href="https://learn.microsoft.com/en-us/azure/architecture/patterns/claim-check">Claim-Check Pattern</a>
+ *
+ * TODO: if we're to generalize Work Prediction+Prioritization across multiplexed jobs, each having its own separate time budget, every WU claim-check
+ * standing on its own would allow an external observer to inspect only the task queue w/o correlation between workflow histories.  For that, decide whether
+ * to add job-identifying metadata here or just tack on time budget (aka. SLA deadline) info.  Either could be tunneled within the filename in the manner
+ * of `JobLauncherUtils.WorkUnitPathCalculator.calcNextPathWithTunneledSizeInfo` - in fact, by convention, the job ID / flow ID already is... we just don't
+ * recover it herein.
  */
 @Data
 @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
