@@ -149,10 +149,10 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
    */
   protected IcebergDataset createIcebergDataset(IcebergCatalog sourceIcebergCatalog, String srcDbName, String srcTableName, IcebergCatalog destinationIcebergCatalog, String destDbName, String destTableName, Properties properties, FileSystem fs) throws IOException {
     IcebergTable srcIcebergTable = sourceIcebergCatalog.openTable(srcDbName, srcTableName);
-    Preconditions.checkArgument(sourceIcebergCatalog.tableAlreadyExists(srcIcebergTable), String.format("Missing Source Iceberg Table: {%s}.{%s}", srcDbName, srcTableName));
+    Preconditions.checkArgument(sourceIcebergCatalog.tableAlreadyExists(srcIcebergTable), String.format("Source Iceberg Table not found: {%s}.{%s}", srcDbName, srcTableName));
     IcebergTable destIcebergTable = destinationIcebergCatalog.openTable(destDbName, destTableName);
     // TODO: Rethink strategy to enforce dest iceberg table
-    Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(destIcebergTable), String.format("Missing Destination Iceberg Table: {%s}.{%s}", destDbName, destTableName));
+    Preconditions.checkArgument(destinationIcebergCatalog.tableAlreadyExists(destIcebergTable), String.format("Destination Iceberg Table not found: {%s}.{%s}", destDbName, destTableName));
     return createSpecificDataset(srcIcebergTable, destIcebergTable, properties, fs, getConfigShouldCopyMetadataPath(properties));
   }
 

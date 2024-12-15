@@ -87,7 +87,7 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
       fileStatuses = this.fs.listStatus(this.specDirPath,
           new AndPathFilter(new HiddenFilter(), new AvroUtils.AvroPathFilter()));
     } catch (IOException e) {
-      log.error("Error when listing files at path: {}", this.specDirPath.toString(), e);
+      log.error("Error when listing files at path: " + this.specDirPath.toString(), e);
       return null;
     }
     log.info("Found {} files at path {}", fileStatuses.length, this.specDirPath.toString());
@@ -102,42 +102,53 @@ public class FsSpecConsumer implements SpecConsumer<Spec> {
       try {
         dataFileReader = new DataFileReader<>(new FsInput(fileStatus.getPath(), this.fs.getConf()), new SpecificDatumReader<>());
       } catch (IOException e) {
-        log.error("Error creating DataFileReader for: {}", fileStatus.getPath().toString(), e);
+        log.error("Error creating DataFileReader for: " + fileStatus.getPath().toString(), e);
         continue;
       }
 
-      AvroJobSpec avroJobSpec = null;
-      while (dataFileReader.hasNext()) {
-        avroJobSpec = dataFileReader.next();
-        break;
-      }
-
-      if (avroJobSpec != null) {
-        JobSpec.Builder jobSpecBuilder = new JobSpec.Builder(avroJobSpec.getUri());
-        Properties props = new Properties();
-        props.putAll(avroJobSpec.getProperties());
-        jobSpecBuilder.withJobCatalogURI(avroJobSpec.getUri())
-            .withVersion(avroJobSpec.getVersion())
-            .withDescription(avroJobSpec.getDescription())
-            .withConfigAsProperties(props)
-            .withConfig(ConfigUtils.propertiesToConfig(props));
-
-        try {
-          if (!avroJobSpec.getTemplateUri().isEmpty()) {
-            jobSpecBuilder.withTemplate(new URI(avroJobSpec.getTemplateUri()));
-          }
-        } catch (URISyntaxException u) {
-          log.error("Error building a job spec: ", u);
-          continue;
+      try { // ensure `dataFileReader` is always closed!
+        AvroJobSpec avroJobSpec = null;
+        while (dataFileReader.hasNext()) {
+          avroJobSpec = dataFileReader.next();
+          break;
         }
 
-        String verbName = avroJobSpec.getMetadata().get(SpecExecutor.VERB_KEY);
-        SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
+        if (avroJobSpec != null) {
+          JobSpec.Builder jobSpecBuilder = new JobSpec.Builder(avroJobSpec.getUri());
+          Properties props = new Properties();
+          props.putAll(avroJobSpec.getProperties());
+          jobSpecBuilder.withJobCatalogURI(avroJobSpec.getUri())
+              .withVersion(avroJobSpec.getVersion())
+              .withDescription(avroJobSpec.getDescription())
+              .withConfigAsProperties(props)
+              .withConfig(ConfigUtils.propertiesToConfig(props));
 
-        JobSpec jobSpec = jobSpecBuilder.build();
-        log.debug("Successfully built jobspec: {}", jobSpec.getUri().toString());
-        specList.add(new ImmutablePair<SpecExecutor.Verb, Spec>(verb, jobSpec));
-        this.specToPathMap.put(jobSpec.getUri(), fileStatus.getPath());
+          try {
+            if (!avroJobSpec.getTemplateUri().isEmpty()) {
+              jobSpecBuilder.withTemplate(new URI(avroJobSpec.getTemplateUri()));
+            }
+          } catch (URISyntaxException u) {
+            log.error("Error building a job spec: ", u);
+            continue;
+          }
+
+          String verbName = avroJobSpec.getMetadata().get(SpecExecutor.VERB_KEY);
+          SpecExecutor.Verb verb = SpecExecutor.Verb.valueOf(verbName);
+
+          JobSpec jobSpec = jobSpecBuilder.build();
+          log.debug("Successfully built jobspec: {}", jobSpec.getUri().toString());
+          specList.add(new ImmutablePair<SpecExecutor.Verb, Spec>(verb, jobSpec));
+          this.specToPathMap.put(jobSpec.getUri(), fileStatus.getPath());
+        }
+      } finally {
+        try {
+          if (dataFileReader != null) {
+            dataFileReader.close();
+            dataFileReader = null;
+          }
+        } catch (IOException e) {
+          log.warn("Unable to close DataFileReader for: {} - {}", fileStatus.getPath().toString(), e.getMessage());
+        }
       }
     }
     return new CompletedFuture<>(specList, null);
