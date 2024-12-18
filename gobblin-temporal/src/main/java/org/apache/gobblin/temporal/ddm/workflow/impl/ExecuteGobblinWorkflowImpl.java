@@ -34,6 +34,8 @@ import org.apache.hadoop.fs.Path;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.google.common.io.Closer;
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.activity.ActivityOptions;
@@ -43,6 +45,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 
+import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobState;
@@ -68,7 +71,9 @@ import org.apache.gobblin.temporal.dynamic.ScalingDirectivesRecipient;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
 
 @Slf4j
@@ -126,7 +131,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     Optional<GenerateWorkUnitsResult> optGenerateWorkUnitResult = Optional.empty();
     WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
     boolean isSuccessful = false;
-    try {
+    try (Closer closer = Closer.create()) {
       GenerateWorkUnitsResult generateWorkUnitResult = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       optGenerateWorkUnitResult = Optional.of(generateWorkUnitResult);
       WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();
@@ -139,7 +144,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
             recommendScalingStub.recommendScaling(wuSizeSummary, generateWorkUnitResult.getSourceClass(), timeBudget, jobProps);
         log.info("Recommended scaling to process WUs within {}: {}", timeBudget, scalingDirectives);
         try {
-          ScalingDirectivesRecipient recipient = createScalingDirectivesRecipient(jobProps);
+          ScalingDirectivesRecipient recipient = createScalingDirectivesRecipient(jobProps, closer);
           List<ScalingDirective> adjustedScalingDirectives = adjustRecommendedScaling(scalingDirectives);
           log.info("Submitting (adjusted) scaling directives: {}", adjustedScalingDirectives);
           recipient.receive(adjustedScalingDirectives);
@@ -237,10 +242,19 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     return wuSpec;
   }
 
-  protected ScalingDirectivesRecipient createScalingDirectivesRecipient(Properties jobProps) throws IOException {
+  protected ScalingDirectivesRecipient createScalingDirectivesRecipient(Properties jobProps, Closer closer) throws IOException {
     JobState jobState = new JobState(jobProps);
-    FileSystem fs = JobStateUtils.openFileSystem(jobState);
-    Path directivesDirPath = JobStateUtils.getDynamicScalingPath(JobStateUtils.getWorkDirRoot(jobState));
+    FileSystem fs = closer.register(JobStateUtils.openFileSystem(jobState));
+    Config jobConfig = ConfigUtils.propertiesToConfig(jobProps);
+    String appName = jobConfig.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY);
+    // *hopefully* `GobblinClusterConfigurationKeys.CLUSTER_EXACT_WORK_DIR` is among `job.Config`!  if so, everything Just Works, but if not...
+    // there's not presently an easy way to obtain the yarn app ID (like `application_1734430124616_67239`), so we'd need to plumb one through,
+    // almost certainly based on `org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner.taskRunnerId`
+    String applicationId = "__WARNING__NOT_A_REAL_APPLICATION_ID__";
+    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(jobConfig, fs, appName, applicationId);
+    log.info("Using GobblinCluster work dir: {}", appWorkDir);
+
+    Path directivesDirPath = JobStateUtils.getDynamicScalingPath(appWorkDir);
     return new FsScalingDirectivesRecipient(fs, directivesDirPath);
   }
 

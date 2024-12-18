@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.yarn;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -50,14 +51,14 @@ import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 @Slf4j
 public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractIdleService {
 
-  protected final static String DYNAMIC_SCALING_POLLING_INTERVAL = GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_PREFIX + "polling.interval";
-  private final int DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS = 60;
   protected final Config config;
+  protected final String applicationId;
   private final DynamicScalingYarnService dynamicScalingYarnService;
   private final ScheduledExecutorService dynamicScalingExecutor;
 
   public AbstractDynamicScalingYarnServiceManager(GobblinTemporalApplicationMaster appMaster) {
     this.config = appMaster.getConfig();
+    this.applicationId = appMaster.getApplicationId();
     if (appMaster.get_yarnService() instanceof DynamicScalingYarnService) {
       this.dynamicScalingYarnService = (DynamicScalingYarnService) appMaster.get_yarnService();
     } else {
@@ -72,9 +73,9 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
   }
 
   @Override
-  protected void startUp() throws IOException{
-    int scheduleInterval = ConfigUtils.getInt(this.config, DYNAMIC_SCALING_POLLING_INTERVAL,
-        DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS);
+  protected void startUp() throws IOException {
+    int scheduleInterval = ConfigUtils.getInt(this.config, GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_POLLING_INTERVAL_SECS,
+        GobblinTemporalConfigurationKeys.DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS);
     log.info("Starting the {} with re-scaling interval of {} seconds", this.getClass().getSimpleName(), scheduleInterval);
 
     this.dynamicScalingExecutor.scheduleAtFixedRate(
@@ -84,7 +85,7 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
   }
 
   @Override
-  protected void shutDown() {
+  protected void shutDown() throws IOException {
     log.info("Stopping the " + this.getClass().getSimpleName());
     ExecutorsUtils.shutdownExecutorService(this.dynamicScalingExecutor, Optional.of(log));
   }
@@ -110,6 +111,8 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
         if (CollectionUtils.isNotEmpty(scalingDirectives)) {
           dynamicScalingYarnService.reviseWorkforcePlanAndRequestNewContainers(scalingDirectives);
         }
+      } catch (FileNotFoundException fnfe) {
+        log.warn("Failed to get scaling directives - " + fnfe.getMessage()); // important message, but no need for a stack trace
       } catch (IOException e) {
         log.error("Failed to get scaling directives", e);
       } catch (Throwable t) {

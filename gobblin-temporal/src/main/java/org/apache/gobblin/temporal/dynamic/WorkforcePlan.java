@@ -141,6 +141,7 @@ public class WorkforcePlan {
    */
   public synchronized void reviseWhenNewer(List<ScalingDirective> directives, Consumer<IllegalRevisionException> illegalRevisionHandler) {
     directives.stream().sequential()
+        .filter(directive -> this.lastRevisionEpochMillis < directive.getTimestampEpochMillis())
         .forEach(directive -> {
       try {
         revise(directive);

@@ -32,11 +32,10 @@ import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.dynamic.ScalingDirective;
 import org.apache.gobblin.temporal.dynamic.ScalingDirectiveSource;
 import org.apache.gobblin.temporal.dynamic.DummyScalingDirectiveSource;
-
-import static org.apache.gobblin.temporal.yarn.AbstractDynamicScalingYarnServiceManager.DYNAMIC_SCALING_POLLING_INTERVAL;
 
 /** Tests for {@link AbstractDynamicScalingYarnServiceManager}*/
 public class DynamicScalingYarnServiceManagerTest {
@@ -51,7 +50,7 @@ public class DynamicScalingYarnServiceManagerTest {
     // Using 1 second as polling interval so that the test runs faster and
     // GetScalingDirectivesRunnable.run() will be called equal to amount of sleep introduced between startUp
     // and shutDown in seconds
-    Config config = ConfigFactory.empty().withValue(DYNAMIC_SCALING_POLLING_INTERVAL, ConfigValueFactory.fromAnyRef(1));
+    Config config = ConfigFactory.empty().withValue(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_POLLING_INTERVAL_SECS, ConfigValueFactory.fromAnyRef(1));
     Mockito.when(mockGobblinTemporalApplicationMaster.getConfig()).thenReturn(config);
     Mockito.when(mockGobblinTemporalApplicationMaster.get_yarnService()).thenReturn(mockDynamicScalingYarnService);
   }

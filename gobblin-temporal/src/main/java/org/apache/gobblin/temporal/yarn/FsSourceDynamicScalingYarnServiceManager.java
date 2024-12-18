@@ -20,32 +20,55 @@ package org.apache.gobblin.temporal.yarn;
 import java.io.IOException;
 import java.util.Optional;
 
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
+import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
-import org.apache.gobblin.util.ConfigUtils;
-import org.apache.hadoop.fs.FileSystem;
-
 import org.apache.gobblin.temporal.dynamic.FsScalingDirectiveSource;
 import org.apache.gobblin.temporal.dynamic.ScalingDirectiveSource;
+import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
 
 /**
  * {@link FsScalingDirectiveSource} based implementation of {@link AbstractDynamicScalingYarnServiceManager}.
  */
+@Slf4j
 public class FsSourceDynamicScalingYarnServiceManager extends AbstractDynamicScalingYarnServiceManager {
+
+  private FileSystem fs;
 
   public FsSourceDynamicScalingYarnServiceManager(GobblinTemporalApplicationMaster appMaster) {
     super(appMaster);
   }
 
   @Override
-  protected ScalingDirectiveSource createScalingDirectiveSource() throws IOException {
+  protected void startUp() throws IOException {
     JobState jobState = new JobState(ConfigUtils.configToProperties(this.config));
-    FileSystem fs = JobStateUtils.openFileSystem(jobState);
+    this.fs = JobStateUtils.openFileSystem(jobState);
+    // since `super.startUp()` will invoke `createScalingDirectiveSource()`, which needs `this.fs`, create that before deferring
+    super.startUp();
+  }
+
+  @Override
+  protected void shutDown() throws IOException {
+    super.shutDown();
+    this.fs.close();
+  }
+
+  @Override
+  protected ScalingDirectiveSource createScalingDirectiveSource() throws IOException {
+    String appName = config.getString(GobblinYarnConfigurationKeys.APPLICATION_NAME_KEY);
+    Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, fs, appName, this.applicationId);
+    log.info("Using GobblinCluster work dir: {}", appWorkDir);
     return new FsScalingDirectiveSource(
         fs,
-        JobStateUtils.getDynamicScalingPath(JobStateUtils.getWorkDirRoot(jobState)),
-        Optional.of(JobStateUtils.getDynamicScalingErrorsPath(JobStateUtils.getWorkDirRoot(jobState)))
+        JobStateUtils.getDynamicScalingPath(appWorkDir),
+        Optional.of(JobStateUtils.getDynamicScalingErrorsPath(appWorkDir))
     );
   }
 }
