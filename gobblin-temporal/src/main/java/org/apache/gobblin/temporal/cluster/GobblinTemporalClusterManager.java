@@ -92,6 +92,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
   @Getter
   protected final FileSystem fs;
 
+  @Getter
   protected final String applicationId;
 
   @Getter
@@ -285,8 +286,11 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
    * comment lifted from {@link org.apache.gobblin.cluster.GobblinClusterManager}
    * TODO for now the cluster id is hardcoded to 1 both here and in the {@link GobblinTaskRunner}. In the future, the
    * cluster id should be created by the {@link GobblinTemporalClusterManager} and passed to each {@link GobblinTaskRunner}
+   *
+   * NOTE: renamed from `getApplicationId` to avoid shadowing the `@Getter`-generated instance method of that name
+   * TODO: unravel what to make of the comment above.  as it is, `GobblinTemporalApplicationMaster#main` is what runs, NOT `GobblinTemporalClusterManager#main`
    */
-  private static String getApplicationId() {
+  private static String getApplicationIdStatic() {
     return "1";
   }
 
@@ -332,7 +336,7 @@ public class GobblinTemporalClusterManager implements ApplicationLauncher, Stand
       }
 
       try (GobblinTemporalClusterManager GobblinTemporalClusterManager = new GobblinTemporalClusterManager(
-          cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), getApplicationId(),
+          cmd.getOptionValue(GobblinClusterConfigurationKeys.APPLICATION_NAME_OPTION_NAME), getApplicationIdStatic(),
           config, Optional.<Path>absent())) {
         GobblinTemporalClusterManager.start();
       }

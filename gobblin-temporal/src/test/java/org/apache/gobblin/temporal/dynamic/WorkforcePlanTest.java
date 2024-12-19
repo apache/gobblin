@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.dynamic;
 
+import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.atomic.AtomicInteger;
 
@@ -67,27 +68,27 @@ public class WorkforcePlanTest {
   }
 
   @Test
-  public void reviseWhenNewerRejectsOutOfOrderDirectivesAndContinues() {
+  public void reviseWhenNewerSilentlySkipsOutOfOrderDirectivesAndContinues() {
     AtomicInteger numErrors = new AtomicInteger(0);
     Assert.assertEquals(plan.getLastRevisionEpochMillis(), WorkforceStaffing.INITIALIZATION_PROVENANCE_EPOCH_MILLIS);
     Assert.assertEquals(plan.getNumProfiles(), 1);
     plan.reviseWhenNewer(Lists.newArrayList(
         new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 2, 100L),
         new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 3, 500L),
-        // (1) error: `OutdatedDirective`
+        // NOT an error (e.g. `OutdatedDirective`), since this is skipped due to the out-of-date timestamp
         new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 4, 250L),
-        // (2) error: `OutdatedDirective`
+        // NOT an error (e.g. `OutdatedDirective`), since this is skipped due to the out-of-date timestamp
         createNewProfileDirective("new_profile", 5, 450L, WorkforceProfiles.BASELINE_NAME),
         // NOTE: the second attempt at derivation is NOT judged a duplicate, as the outdated timestamp of first attempt (above) meant it was ignored!
         createNewProfileDirective("new_profile", 6, 600L, WorkforceProfiles.BASELINE_NAME),
         new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 7, 800L),
-        // (3) error: `OutdatedDirective`
+        // NOT an error (e.g. `OutdatedDirective`), since this is skipped due to the out-of-date timestamp
         new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 8, 750L)
     ), failure -> numErrors.incrementAndGet());
 
     Assert.assertEquals(plan.getLastRevisionEpochMillis(), 800L);
     Assert.assertEquals(plan.getNumProfiles(), 2);
-    Assert.assertEquals(numErrors.get(), 3);
+    Assert.assertEquals(numErrors.get(), 0);
     Assert.assertEquals(plan.peepStaffing(WorkforceProfiles.BASELINE_NAME), Optional.of(7), WorkforceProfiles.BASELINE_NAME_RENDERING);
     Assert.assertEquals(plan.peepStaffing("new_profile"), Optional.of(6), "new_profile");
   }
@@ -95,7 +96,7 @@ public class WorkforcePlanTest {
   @Test
   public void reviseWhenNewerRejectsErrorsAndContinues() {
     AtomicInteger numErrors = new AtomicInteger(0);
-    plan.reviseWhenNewer(Lists.newArrayList(
+    List<ScalingDirective> scalingDirectives = Lists.newArrayList(
         new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 1, 100L),
         // (1) error: `UnrecognizedProfile`
         new ScalingDirective("UNKNOWN_PROFILE", 2, 250L),
@@ -106,17 +107,24 @@ public class WorkforcePlanTest {
         // (3) error: `UnknownBasis`
         createNewProfileDirective("other_profile", 6, 550L, "NEVER_DEFINED"),
         new ScalingDirective("new_profile", 7, 400L),
-        // (4) error: `OutdatedDirective`
+        // NOT an error (e.g. `OutdatedDirective`), since this is skipped due to the out-of-date timestamp
         new ScalingDirective(WorkforceProfiles.BASELINE_NAME, 8, 350L),
-        createNewProfileDirective("another", 9, 500L, "new_profile")
-    ), failure -> numErrors.incrementAndGet());
+        createNewProfileDirective("another", 9, 600L, "new_profile")
+    );
+    plan.reviseWhenNewer(scalingDirectives, failure -> numErrors.incrementAndGet());
 
-    Assert.assertEquals(plan.getLastRevisionEpochMillis(), 500L);
+    Assert.assertEquals(plan.getLastRevisionEpochMillis(), 600L);
     Assert.assertEquals(plan.getNumProfiles(), 3);
-    Assert.assertEquals(numErrors.get(), 4);
+    Assert.assertEquals(numErrors.get(), 3);
     Assert.assertEquals(plan.peepStaffing(WorkforceProfiles.BASELINE_NAME), Optional.of(5), WorkforceProfiles.BASELINE_NAME_RENDERING);
     Assert.assertEquals(plan.peepStaffing("new_profile"), Optional.of(7), "new_profile");
     Assert.assertEquals(plan.peepStaffing("another"), Optional.of(9), "another");
+
+    // verify idempotence - same directives a second time have no effect and cause no new errors (except those raised previously that had later timestamp)
+    plan.reviseWhenNewer(scalingDirectives, failure -> numErrors.incrementAndGet());
+    Assert.assertEquals(plan.getLastRevisionEpochMillis(), 600L);
+    Assert.assertEquals(plan.getNumProfiles(), 3);
+    Assert.assertEquals(numErrors.get(), 3);
   }
 
   @Test

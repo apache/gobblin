@@ -19,13 +19,15 @@ package org.apache.gobblin.temporal.ddm.workflow.impl;
 import java.util.Map;
 import java.util.Optional;
 
+import lombok.extern.slf4j.Slf4j;
+
+import com.google.common.io.Closer;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.api.enums.v1.ParentClosePolicy;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
@@ -60,12 +62,11 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   private CommitStats performWork(WUProcessingSpec workSpec) {
-
     Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
     Map<String, Object> searchAttributes;
     JobState jobState;
-    try {
-      jobState = Help.loadJobState(workSpec, Help.loadFileSystem(workSpec));
+    try (Closer closer = Closer.create()) {
+      jobState = Help.loadJobState(workSpec, closer.register(Help.loadFileSystem(workSpec)));
     } catch (Exception e) {
       log.error("Error loading jobState", e);
       throw new RuntimeException("Error loading jobState", e);
@@ -146,6 +147,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
 
   protected CommitStepWorkflow createCommitStepWorkflow(Map<String, Object> searchAttributes) {
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
+        // TODO: verify to instead use:  Policy.PARENT_CLOSE_POLICY_TERMINATE)
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
         .setSearchAttributes(searchAttributes)
         .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE,

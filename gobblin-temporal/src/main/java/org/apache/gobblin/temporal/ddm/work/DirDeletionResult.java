@@ -20,16 +20,19 @@ package org.apache.gobblin.temporal.ddm.work;
 import java.util.HashMap;
 import java.util.Map;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 
 /**
  * Data structure representing the stats for a cleaned up work directory, where it returns a map of directories the result of their cleanup
  */
 @Data
+@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class DirDeletionResult {

@@ -28,9 +28,12 @@ import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
+import javax.annotation.Nullable;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+
+import lombok.extern.slf4j.Slf4j;
 
 import com.google.api.client.util.Lists;
 import com.google.common.base.Function;
@@ -39,8 +42,6 @@ import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 
 import io.temporal.failure.ApplicationFailure;
-import javax.annotation.Nullable;
-import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
@@ -83,8 +84,7 @@ public class CommitActivityImpl implements CommitActivity {
     int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
     Optional<String> optJobName = Optional.empty();
     AutomaticTroubleshooter troubleshooter = null;
-    try {
-      FileSystem fs = Help.loadFileSystem(workSpec);
+    try (FileSystem fs = Help.loadFileSystem(workSpec)) {
       JobState jobState = Help.loadJobState(workSpec, fs);
       optJobName = Optional.ofNullable(jobState.getJobName());
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);

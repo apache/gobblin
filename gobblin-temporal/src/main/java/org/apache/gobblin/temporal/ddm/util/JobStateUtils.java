@@ -65,6 +65,8 @@ import org.apache.gobblin.util.ParallelRunner;
 public class JobStateUtils {
   public static final String INPUT_DIR_NAME = "input"; // following MRJobLauncher.INPUT_DIR_NAME
   public static final String OUTPUT_DIR_NAME = "output"; // following MRJobLauncher.OUTPUT_DIR_NAME
+  public static final String DYNAMIC_SCALING_RELATIVE_DIR_PATH = "dynamic-scaling/directives";
+  public static final String DYNAMIC_SCALING_ERRORS_RELATIVE_DIR_PATH = "dynamic-scaling/dropped-directives";
   public static final boolean DEFAULT_WRITE_PREVIOUS_WORKUNIT_STATES = true;
 
   // reuse same handle among activities executed by the same worker
@@ -139,6 +141,38 @@ public class JobStateUtils {
    */
   public static Path getWorkUnitsPath(Path workDirRoot) {
     return new Path(workDirRoot, INPUT_DIR_NAME);
+  }
+
+  /**
+   * ATTENTION: derives path according to {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher} conventions, using same
+   * {@link ConfigurationKeys#MR_JOB_ROOT_DIR_KEY}
+   * @return {@link Path} where {@link org.apache.gobblin.temporal.dynamic.ScalingDirective}s should reside
+   */
+  public static Path getDynamicScalingPath(JobState jobState) {
+    return getDynamicScalingPath(getWorkDirRoot(jobState));
+  }
+
+  /**
+   * @return {@link Path} where {@link org.apache.gobblin.temporal.dynamic.ScalingDirective}s should reside
+   */
+  public static Path getDynamicScalingPath(Path workDirRoot) {
+    return new Path(workDirRoot, DYNAMIC_SCALING_RELATIVE_DIR_PATH);
+  }
+
+  /**
+   * ATTENTION: derives path according to {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher} conventions, using same
+   * {@link ConfigurationKeys#MR_JOB_ROOT_DIR_KEY}
+   * @return {@link Path} where any {@link org.apache.gobblin.temporal.dynamic.ScalingDirective} errors should be placed
+   */
+  public static Path getDynamicScalingErrorsPath(JobState jobState) {
+    return getDynamicScalingErrorsPath(getWorkDirRoot(jobState));
+  }
+
+  /**
+   * @return {@link Path} where any {@link org.apache.gobblin.temporal.dynamic.ScalingDirective} errors should be placed
+   */
+  public static Path getDynamicScalingErrorsPath(Path workDirRoot) {
+    return new Path(workDirRoot, DYNAMIC_SCALING_ERRORS_RELATIVE_DIR_PATH);
   }
 
   /**

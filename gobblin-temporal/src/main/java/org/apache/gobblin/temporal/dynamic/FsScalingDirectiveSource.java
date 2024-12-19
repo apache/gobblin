@@ -40,6 +40,8 @@ import org.apache.hadoop.fs.Path;
  * {@link ScalingDirectiveParser#OVERLAY_DEFINITION_PLACEHOLDER} syntax and write their {@link ProfileDerivation} overlay as the file's data/content.
  * Within-length scaling directives are no-data, zero-length files.  When backed by HDFS, reading such zero-length scaling directive filenames is a
  * NameNode-only operation, with their metadata-only nature conserving NN object count/quota.
+ *
+ * @see FsScalingDirectivesRecipient
  */
 @Slf4j
 public class FsScalingDirectiveSource implements ScalingDirectiveSource {
@@ -49,10 +51,15 @@ public class FsScalingDirectiveSource implements ScalingDirectiveSource {
   private final ScalingDirectiveParser parser = new ScalingDirectiveParser();
 
   /** Read from `directivesDirPath` of `fileSystem`, and optionally move invalid/rejected directives to `optErrorsDirPath` */
-  public FsScalingDirectiveSource(FileSystem fileSystem, String directivesDirPath, Optional<String> optErrorsDirPath) {
+  public FsScalingDirectiveSource(FileSystem fileSystem, Path directivesDirPath, Optional<Path> optErrorsDirPath) {
     this.fileSystem = fileSystem;
-    this.dirPath = new Path(directivesDirPath);
-    this.optErrorsPath = optErrorsDirPath.map(Path::new);
+    this.dirPath = directivesDirPath;
+    this.optErrorsPath = optErrorsDirPath;
+  }
+
+  /** Read from `directivesDirPath` of `fileSystem`, and optionally move invalid/rejected directives to `optErrorsDirPath` */
+  public FsScalingDirectiveSource(FileSystem fileSystem, String directivesDirPath, Optional<String> optErrorsDirPath) {
+    this(fileSystem, new Path(directivesDirPath), optErrorsDirPath.map(Path::new));
   }
 
   /**

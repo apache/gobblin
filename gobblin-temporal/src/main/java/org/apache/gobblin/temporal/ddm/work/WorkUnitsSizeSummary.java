@@ -19,10 +19,14 @@ package org.apache.gobblin.temporal.ddm.work;
 
 import java.util.List;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+
+import com.fasterxml.jackson.annotation.JsonIgnore;
 
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
@@ -36,6 +40,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  * @see org.apache.gobblin.util.WorkUnitSizeInfo
  */
 @Data
+@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class WorkUnitsSizeSummary {
@@ -47,4 +52,24 @@ public class WorkUnitsSizeSummary {
   @NonNull private double quantilesWidth;
   @NonNull private List<Double> topLevelQuantilesMinSizes;
   @NonNull private List<Double> constituentQuantilesMinSizes;
+
+  @JsonIgnore // (because no-arg method resembles 'java bean property')
+  public double getTopLevelWorkUnitsMeanSize() {
+    return this.totalSize * 1.0 / this.topLevelWorkUnitsCount;
+  }
+
+  @JsonIgnore // (because no-arg method resembles 'java bean property')
+  public double getConstituentWorkUnitsMeanSize() {
+    return this.totalSize * 1.0 / this.constituentWorkUnitsCount;
+  }
+
+  @JsonIgnore // (because no-arg method resembles 'java bean property')
+  public double getTopLevelWorkUnitsMedianSize() {
+    return this.topLevelQuantilesMinSizes.get(this.quantilesCount / 2);
+  }
+
+  @JsonIgnore // (because no-arg method resembles 'java bean property')
+  public double getConstituentWorkUnitsMedianSize() {
+    return this.topLevelQuantilesMinSizes.get(this.quantilesCount / 2);
+  }
 }

@@ -141,6 +141,8 @@ public class WorkforcePlan {
    */
   public synchronized void reviseWhenNewer(List<ScalingDirective> directives, Consumer<IllegalRevisionException> illegalRevisionHandler) {
     directives.stream().sequential()
+        // filter, to avoid `OutOfOrderDirective` exceptions that would clutter the log - especially since `reviseWhenNewer` suggests graceful handling
+        .filter(directive -> this.lastRevisionEpochMillis < directive.getTimestampEpochMillis())
         .forEach(directive -> {
       try {
         revise(directive);

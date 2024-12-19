@@ -28,7 +28,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
-import io.temporal.failure.ApplicationFailure;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -37,6 +36,7 @@ import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 import com.tdunning.math.stats.TDigest;
+import io.temporal.failure.ApplicationFailure;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -118,7 +118,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     troubleshooter.start();
     try (Closer closer = Closer.create()) {
       // before embarking on (potentially expensive) WU creation, first pre-check that the FS is available
-      FileSystem fs = JobStateUtils.openFileSystem(jobState);
+      FileSystem fs = closer.register(JobStateUtils.openFileSystem(jobState));
       fs.mkdirs(workDirRoot);
 
       Set<String> pathsToCleanUp = new HashSet<>();
