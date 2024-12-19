@@ -35,33 +35,33 @@ import org.apache.gobblin.temporal.ddm.worker.WorkFulfillmentWorker;
 @Slf4j
 public class RecommendScalingForWorkUnitsLinearHeuristicImpl extends AbstractRecommendScalingForWorkUnitsImpl {
 
-  public static final String AMORTIZED_NUM_BYTES_PER_MINUTE = GobblinTemporalConfigurationKeys.PREFIX + "dynamic.scaling.reference.numBytesPerMinute";
+  public static final String AMORTIZED_NUM_BYTES_PER_MINUTE = GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_PREFIX + "heuristic.params.numBytesPerMinute";
   public static final long DEFAULT_AMORTIZED_NUM_BYTES_PER_MINUTE = 10 * 1000L * 1000L * 60L; // 10MB/sec
 
   @Override
-  protected int calcDerivationSetPoint(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget timeBudget, JobState jobState) {
+  protected int calcDerivationSetPoint(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget jobTimeBudget, JobState jobState) {
     // for simplicity, for now, consider only top-level work units (aka. `MultiWorkUnit`s - MWUs)
     long numMWUs = remainingWork.getTopLevelWorkUnitsCount();
     double meanBytesPerMWU = remainingWork.getTopLevelWorkUnitsMeanSize();
     int numSimultaneousMWUsPerContainer = calcPerContainerWUCapacity(jobState); // (a worker-thread is a slot for top-level (MWUs) - not constituent sub-WUs)
     long bytesPerMinuteProcRate = calcAmortizedBytesPerMinute(jobState);
     log.info("Calculating auto-scaling (for {} remaining work units within {}) using: bytesPerMinuteProcRate = {}; meanBytesPerMWU = {}",
-        numMWUs, timeBudget, bytesPerMinuteProcRate, meanBytesPerMWU);
+        numMWUs, jobTimeBudget, bytesPerMinuteProcRate, meanBytesPerMWU);
 
     // calc how many container*minutes to process all MWUs, based on mean MWU size
     double minutesProcTimeForMeanMWU = meanBytesPerMWU / bytesPerMinuteProcRate;
     double meanMWUsThroughputPerContainerMinute = numSimultaneousMWUsPerContainer / minutesProcTimeForMeanMWU;
     double estContainerMinutesForAllMWUs = numMWUs / meanMWUsThroughputPerContainerMinute;
 
-    long targetNumMinutes = timeBudget.getMaxDurationDesiredMinutes();
-    // TODO: take into account `timeBudget.getPermittedOverageMinutes()` - e.g. to decide whether to use `Math.ceil` vs. `Math.floor`
+    long targetNumMinutesForAllMWUs = jobTimeBudget.getMaxDurationDesiredMinutes();
+    // TODO: take into account `jobTimeBudget.getPermittedOverageMinutes()` - e.g. to decide whether to use `Math.ceil` vs. `Math.floor`
 
     // TODO: decide how to account for container startup; working est. for GoT-on-YARN ~ 3 mins (req to alloc ~ 30s; alloc to workers ready ~ 2.5m)
-    //   e.g. can we amortize away / ignore when `targetNumMinutes >> workerRequestToReadyNumMinutes`?
+    //   e.g. can we amortize away / ignore when `targetNumMinutesForAllMWUs >> workerRequestToReadyNumMinutes`?
     // TODO take into account that MWUs are quantized into discrete chunks; this est. uses avg and presumes to divide partial MWUs amongst workers
-    //   can we we mostly ignore if we keep MWU "chunk size" "small-ish", like maybe even just `duration(max(MWU)) <= targetNumMinutes/2)`?
+    //   can we we mostly ignore if we keep MWU "chunk size" "small-ish", like maybe even just `duration(max(MWU)) <= targetNumMinutesForAllMWUs/2)`?
 
-    int recommendedNumContainers = (int) Math.floor(estContainerMinutesForAllMWUs / targetNumMinutes);
+    int recommendedNumContainers = (int) Math.floor(estContainerMinutesForAllMWUs / targetNumMinutesForAllMWUs);
     log.info("Recommended auto-scaling: {} containers, given: minutesToProc(mean(MWUs)) = {}; throughput = {} (MWUs / container*minute); "
         + "est. container*minutes to complete ALL ({}) MWUs = {}",
         recommendedNumContainers, minutesProcTimeForMeanMWU, meanMWUsThroughputPerContainerMinute, numMWUs, estContainerMinutesForAllMWUs);

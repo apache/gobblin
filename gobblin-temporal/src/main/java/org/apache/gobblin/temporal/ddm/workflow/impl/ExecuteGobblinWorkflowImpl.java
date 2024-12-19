@@ -220,7 +220,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     // TODO: be more robust and code more defensively, rather than presuming the impl of `RecommendScalingForWorkUnitsLinearHeuristicImpl`
     ArrayList<ScalingDirective> adjustedScaling = new ArrayList<>(recommendedScalingDirectives);
     ScalingDirective firstDirective = adjustedScaling.get(0);
-    // deduct one for the (already existing) `GenerateWorkUnits` worker
+    // deduct one for (already existing) `GenerateWorkUnits` worker (we presume its "baseline" `WorkerProfile` similar enough to substitute for this new one)
     adjustedScaling.set(0, firstDirective.updateSetPoint(firstDirective.getSetPoint() - 1));
     // CAUTION: filter out set point zero, which (depending upon `.getProfileName()`) *could* down-scale away our only current worker
     // TODO: consider whether to allow either a) "pre-defining" a profile w/ set point zero, available for later use OR b) down-scaling to zero to pause worker
