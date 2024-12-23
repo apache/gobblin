@@ -44,7 +44,7 @@ public interface RecommendScalingForWorkUnits {
   /**
    * Recommend the {@link ScalingDirective}s to process the {@link WorkUnit}s of {@link WorkUnitsSizeSummary} within {@link TimeBudget}.
    *
-   * @param remainingWork may characterize a newly-generated batch of `WorkUnit` for which no processing has yet begun - or be the sub-portion
+   * @param remainingWork may characterize a newly-generated batch of `WorkUnit`s for which no processing has yet begun - or be the sub-portion
    *                      of an in-progress job that still awaits processing
    * @param sourceClass contextualizes the `WorkUnitsSizeSummary` and should name a {@link org.apache.gobblin.source.Source}
    * @param timeBudget the remaining target duration for processing the summarized `WorkUnit`s

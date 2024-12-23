@@ -49,8 +49,8 @@ public class FsSourceDynamicScalingYarnServiceManager extends AbstractDynamicSca
   @Override
   protected void startUp() throws IOException {
     JobState jobState = new JobState(ConfigUtils.configToProperties(this.config));
+    // since `super.startUp()` will invoke `createScalingDirectiveSource()`, which needs `this.fs`, create it beforehand
     this.fs = JobStateUtils.openFileSystem(jobState);
-    // since `super.startUp()` will invoke `createScalingDirectiveSource()`, which needs `this.fs`, create that before deferring
     super.startUp();
   }
 

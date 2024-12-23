@@ -37,10 +37,10 @@ import lombok.Setter;
 @RequiredArgsConstructor
 public class TimeBudget {
   // NOTE: `@NonNull` to include field in `@RequiredArgsConstructor`, despite - "warning: @NonNull is meaningless on a primitive... @RequiredArgsConstructor"
-  @NonNull private long maxDurationDesiredMinutes;
+  @NonNull private long maxTargetDurationMinutes;
   @NonNull private long permittedOverageMinutes;
 
-  /** construct w/ {@link #permittedOverageMinutes} expressed as a percentage of {@link #maxDurationDesiredMinutes} */
+  /** construct w/ {@link #permittedOverageMinutes} expressed as a percentage of {@link #maxTargetDurationMinutes} */
   public static TimeBudget withOveragePercentage(long maxDurationDesiredMinutes, double permittedOveragePercentage) {
     return new TimeBudget(maxDurationDesiredMinutes, (long) (maxDurationDesiredMinutes * permittedOveragePercentage));
   }

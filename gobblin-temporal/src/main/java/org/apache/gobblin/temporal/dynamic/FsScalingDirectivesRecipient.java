@@ -22,6 +22,7 @@ import java.util.List;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.hadoop.fs.FSDataOutputStream;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -40,6 +41,7 @@ import org.apache.hadoop.fs.Path;
  */
 @Slf4j
 public class FsScalingDirectivesRecipient implements ScalingDirectivesRecipient {
+  public static final int MAX_STRINGIFIED_DIRECTIVE_LENGTH = 255;
   private final FileSystem fileSystem;
   private final Path dirPath;
 
@@ -59,10 +61,19 @@ public class FsScalingDirectivesRecipient implements ScalingDirectivesRecipient 
   public void receive(List<ScalingDirective> directives) throws IOException {
     for (ScalingDirective directive : directives) {
       String directiveAsString = ScalingDirectiveParser.asString(directive);
-      // TODO: handle directivePaths in excess of length limit
-      Path directivePath = new Path(dirPath, directiveAsString);
-      log.info("Adding ScalingDirective: {} at '{}' - {}", directiveAsString, directivePath, directive);
-      fileSystem.create(directivePath, false).close();
+      // handle directivePaths in excess of length limit
+      if (directiveAsString.length() <= MAX_STRINGIFIED_DIRECTIVE_LENGTH) {
+        Path directivePath = new Path(dirPath, directiveAsString);
+        log.info("Adding ScalingDirective: {} at '{}' - {}", directiveAsString, directivePath, directive);
+        fileSystem.create(directivePath, false).close();
+      } else {
+        ScalingDirectiveParser.StringWithPlaceholderPlusOverlay placeholderForm = ScalingDirectiveParser.asStringWithPlaceholderPlusOverlay(directive);
+        Path directivePath = new Path(dirPath, placeholderForm.getDirectiveStringWithPlaceholder());
+        log.info("Adding ScalingDirective with overlay: {} at '{}' - {}", directiveAsString, directivePath, directive);
+        try (FSDataOutputStream out = fileSystem.create(directivePath, false)) {
+          out.writeUTF(placeholderForm.getOverlayDefinitionString());
+        }
+      }
     }
   }
 }

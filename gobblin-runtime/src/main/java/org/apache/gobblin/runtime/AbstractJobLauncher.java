@@ -1060,7 +1060,7 @@ public abstract class AbstractJobLauncher implements JobLauncher {
 
     try {
       if (!canCleanStagingData(jobState)) {
-        // TODO: consider whether should be `.warn` OR could even be `.info`???
+        // TODO: decide whether should be `.warn`, stay as `.info`, or change back to `.error`
         LOG.info("Job " + jobState.getJobName() + " has unfinished commit sequences. Will not clean up staging data.");
         return;
       }

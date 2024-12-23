@@ -27,16 +27,22 @@ import org.apache.gobblin.temporal.ddm.worker.WorkFulfillmentWorker;
 
 
 /**
- * Simple config-driven linear relationship between `remainingWork` and the resulting `setPoint`
+ * Simple config-driven linear recommendation for how many containers to use to complete the "remaining work" within a given {@link TimeBudget}, per:
  *
- *
- * TODO: describe algo!!!!!
+ *   a. from {@link WorkUnitsSizeSummary}, find how many (remaining) "top-level" {@link org.apache.gobblin.source.workunit.MultiWorkUnit}s of some mean size
+ *   b. from the configured {@link #AMORTIZED_NUM_BYTES_PER_MINUTE}, find the expected "processing rate" in bytes / minute
+ * 1. estimate the time required for processing a mean-sized `MultiWorkUnit` (MWU)
+ *   c. from {@link JobState}, find per-container `MultiWorkUnit` parallelism capacity (aka. "worker-slots") to base the recommendation upon
+ * 2. calculate the per-container throughput of MWUs per minute
+ * 3. estimate the total per-container-minutes required to process all MWUs
+ *   d. from the {@link TimeBudget}, find the target number of minutes in which to complete processing of all MWUs
+ * 4. recommend the number of containers so all MWU processing should finish within the target number of minutes
  */
 @Slf4j
 public class RecommendScalingForWorkUnitsLinearHeuristicImpl extends AbstractRecommendScalingForWorkUnitsImpl {
 
   public static final String AMORTIZED_NUM_BYTES_PER_MINUTE = GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_PREFIX + "heuristic.params.numBytesPerMinute";
-  public static final long DEFAULT_AMORTIZED_NUM_BYTES_PER_MINUTE = 10 * 1000L * 1000L * 60L; // 10MB/sec
+  public static final long DEFAULT_AMORTIZED_NUM_BYTES_PER_MINUTE = 80 * 1000L * 1000L * 60L; // 80MB/sec
 
   @Override
   protected int calcDerivationSetPoint(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget jobTimeBudget, JobState jobState) {
@@ -53,7 +59,7 @@ public class RecommendScalingForWorkUnitsLinearHeuristicImpl extends AbstractRec
     double meanMWUsThroughputPerContainerMinute = numSimultaneousMWUsPerContainer / minutesProcTimeForMeanMWU;
     double estContainerMinutesForAllMWUs = numMWUs / meanMWUsThroughputPerContainerMinute;
 
-    long targetNumMinutesForAllMWUs = jobTimeBudget.getMaxDurationDesiredMinutes();
+    long targetNumMinutesForAllMWUs = jobTimeBudget.getMaxTargetDurationMinutes();
     // TODO: take into account `jobTimeBudget.getPermittedOverageMinutes()` - e.g. to decide whether to use `Math.ceil` vs. `Math.floor`
 
     // TODO: decide how to account for container startup; working est. for GoT-on-YARN ~ 3 mins (req to alloc ~ 30s; alloc to workers ready ~ 2.5m)

@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -199,16 +200,15 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   }
 
   protected TimeBudget calcWUProcTimeBudget(Instant jobStartTime, WorkUnitsSizeSummary wuSizeSummary, Properties jobProps) {
-    // TODO: make configurable!  for now, aim for:
-    //  - total job runtime of 2 hours
-    //  - at least 15 minutes for the `CommitStepWorkflow`
-    //  - leave at least 1 hour for the `ProcessWorkUnitsWorkflow` (so deduct at most 45 minutes for WU generation thus far)
-    long totalTimeMins = 120;
+    // TODO: make fully configurable!  for now, cap Work Discovery at 45 mins and set aside 10 mins for the `CommitStepWorkflow`
     long maxGenWUsMins = 45;
-    long commitStepMins = 15;
+    long commitStepMins = 10;
+    long totalTargetTimeMins = TimeUnit.MINUTES.toMinutes(PropertiesUtils.getPropAsLong(jobProps,
+        ConfigurationKeys.JOB_TARGET_COMPLETION_DURATION_IN_MINUTES_KEY,
+        ConfigurationKeys.DEFAULT_JOB_TARGET_COMPLETION_DURATION_IN_MINUTES));
     double permittedOveragePercentage = .2;
     Duration genWUsDuration = Duration.between(jobStartTime, TemporalEventTimer.getCurrentTime());
-    long remainingMins = totalTimeMins - Math.min(genWUsDuration.toMinutes(), maxGenWUsMins) - commitStepMins;
+    long remainingMins = totalTargetTimeMins - Math.min(genWUsDuration.toMinutes(), maxGenWUsMins) - commitStepMins;
     return TimeBudget.withOveragePercentage(remainingMins, permittedOveragePercentage);
   }
 

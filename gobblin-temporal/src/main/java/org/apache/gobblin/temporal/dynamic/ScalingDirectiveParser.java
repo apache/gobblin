@@ -27,6 +27,7 @@ import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
 import com.google.common.annotations.VisibleForTesting;
+import lombok.Data;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -174,6 +175,25 @@ public class ScalingDirectiveParser {
     }
   }
 
+
+  /**
+   * A two-part stringified form of a `ScalingDirective`, comprised of:
+   *   - the "core" directive, but using {@link #OVERLAY_DEFINITION_PLACEHOLDER} in place of any overlay
+   *   - the separately stringified {@link ProfileOverlay} - empty string, when no overlay
+   *
+   * This facilitates writing the directive as a (size-constrained) file name, with the overlay definition written as the file's contents.
+   *
+   * NOTE: Every `ProfileOverlay` will be invariably rendered separately; the length of a singular `String` representation has no bearing.
+   *
+   * @see #asStringWithPlaceholderPlusOverlay(ScalingDirective)
+   */
+  @Data
+  public static class StringWithPlaceholderPlusOverlay {
+    private final String directiveStringWithPlaceholder;
+    private final String overlayDefinitionString;
+  }
+
+
   // TODO: syntax to remove an attr while ALSO "adding" (so not simply setting to the empty string) - [proposal: alt. form for KV_PAIR ::= ( KEY '|=|' )]
 
   // syntax (described in class-level javadoc):
@@ -263,26 +283,47 @@ public class ScalingDirectiveParser {
     directive.getOptDerivedFrom().ifPresent(derivedFrom -> {
       sb.append(',').append(derivedFrom.getBasisProfileName());
       sb.append(derivedFrom.getOverlay() instanceof ProfileOverlay.Adding ? "+(" : "-(");
-      ProfileOverlay overlay = derivedFrom.getOverlay();
-      if (overlay instanceof ProfileOverlay.Adding) {
-        ProfileOverlay.Adding adding = (ProfileOverlay.Adding) overlay;
-        for (ProfileOverlay.KVPair kv : adding.getAdditionPairs()) {
-          sb.append(kv.getKey()).append('=').append(urlEncode(kv.getValue())).append(", ");
-        }
-        if (adding.getAdditionPairs().size() > 0) {
-          sb.setLength(sb.length() - 2);  // remove trailing ", "
-        }
-      } else {
-        ProfileOverlay.Removing removing = (ProfileOverlay.Removing) overlay;
-        for (String key : removing.getRemovalKeys()) {
-          sb.append(key).append(", ");
-        }
-        if (removing.getRemovalKeys().size() > 0) {
-          sb.setLength(sb.length() - 2);  // remove trailing ", "
-        }
-      }
+      sb.append(stringifyProfileOverlay(derivedFrom.getOverlay()));
       sb.append(')');
     });
+    return sb.toString();
+  }
+
+  /** @return the `scalingDirective` invariably stringified as two parts, a {@link StringWithPlaceholderPlusOverlay} - regardless of stringified length */
+  public static StringWithPlaceholderPlusOverlay asStringWithPlaceholderPlusOverlay(ScalingDirective directive) {
+    StringBuilder sb = new StringBuilder();
+    sb.append(directive.getTimestampEpochMillis()).append('.').append(directive.getProfileName()).append('=').append(directive.getSetPoint());
+    Optional<String> optProfileOverlayStr = directive.getOptDerivedFrom().map(derivedFrom ->
+        stringifyProfileOverlay(derivedFrom.getOverlay())
+    );
+    directive.getOptDerivedFrom().ifPresent(derivedFrom -> {
+      sb.append(',').append(derivedFrom.getBasisProfileName());
+      sb.append(derivedFrom.getOverlay() instanceof ProfileOverlay.Adding ? "+(" : "-(");
+      sb.append(OVERLAY_DEFINITION_PLACEHOLDER);
+      sb.append(')');
+    });
+    return new StringWithPlaceholderPlusOverlay(sb.toString(), optProfileOverlayStr.orElse(""));
+  }
+
+  private static String stringifyProfileOverlay(ProfileOverlay overlay) {
+    StringBuilder sb = new StringBuilder();
+    if (overlay instanceof ProfileOverlay.Adding) {
+      ProfileOverlay.Adding adding = (ProfileOverlay.Adding) overlay;
+      for (ProfileOverlay.KVPair kv : adding.getAdditionPairs()) {
+        sb.append(kv.getKey()).append('=').append(urlEncode(kv.getValue())).append(", ");
+      }
+      if (adding.getAdditionPairs().size() > 0) {
+        sb.setLength(sb.length() - 2);  // remove trailing ", "
+      }
+    } else {
+      ProfileOverlay.Removing removing = (ProfileOverlay.Removing) overlay;
+      for (String key : removing.getRemovalKeys()) {
+        sb.append(key).append(", ");
+      }
+      if (removing.getRemovalKeys().size() > 0) {
+        sb.setLength(sb.length() - 2);  // remove trailing ", "
+      }
+    }
     return sb.toString();
   }
 
