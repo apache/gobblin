@@ -25,13 +25,20 @@ import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import lombok.AccessLevel;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
+
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
-import lombok.Data;
-import lombok.RequiredArgsConstructor;
 
 
 /** Alt. forms of profile overlay to evolve one profile {@link Config} into another.  Two overlays may be combined hierarchically into a new overlay. */
+@JsonTypeInfo(use = JsonTypeInfo.Id.MINIMAL_CLASS, include = JsonTypeInfo.As.PROPERTY, property = "@class") // to handle impls (`MINIMAL..`, as all defs below)
 public interface ProfileOverlay {
 
   /** @return a new, evolved {@link Config}, by application of this overlay */
@@ -40,21 +47,36 @@ public interface ProfileOverlay {
   /** @return a new overlay, by combining this overlay *over* another */
   ProfileOverlay over(ProfileOverlay other);
 
+  /** @return a new overlay that would change nothing when used in a {@link ProfileDerivation} (beyond introducing a distinct name) */
+  static ProfileOverlay unchanged() {
+    return new Adding();
+  }
+
 
   /** A key-value pair/duple */
   @Data
+  @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
+  @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
+  @RequiredArgsConstructor
   class KVPair {
-    private final String key;
-    private final String value;
+    @NonNull private String key;
+    @NonNull private String value;
   }
 
 
   /** An overlay to evolve any profile by adding key-value pairs */
   @Data
-  @RequiredArgsConstructor  // explicit, due to second, variadic ctor
+  @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
+  @RequiredArgsConstructor  // explicit, due to other ctors
   class Adding implements ProfileOverlay {
-    private final List<KVPair> additionPairs;
+    @NonNull private List<KVPair> additionPairs;
 
+    // IMPORTANT: for jackson (de)serialization
+    public Adding() {
+      this(new ArrayList<>());
+    }
+
+    /** variadic, for convenience */
     public Adding(KVPair... kvPairs) {
       this(Arrays.asList(kvPairs));
     }
@@ -90,10 +112,13 @@ public interface ProfileOverlay {
 
   /** An overlay to evolve any profile by removing named keys */
   @Data
+  @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
+  @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
   @RequiredArgsConstructor  // explicit, due to second, variadic ctor
   class Removing implements ProfileOverlay {
-    private final List<String> removalKeys;
+    @NonNull private List<String> removalKeys;
 
+    /** variadic, for convenience */
     public Removing(String... keys) {
       this(Arrays.asList(keys));
     }
@@ -128,9 +153,11 @@ public interface ProfileOverlay {
 
   /** An overlay to evolve any profile by adding key-value pairs while also removing named keys */
   @Data
+  @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
+  @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
   class Combo implements ProfileOverlay {
-    private final Adding adding;
-    private final Removing removing;
+    @NonNull private Adding adding;
+    @NonNull private Removing removing;
 
     /** restricted-access ctor: instead use {@link Combo#normalize(Adding, Removing)} */
     private Combo(Adding adding, Removing removing) {

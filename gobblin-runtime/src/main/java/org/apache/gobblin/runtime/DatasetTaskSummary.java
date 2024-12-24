@@ -17,10 +17,12 @@
 
 package org.apache.gobblin.runtime;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 import org.apache.gobblin.metrics.DatasetMetric;
 
@@ -30,6 +32,7 @@ import org.apache.gobblin.metrics.DatasetMetric;
  * that can be reported as a single event in the commit phase.
  */
 @Data
+@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @RequiredArgsConstructor
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 public class DatasetTaskSummary {

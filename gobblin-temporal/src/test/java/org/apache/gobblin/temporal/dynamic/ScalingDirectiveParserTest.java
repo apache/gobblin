@@ -245,6 +245,34 @@ public class ScalingDirectiveParserTest {
     Assert.assertEquals(ScalingDirectiveParser.asString(parser.parse(directive)), directive);
   }
 
+  @DataProvider(name = "stringifiedForAsStringWithPlaceholderPlusOverlay")
+  public Object[][] directivesForAsStringWithPlaceholderPlusOverlay() {
+    return new Object[][]{
+        { "1728435970.my_profile=24", "1728435970.my_profile=24", "" },
+        { "1728439210.new_profile=16,bar+(a.b.c=7, l.m=sixteen)", "1728439210.new_profile=16,bar+(...)", "a.b.c=7, l.m=sixteen" },
+        { "1728436436.other_profile=9,my_profile-(x, y.z)", "1728436436.other_profile=9,my_profile-(...)", "x, y.z" }
+    };
+  }
+
+  @Test(
+      expectedExceptions = {},
+      dataProvider = "stringifiedForAsStringWithPlaceholderPlusOverlay"
+  )
+  public void testAsStringWithPlaceholderPlusSeparateOverlay(String directive, String expectedString, String expectedOverlay)
+      throws ScalingDirectiveParser.InvalidSyntaxException {
+    ScalingDirective sd = parser.parse(directive);
+    ScalingDirectiveParser.StringWithPlaceholderPlusOverlay result = ScalingDirectiveParser.asStringWithPlaceholderPlusOverlay(sd);
+    Assert.assertEquals(result.getDirectiveStringWithPlaceholder(), expectedString);
+    Assert.assertEquals(result.getOverlayDefinitionString(), expectedOverlay);
+
+    // verify round-trip back to the original:
+    try {
+      parser.parse(result.getDirectiveStringWithPlaceholder());
+    } catch (ScalingDirectiveParser.OverlayPlaceholderNeedsDefinition needsDefinition) {
+      Assert.assertEquals(ScalingDirectiveParser.asString(needsDefinition.retryParsingWithDefinition(expectedOverlay)), directive);
+    }
+  }
+
   @DataProvider(name = "overlayPlaceholderDirectivesWithCompletionDefAndEquivalent")
   public String[][] overlayPlaceholderDirectivesWithCompletionDefAndEquivalent() {
     return new String[][]{

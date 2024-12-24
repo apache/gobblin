@@ -17,10 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Optional;
-
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -28,24 +24,24 @@ import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
-import org.apache.gobblin.temporal.exception.FailedDatasetUrnsException;
-
 
 /**
- * Data structure representing the stats for a committed dataset, and the total number of committed workunits in the Gobblin Temporal job
- * Return type of {@link org.apache.gobblin.temporal.ddm.workflow.ProcessWorkUnitsWorkflow#process(WUProcessingSpec)}
- * and {@link org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow#commit(WUProcessingSpec)}.
+ * Duration for whatever work to complete, with a permitted overage to indicate firm-ness/soft-ness.
+ * Values are in minutes, befitting the granularity of inevitable companion activities, like:
+ *   - network operations - opening connections, I/O, retries
+ *   - starting/scaling workers
  */
 @Data
 @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
-public class CommitStats {
-  @NonNull private Map<String, DatasetStats> datasetStats;
-  @NonNull private int numCommittedWorkUnits;
-  @NonNull private Optional<FailedDatasetUrnsException> optFailure;
+public class TimeBudget {
+  // NOTE: `@NonNull` to include field in `@RequiredArgsConstructor`, despite - "warning: @NonNull is meaningless on a primitive... @RequiredArgsConstructor"
+  @NonNull private long maxTargetDurationMinutes;
+  @NonNull private long permittedOverageMinutes;
 
-  public static CommitStats createEmpty() {
-    return new CommitStats(new HashMap<>(), 0, Optional.empty());
+  /** construct w/ {@link #permittedOverageMinutes} expressed as a percentage of {@link #maxTargetDurationMinutes} */
+  public static TimeBudget withOveragePercentage(long maxDurationDesiredMinutes, double permittedOveragePercentage) {
+    return new TimeBudget(maxDurationDesiredMinutes, (long) (maxDurationDesiredMinutes * permittedOveragePercentage));
   }
 }

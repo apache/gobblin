@@ -54,7 +54,7 @@ public class ProfileDerivationTest {
   public void testFormulateConfigUnknownBasis() {
     String basisProfileName = "foo";
     try {
-      ProfileDerivation derivation = new ProfileDerivation(basisProfileName, null);
+      ProfileDerivation derivation = new ProfileDerivation(basisProfileName, ProfileOverlay.unchanged());
       derivation.formulateConfig(ignore -> Optional.empty());
       Assert.fail("Expected instead: UnknownBasisException");
     } catch (ProfileDerivation.UnknownBasisException ube) {
@@ -65,14 +65,14 @@ public class ProfileDerivationTest {
   @Test
   public void testRenderNameNonBaseline() {
     String name = "testProfile";
-    ProfileDerivation profileDerivation = new ProfileDerivation(name, null);
+    ProfileDerivation profileDerivation = new ProfileDerivation(name, ProfileOverlay.unchanged());
     String renderedName = profileDerivation.renderName();
     Assert.assertEquals(renderedName, name);
   }
 
   @Test
   public void testRenderNameBaseline() {
-    ProfileDerivation profileDerivation = new ProfileDerivation(WorkforceProfiles.BASELINE_NAME, null);
+    ProfileDerivation profileDerivation = new ProfileDerivation(WorkforceProfiles.BASELINE_NAME, ProfileOverlay.unchanged());
     String renderedName = profileDerivation.renderName();
     Assert.assertEquals(renderedName, WorkforceProfiles.BASELINE_NAME_RENDERING);
   }

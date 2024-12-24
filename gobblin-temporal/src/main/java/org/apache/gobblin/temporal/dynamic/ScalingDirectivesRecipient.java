@@ -15,26 +15,16 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.ddm.work;
+package org.apache.gobblin.temporal.dynamic;
 
-import java.util.Map;
-import lombok.AccessLevel;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
+import java.io.IOException;
+import java.util.List;
 
 
-/** Capture details (esp. for the temporal UI) of a {@link org.apache.gobblin.temporal.ddm.workflow.ExecuteGobblinWorkflow} execution */
-@Data
-@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
-@RequiredArgsConstructor
-@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
-public class ExecGobblinStats {
-  @NonNull private int numWorkUnits;
-  @NonNull private int numCommitted;
-  @NonNull private String user;
-  @NonNull private Map<String, DatasetStats> stats;
+/** An opaque sink for {@link org.apache.gobblin.temporal.dynamic.ScalingDirective}s - typically either to process or proxy them */
+public interface ScalingDirectivesRecipient {
+  /** @param directives the {@link ScalingDirective}s to receive */
+  void receive(List<ScalingDirective> directives) throws IOException;
 }
+
 

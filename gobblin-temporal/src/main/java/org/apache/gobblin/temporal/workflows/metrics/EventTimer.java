@@ -17,6 +17,7 @@
 package org.apache.gobblin.temporal.workflows.metrics;
 
 import java.io.Closeable;
+import java.time.Instant;
 
 import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -55,4 +56,6 @@ public interface EventTimer extends Closeable {
   default void close() {
     stop();
   }
+
+  Instant getStartTime();
 }

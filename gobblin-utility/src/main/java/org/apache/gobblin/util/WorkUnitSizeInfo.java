@@ -24,10 +24,12 @@ import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 import lombok.NonNull;
 import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import com.tdunning.math.stats.TDigest;
@@ -49,6 +51,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
  * amount of data, known up front.  In such cases, the {@link #numConstituents} (aka. parallelism potential) may be most informative.
  */
 @Data
+@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class WorkUnitSizeInfo {

@@ -69,4 +69,7 @@ public interface GobblinTemporalConfigurationKeys {
    * Prefix for Gobblin-on-Temporal Dynamic Scaling
    */
   String DYNAMIC_SCALING_PREFIX = PREFIX + "dynamic.scaling.";
+
+  String DYNAMIC_SCALING_POLLING_INTERVAL_SECS = DYNAMIC_SCALING_PREFIX + "polling.interval.seconds";
+  int DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS = 60;
 }

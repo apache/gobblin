@@ -20,16 +20,24 @@ package org.apache.gobblin.temporal.dynamic;
 import java.util.Optional;
 import java.util.function.Function;
 
-import com.typesafe.config.Config;
+import lombok.AccessLevel;
 import lombok.Data;
 import lombok.Getter;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.RequiredArgsConstructor;
+import lombok.Setter;
 
+import com.typesafe.config.Config;
 
 /**
  * Defines a new {@link WorkerProfile} by evolving from another profile, the basis.  Such evolution creates a new immutable profile through
  * {@link ProfileOverlay}, which either adds or removes properties from the basis profile's definition.  That basis profile must already exist.
  */
 @Data
+@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
+@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
+@RequiredArgsConstructor
 public class ProfileDerivation {
 
   /** Flags when the basis profile was NOT found */
@@ -41,8 +49,8 @@ public class ProfileDerivation {
     }
   }
 
-  private final String basisProfileName;
-  private final ProfileOverlay overlay;
+  @NonNull private String basisProfileName;
+  @NonNull private ProfileOverlay overlay;
 
   /** @return a new profile definition through evolution from the basis profile, which is to be obtained via `basisResolver` */
   public Config formulateConfig(Function<String, Optional<WorkerProfile>> basisResolver) throws UnknownBasisException {
