@@ -56,11 +56,11 @@ public class RecommendScalingForWorkUnitsLinearHeuristicImplTest {
     long totalNumMWUs = 3000L;
     Mockito.when(workUnitsSizeSummary.getTopLevelWorkUnitsCount()).thenReturn(totalNumMWUs);
     Mockito.when(workUnitsSizeSummary.getTopLevelWorkUnitsMeanSize()).thenReturn(500e6); // 500MB
-    // parallelization capacity = 20 container-slots
-    // per-container-slot rate = 5 mins / MWU
-    long numMWUsPerMinutePerContainer = 4; // (amortized) per-container rate = 4 MWU / minute
-    long totalNumContainerMinutesAllMWUs = totalNumMWUs / numMWUsPerMinutePerContainer; // 750 minutes
-    long expectedSetPoint = totalNumContainerMinutesAllMWUs / targetTimeBudgetMinutes;
+    // parallelization capacity = 20 container-slots (= 4 * 5)
+    // per-container-slot rate = 5 container-slot-mins/mean(MWU) (= 500 MB/mean(MWU) / 100MB/min)
+    long numMWUsPerMinutePerContainer = 4; // (amortized) per-container rate = 4 MWU/container-minute (= 20 / 5)
+    long totalNumContainerMinutesAllMWUs = totalNumMWUs / numMWUsPerMinutePerContainer; // 750 container-minutes (= 3000 MWU / 4 MWU/container-min)
+    long expectedSetPoint = totalNumContainerMinutesAllMWUs / targetTimeBudgetMinutes; // 10 containers (= 750 / 75)
 
     int resultA = scalingHeuristic.calcDerivationSetPoint(workUnitsSizeSummary, "sourceClass", timeBudget, jobState);
     Assert.assertEquals(resultA, expectedSetPoint);

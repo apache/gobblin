@@ -315,7 +315,7 @@ public class ScalingDirectiveParser {
       if (adding.getAdditionPairs().size() > 0) {
         sb.setLength(sb.length() - 2);  // remove trailing ", "
       }
-    } else {
+    } else if (overlay instanceof ProfileOverlay.Removing) {
       ProfileOverlay.Removing removing = (ProfileOverlay.Removing) overlay;
       for (String key : removing.getRemovalKeys()) {
         sb.append(key).append(", ");
@@ -323,6 +323,8 @@ public class ScalingDirectiveParser {
       if (removing.getRemovalKeys().size() > 0) {
         sb.setLength(sb.length() - 2);  // remove trailing ", "
       }
+    } else { // `ProfileOverlay.Combo` is NOT supported!
+      throw new IllegalArgumentException("unsupported derived class of type '" + overlay.getClass().getName() + "'");
     }
     return sb.toString();
   }
