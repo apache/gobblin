@@ -53,6 +53,29 @@ public class WorkUnitsSizeSummary {
   @NonNull private List<Double> topLevelQuantilesMinSizes;
   @NonNull private List<Double> constituentQuantilesMinSizes;
 
+  /** Total size, counts, means, and medians: the most telling measurements packaged for ready consumption / observability */
+  @Data
+  @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
+  @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
+  @RequiredArgsConstructor
+  public static class Distillation {
+    @NonNull private long totalSize;
+    @NonNull private long topLevelWorkUnitsCount;
+    @NonNull private long constituentWorkUnitsCount;
+    @NonNull private double topLevelWorkUnitsMeanSize;
+    @NonNull private double constituentWorkUnitsMeanSize;
+    @NonNull private double topLevelWorkUnitsMedianSize;
+    @NonNull private double constituentWorkUnitsMedianSize;
+  }
+
+  @JsonIgnore // (because no-arg method resembles 'java bean property')
+  public Distillation distill() {
+    return new Distillation(this.totalSize, this.topLevelWorkUnitsCount, this.constituentWorkUnitsCount,
+        this.getTopLevelWorkUnitsMeanSize(), this.getConstituentWorkUnitsMeanSize(),
+        this.getTopLevelWorkUnitsMedianSize(), this.getConstituentWorkUnitsMedianSize()
+    );
+  }
+
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   public double getTopLevelWorkUnitsMeanSize() {
     return this.totalSize * 1.0 / this.topLevelWorkUnitsCount;

@@ -110,6 +110,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
   public static final String JOB_SKIPPED_TIME = "jobSkippedTime";
   public static final String WORKUNIT_PLAN_START_TIME = "workunitPlanStartTime";
   public static final String WORKUNIT_PLAN_END_TIME = "workunitPlanEndTime";
+  public static final String WORKUNITS_GENERATED_SUMMARY = "workUnitsGeneratedSummary";
   public static final String JOB_END_TIME = "jobEndTime";
   public static final String JOB_LAST_PROGRESS_EVENT_TIME = "jobLastProgressEventTime";
   public static final String JOB_COMPLETION_PERCENTAGE = "jobCompletionPercentage";
