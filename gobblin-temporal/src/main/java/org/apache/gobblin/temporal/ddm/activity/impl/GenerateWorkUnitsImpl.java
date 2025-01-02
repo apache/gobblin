@@ -43,6 +43,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
@@ -60,6 +61,8 @@ import org.apache.gobblin.temporal.ddm.work.GenerateWorkUnitsResult;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
+import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
+import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
 
@@ -127,6 +130,9 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       int numSizeSummaryQuantiles = getConfiguredNumSizeSummaryQuantiles(jobState);
       WorkUnitsSizeSummary wuSizeSummary = digestWorkUnitsSize(workUnits).asSizeSummary(numSizeSummaryQuantiles);
       log.info("Discovered WorkUnits: {}", wuSizeSummary);
+      // IMPORTANT: send prior to `writeWorkUnits`, so the volume of work discovered (and bin packed) gets durably measured.  even if serialization were to
+      // exceed available memory and this activity execution were to fail, a subsequent re-attempt would know the amount of work, to guide re-config/attempt
+      createWorkPreparedSizeDistillationTimer(wuSizeSummary, eventSubmitterContext).stop();
 
       JobStateUtils.writeWorkUnits(workUnits, workDirRoot, jobState, fs);
       JobStateUtils.writeJobState(jobState, workDirRoot, fs); // ATTENTION: the writing of `JobState` after all WUs signifies WU gen+serialization now complete
@@ -150,25 +156,27 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
   protected List<WorkUnit> generateWorkUnitsForJobStateAndCollectCleanupPaths(JobState jobState, EventSubmitterContext eventSubmitterContext, Closer closer,
       Set<String> pathsToCleanUp)
       throws ReflectiveOperationException {
+    // report (timer) metrics for "Work Discovery", *planning only* - NOT including WU prep, like serialization, `DestinationDatasetHandlerService`ing, etc.
+    // IMPORTANT: for accurate timing, SEPARATELY emit `.createWorkPreparationTimer`, to record time prior to measuring the WU size required for that one
+    TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinActivityFactory(eventSubmitterContext);
+    EventTimer workDiscoveryTimer = timerFactory.createWorkDiscoveryTimer();
     Source<?, ?> source = JobStateUtils.createSource(jobState);
     WorkUnitStream workUnitStream = source instanceof WorkUnitStreamSource
         ? ((WorkUnitStreamSource) source).getWorkunitStream(jobState)
         : new BasicWorkUnitStream.Builder(source.getWorkunits(jobState)).build();
 
-    // TODO: report (timer) metrics for workunits creation
     if (workUnitStream == null || workUnitStream.getWorkUnits() == null) { // indicates a problem getting the WUs
       String errMsg = "Failure in getting work units for job " + jobState.getJobId();
       log.error(errMsg);
-      // TODO: decide whether a non-retryable failure is too severe... (in most circumstances, it's likely what we want)
+      // TODO: decide whether a non-retryable failure is too severe... (some sources may merit retry)
       throw ApplicationFailure.newNonRetryableFailure(errMsg, "Failure: Source.getWorkUnits()");
     }
+    workDiscoveryTimer.stop();
 
     if (!workUnitStream.getWorkUnits().hasNext()) { // no work unit to run: entirely normal result (not a failure)
       log.warn("No work units created for job " + jobState.getJobId());
       return Lists.newArrayList();
     }
-
-    // TODO: count total bytes for progress tracking!
 
     boolean canCleanUpTempDirs = false; // unlike `AbstractJobLauncher` running the job end-to-end, this is Work Discovery only, so WAY TOO SOON for cleanup
     DestinationDatasetHandlerService datasetHandlerService = closer.register(
@@ -262,6 +270,19 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     topLevelWorkUnitsDigest.compress();
     constituentWorkUnitsDigest.compress();
     return new WorkUnitsSizeDigest(totalSize.get(), topLevelWorkUnitsDigest, constituentWorkUnitsDigest);
+  }
+
+  protected static EventTimer createWorkPreparedSizeDistillationTimer(
+      WorkUnitsSizeSummary wuSizeSummary, EventSubmitterContext eventSubmitterContext) {
+    // Inspired by a pair of log messages produced within `CopySource::getWorkUnits`:
+    //   1. Statistics for ConcurrentBoundedPriorityIterable: {ResourcePool: {softBound: [ ... ], hardBound: [ ...]},totalResourcesUsed: [ ... ], \
+    //       maxRequirementPerDimension: [entities: 231943.0, bytesCopied: 1.22419622769628E14], ... }
+    //   2. org.apache.gobblin.data.management.copy.CopySource - Bin packed work units. Initial work units: 27252, packed work units: 13175, \
+    //       max weight per bin: 500000000, max work units per bin: 100.
+    // rather than merely logging, durably emit this info, to inform re-config for any potential re-attempt (should WU serialization OOM)
+    TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinActivityFactory(eventSubmitterContext);
+    return timerFactory.createWorkPreparationTimer()
+        .withMetadataAsJson(TimingEvent.WORKUNITS_GENERATED_SUMMARY, wuSizeSummary.distill());
   }
 
   public static int getConfiguredNumSizeSummaryQuantiles(State state) {

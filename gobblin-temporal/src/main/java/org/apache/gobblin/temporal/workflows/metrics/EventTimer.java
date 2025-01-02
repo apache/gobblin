@@ -42,17 +42,30 @@ import org.apache.gobblin.metrics.event.TimingEvent;
  */
 public interface EventTimer extends Closeable {
   /**
-   * Add additional metadata that will be used for post-processing when the timer is stopped via {@link #stop()}
+   * Add additional metadata that will be emitted with the timer, once {@link #stop()}ped
    * @param key
    * @param metadata
    */
   EventTimer withMetadata(String key, String metadata);
 
   /**
+   * Add additional metadata, after stringifying as JSON, that will be emitted with the timer, once {@link #stop()}ped
+   * @param key
+   * @param metadata (to convert to JSON)
+   */
+  <T> EventTimer withMetadataAsJson(String key, T metadata);
+
+  /**
    * Stops the timer and execute any post-processing (e.g. event submission)
    */
   void stop();
 
+  /** alias to {@link #stop()} */
+  default void submit() {
+    stop();
+  }
+
+  /** alias to {@link #stop()} */
   default void close() {
     stop();
   }

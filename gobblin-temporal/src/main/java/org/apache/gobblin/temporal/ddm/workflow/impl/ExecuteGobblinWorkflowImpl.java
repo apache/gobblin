@@ -119,14 +119,14 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       .build();
 
   private static final ActivityOptions DELETE_WORK_DIRS_ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(Duration.ofHours(1))
+      .setStartToCloseTimeout(Duration.ofMinutes(10))
       .setRetryOptions(DELETE_WORK_DIRS_RETRY_OPTS)
       .build();
   private final DeleteWorkDirsActivity deleteWorkDirsActivityStub = Workflow.newActivityStub(DeleteWorkDirsActivity.class, DELETE_WORK_DIRS_ACTIVITY_OPTS);
 
   @Override
   public ExecGobblinStats execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
-    TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
+    TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext);
     timerFactory.create(TimingEvent.LauncherTimings.JOB_PREPARE).submit(); // update GaaS: `TimingEvent.JOB_START_TIME`
     EventTimer jobSuccessTimer = timerFactory.createJobTimer();
     Optional<GenerateWorkUnitsResult> optGenerateWorkUnitResult = Optional.empty();
@@ -207,7 +207,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         ConfigurationKeys.JOB_TARGET_COMPLETION_DURATION_IN_MINUTES_KEY,
         ConfigurationKeys.DEFAULT_JOB_TARGET_COMPLETION_DURATION_IN_MINUTES));
     double permittedOveragePercentage = .2;
-    Duration genWUsDuration = Duration.between(jobStartTime, TemporalEventTimer.getCurrentTime());
+    Duration genWUsDuration = Duration.between(jobStartTime, TemporalEventTimer.WithinWorkflowFactory.getCurrentInstant());
     long remainingMins = totalTargetTimeMins - Math.min(genWUsDuration.toMinutes(), maxGenWUsMins) - commitStepMins;
     return TimeBudget.withOveragePercentage(remainingMins, permittedOveragePercentage);
   }

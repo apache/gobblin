@@ -57,7 +57,7 @@ public class GreetingWorkflowImpl implements GreetingWorkflow {
         /**
          * Example of the {@link TemporalEventTimer.Factory} invoking child activity for instrumentation.
          */
-        TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
+        TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext);
         try (TemporalEventTimer timer = timerFactory.create("getGreetingTime")) {
             LOG.info("Executing getGreeting");
             timer.withMetadata("name", name);

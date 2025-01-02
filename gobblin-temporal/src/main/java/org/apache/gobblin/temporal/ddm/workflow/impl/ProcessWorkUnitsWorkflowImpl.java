@@ -121,7 +121,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   private Optional<EventTimer> createOptJobEventTimer(WUProcessingSpec workSpec) {
     if (workSpec.isToDoJobLevelTiming()) {
       EventSubmitterContext eventSubmitterContext = workSpec.getEventSubmitterContext();
-      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.Factory(eventSubmitterContext);
+      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext);
       return Optional.of(timerFactory.createJobTimer());
     } else {
       return Optional.empty();

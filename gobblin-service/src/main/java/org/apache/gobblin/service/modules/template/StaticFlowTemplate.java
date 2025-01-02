@@ -68,7 +68,6 @@ public class StaticFlowTemplate implements FlowTemplate {
   private String description;
   @Getter
   private transient FlowCatalogWithTemplates catalog;
-  @Getter
   private List<JobTemplate> jobTemplates;
 
   private transient Config rawConfig;
