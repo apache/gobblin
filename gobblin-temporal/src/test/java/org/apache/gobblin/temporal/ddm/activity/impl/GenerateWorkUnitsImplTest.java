@@ -148,8 +148,8 @@ public class GenerateWorkUnitsImplTest {
     Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsCount(), expectedNumConstituentWorkUnits);
     Assert.assertEquals(wuSizeInfo.getQuantilesCount(), numQuantilesDesired);
     Assert.assertEquals(wuSizeInfo.getQuantilesWidth(), 1.0 / expectedNumTopLevelWorkUnits);
-    Assert.assertEquals(wuSizeInfo.getTopLevelQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeInfo` param
-    Assert.assertEquals(wuSizeInfo.getConstituentQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeInfo` param
+    Assert.assertEquals(wuSizeInfo.getTopLevelQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeSummary` param
+    Assert.assertEquals(wuSizeInfo.getConstituentQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeSummary` param
 
     // expected sizes for (n=5) top-level non-multi-WUs: (1x) 0, (1x) 100, (1x) 200, (1x) 300, (1x) 400
     // expected sizes for (n=15) top-level multi-WUs: [a] (4x) 70; [b] (4x) 210 (= 70+140); [c] (4x) 420 (= 70+140+210); [d] (3x) 700 (= 70+140+210+280)
@@ -172,6 +172,31 @@ public class GenerateWorkUnitsImplTest {
             210.0, 210.0, 210.0, // (per 7x MWU [o]) - (15+1+11+1+7/41) * 20 ~ 17.0  |  17.0 - 14 = 3
             280.0, 280.0, // 3x MWU [p] ... (15+1+11+1+7+3/41) * 20 ~ 18.5  |  18.5 - 17 = 2
             400.0 }); // with only one 20-quantile remaining, non-MWU [5] completes the "100-percentile" (all WUs)
+  }
+
+  @Test
+  public void testDigestWorkUnitsSizeWithEmptyWorkUnits() {
+    List<WorkUnit> workUnits = new ArrayList<>();
+    GenerateWorkUnitsImpl.WorkUnitsSizeDigest wuSizeDigest = GenerateWorkUnitsImpl.digestWorkUnitsSize(workUnits);
+
+    Assert.assertEquals(wuSizeDigest.getTotalSize(), 0L);
+    Assert.assertEquals(wuSizeDigest.getTopLevelWorkUnitsSizeDigest().size(), 0);
+    Assert.assertEquals(wuSizeDigest.getConstituentWorkUnitsSizeDigest().size(), 0);
+
+    int numQuantilesDesired = 10;
+    WorkUnitsSizeSummary wuSizeInfo = wuSizeDigest.asSizeSummary(numQuantilesDesired);
+    Assert.assertEquals(wuSizeInfo.getTotalSize(), 0L);
+    Assert.assertEquals(wuSizeInfo.getTopLevelWorkUnitsCount(), 0);
+    Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsCount(), 0);
+    Assert.assertEquals(wuSizeInfo.getQuantilesCount(), numQuantilesDesired);
+    Assert.assertEquals(wuSizeInfo.getQuantilesWidth(), 1.0 / numQuantilesDesired);
+    Assert.assertEquals(wuSizeInfo.getTopLevelQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeSummary` param
+    Assert.assertEquals(wuSizeInfo.getConstituentQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeSummary` param
+    Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsMeanSize(), 0.0);
+    Assert.assertEquals(wuSizeInfo.getTopLevelWorkUnitsMeanSize(), 0.0);
+    Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsMeanSize(), 0.0);
+    Assert.assertEquals(wuSizeInfo.getTopLevelWorkUnitsMedianSize(), 0.0);
+    Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsMedianSize(), 0.0);
   }
 
   public static WorkUnit createWorkUnitOfSize(long size) {

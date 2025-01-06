@@ -78,12 +78,12 @@ public class WorkUnitsSizeSummary {
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   public double getTopLevelWorkUnitsMeanSize() {
-    return this.totalSize * 1.0 / this.topLevelWorkUnitsCount;
+    return this.topLevelWorkUnitsCount == 0 ? 0.0 : (this.totalSize * 1.0 / this.topLevelWorkUnitsCount);
   }
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   public double getConstituentWorkUnitsMeanSize() {
-    return this.totalSize * 1.0 / this.constituentWorkUnitsCount;
+    return this.constituentWorkUnitsCount == 0 ? 0.0 : (this.totalSize * 1.0 / this.constituentWorkUnitsCount);
   }
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')
