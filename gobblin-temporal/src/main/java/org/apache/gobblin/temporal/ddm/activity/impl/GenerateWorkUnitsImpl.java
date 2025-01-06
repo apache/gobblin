@@ -95,7 +95,11 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     private static List<Double> getQuantiles(TDigest digest, int numQuantiles) {
       List<Double> quantileMinSizes = Lists.newArrayList();
       for (int i = 1; i <= numQuantiles; i++) {
-        quantileMinSizes.add(digest.quantile((i * 1.0) / numQuantiles));
+        double currQuantileMinSize = digest.quantile((i * 1.0) / numQuantiles);
+        if (Double.isNaN(currQuantileMinSize)) {
+          currQuantileMinSize = 0.0;
+        }
+        quantileMinSizes.add(currQuantileMinSize);
       }
       return quantileMinSizes;
     }
