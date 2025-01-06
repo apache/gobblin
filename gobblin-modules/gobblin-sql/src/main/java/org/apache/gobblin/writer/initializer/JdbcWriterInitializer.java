@@ -17,6 +17,34 @@
 
 package org.apache.gobblin.writer.initializer;
 
+import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
+import java.util.Collection;
+import java.util.Optional;
+import java.util.Random;
+import java.util.Set;
+import java.util.concurrent.TimeUnit;
+
+import javax.sql.DataSource;
+
+import lombok.AccessLevel;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+import lombok.NonNull;
+import lombok.Setter;
+import lombok.ToString;
+
+import org.apache.commons.lang3.StringUtils;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.collect.Lists;
+import com.google.common.collect.Sets;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.publisher.JdbcPublisher;
@@ -29,33 +57,25 @@ import org.apache.gobblin.writer.commands.JdbcWriterCommands;
 import org.apache.gobblin.writer.commands.JdbcWriterCommandsFactory;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 
-import java.sql.Connection;
-import java.sql.ResultSet;
-import java.sql.SQLException;
-import java.util.Collection;
-import java.util.Random;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
-
-import javax.sql.DataSource;
-
-import lombok.ToString;
-
-import org.apache.commons.lang3.StringUtils;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.collect.Lists;
-import com.google.common.collect.Sets;
-
 
 /**
  * Initialize for JDBC writer and also performs clean up.
  */
 @ToString
 public class JdbcWriterInitializer implements WriterInitializer {
+  /** Commemorate all and exactly those fields, for which to preserve instance state - the name(s) of temporary staging DB tables */
+  @Data
+  @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
+  @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
+  @AllArgsConstructor
+  private static class Memento implements AfterInitializeMemento {
+    // NOTE: as this clearly MAY be `null` (below), DO NOT mark `@NonNull`, to avoid:
+    //   userCreatedStagingTable is marked non-null but is null
+    private String userCreatedStagingTable;
+    @NonNull private Set<String> createdStagingTables;
+  }
+
+
   private static final Logger LOG = LoggerFactory.getLogger(JdbcWriterInitializer.class);
   private static final String STAGING_TABLE_FORMAT = "stage_%d";
   private static final int NAMING_STAGING_TABLE_TRIAL = 10;
@@ -95,7 +115,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
    * Drop table if it's created by this instance.
    * Truncate staging tables passed by user.
    * {@inheritDoc}
-   * @see org.apache.gobblin.Initializer#close()
+   * @see org.apache.gobblin.initializer.Initializer#close()
    */
   @Override
   public void close() {
@@ -200,7 +220,6 @@ public class JdbcWriterInitializer implements WriterInitializer {
    * 3.1. Create staging table with unique name.
    * 3.2. Try to drop and recreate the table to confirm if we can drop it later.
    * 4. Update Workunit state with staging table information.
-   * @param state
    */
   @Override
   public void initialize() {
@@ -275,6 +294,18 @@ public class JdbcWriterInitializer implements WriterInitializer {
     } catch (SQLException e) {
       throw new RuntimeException("Failed with SQL", e);
     }
+  }
+
+  @Override
+  public Optional<AfterInitializeMemento> commemorate() {
+    return Optional.of(new JdbcWriterInitializer.Memento(this.userCreatedStagingTable, Sets.newHashSet(this.createdStagingTables)));
+  }
+
+  @Override
+  public void recall(AfterInitializeMemento memento) {
+    Memento recollection = memento.castAsOrThrow(JdbcWriterInitializer.Memento.class, this);
+    this.userCreatedStagingTable = recollection.userCreatedStagingTable;
+    this.createdStagingTables = Sets.newHashSet(recollection.createdStagingTables);
   }
 
   private JdbcWriterCommands createJdbcWriterCommands(Connection conn) {

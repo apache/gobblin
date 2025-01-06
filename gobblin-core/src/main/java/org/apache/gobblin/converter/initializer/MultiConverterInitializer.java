@@ -18,27 +18,39 @@
 package org.apache.gobblin.converter.initializer;
 
 import java.util.List;
+import java.util.Optional;
 
 import lombok.ToString;
+
 import org.apache.gobblin.initializer.Initializer;
 import org.apache.gobblin.initializer.MultiInitializer;
 
 
 @ToString
 public class MultiConverterInitializer implements ConverterInitializer {
-  private final Initializer intializer;
+  private final Initializer initializer;
 
   public MultiConverterInitializer(List<ConverterInitializer> converterInitializers) {
-    this.intializer = new MultiInitializer(converterInitializers);
+    this.initializer = new MultiInitializer(converterInitializers);
   }
 
   @Override
   public void initialize() {
-    this.intializer.initialize();
+    this.initializer.initialize();
   }
 
   @Override
   public void close() {
-    this.intializer.close();
+    this.initializer.close();
+  }
+
+  @Override
+  public Optional<AfterInitializeMemento> commemorate() {
+    return this.initializer.commemorate();
+  }
+
+  @Override
+  public void recall(AfterInitializeMemento memento) {
+    this.initializer.recall(memento);
   }
 }

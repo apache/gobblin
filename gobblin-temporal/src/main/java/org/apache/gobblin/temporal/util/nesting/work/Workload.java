@@ -17,9 +17,10 @@
 
 package org.apache.gobblin.temporal.util.nesting.work;
 
-import com.fasterxml.jackson.annotation.JsonTypeInfo;
 import java.util.Iterator;
 import java.util.Optional;
+
+import com.fasterxml.jackson.annotation.JsonTypeInfo;
 
 
 /**

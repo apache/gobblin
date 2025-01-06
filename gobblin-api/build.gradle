@@ -20,6 +20,8 @@ apply plugin: 'java'
 dependencies {
     compile externalDependency.guava
     compile externalDependency.gson
+    compile externalDependency.jacksonCore
+    compile externalDependency.jacksonMapper
     compile externalDependency.jasypt
     compile externalDependency.jodaTime
     compile externalDependency.commonsLang3

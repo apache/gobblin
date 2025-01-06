@@ -203,6 +203,7 @@ public class ConfigurationKeys {
   public static final String TASK_DATA_ROOT_DIR_KEY = "task.data.root.dir";
   public static final String SOURCE_CLASS_KEY = "source.class";
   public static final String CONVERTER_CLASSES_KEY = "converter.classes";
+  public static final String CONVERTER_INITIALIZERS_SERIALIZED_MEMENTOS_KEY = "converter.initializers.serialized.mementos";
   public static final String RECORD_STREAM_PROCESSOR_CLASSES_KEY = "recordStreamProcessor.classes";
   public static final String FORK_OPERATOR_CLASS_KEY = "fork.operator.class";
   public static final String DEFAULT_FORK_OPERATOR_CLASS = "org.apache.gobblin.fork.IdentityForkOperator";
@@ -434,6 +435,7 @@ public class ConfigurationKeys {
   public static final String WRITER_TRUNCATE_STAGING_TABLE = WRITER_PREFIX + ".truncate.staging.table";
   public static final String WRITER_OUTPUT_DIR = WRITER_PREFIX + ".output.dir";
   public static final String WRITER_BUILDER_CLASS = WRITER_PREFIX + ".builder.class";
+  public static final String WRITER_INITIALIZER_SERIALIZED_MEMENTO_KEY = "writer.initializer.serialized.memento";
   public static final String DEFAULT_WRITER_BUILDER_CLASS = "org.apache.gobblin.writer.AvroDataWriterBuilder";
   public static final String WRITER_FILE_NAME = WRITER_PREFIX + ".file.name";
   public static final String WRITER_FILE_PATH = WRITER_PREFIX + ".file.path";
