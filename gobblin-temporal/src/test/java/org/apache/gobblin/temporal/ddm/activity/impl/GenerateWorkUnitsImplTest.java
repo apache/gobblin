@@ -148,8 +148,8 @@ public class GenerateWorkUnitsImplTest {
     Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsCount(), expectedNumConstituentWorkUnits);
     Assert.assertEquals(wuSizeInfo.getQuantilesCount(), numQuantilesDesired);
     Assert.assertEquals(wuSizeInfo.getQuantilesWidth(), 1.0 / expectedNumTopLevelWorkUnits);
-    Assert.assertEquals(wuSizeInfo.getTopLevelQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeInfo` param
-    Assert.assertEquals(wuSizeInfo.getConstituentQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeInfo` param
+    Assert.assertEquals(wuSizeInfo.getTopLevelQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeSummary` param
+    Assert.assertEquals(wuSizeInfo.getConstituentQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeSummary` param
 
     // expected sizes for (n=5) top-level non-multi-WUs: (1x) 0, (1x) 100, (1x) 200, (1x) 300, (1x) 400
     // expected sizes for (n=15) top-level multi-WUs: [a] (4x) 70; [b] (4x) 210 (= 70+140); [c] (4x) 420 (= 70+140+210); [d] (3x) 700 (= 70+140+210+280)
@@ -190,8 +190,8 @@ public class GenerateWorkUnitsImplTest {
     Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsCount(), 0);
     Assert.assertEquals(wuSizeInfo.getQuantilesCount(), numQuantilesDesired);
     Assert.assertEquals(wuSizeInfo.getQuantilesWidth(), 1.0 / numQuantilesDesired);
-    Assert.assertEquals(wuSizeInfo.getTopLevelQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeInfo` param
-    Assert.assertEquals(wuSizeInfo.getConstituentQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeInfo` param
+    Assert.assertEquals(wuSizeInfo.getTopLevelQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeSummary` param
+    Assert.assertEquals(wuSizeInfo.getConstituentQuantilesMinSizes().size(), numQuantilesDesired); // same as `asSizeSummary` param
     Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsMeanSize(), 0.0);
     Assert.assertEquals(wuSizeInfo.getTopLevelWorkUnitsMeanSize(), 0.0);
     Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsMeanSize(), 0.0);
