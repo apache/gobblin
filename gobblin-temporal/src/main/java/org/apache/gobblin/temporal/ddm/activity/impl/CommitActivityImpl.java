@@ -40,7 +40,7 @@ import com.google.common.base.Function;
 import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
-
+import com.google.common.io.Closer;
 import io.temporal.failure.ApplicationFailure;
 
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
@@ -48,6 +48,8 @@ import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.commit.DeliverySemantics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
+import org.apache.gobblin.initializer.Initializer;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.runtime.JobContext;
@@ -58,6 +60,8 @@ import org.apache.gobblin.runtime.TaskStateCollectorService;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
+import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
@@ -69,6 +73,7 @@ import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.executors.IteratorExecutor;
+import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
 
 @Slf4j
@@ -76,7 +81,7 @@ public class CommitActivityImpl implements CommitActivity {
 
   static int DEFAULT_NUM_DESERIALIZATION_THREADS = 10;
   static int DEFAULT_NUM_COMMIT_THREADS = 1;
-  static String UNDEFINED_JOB_NAME = "<job_name_stub>";
+  static String UNDEFINED_JOB_NAME = "<<UNKNOWN JOB NAME>>";
 
   @Override
   public CommitStats commit(WUProcessingSpec workSpec) {
@@ -105,6 +110,22 @@ public class CommitActivityImpl implements CommitActivity {
       } catch (FailedDatasetUrnsException exception) {
         log.warn("Some datasets failed to be committed, proceeding with publishing commit step", exception);
         optFailure = Optional.of(exception);
+      } finally {
+        // if Work Discovery transmitted any writer/converter `Initializer.AfterInitializeMemento`s within `jobState`, deserialize them now to
+        // `.recall()` and "re-initialize" equivalent writer and/or converter(s) `Initializer`s, to complete their `.close()`
+        // NOTE: the "revived" `Initializer`s are constructed with empty placeholder WUs
+        Closer closer = Closer.create(); // (purely to suppress exceptions)
+        Optional.ofNullable(jobState.getProp(ConfigurationKeys.WRITER_INITIALIZER_SERIALIZED_MEMENTO_KEY)).map(mementoProp ->
+            Initializer.AfterInitializeMemento.deserialize(mementoProp)
+        ).ifPresent(memento ->
+            closer.register(WriterInitializerFactory.newInstace(jobState, createEmptyWorkUnitStream())).recall(memento)
+        );
+        Optional.ofNullable(jobState.getProp(ConfigurationKeys.CONVERTER_INITIALIZERS_SERIALIZED_MEMENTOS_KEY)).map(mementoProp ->
+            Initializer.AfterInitializeMemento.deserialize(mementoProp)
+        ).ifPresent(memento ->
+            closer.register(ConverterInitializerFactory.newInstance(jobState, createEmptyWorkUnitStream())).recall(memento)
+        );
+        closer.close();
       }
 
       boolean shouldIncludeFailedTasks = PropertiesUtils.getPropAsBoolean(jobState.getProperties(), ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS, "false");
@@ -246,5 +267,9 @@ public class CommitActivityImpl implements CommitActivity {
   /** @return id/correlator for this particular commit activity */
   private static String calcCommitId(WUProcessingSpec workSpec) {
     return new Path(workSpec.getWorkUnitsDir()).getParent().getName();
+  }
+
+  private static WorkUnitStream createEmptyWorkUnitStream() {
+    return new BasicWorkUnitStream.Builder(Lists.newArrayList()).build();
   }
 }

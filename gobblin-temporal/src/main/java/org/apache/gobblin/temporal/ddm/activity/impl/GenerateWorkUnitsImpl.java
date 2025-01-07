@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
 import java.util.concurrent.atomic.AtomicLong;
@@ -40,7 +41,9 @@ import io.temporal.failure.ApplicationFailure;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.converter.initializer.ConverterInitializer;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
+import org.apache.gobblin.initializer.Initializer;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
@@ -63,6 +66,7 @@ import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
+import org.apache.gobblin.writer.initializer.WriterInitializer;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
 
@@ -106,6 +110,16 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
   }
 
 
+  /** [Internal, impl class] Intermediate result of generated work units with insightful analysis extracted by pre-processing them */
+  @Data
+  private static class WorkUnitsWithInsights {
+    private final List<WorkUnit> workUnits;
+    private final Set<String> pathsToCleanUp;
+    private final Optional<Initializer.AfterInitializeMemento> optWriterMemento;
+    private final Optional<Initializer.AfterInitializeMemento> optConverterMemento;
+  }
+
+
   @Override
   public GenerateWorkUnitsResult generateWorkUnits(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     // TODO: decide whether to acquire a job lock (as MR did)!
@@ -128,8 +142,8 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       FileSystem fs = closer.register(JobStateUtils.openFileSystem(jobState));
       fs.mkdirs(workDirRoot);
 
-      Set<String> pathsToCleanUp = new HashSet<>();
-      List<WorkUnit> workUnits = generateWorkUnitsForJobStateAndCollectCleanupPaths(jobState, eventSubmitterContext, closer, pathsToCleanUp);
+      WorkUnitsWithInsights genWUsInsights = generateWorkUnitsForJobStateAndCollectCleanupPaths(jobState, eventSubmitterContext, closer);
+      List<WorkUnit> workUnits = genWUsInsights.getWorkUnits();
 
       int numSizeSummaryQuantiles = getConfiguredNumSizeSummaryQuantiles(jobState);
       WorkUnitsSizeSummary wuSizeSummary = digestWorkUnitsSize(workUnits).asSizeSummary(numSizeSummaryQuantiles);
@@ -138,11 +152,20 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       // exceed available memory and this activity execution were to fail, a subsequent re-attempt would know the amount of work, to guide re-config/attempt
       createWorkPreparedSizeDistillationTimer(wuSizeSummary, eventSubmitterContext).stop();
 
+      // add any (serialized) mementos before serializing `jobState`, for later `recall` during `CommitActivityImpl`
+      genWUsInsights.optWriterMemento.ifPresent(memento ->
+          jobState.setProp(ConfigurationKeys.WRITER_INITIALIZER_SERIALIZED_MEMENTO_KEY,
+              Initializer.AfterInitializeMemento.serialize(memento))
+      );
+      genWUsInsights.optConverterMemento.ifPresent(memento ->
+          jobState.setProp(ConfigurationKeys.CONVERTER_INITIALIZERS_SERIALIZED_MEMENTOS_KEY,
+              Initializer.AfterInitializeMemento.serialize(memento))
+      );
       JobStateUtils.writeWorkUnits(workUnits, workDirRoot, jobState, fs);
       JobStateUtils.writeJobState(jobState, workDirRoot, fs); // ATTENTION: the writing of `JobState` after all WUs signifies WU gen+serialization now complete
 
       String sourceClassName = JobStateUtils.getSourceClassName(jobState);
-      return new GenerateWorkUnitsResult(jobState.getTaskCount(), sourceClassName, wuSizeSummary, pathsToCleanUp);
+      return new GenerateWorkUnitsResult(jobState.getTaskCount(), sourceClassName, wuSizeSummary, genWUsInsights.getPathsToCleanUp());
     } catch (ReflectiveOperationException roe) {
       String errMsg = "Unable to construct a source for generating workunits for job " + jobState.getJobId();
       log.error(errMsg, roe);
@@ -157,8 +180,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     }
   }
 
-  protected List<WorkUnit> generateWorkUnitsForJobStateAndCollectCleanupPaths(JobState jobState, EventSubmitterContext eventSubmitterContext, Closer closer,
-      Set<String> pathsToCleanUp)
+  protected WorkUnitsWithInsights generateWorkUnitsForJobStateAndCollectCleanupPaths(JobState jobState, EventSubmitterContext eventSubmitterContext, Closer closer)
       throws ReflectiveOperationException {
     // report (timer) metrics for "Work Discovery", *planning only* - NOT including WU prep, like serialization, `DestinationDatasetHandlerService`ing, etc.
     // IMPORTANT: for accurate timing, SEPARATELY emit `.createWorkPreparationTimer`, to record time prior to measuring the WU size required for that one
@@ -179,18 +201,20 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
 
     if (!workUnitStream.getWorkUnits().hasNext()) { // no work unit to run: entirely normal result (not a failure)
       log.warn("No work units created for job " + jobState.getJobId());
-      return Lists.newArrayList();
+      return new WorkUnitsWithInsights(Lists.newArrayList(), new HashSet<>(), Optional.empty(), Optional.empty());
     }
 
     boolean canCleanUpTempDirs = false; // unlike `AbstractJobLauncher` running the job end-to-end, this is Work Discovery only, so WAY TOO SOON for cleanup
     DestinationDatasetHandlerService datasetHandlerService = closer.register(
         new DestinationDatasetHandlerService(jobState, canCleanUpTempDirs, eventSubmitterContext.create()));
     WorkUnitStream handledWorkUnitStream = datasetHandlerService.executeHandlers(workUnitStream);
-    pathsToCleanUp.addAll(calculateWorkDirsToCleanup(handledWorkUnitStream));
-    // initialize writer and converter(s)
-    // TODO: determine whether registration here is effective, or the lifecycle of this activity is too brief (as is likely!)
-    closer.register(WriterInitializerFactory.newInstace(jobState, handledWorkUnitStream)).initialize();
-    closer.register(ConverterInitializerFactory.newInstance(jobState, handledWorkUnitStream)).initialize();
+    Set<String> pathsToCleanUp = new HashSet<>(calculateWorkDirsToCleanup(handledWorkUnitStream));
+
+    // initialize writer and converter(s), but DO NOT `.close()` them here; rather `.commemorate()` for later `.recall()` during Commit
+    WriterInitializer writerInitializer = WriterInitializerFactory.newInstace(jobState, handledWorkUnitStream);
+    writerInitializer.initialize();
+    ConverterInitializer converterInitializer = ConverterInitializerFactory.newInstance(jobState, handledWorkUnitStream);
+    converterInitializer.initialize();
 
     // update jobState before it gets serialized
     long startTime = System.currentTimeMillis();
@@ -206,7 +230,11 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     // dump the work unit if tracking logs are enabled (post any materialization for counting)
     WorkUnitStream trackedWorkUnitStream = AbstractJobLauncher.addWorkUnitTrackingPerConfig(preparedWorkUnitStream, jobState, log);
 
-    return AbstractJobLauncher.materializeWorkUnitList(trackedWorkUnitStream);
+    return new WorkUnitsWithInsights(
+        AbstractJobLauncher.materializeWorkUnitList(trackedWorkUnitStream),
+        pathsToCleanUp,
+        writerInitializer.commemorate(),
+        converterInitializer.commemorate());
   }
 
   protected static Set<String> calculateWorkDirsToCleanup(WorkUnitStream workUnitStream) {

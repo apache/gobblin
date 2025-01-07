@@ -45,7 +45,7 @@ dependencies {
     testCompile externalDependency.slf4jToLog4j
 }
 
-// Begin HACK to get around POM being depenendent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
+// Begin HACK to get around POM being dependent on the (empty) gobblin-rest-api instead of gobblin-rest-api-rest-client
 def installer = install.repositories.mavenInstaller
 [installer]*.pom*.whenConfigured {pom ->
     pom.dependencies.find {dep -> dep.groupId == project.group && dep.artifactId == 'gobblin-rest-api' }.artifactId = 'gobblin-rest-api-rest-client'

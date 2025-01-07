@@ -17,31 +17,41 @@
 
 package org.apache.gobblin.writer.initializer;
 
-import org.apache.gobblin.initializer.Initializer;
-import org.apache.gobblin.initializer.MultiInitializer;
-
+import java.util.Optional;
 import java.util.List;
 
 import lombok.ToString;
+
+import org.apache.gobblin.initializer.Initializer;
+import org.apache.gobblin.initializer.MultiInitializer;
 
 
 @ToString
 public class MultiWriterInitializer implements WriterInitializer {
 
-  private final Initializer intializer;
+  private final Initializer initializer;
 
   public MultiWriterInitializer(List<WriterInitializer> writerInitializers) {
-    this.intializer = new MultiInitializer(writerInitializers);
+    this.initializer = new MultiInitializer(writerInitializers);
   }
 
   @Override
   public void initialize() {
-    this.intializer.initialize();
+    this.initializer.initialize();
   }
 
   @Override
   public void close() {
-    this.intializer.close();
+    this.initializer.close();
   }
 
+  @Override
+  public Optional<AfterInitializeMemento> commemorate() {
+    return this.initializer.commemorate();
+  }
+
+  @Override
+  public void recall(AfterInitializeMemento memento) {
+    this.initializer.recall(memento);
+  }
 }
