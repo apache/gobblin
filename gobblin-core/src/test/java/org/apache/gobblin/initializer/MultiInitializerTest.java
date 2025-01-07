@@ -121,6 +121,7 @@ public class MultiInitializerTest {
     }
   }
 
+
   @Test
   public void testMementoCommemorateToSerializeAndDeserializeForRecall() {
     // create "first generation" of concrete initializers
@@ -128,7 +129,7 @@ public class MultiInitializerTest {
     InitializerImplBNoMemento initializerB_1 = new InitializerImplBNoMemento();
     InitializerImplC initializerC_1 = new InitializerImplC();
 
-    // create the 1st-gen `MultiInitializer` and `initialize` all wrapped initializers
+    // create the 1st-gen `MultiInitializer`; `initialize` all wrapped initializers
     MultiInitializer multiInitializer1G = new MultiInitializer(Arrays.asList(initializerA_1, initializerB_1, initializerC_1));
     multiInitializer1G.initialize();
 
@@ -137,7 +138,7 @@ public class MultiInitializerTest {
     Assert.assertTrue(optMemento1G.isPresent());
     String serializedMemento = Initializer.AfterInitializeMemento.serialize(optMemento1G.get());
 
-    // create a new 2nd-gen `MultiInitializer` using a "second generation" of concrete initializers
+    // create a new 2nd-gen `MultiInitializer` with a "second generation" of concrete initializers... but DO NOT `initialize` them!
     InitializerImplA initializerA_2 = new InitializerImplA();
     InitializerImplBNoMemento initializerB_2 = new InitializerImplBNoMemento();
     InitializerImplC initializerC_2 = new InitializerImplC();
@@ -151,12 +152,12 @@ public class MultiInitializerTest {
     try {
       // verify not possible to `commemorate` prior to `recall()`
       multiInitializer2G.commemorate();
-      Assert.fail("`commemorate()` somehow possible even before `Initializer.initialize()` or `recall()`, despite `@NotNull` annotation on `state`");
+      Assert.fail("`commemorate()` somehow possible even before `Initializer.initialize()` or `recall()` - despite `@NotNull` annotation on `state`");
     } catch (NullPointerException npe) {
       // expected
     }
 
-    // now `deserialize` 1st-gen state and `recall` it to the 2nd-gen `MultiInitializer`
+    // next, `deserialize` 1st-gen state and `recall` it to the (un-`initialize`d) 2nd-gen `MultiInitializer`
     Initializer.AfterInitializeMemento deserializedMemento = Initializer.AfterInitializeMemento.deserialize(serializedMemento);
     multiInitializer2G.recall(deserializedMemento);
     Optional<Initializer.AfterInitializeMemento> optMemento2G = multiInitializer2G.commemorate();
@@ -169,7 +170,7 @@ public class MultiInitializerTest {
     multiInitializer2G.initialize();
     Optional<Initializer.AfterInitializeMemento> optMemento2G_alt = multiInitializer2G.commemorate();
     Assert.assertTrue(optMemento2G_alt.isPresent());
-    // verify not simply that mementos always equal
+    // verify not simply the case that mementos always equal
     Assert.assertNotEquals(optMemento2G.get(), optMemento2G_alt.get());
   }
 }

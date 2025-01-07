@@ -32,21 +32,28 @@ public interface Initializer extends Closeable {
 
   /**
    * Marker interface to convey an opaque snapshot of the internal state of any concrete {@link Initializer}, thus affording state serialization for
-   * eventual "revival" as a new `Initializer` holding equivalent internal state.  {@link #commemorate()} the memento after {@link #initialize()}
-   * and subsequently {@link #recall(AfterInitializeMemento)} before {@link #close()}ing it.
+   * eventual "revival" as a new `Initializer` holding equivalent internal state.  {@link #commemorate()} (i.e. create) the memento after
+   * {@link #initialize()} and subsequently {@link #recall(AfterInitializeMemento)} the state it preserved before performing {@link #close()}.
    *
-   * Whereas the "Initializer Lifecycle", when synchronous and with the same instance, is:
-   *   [concrete `? implements Initializer` instance A]  `.initialize()` -> DO PROCESSING -> `.close()`
-   * When using `AfterInitializer` across instances and even memory-space boundaries it becomes:
-   *   [concrete `T0 implements Initializer` instance A] `.initialize()` -> `.commemorate()` -> PERSIST/TRANSMIT MEMENTO
-   *       -> DO PROCESSING ->
-   *   [concrete `T0 implements Initializer` instance B] RECEIVE MEMENTO -> `.recall()` -> `.close()`
+   * When synchronous and the same instance throughout, the "Initializer Lifecycle" is:
+   *   [concrete `My_T implements Initializer`, instance A] -
+   *       `.initialize()`; ==PROCESSING RUNS==; `.close()`;
    *
-   * For both backwards compatibility and because not every concrete `Initializer` has internal state worth capturing, not every `Initializer`
-   * impl will implement an `AfterInitializeMemento`.  Those that do will supply a unique impl cultivating self-aware impl details of their
-   * `Initializer`.  An `AfterInitializeMemento` impl needs simply be (de)serializable by {@link ObjectMapper}.  An `Initializer` impl with an
-   * `AfterInitializeMemento` impl MUST NOT (re-)process any {@link org.apache.gobblin.source.workunit.WorkUnit}s during its {@link #close()}
-   * method: `WorkUnit` processing MUST proceed entirely within {@link #initialize()}.
+   * When trading `AfterInitializeMemento` between instances (even memory-space boundaries) it becomes:
+   *   [concrete `My_T implements Initializer`, instance A] -
+   *       `.initialize()`; `.commemorate()`; ==PERSIST/TRANSMIT MEMENTO==
+   *   ==PROCESSING RUNS==;
+   *   [concrete `My_T implements Initializer`, instance B] -
+   *       ==RECEIVE MEMENTO==; `.recall()`; `.close()`
+   *
+   * Both for backwards compatibility and because not every concrete `Initializer` has internal state worth capturing, not every `Initializer`
+   * impl will implement an `AfterInitializeMemento`.  Those that do will supply a unique impl capturing self-aware impl details of their
+   * `Initializer`.
+   *
+   * An `AfterInitializeMemento` impl needs simply be (de)serializable by {@link ObjectMapper}.
+   *
+   * An `Initializer` impl with an `AfterInitializeMemento` impl MUST NOT (re-)process any {@link org.apache.gobblin.source.workunit.WorkUnit}s
+   * during its {@link #close()} method: `WorkUnit` processing MUST occur entirely within {@link #initialize()}.
    */
   @JsonTypeInfo(use = JsonTypeInfo.Id.CLASS, include = JsonTypeInfo.As.PROPERTY, property = "@class") // to handle variety of concrete impls
   public interface AfterInitializeMemento {
@@ -89,7 +96,7 @@ public interface Initializer extends Closeable {
       }
     }
 
-    /** cast `this` concrete `AfterInitializeMemento` to `castClass`, else {@link MismatchedMementoException} */
+    /** cast `this` (concrete `AfterInitializeMemento`) to `castClass`, else {@link MismatchedMementoException} */
     default <T extends AfterInitializeMemento> T castAsOrThrow(Class<T> castClass, Initializer forInitializer)
         throws MismatchedMementoException {
       if (castClass.isAssignableFrom(this.getClass())) {
@@ -111,18 +118,18 @@ public interface Initializer extends Closeable {
    * @see java.io.Closeable#close()
    *
    * NOTE: An `Initializer` impl with an `AfterInitializeMemento` impl MUST NOT (re-)process any {@link org.apache.gobblin.source.workunit.WorkUnit}s
-   * during its {@link #close()} method: `WorkUnit` processing MUST proceed entirely within {@link #initialize()}.
+   * during its {@link #close()} method: `WorkUnit` processing MUST occur entirely within {@link #initialize()}.
    */
   @Override
   public void close();
 
-  /** @return any `Initializer`-specific companion memento, as required to convey internal state after {@link #initialize()}, as needed to {@link #close()} */
+  /** @return the `Initializer`-specific companion memento, to convey internal state after {@link #initialize()}, and as needed to {@link #close()} */
   default Optional<AfterInitializeMemento> commemorate() {
     return Optional.empty();
   }
 
   /**
-   * "reinitialize" a fresh instance with (equiv.) post {@link #initialize()} internal state, per `Initializer`-specific companion `memento`
+   * "reinitialize" a fresh instance, per `Initializer`-specific companion `memento`, with (equivalent) post {@link #initialize()} internal state needed
    * to {@link #close()}
    */
   default void recall(AfterInitializeMemento memento) {

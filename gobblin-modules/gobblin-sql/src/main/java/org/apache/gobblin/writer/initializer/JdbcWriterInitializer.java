@@ -69,7 +69,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
   @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
   @AllArgsConstructor
   private static class Memento implements AfterInitializeMemento {
-    // NOTE: as this clearly MAY be `null` (below), DO NOT mark `@NonNull`, to avoid:
+    // NOTE: as this clearly MAY be `null` (see below), DO NOT mark `@NonNull`, to avoid:
     //   userCreatedStagingTable is marked non-null but is null
     private String userCreatedStagingTable;
     @NonNull private Set<String> createdStagingTables;
@@ -244,7 +244,7 @@ public class JdbcWriterInitializer implements WriterInitializer {
         i++;
 
         if (isSkipStaging) {
-          LOG.info("User chose to skip staing table on branch " + this.branchId + " workunit " + i);
+          LOG.info("User chose to skip staging table on branch " + this.branchId + " workunit " + i);
           wu.setProp(stagingTableKey, publishTable);
 
           if (i == 0) {
