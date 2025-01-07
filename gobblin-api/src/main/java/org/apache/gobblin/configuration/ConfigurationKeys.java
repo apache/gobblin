@@ -351,6 +351,11 @@ public class ConfigurationKeys {
   public static final String WATERMARK_INTERVAL_VALUE_KEY = "watermark.interval.value";
 
   /**
+   * DEFAULT LOOKBACK TIME KEY property
+   */
+  public static final String DEFAULT_COPY_LOOKBACK_TIME_KEY = "copy.lookbackTime";
+
+  /**
    * Extract related configuration properties.
    */
   public static final String EXTRACT_TABLE_TYPE_KEY = "extract.table.type";
