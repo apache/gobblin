@@ -284,8 +284,8 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
       this.fs.delete(jobStateFilePath, false);
     }
 
-    if (Boolean.parseBoolean(this.jobProps.getProperty(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CLEAN_UP_WORK_DIR,
-        GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_CLEAN_UP_WORK_DIR))) {
+    if (Boolean.parseBoolean(this.jobProps.getProperty(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
+        GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED))) {
       Path workDirRootPath = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
       log.info("Cleaning up work directory : {} for job : {}", workDirRootPath, this.jobContext.getJobId());
       this.fs.delete(workDirRootPath, true);
