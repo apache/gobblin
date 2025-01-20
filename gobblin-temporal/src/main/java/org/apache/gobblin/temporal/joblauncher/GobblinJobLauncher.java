@@ -59,6 +59,8 @@ import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ParallelRunner;
+import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 
 /**
  * An implementation of {@link JobLauncher} that launches a Gobblin job using the Temporal task framework.
@@ -134,7 +136,11 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
     try {
       executeCancellation();
     } finally {
-      super.close();
+      try {
+        cleanupWorkingDirectory();
+      } finally {
+        super.close();
+      }
     }
   }
 
@@ -276,6 +282,13 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
       Path jobStateFilePath =
           GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
       this.fs.delete(jobStateFilePath, false);
+    }
+
+    if (Boolean.parseBoolean(this.jobProps.getProperty(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
+        GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED))) {
+      Path workDirRootPath = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
+      log.info("Cleaning up work directory : {} for job : {}", workDirRootPath, this.jobContext.getJobId());
+      this.fs.delete(workDirRootPath, true);
     }
   }
 }
