@@ -70,7 +70,6 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.base.Strings;
@@ -134,7 +133,6 @@ class YarnService extends AbstractIdleService {
   private final Optional<GobblinMetrics> gobblinMetrics;
   private final Optional<EventSubmitter> eventSubmitter;
 
-  @VisibleForTesting
   @Getter(AccessLevel.PROTECTED)
   private final AMRMClientAsync<AMRMClient.ContainerRequest> amrmClientAsync;
   private final NMClientAsync nmClientAsync;
@@ -490,8 +488,7 @@ class YarnService extends AbstractIdleService {
     }
   }
 
-  @VisibleForTesting
-  protected String buildContainerCommand(Container container, String workerProfileName, WorkerProfile workerProfile) {
+  private String buildContainerCommand(Container container, String workerProfileName, WorkerProfile workerProfile) {
     Config workerProfileConfig = workerProfile.getConfig();
 
     double workerJvmMemoryXmxRatio = ConfigUtils.getDouble(workerProfileConfig,

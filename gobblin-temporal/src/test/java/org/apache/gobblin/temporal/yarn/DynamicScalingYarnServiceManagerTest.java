@@ -69,14 +69,14 @@ public class DynamicScalingYarnServiceManagerTest {
   /** Note : this test uses {@link DummyScalingDirectiveSource}*/
   @Test
   public void testWithDummyScalingDirectiveSource() throws IOException, InterruptedException {
-    // DummyScalingDirectiveSource returns 2 scaling directives in first 3 invocations and after that it returns empty list
-    // so the total number of invocations after three invocations should always be 3
+    // DummyScalingDirectiveSource returns 2 scaling directives in first 5 invocations and after that it returns empty list
+    // so the total number of invocations after three invocations should always be 5
     TestDynamicScalingYarnServiceManager testDynamicScalingYarnServiceManager = new TestDynamicScalingYarnServiceManager(
         mockGobblinTemporalApplicationMaster, new DummyScalingDirectiveSource());
     testDynamicScalingYarnServiceManager.startUp();
-    Thread.sleep(5000); // 5 seconds sleep so that GetScalingDirectivesRunnable.run() is called for 5 times
+    Thread.sleep(7000); // 5 seconds sleep so that GetScalingDirectivesRunnable.run() is called for 7 times
     testDynamicScalingYarnServiceManager.shutDown();
-    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(3)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
+    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(5)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
   }
 
   @Test
