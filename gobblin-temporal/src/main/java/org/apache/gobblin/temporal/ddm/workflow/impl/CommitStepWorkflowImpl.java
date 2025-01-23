@@ -44,7 +44,7 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
 
   @Override
   public CommitStats commit(WUProcessingSpec workSpec, final Properties props) {
-    final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, TemporalActivityUtils.getActivityOptions(
+    final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, TemporalActivityUtils.buildActivityOptions(
         ActivityType.COMMIT, props));
     CommitStats commitGobblinStats = activityStub.commit(workSpec);
     if (!commitGobblinStats.getOptFailure().isPresent() || commitGobblinStats.getNumCommittedWorkUnits() > 0) {
