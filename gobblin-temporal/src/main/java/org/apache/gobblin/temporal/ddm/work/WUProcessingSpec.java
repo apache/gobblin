@@ -18,7 +18,6 @@
 package org.apache.gobblin.temporal.ddm.work;
 
 import java.net.URI;
-import java.util.Optional;
 
 import org.apache.hadoop.fs.Path;
 
@@ -36,8 +35,6 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemJobStateful;
-import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
-import org.apache.gobblin.temporal.util.nesting.work.Workload;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 

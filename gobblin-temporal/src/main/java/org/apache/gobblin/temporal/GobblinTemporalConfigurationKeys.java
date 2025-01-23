@@ -78,10 +78,15 @@ public interface GobblinTemporalConfigurationKeys {
   /**
    * Activities timeout configs
    */
-  String GENERATE_WORKUNITS_ACTIVITY_TIMEOUT_MINUTES = PREFIX + "generate.workunits.activity.timeout.minutes";
-  String RECOMMEND_SCALING_ACTIVITY_TIMEOUT_MINUTES = PREFIX + "recommend.scaling.activity.timeout.minutes";
-  String DELETE_WORK_DIRS_ACTIVITY_TIMEOUT_MINUTES = PREFIX + "delete.work.dirs.activity.timeout.minutes";
-  String PROCESS_WORKUNIT_ACTIVITY_TIMEOUT_MINUTES = PREFIX + "process.workunit.activity.timeout.minutes";
-  String COMMIT_ACTIVITY_TIMEOUT_MINUTES = PREFIX + "commit.activity.timeout.minutes";
+  String ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES = "activity.starttoclose.timeout.minutes";
+  String GENERATE_WORKUNITS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES =
+      PREFIX + "generate.workunits." + ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES;
+  String RECOMMEND_SCALING_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES =
+      PREFIX + "recommend.scaling." + ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES;
+  String DELETE_WORK_DIRS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES =
+      PREFIX + "delete.work.dirs." + ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES;
+  String PROCESS_WORKUNIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES =
+      PREFIX + "process.workunit." + ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES;
+  String COMMIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES = PREFIX + "commit." + ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES;
 
 }

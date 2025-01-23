@@ -29,32 +29,32 @@ import org.apache.gobblin.util.PropertiesUtils;
  * Each strategy provides a method to retrieve the timeout duration based on the provided properties.
  */
 public interface ActivityTimeoutStrategy {
-  /** Default timeout duration for any activity if not specified. */
-  Duration defaultActivityTimeout = Duration.ofMinutes(180);
-  int DEFAULT_GENERATE_WORKUNITS_ACTIVITY_TIMEOUT_MINUTES = 120;
-  int DEFAULT_RECOMMEND_SCALING_ACTIVITY_TIMEOUT_MINUTES = 5;
-  int DEFAULT_DELETE_WORK_DIRS_ACTIVITY_TIMEOUT_MINUTES = 10;
-  int DEFAULT_PROCESS_WORKUNIT_ACTIVITY_TIMEOUT_MINUTES = 180;
-  int DEFAULT_COMMIT_ACTIVITY_TIMEOUT_MINUTES = 180;
+  /** Default start to close timeout duration for any activity if not specified. */
+  Duration defaultStartToCloseTimeout = Duration.ofMinutes(180);
+  int DEFAULT_GENERATE_WORKUNITS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES = 120;
+  int DEFAULT_RECOMMEND_SCALING_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES = 5;
+  int DEFAULT_DELETE_WORK_DIRS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES = 10;
+  int DEFAULT_PROCESS_WORKUNIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES = 180;
+  int DEFAULT_COMMIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES = 180;
 
   /**
-   * Retrieves the timeout duration for an activity based on the provided properties.
+   * Retrieves the start to close timeout duration for an activity based on the provided properties.
    *
    * @param props the properties to be used for configuring the timeout.
    * @return the timeout duration for the activity.
    */
-  Duration getTimeout(Properties props);
+  Duration getStartToCloseTimeout(Properties props);
 
   /**
    * Timeout strategy for the Generate Workunits activity.
    */
   class GenerateWorkunitsActivityTimeoutStrategy implements ActivityTimeoutStrategy {
     @Override
-    public Duration getTimeout(Properties props) {
+    public Duration getStartToCloseTimeout(Properties props) {
       return Duration.ofMinutes(PropertiesUtils.getPropAsInt(
           props,
-          GobblinTemporalConfigurationKeys.GENERATE_WORKUNITS_ACTIVITY_TIMEOUT_MINUTES,
-          DEFAULT_GENERATE_WORKUNITS_ACTIVITY_TIMEOUT_MINUTES
+          GobblinTemporalConfigurationKeys.GENERATE_WORKUNITS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES,
+          DEFAULT_GENERATE_WORKUNITS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES
       ));
     }
   }
@@ -64,11 +64,11 @@ public interface ActivityTimeoutStrategy {
    */
   class RecommendScalingActivityTimeoutStrategy implements ActivityTimeoutStrategy {
     @Override
-    public Duration getTimeout(Properties props) {
+    public Duration getStartToCloseTimeout(Properties props) {
       return Duration.ofMinutes(PropertiesUtils.getPropAsInt(
           props,
-          GobblinTemporalConfigurationKeys.RECOMMEND_SCALING_ACTIVITY_TIMEOUT_MINUTES,
-          DEFAULT_RECOMMEND_SCALING_ACTIVITY_TIMEOUT_MINUTES
+          GobblinTemporalConfigurationKeys.RECOMMEND_SCALING_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES,
+          DEFAULT_RECOMMEND_SCALING_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES
       ));
     }
   }
@@ -78,11 +78,11 @@ public interface ActivityTimeoutStrategy {
    */
   class DeleteWorkDirsActivityTimeoutStrategy implements ActivityTimeoutStrategy {
     @Override
-    public Duration getTimeout(Properties props) {
+    public Duration getStartToCloseTimeout(Properties props) {
       return Duration.ofMinutes(PropertiesUtils.getPropAsInt(
           props,
-          GobblinTemporalConfigurationKeys.DELETE_WORK_DIRS_ACTIVITY_TIMEOUT_MINUTES,
-          DEFAULT_DELETE_WORK_DIRS_ACTIVITY_TIMEOUT_MINUTES
+          GobblinTemporalConfigurationKeys.DELETE_WORK_DIRS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES,
+          DEFAULT_DELETE_WORK_DIRS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES
       ));
     }
   }
@@ -92,11 +92,11 @@ public interface ActivityTimeoutStrategy {
    */
   class ProcessWorkunitActivityTimeoutStrategy implements ActivityTimeoutStrategy {
     @Override
-    public Duration getTimeout(Properties props) {
+    public Duration getStartToCloseTimeout(Properties props) {
       return Duration.ofMinutes(PropertiesUtils.getPropAsInt(
           props,
-          GobblinTemporalConfigurationKeys.PROCESS_WORKUNIT_ACTIVITY_TIMEOUT_MINUTES,
-          DEFAULT_PROCESS_WORKUNIT_ACTIVITY_TIMEOUT_MINUTES
+          GobblinTemporalConfigurationKeys.PROCESS_WORKUNIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES,
+          DEFAULT_PROCESS_WORKUNIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES
       ));
     }
   }
@@ -106,11 +106,11 @@ public interface ActivityTimeoutStrategy {
    */
   class CommitActivityTimeoutStrategy implements ActivityTimeoutStrategy {
     @Override
-    public Duration getTimeout(Properties props) {
+    public Duration getStartToCloseTimeout(Properties props) {
       return Duration.ofMinutes(PropertiesUtils.getPropAsInt(
           props,
-          GobblinTemporalConfigurationKeys.COMMIT_ACTIVITY_TIMEOUT_MINUTES,
-          DEFAULT_COMMIT_ACTIVITY_TIMEOUT_MINUTES
+          GobblinTemporalConfigurationKeys.COMMIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES,
+          DEFAULT_COMMIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES
       ));
     }
   }

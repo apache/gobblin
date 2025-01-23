@@ -36,7 +36,7 @@ public class TemporalActivityUtils {
    */
   public static ActivityOptions buildActivityOptions(ActivityType activityType, Properties props) {
     return ActivityOptions.newBuilder()
-        .setScheduleToCloseTimeout(TemporalTimeoutUtils.getTimeout(activityType, props))
+        .setStartToCloseTimeout(TemporalTimeoutUtils.getStartToCloseTimeout(activityType, props))
         .setRetryOptions(TemporalRetryUtils.getRetryOptions(activityType, props))
         .build();
   }

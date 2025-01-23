@@ -47,18 +47,18 @@ public class TemporalTimeoutUtils {
   }
 
   /**
-   * Retrieves the timeout duration for a given {@link ActivityType} based on the provided properties.
+   * Retrieves the start to close timeout duration for a given {@link ActivityType} based on the provided properties.
    *
-   * @param activityType the type of the activity for which the timeout is being retrieved.
+   * @param activityType the type of the activity for which the start to close timeout is being retrieved.
    * @param props the properties to be used for configuring the timeout.
-   * @return the timeout duration for the specified activity type.
+   * @return the start to close timeout duration for the specified activity type.
    */
-  public static Duration getTimeout(ActivityType activityType, Properties props) {
+  public static Duration getStartToCloseTimeout(ActivityType activityType, Properties props) {
     ActivityTimeoutStrategy activityTimeoutStrategy = activityTimeoutStrategies.get(activityType);
     if (activityTimeoutStrategy == null) {
-      return ActivityTimeoutStrategy.defaultActivityTimeout;
+      return ActivityTimeoutStrategy.defaultStartToCloseTimeout;
     }
-    return activityTimeoutStrategy.getTimeout(props);
+    return activityTimeoutStrategy.getStartToCloseTimeout(props);
   }
 
 }
