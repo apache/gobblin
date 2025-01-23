@@ -74,4 +74,14 @@ public interface GobblinTemporalConfigurationKeys {
 
   String DYNAMIC_SCALING_POLLING_INTERVAL_SECS = DYNAMIC_SCALING_PREFIX + "polling.interval.seconds";
   int DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS = 60;
+
+  /**
+   * Activities timeout configs
+   */
+  String GENERATE_WORKUNITS_ACTIVITY_TIMEOUT_MINUTES = PREFIX + "generate.workunits.activity.timeout.minutes";
+  String RECOMMEND_SCALING_ACTIVITY_TIMEOUT_MINUTES = PREFIX + "recommend.scaling.activity.timeout.minutes";
+  String DELETE_WORK_DIRS_ACTIVITY_TIMEOUT_MINUTES = PREFIX + "delete.work.dirs.activity.timeout.minutes";
+  String PROCESS_WORKUNIT_ACTIVITY_TIMEOUT_MINUTES = PREFIX + "process.workunit.activity.timeout.minutes";
+  String COMMIT_ACTIVITY_TIMEOUT_MINUTES = PREFIX + "commit.activity.timeout.minutes";
+
 }

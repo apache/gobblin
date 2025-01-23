@@ -75,7 +75,7 @@ public class WUProcessingSpec implements FileSystemApt, FileSystemJobStateful {
     return new Path(new Path(workUnitsDir).getParent(), AbstractJobLauncher.JOB_STATE_FILE_NAME);
   }
 
-  /** Configuration for {@link org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow#performWorkload(WorkflowAddr, Workload, int, int, int, Optional)}*/
+  /** Configuration for {@link org.apache.gobblin.temporal.util.nesting.work.NestingExecWorkloadInput} */
   @Data
   @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
   @NoArgsConstructor // IMPORTANT: for jackson (de)serialization

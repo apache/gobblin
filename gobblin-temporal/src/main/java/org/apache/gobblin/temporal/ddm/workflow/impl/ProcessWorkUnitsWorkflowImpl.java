@@ -19,9 +19,9 @@ package org.apache.gobblin.temporal.ddm.workflow.impl;
 import java.util.Map;
 import java.util.Optional;
 
+import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 
-import com.google.common.io.Closer;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.api.enums.v1.ParentClosePolicy;
@@ -33,6 +33,7 @@ import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.EagerFsDirBackedWorkUnitClaimCheckWorkload;
+import org.apache.gobblin.temporal.util.nesting.work.NestingExecWorkloadInput;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
@@ -45,7 +46,6 @@ import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
-import org.apache.gobblin.runtime.JobState;
 
 
 @Slf4j
@@ -54,37 +54,30 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   public static final String COMMIT_STEP_WORKFLOW_ID_BASE = "CommitStepWorkflow";
 
   @Override
-  public CommitStats process(WUProcessingSpec workSpec) {
+  public CommitStats process(WUProcessingSpec workSpec, final Properties props) {
     Optional<EventTimer> timer = this.createOptJobEventTimer(workSpec);
-    CommitStats result = performWork(workSpec);
+    CommitStats result = performWork(workSpec, props);
     timer.ifPresent(EventTimer::stop);
     return result;
   }
 
-  private CommitStats performWork(WUProcessingSpec workSpec) {
+  private CommitStats performWork(WUProcessingSpec workSpec, final Properties props) {
     Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
-    Map<String, Object> searchAttributes;
-    JobState jobState;
-    try (Closer closer = Closer.create()) {
-      jobState = Help.loadJobState(workSpec, closer.register(Help.loadFileSystem(workSpec)));
-    } catch (Exception e) {
-      log.error("Error loading jobState", e);
-      throw new RuntimeException("Error loading jobState", e);
-    }
-    searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(jobState.getProperties());
-
+    Map<String, Object> searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(props);
     NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec, searchAttributes);
 
     Optional<Integer> workunitsProcessed = Optional.empty();
     try {
-      workunitsProcessed = Optional.of(processingWorkflow.performWorkload(WorkflowAddr.ROOT, workload, 0,
+      NestingExecWorkloadInput<WorkUnitClaimCheck>
+          performWorkloadInput = new NestingExecWorkloadInput<>(WorkflowAddr.ROOT, workload, 0,
           workSpec.getTuning().getMaxBranchesPerTree(), workSpec.getTuning().getMaxSubTreesPerTree(),
-          Optional.empty()));
+          Optional.empty(), props);
+      workunitsProcessed = Optional.of(processingWorkflow.performWorkload(performWorkloadInput));
     } catch (Exception e) {
       log.error("ProcessWorkUnits failure - attempting partial commit before re-throwing exception", e);
 
       try {
-        performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);// Attempt partial commit before surfacing the failure
+        performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed, props);// Attempt partial commit before surfacing the failure
       } catch (Exception commitException) {
         // Combine current and commit exception messages for a more complete context
         String combinedMessage = String.format(
@@ -100,18 +93,18 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
       }
       throw e;// Re-throw after any partial commit, to fail the parent workflow in case commitWorkflow didn't flow (unlikely)
     }
-    return performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed);
+    return performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed, props);
   }
 
   private CommitStats performCommitIfAnyWorkUnitsProcessed(WUProcessingSpec workSpec,
-      Map<String, Object> searchAttributes, Optional<Integer> workunitsProcessed) {
+      Map<String, Object> searchAttributes, Optional<Integer> workunitsProcessed, Properties props) {
     //  we are only inhibiting commit when workunitsProcessed is actually known to be zero
     if (workunitsProcessed.filter(n -> n == 0).isPresent()) {
       log.error("No work units processed, so no commit attempted.");
       return CommitStats.createEmpty();
     }
     CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
-    CommitStats result = commitWorkflow.commit(workSpec);
+    CommitStats result = commitWorkflow.commit(workSpec, props);
     if (result.getNumCommittedWorkUnits() == 0) {
       log.warn("No work units committed at the job level. They could have been committed at the task level.");
     }

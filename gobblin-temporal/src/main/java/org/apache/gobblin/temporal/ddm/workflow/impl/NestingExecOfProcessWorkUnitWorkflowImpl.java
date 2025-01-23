@@ -17,39 +17,26 @@
 
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
-import io.temporal.activity.ActivityOptions;
-import io.temporal.common.RetryOptions;
+import java.util.Properties;
+
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import java.time.Duration;
 
+import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
+import org.apache.gobblin.temporal.ddm.util.TemporalActivityUtils;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.util.nesting.workflow.AbstractNestingExecWorkflowImpl;
 
 
 /** {@link org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow} for {@link ProcessWorkUnit} */
 public class NestingExecOfProcessWorkUnitWorkflowImpl extends AbstractNestingExecWorkflowImpl<WorkUnitClaimCheck, Integer> {
-  public static final Duration processWorkUnitStartToCloseTimeout = Duration.ofHours(3); // TODO: make configurable... also add activity heartbeats
-
-  // RetryOptions specify how to automatically handle retries when Activities fail.
-  private static final RetryOptions ACTIVITY_RETRY_OPTS = RetryOptions.newBuilder()
-      .setInitialInterval(Duration.ofSeconds(3))
-      .setMaximumInterval(Duration.ofSeconds(100))
-      .setBackoffCoefficient(2)
-      .setMaximumAttempts(4)
-      .build();
-
-  private static final ActivityOptions ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(processWorkUnitStartToCloseTimeout)
-      .setRetryOptions(ACTIVITY_RETRY_OPTS)
-      .build();
-
-  private final ProcessWorkUnit activityStub = Workflow.newActivityStub(ProcessWorkUnit.class, ACTIVITY_OPTS);
 
   @Override
-  protected Promise<Integer> launchAsyncActivity(final WorkUnitClaimCheck wu) {
-    return Async.function(activityStub::processWorkUnit, wu);
+  protected Promise<Integer> launchAsyncActivity(final WorkUnitClaimCheck wu, final Properties props) {
+    final ProcessWorkUnit processWorkUnitStub = Workflow.newActivityStub(ProcessWorkUnit.class, TemporalActivityUtils.getActivityOptions(
+        ActivityType.PROCESS_WORKUNIT, props));
+    return Async.function(processWorkUnitStub::processWorkUnit, wu);
   }
 }

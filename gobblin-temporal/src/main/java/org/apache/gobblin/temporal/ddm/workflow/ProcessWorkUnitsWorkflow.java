@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.temporal.ddm.workflow;
 
+import java.util.Properties;
+
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
@@ -30,5 +32,5 @@ import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 public interface ProcessWorkUnitsWorkflow {
   /** @return the number of {@link WorkUnit}s cumulatively processed successfully */
   @WorkflowMethod
-  CommitStats process(WUProcessingSpec wuSpec);
+  CommitStats process(WUProcessingSpec workSpec, Properties props);
 }
