@@ -32,6 +32,7 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigValueFactory;
@@ -58,6 +59,7 @@ import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
@@ -128,7 +130,8 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
     this.taskStateCollectorService =
         new TaskStateCollectorService(jobProps, this.jobContext.getJobState(), this.eventBus, this.eventSubmitter,
             this.stateStores.getTaskStateStore(), this.outputTaskStateDir, this.getIssueRepository());
-    this.executor = Executors.newSingleThreadExecutor();
+    this.executor = Executors.newSingleThreadScheduledExecutor(
+        ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("GobblinJobLauncher")));
   }
 
   @Override
@@ -180,6 +183,8 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
       waitJob(submitJobFuture);
       log.info(String.format("Job %s completed", this.jobContext.getJobId()));
     } finally {
+      ExecutorsUtils.shutdownExecutorService(executor, Optional.of(log));
+
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
       this.taskStateCollectorService.stopAsync().awaitTerminated();
       cleanupWorkingDirectory();
