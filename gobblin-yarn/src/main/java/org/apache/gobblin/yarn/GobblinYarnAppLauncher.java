@@ -645,10 +645,10 @@ public class GobblinYarnAppLauncher {
 
     // Temporal workflow tracking url
     String temporalWorkflowTrackingUrl = ConfigUtils.getString(config, "gobblin.temporal.ui.server.url", "");
-    if (!temporalWorkflowTrackingUrl.isEmpty()) {
+    if (StringUtils.isNotBlank(temporalWorkflowTrackingUrl)) {
       LOGGER.info("Temporal Workflow Tracking URL: " + temporalWorkflowTrackingUrl);
     }
-    
+
     return applicationId;
   }
 
