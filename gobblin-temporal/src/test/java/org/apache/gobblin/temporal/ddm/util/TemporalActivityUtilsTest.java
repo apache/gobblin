@@ -20,40 +20,36 @@ package org.apache.gobblin.temporal.ddm.util;
 import java.time.Duration;
 import java.util.Properties;
 
-import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
 import io.temporal.activity.ActivityOptions;
-import io.temporal.common.RetryOptions;
 
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
+import org.apache.gobblin.temporal.ddm.activity.ActivityConfigurationStrategy;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 
 
 /** Tests for {@link TemporalActivityUtils} */
 public class TemporalActivityUtilsTest {
 
   @Test
-  public void testBuildActivityOptions() {
+  public void testBuildActivityOptionsDefault() {
     ActivityType activityType = Mockito.mock(ActivityType.class);
     Properties props = Mockito.mock(Properties.class);
 
-    Duration timeout = Duration.ofMinutes(30);
-    RetryOptions retryOptions = RetryOptions.newBuilder().setMaximumAttempts(3).build();
-
-    MockedStatic<TemporalTimeoutUtils> mockedTemporalTimeoutUtils = Mockito.mockStatic(TemporalTimeoutUtils.class);
-    MockedStatic<TemporalRetryUtils> mockedTemporalRetryUtils = Mockito.mockStatic(TemporalRetryUtils.class);
-
-    mockedTemporalTimeoutUtils.when(() -> TemporalTimeoutUtils.getStartToCloseTimeout(activityType, props)).thenReturn(timeout);
-    mockedTemporalRetryUtils.when(() -> TemporalRetryUtils.getRetryOptions(activityType, props)).thenReturn(retryOptions);
-
     ActivityOptions activityOptions = TemporalActivityUtils.buildActivityOptions(activityType, props);
 
-    Assert.assertEquals(timeout, activityOptions.getStartToCloseTimeout());
-    Assert.assertEquals(retryOptions, activityOptions.getRetryOptions());
+    Assert.assertEquals(ActivityConfigurationStrategy.defaultStartToCloseTimeout, activityOptions.getStartToCloseTimeout());
+    Assert.assertEquals(TemporalActivityUtils.DEFAULT_RETRY_OPTIONS, activityOptions.getRetryOptions());
+  }
 
-    mockedTemporalTimeoutUtils.close();
-    mockedTemporalRetryUtils.close();
+  @Test
+  public void testBuildActivityOptionsWithCustomProps() {
+    Properties props = new Properties();
+    props.setProperty(GobblinTemporalConfigurationKeys.GENERATE_WORKUNITS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES, "5");
+    ActivityOptions activityOptions = TemporalActivityUtils.buildActivityOptions(ActivityType.GENERATE_WORKUNITS, props);
+    Assert.assertEquals(Duration.ofMinutes(5), activityOptions.getStartToCloseTimeout());
   }
 }

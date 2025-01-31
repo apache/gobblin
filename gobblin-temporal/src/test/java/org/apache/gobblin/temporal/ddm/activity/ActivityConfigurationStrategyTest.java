@@ -26,16 +26,16 @@ import org.testng.annotations.Test;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 
 
-/** Tests for impl of {@link ActivityTimeoutStrategy}*/
-public class ActivityTimeoutStrategyTest {
+/** Tests for impl of {@link ActivityConfigurationStrategy}*/
+public class ActivityConfigurationStrategyTest {
 
   @Test
-  public void testGenerateWorkunitsActivityTimeoutStrategy() {
-    ActivityTimeoutStrategy.GenerateWorkunitsActivityTimeoutStrategy strategy =
-        new ActivityTimeoutStrategy.GenerateWorkunitsActivityTimeoutStrategy();
+  public void testGenerateWorkunitsActivityConfigurationStrategy() {
+    ActivityConfigurationStrategy.GenerateWorkunitsActivityConfigurationStrategy strategy =
+        new ActivityConfigurationStrategy.GenerateWorkunitsActivityConfigurationStrategy();
     // Test default timeout
     Assert.assertEquals(strategy.getStartToCloseTimeout(new Properties()),
-        Duration.ofMinutes(ActivityTimeoutStrategy.DEFAULT_GENERATE_WORKUNITS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
+        Duration.ofMinutes(ActivityConfigurationStrategy.DEFAULT_GENERATE_WORKUNITS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
     // Test custom timeout
     Properties props = new Properties();
     props.setProperty(GobblinTemporalConfigurationKeys.GENERATE_WORKUNITS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES, "10");
@@ -43,12 +43,12 @@ public class ActivityTimeoutStrategyTest {
   }
 
   @Test
-  public void testRecommendScalingActivityTimeoutStrategy() {
-    ActivityTimeoutStrategy.RecommendScalingActivityTimeoutStrategy strategy =
-        new ActivityTimeoutStrategy.RecommendScalingActivityTimeoutStrategy();
+  public void testRecommendScalingActivityConfigurationStrategy() {
+    ActivityConfigurationStrategy.RecommendScalingActivityConfigurationStrategy strategy =
+        new ActivityConfigurationStrategy.RecommendScalingActivityConfigurationStrategy();
     // Test default timeout
     Assert.assertEquals(strategy.getStartToCloseTimeout(new Properties()),
-        Duration.ofMinutes(ActivityTimeoutStrategy.DEFAULT_RECOMMEND_SCALING_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
+        Duration.ofMinutes(ActivityConfigurationStrategy.DEFAULT_RECOMMEND_SCALING_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
     // Test custom timeout
     Properties props = new Properties();
     props.setProperty(GobblinTemporalConfigurationKeys.RECOMMEND_SCALING_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES, "13");
@@ -56,12 +56,12 @@ public class ActivityTimeoutStrategyTest {
   }
 
   @Test
-  public void testDeleteWorkDirsActivityTimeoutStrategy() {
-    ActivityTimeoutStrategy.DeleteWorkDirsActivityTimeoutStrategy strategy =
-        new ActivityTimeoutStrategy.DeleteWorkDirsActivityTimeoutStrategy();
+  public void testDeleteWorkDirsActivityConfigurationStrategy() {
+    ActivityConfigurationStrategy.DeleteWorkDirsActivityConfigurationStrategy strategy =
+        new ActivityConfigurationStrategy.DeleteWorkDirsActivityConfigurationStrategy();
     // Test default timeout
     Assert.assertEquals(strategy.getStartToCloseTimeout(new Properties()),
-        Duration.ofMinutes(ActivityTimeoutStrategy.DEFAULT_DELETE_WORK_DIRS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
+        Duration.ofMinutes(ActivityConfigurationStrategy.DEFAULT_DELETE_WORK_DIRS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
     // Test custom timeout
     Properties props = new Properties();
     props.setProperty(GobblinTemporalConfigurationKeys.DELETE_WORK_DIRS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES, "27");
@@ -69,12 +69,12 @@ public class ActivityTimeoutStrategyTest {
   }
 
   @Test
-  public void testProcessWorkunitActivityTimeoutStrategy() {
-    ActivityTimeoutStrategy.ProcessWorkunitActivityTimeoutStrategy strategy =
-        new ActivityTimeoutStrategy.ProcessWorkunitActivityTimeoutStrategy();
+  public void testProcessWorkunitActivityConfigurationStrategy() {
+    ActivityConfigurationStrategy.ProcessWorkunitActivityConfigurationStrategy strategy =
+        new ActivityConfigurationStrategy.ProcessWorkunitActivityConfigurationStrategy();
     // Test default timeout
     Assert.assertEquals(strategy.getStartToCloseTimeout(new Properties()),
-        Duration.ofMinutes(ActivityTimeoutStrategy.DEFAULT_PROCESS_WORKUNIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
+        Duration.ofMinutes(ActivityConfigurationStrategy.DEFAULT_PROCESS_WORKUNIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
     // Test custom timeout
     Properties props = new Properties();
     props.setProperty(GobblinTemporalConfigurationKeys.PROCESS_WORKUNIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES, "33");
@@ -82,12 +82,12 @@ public class ActivityTimeoutStrategyTest {
   }
 
   @Test
-  public void testCommitActivityTimeoutStrategy() {
-    ActivityTimeoutStrategy.CommitActivityTimeoutStrategy strategy =
-        new ActivityTimeoutStrategy.CommitActivityTimeoutStrategy();
+  public void testCommitActivityConfigurationStrategy() {
+    ActivityConfigurationStrategy.CommitActivityConfigurationStrategy strategy =
+        new ActivityConfigurationStrategy.CommitActivityConfigurationStrategy();
     // Test default timeout
     Assert.assertEquals(strategy.getStartToCloseTimeout(new Properties()),
-        Duration.ofMinutes(ActivityTimeoutStrategy.DEFAULT_COMMIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
+        Duration.ofMinutes(ActivityConfigurationStrategy.DEFAULT_COMMIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
     // Test custom timeout
     Properties props = new Properties();
     props.setProperty(GobblinTemporalConfigurationKeys.COMMIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES, "33");

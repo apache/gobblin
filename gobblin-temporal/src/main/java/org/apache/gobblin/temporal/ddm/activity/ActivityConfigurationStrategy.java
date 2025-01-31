@@ -28,7 +28,7 @@ import org.apache.gobblin.util.PropertiesUtils;
  * Interface for defining timeout strategies for different Temporal activities.
  * Each strategy provides a method to retrieve the timeout duration based on the provided properties.
  */
-public interface ActivityTimeoutStrategy {
+public interface ActivityConfigurationStrategy {
   /** Default start to close timeout duration for any activity if not specified. */
   Duration defaultStartToCloseTimeout = Duration.ofMinutes(180);
   int DEFAULT_GENERATE_WORKUNITS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES = 120;
@@ -46,9 +46,9 @@ public interface ActivityTimeoutStrategy {
   Duration getStartToCloseTimeout(Properties props);
 
   /**
-   * Timeout strategy for the Generate Workunits activity.
+   * Configuration strategy for the Generate Workunits activity.
    */
-  class GenerateWorkunitsActivityTimeoutStrategy implements ActivityTimeoutStrategy {
+  class GenerateWorkunitsActivityConfigurationStrategy implements ActivityConfigurationStrategy {
     @Override
     public Duration getStartToCloseTimeout(Properties props) {
       return Duration.ofMinutes(PropertiesUtils.getPropAsInt(
@@ -60,9 +60,9 @@ public interface ActivityTimeoutStrategy {
   }
 
   /**
-   * Timeout strategy for the Recommend Scaling activity.
+   * Configuration strategy for the Recommend Scaling activity.
    */
-  class RecommendScalingActivityTimeoutStrategy implements ActivityTimeoutStrategy {
+  class RecommendScalingActivityConfigurationStrategy implements ActivityConfigurationStrategy {
     @Override
     public Duration getStartToCloseTimeout(Properties props) {
       return Duration.ofMinutes(PropertiesUtils.getPropAsInt(
@@ -74,9 +74,9 @@ public interface ActivityTimeoutStrategy {
   }
 
   /**
-   * Timeout strategy for the Delete Work Dirs activity.
+   * Configuration strategy for the Delete Work Dirs activity.
    */
-  class DeleteWorkDirsActivityTimeoutStrategy implements ActivityTimeoutStrategy {
+  class DeleteWorkDirsActivityConfigurationStrategy implements ActivityConfigurationStrategy {
     @Override
     public Duration getStartToCloseTimeout(Properties props) {
       return Duration.ofMinutes(PropertiesUtils.getPropAsInt(
@@ -88,9 +88,9 @@ public interface ActivityTimeoutStrategy {
   }
 
   /**
-   * Timeout strategy for the Process Workunit activity.
+   * Configuration strategy for the Process Workunit activity.
    */
-  class ProcessWorkunitActivityTimeoutStrategy implements ActivityTimeoutStrategy {
+  class ProcessWorkunitActivityConfigurationStrategy implements ActivityConfigurationStrategy {
     @Override
     public Duration getStartToCloseTimeout(Properties props) {
       return Duration.ofMinutes(PropertiesUtils.getPropAsInt(
@@ -102,9 +102,9 @@ public interface ActivityTimeoutStrategy {
   }
 
   /**
-   * Timeout strategy for the Commit activity.
+   * Configuration strategy for the Commit activity.
    */
-  class CommitActivityTimeoutStrategy implements ActivityTimeoutStrategy {
+  class CommitActivityConfigurationStrategy implements ActivityConfigurationStrategy {
     @Override
     public Duration getStartToCloseTimeout(Properties props) {
       return Duration.ofMinutes(PropertiesUtils.getPropAsInt(
