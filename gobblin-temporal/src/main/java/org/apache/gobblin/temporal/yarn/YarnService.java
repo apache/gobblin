@@ -137,7 +137,6 @@ class YarnService extends AbstractIdleService {
   private final AMRMClientAsync<AMRMClient.ContainerRequest> amrmClientAsync;
   private final NMClientAsync nmClientAsync;
   private final ExecutorService containerLaunchExecutor;
-  private final boolean containerHostAffinityEnabled;
   private final String containerTimezone;
   private final String proxyJvmArgs;
 
@@ -196,8 +195,6 @@ class YarnService extends AbstractIdleService {
     this.amrmClientAsync.init(this.yarnConfiguration);
     this.nmClientAsync = closer.register(NMClientAsync.createNMClientAsync(getNMClientCallbackHandler()));
     this.nmClientAsync.init(this.yarnConfiguration);
-
-    this.containerHostAffinityEnabled = config.getBoolean(GobblinYarnConfigurationKeys.CONTAINER_HOST_AFFINITY_ENABLED);
 
     this.proxyJvmArgs = config.hasPath(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) ?
         config.getString(GobblinYarnConfigurationKeys.YARN_APPLICATION_PROXY_JVM_ARGS) : StringUtils.EMPTY;
@@ -534,26 +531,6 @@ class YarnService extends AbstractIdleService {
             containerProcessName).append(".").append(ApplicationConstants.STDOUT)
         .append(" 2>").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR).append(File.separator).append(
             containerProcessName).append(".").append(ApplicationConstants.STDERR).toString();
-  }
-
-  /**
-   * Check the exit status of a completed container and see if the replacement container
-   * should try to be started on the same node. Some exit status indicates a disk or
-   * node failure and in such cases the replacement container should try to be started on
-   * a different node.
-   */
-  private boolean shouldStickToTheSameNode(int containerExitStatus) {
-    switch (containerExitStatus) {
-      case ContainerExitStatus.DISKS_FAILED:
-        return false;
-      case ContainerExitStatus.ABORTED:
-        // Mostly likely this exit status is due to node failures because the
-        // application itself will not release containers.
-        return false;
-      default:
-        // Stick to the same node for other cases if host affinity is enabled.
-        return this.containerHostAffinityEnabled;
-    }
   }
 
   /**

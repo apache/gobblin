@@ -54,13 +54,16 @@ import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
  */
 @Slf4j
 public class DynamicScalingYarnService extends YarnService {
+  public static final String DEFAULT_REPLACEMENT_CONTAINER_WORKER_PROFILE_NAME_PREFIX = "replacementWorkerProfile";
+  public static final int GENERAL_OOM_EXIT_STATUS_CODE = 137;
+  public static final int DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER = 2;
+  public static final int MAX_REPLACEMENT_CONTAINER_MEMORY_MBS = 65536; // 64GB
 
   /** this holds the current count of containers already requested for each worker profile */
   private final WorkforceStaffing actualWorkforceStaffing;
   /** this holds the current total workforce plan as per latest received scaling directives */
   private final WorkforcePlan workforcePlan;
   private final Set<ContainerId> removedContainerIds;
-  public static final String DEFAULT_REPLACEMENT_CONTAINER_WORKER_PROFILE_NAME_PREFIX = "replacementWorkerProfile";
   private final AtomicLong profileNameSuffixGenerator;
 
   public DynamicScalingYarnService(Config config, String applicationName, String applicationId,
@@ -98,6 +101,10 @@ public class DynamicScalingYarnService extends YarnService {
     ContainerId completedContainerId = containerStatus.getContainerId();
     ContainerInfo completedContainerInfo = this.containerMap.remove(completedContainerId);
 
+    // Because callbacks are processed asynchronously, we might encounter situations where handleContainerCompletion()
+    // is called before onContainersAllocated(), resulting in the containerId missing from the containersMap.
+    // We use removedContainerIds to remember these containers and remove them from containerMap later
+    // when we call reviseWorkforcePlanAndRequestNewContainers method
     if (completedContainerInfo == null) {
       log.warn("Container {} not found in containerMap. This container onContainersCompleted() likely called before onContainersAllocated()",
           completedContainerId);
@@ -106,13 +113,11 @@ public class DynamicScalingYarnService extends YarnService {
     }
 
     log.info("Container {} running profile {} completed with exit status {}",
-        completedContainerId, completedContainerInfo.getWorkerProfileName(), containerStatus.getExitStatus()
-    );
+        completedContainerId, completedContainerInfo.getWorkerProfileName(), containerStatus.getExitStatus());
 
     if (StringUtils.isNotBlank(containerStatus.getDiagnostics())) {
       log.info("Container {} running profile {} completed with diagnostics: {}",
-          completedContainerId, completedContainerInfo.getWorkerProfileName(), containerStatus.getDiagnostics()
-      );
+          completedContainerId, completedContainerInfo.getWorkerProfileName(), containerStatus.getDiagnostics());
     }
 
     if (this.shutdownInProgress) {
@@ -131,7 +136,7 @@ public class DynamicScalingYarnService extends YarnService {
             completedContainerId, completedContainerInfo.getWorkerProfileName());
         requestContainersForWorkerProfile(workerProfile, 1);
         break;
-      case(137): // General OOM exit status
+      case(GENERAL_OOM_EXIT_STATUS_CODE):
       case(ContainerExitStatus.KILLED_EXCEEDED_VMEM):
       case(ContainerExitStatus.KILLED_EXCEEDED_PMEM):
         handleContainerExitedWithOOM(completedContainerId, completedContainerInfo);
@@ -232,7 +237,12 @@ public class DynamicScalingYarnService extends YarnService {
 
     // Request a replacement container
     int currContainerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
-    int newContainerMemoryMbs = currContainerMemoryMbs * 2; //TODO: make it configurable or auto-tunable
+    int newContainerMemoryMbs = currContainerMemoryMbs * DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER;
+    if (newContainerMemoryMbs > MAX_REPLACEMENT_CONTAINER_MEMORY_MBS) {
+      log.warn("Expected replacement container memory exceeds the maximum allowed memory {}. Not requesting a replacement container.",
+          MAX_REPLACEMENT_CONTAINER_MEMORY_MBS);
+      return;
+    }
     Optional<ProfileDerivation> optProfileDerivation = Optional.of(new ProfileDerivation(workerProfile.getName(),
         new ProfileOverlay.Adding(new ProfileOverlay.KVPair(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY, newContainerMemoryMbs + ""))
     ));
