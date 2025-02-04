@@ -64,6 +64,8 @@ dependencies {
     }
     compile externalDependency.tdigest
     compile externalDependency."temporal-sdk"
+    compile externalDependency.micrometerCore
+    compile externalDependency.micrometerRegistry
     testCompile project(path: ':gobblin-cluster', configuration: 'tests')
     testCompile project(":gobblin-example")
 

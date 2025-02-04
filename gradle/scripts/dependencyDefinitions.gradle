@@ -120,6 +120,8 @@ ext.externalDependency = [
     "opentelemetrySdk": "io.opentelemetry:opentelemetry-sdk:" + openTelemetryVersion,
     "opentelemetryExporterOtlp": "io.opentelemetry:opentelemetry-exporter-otlp:" + openTelemetryVersion,
     "opentelemetrySdkTesting": "io.opentelemetry:opentelemetry-sdk-testing:" + openTelemetryVersion,
+    "micrometerCore": "io.micrometer:micrometer-core:" + micrometerVersion,
+    "micrometerRegistry": "io.micrometer:micrometer-registry-otlp:" + micrometerVersion,
     "jsch": "com.jcraft:jsch:0.1.54",
     "jdo2": "javax.jdo:jdo2-api:2.1",
     "azkaban": "com.linkedin.azkaban:azkaban:2.5.0",
