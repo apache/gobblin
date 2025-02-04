@@ -27,6 +27,7 @@ import com.google.common.annotations.VisibleForTesting;
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
 import lombok.experimental.UtilityClass;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.temporal.ddm.activity.ActivityConfigurationStrategy;
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
@@ -34,6 +35,7 @@ import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 
 /** Utility class for handling Temporal Activity related operations. */
 @UtilityClass
+@Slf4j
 public class TemporalActivityUtils {
 
   @VisibleForTesting
@@ -78,6 +80,7 @@ public class TemporalActivityUtils {
   private static Duration getStartToCloseTimeout(ActivityType activityType, Properties props) {
     ActivityConfigurationStrategy activityConfigurationStrategy = activityConfigurationStrategies.get(activityType);
     if (activityConfigurationStrategy == null) {
+      log.warn("No configuration strategy found for activity type {}. Using default start to close timeout.", activityType);
       return ActivityConfigurationStrategy.defaultStartToCloseTimeout;
     }
     return activityConfigurationStrategy.getStartToCloseTimeout(props);

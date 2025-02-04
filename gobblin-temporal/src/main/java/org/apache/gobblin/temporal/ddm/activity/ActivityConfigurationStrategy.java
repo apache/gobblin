@@ -25,8 +25,8 @@ import org.apache.gobblin.util.PropertiesUtils;
 
 
 /**
- * Interface for defining timeout strategies for different Temporal activities.
- * Each strategy provides a method to retrieve the timeout duration based on the provided properties.
+ * Interface for defining activity configuration strategies for different Temporal activities.
+ * Each strategy provides a method to retrieve configuration details, such as timeout duration, based on the provided properties.
  */
 public interface ActivityConfigurationStrategy {
   /** Default start to close timeout duration for any activity if not specified. */
