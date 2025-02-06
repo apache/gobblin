@@ -36,6 +36,9 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Workflow;
 
+import org.apache.commons.text.TextStringBuilder;
+import org.apache.gobblin.cluster.event.JobFailureEvent;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -45,6 +48,7 @@ import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobLauncher;
+import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
@@ -107,6 +111,28 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     return configOverrides.withFallback(config);
   }
 
+  private String getIssuesSummary() {
+    TextStringBuilder sb = new TextStringBuilder();
+    try {
+      List<Issue> issues = this.getIssueRepository().getAll();
+      sb.appendln("");
+      sb.appendln("vvvvv============= Issues (summary) =============vvvvv");
+
+      for (int i = 0; i < issues.size(); i++) {
+        Issue issue = issues.get(i);
+
+        sb.appendln("%s) %s %s %s | source: %s", i + 1, issue.getSeverity().toString(), issue.getCode(),
+            issue.getSummary(), issue.getSourceClass());
+      }
+      sb.append("^^^^^=============================================^^^^^");
+      sb.toString();
+    }
+    catch(Exception e) {
+      log.warn("Failed to get issue summary", e);
+    }
+    return sb.toString();
+  }
+
   @Override
   protected void handleLaunchFinalization() {
     // NOTE: This code only makes sense when there is 1 source / workflow being launched per application for Temporal. This is a stop-gap
@@ -114,6 +140,9 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     // during application creation, it is not possible to have multiple workflows running in the same application.
     // and so it makes sense to just kill the job after this is completed
     log.info("Requesting the AM to shutdown after the job {} completed", this.jobContext.getJobId());
+    JobState jobState = this.jobContext.getJobState();
+    String issuesSummary = this.getIssuesSummary();
+    eventBus.post(new JobFailureEvent(jobState, issuesSummary));
     eventBus.post(new ClusterManagerShutdownRequest());
   }
 

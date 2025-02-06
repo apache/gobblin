@@ -37,6 +37,9 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang.StringUtils;
+import org.apache.gobblin.cluster.event.JobFailureEvent;
+import org.apache.gobblin.runtime.EventMetadataUtils;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -198,6 +201,9 @@ class YarnService extends AbstractIdleService {
   private final AtomicLong allocationRequestIdGenerator = new AtomicLong(DEFAULT_ALLOCATION_REQUEST_ID);
   private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
 
+  private JobState jobState;
+  private String jobIssuesSummary;
+
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus) throws Exception {
     this.applicationName = applicationName;
@@ -304,6 +310,13 @@ class YarnService extends AbstractIdleService {
     }
   }
 
+  @SuppressWarnings("unused")
+  @Subscribe
+  public void handleJobFailure(JobFailureEvent jobFailureEvent) {
+    this.jobState = jobFailureEvent.getJobState();
+    this.jobIssuesSummary = jobFailureEvent.getIssuesSummary();
+  }
+
   @Override
   protected synchronized void startUp() throws Exception {
     LOGGER.info("Starting the TemporalYarnService");
@@ -353,7 +366,11 @@ class YarnService extends AbstractIdleService {
         }
       }
 
-      this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, null);
+      if (this.jobState != null && !this.jobState.getState().isSuccess()) {
+        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.FAILED, this.jobIssuesSummary, null);
+      } else {
+        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, null);
+      }
     } catch (IOException | YarnException e) {
       LOGGER.error("Failed to unregister the ApplicationMaster", e);
     } finally {
