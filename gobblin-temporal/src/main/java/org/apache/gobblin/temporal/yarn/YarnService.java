@@ -331,6 +331,7 @@ class YarnService extends AbstractIdleService {
   }
 
   protected synchronized void releaseContainersForWorkerProfile(String profileName, int numContainers) {
+    int numContainersToRelease = numContainers;
     Iterator<Map.Entry<ContainerId, ContainerInfo>> containerMapIterator = this.containerMap.entrySet().iterator();
     while (containerMapIterator.hasNext() && numContainers > 0) {
       Map.Entry<ContainerId, ContainerInfo> entry = containerMapIterator.next();
@@ -348,6 +349,8 @@ class YarnService extends AbstractIdleService {
         numContainers--;
       }
     }
+    LOGGER.info("Released {} containers out of {} requested for profile {}", numContainersToRelease - numContainers,
+        numContainersToRelease, profileName);
   }
 
   /**

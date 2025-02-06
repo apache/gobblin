@@ -54,10 +54,11 @@ import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
  */
 @Slf4j
 public class DynamicScalingYarnService extends YarnService {
-  public static final String DEFAULT_REPLACEMENT_CONTAINER_WORKER_PROFILE_NAME_PREFIX = "replacementWorkerProfile";
-  public static final int GENERAL_OOM_EXIT_STATUS_CODE = 137;
-  public static final int DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER = 2;
-  public static final int MAX_REPLACEMENT_CONTAINER_MEMORY_MBS = 65536; // 64GB
+  private static final String DEFAULT_REPLACEMENT_CONTAINER_WORKER_PROFILE_NAME_PREFIX = "replacementWorkerProfile";
+  private static final int LAUNCH_CONTAINER_FAILED_EXIT_CODE = 1;
+  private static final int GENERAL_OOM_EXIT_STATUS_CODE = 137;
+  private static final int DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER = 2;
+  private static final int MAX_REPLACEMENT_CONTAINER_MEMORY_MBS = 65536; // 64GB
 
   /** this holds the current count of containers already requested for each worker profile */
   private final WorkforceStaffing actualWorkforceStaffing;
@@ -141,10 +142,15 @@ public class DynamicScalingYarnService extends YarnService {
       case(ContainerExitStatus.KILLED_EXCEEDED_PMEM):
         handleContainerExitedWithOOM(completedContainerId, completedContainerInfo);
         break;
-      case(1): // Same as linux exit status 1 Often occurs when launch_container.sh failed
+      case(LAUNCH_CONTAINER_FAILED_EXIT_CODE):
         log.info("Exit status 1.CompletedContainerInfo = {}", completedContainerInfo);
         break;
+      case ContainerExitStatus.KILLED_AFTER_APP_COMPLETION:
+      case ContainerExitStatus.SUCCESS:
+        break;
       default:
+        log.warn("Container {} exited with unhandled status code {}. ContainerInfo: {}",
+            completedContainerId, containerStatus.getExitStatus(), completedContainerInfo);
         break;
     }
   }
@@ -238,7 +244,9 @@ public class DynamicScalingYarnService extends YarnService {
     // Request a replacement container
     int currContainerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
     int newContainerMemoryMbs = currContainerMemoryMbs * DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER;
-    if (newContainerMemoryMbs > MAX_REPLACEMENT_CONTAINER_MEMORY_MBS) {
+    if (currContainerMemoryMbs < MAX_REPLACEMENT_CONTAINER_MEMORY_MBS && newContainerMemoryMbs > MAX_REPLACEMENT_CONTAINER_MEMORY_MBS) {
+      newContainerMemoryMbs = MAX_REPLACEMENT_CONTAINER_MEMORY_MBS;
+    } else if (newContainerMemoryMbs > MAX_REPLACEMENT_CONTAINER_MEMORY_MBS) {
       log.warn("Expected replacement container memory exceeds the maximum allowed memory {}. Not requesting a replacement container.",
           MAX_REPLACEMENT_CONTAINER_MEMORY_MBS);
       return;
