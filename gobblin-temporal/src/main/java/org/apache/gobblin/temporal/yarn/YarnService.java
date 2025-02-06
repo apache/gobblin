@@ -368,9 +368,9 @@ class YarnService extends AbstractIdleService {
       }
 
       if (this.jobState != null && !this.jobState.getState().isSuccess()) {
-        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.FAILED, this.jobIssuesSummary, null);
+        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.FAILED, this.getJobIssuesSummary(), null);
       } else {
-        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, null);
+        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, StringUtils.defaultString(this.getJobIssuesSummary()), null);
       }
     } catch (IOException | YarnException e) {
       LOGGER.error("Failed to unregister the ApplicationMaster", e);

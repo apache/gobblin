@@ -383,6 +383,9 @@ public class GobblinYarnAppLauncher {
 
     addServices();
 
+    // The YarnClient and all the services are started asynchronously.
+    // This will block until the application is completed and throws an exception to fail the Azkaban Job in case the
+    // underlying Yarn Application reports a job failure.
     synchronized (this.applicationDone) {
       while (!this.applicationCompleted) {
         try {
@@ -497,7 +500,9 @@ public class GobblinYarnAppLauncher {
           applicationReport.getFinalApplicationStatus().toString());
       if (applicationReport.getFinalApplicationStatus() == FinalApplicationStatus.FAILED) {
         applicationFailed = true;
-        LOGGER.error("Gobblin Yarn application failed for the following reason: " + applicationReport.getDiagnostics());
+        LOGGER.error("Gobblin Yarn application failed because of the following issues: " + applicationReport.getDiagnostics());
+      } else if (StringUtils.isNotBlank(applicationReport.getDiagnostics())) {
+        LOGGER.error("Gobblin Yarn application succeeded but has some warning issues: " + applicationReport.getDiagnostics());
       }
 
       synchronized (this.applicationDone) {
