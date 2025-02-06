@@ -37,7 +37,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Workflow;
 
 import org.apache.commons.text.TextStringBuilder;
-import org.apache.gobblin.cluster.event.JobFailureEvent;
+import org.apache.gobblin.cluster.event.JobSummaryEvent;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -115,6 +115,9 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     TextStringBuilder sb = new TextStringBuilder();
     try {
       List<Issue> issues = this.getIssueRepository().getAll();
+      if (issues.size() == 0) {
+        return "";
+      }
       sb.appendln("");
       sb.appendln("vvvvv============= Issues (summary) =============vvvvv");
 
@@ -141,7 +144,7 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     log.info("Requesting the AM to shutdown after the job {} completed", this.jobContext.getJobId());
     JobState jobState = this.jobContext.getJobState();
     String issuesSummary = this.getIssuesSummary();
-    eventBus.post(new JobFailureEvent(jobState, issuesSummary));
+    eventBus.post(new JobSummaryEvent(jobState, issuesSummary));
     eventBus.post(new ClusterManagerShutdownRequest());
   }
 

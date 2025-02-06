@@ -37,8 +37,7 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.cluster.event.JobFailureEvent;
-import org.apache.gobblin.runtime.EventMetadataUtils;
+import org.apache.gobblin.cluster.event.JobSummaryEvent;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
@@ -201,12 +200,10 @@ class YarnService extends AbstractIdleService {
   private final AtomicLong allocationRequestIdGenerator = new AtomicLong(DEFAULT_ALLOCATION_REQUEST_ID);
   private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
 
-  @VisibleForTesting
-  @Getter(AccessLevel.PROTECTED)
-  private JobState jobState;
-  @VisibleForTesting
-  @Getter(AccessLevel.PROTECTED)
-  private String jobIssuesSummary;
+  @Getter
+  protected JobState jobState;
+  @Getter
+  protected String jobIssuesSummary;
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus) throws Exception {
@@ -316,9 +313,9 @@ class YarnService extends AbstractIdleService {
 
   @SuppressWarnings("unused")
   @Subscribe
-  public void handleJobFailure(JobFailureEvent jobFailureEvent) {
-    this.jobState = jobFailureEvent.getJobState();
-    this.jobIssuesSummary = jobFailureEvent.getIssuesSummary();
+  public void handleJobFailure(JobSummaryEvent jobSummaryEvent) {
+    this.jobState = jobSummaryEvent.getJobState();
+    this.jobIssuesSummary = jobSummaryEvent.getIssuesSummary();
   }
 
   @Override

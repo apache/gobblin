@@ -20,7 +20,7 @@ package org.apache.gobblin.temporal.yarn;
 import java.io.IOException;
 import java.net.URL;
 
-import org.apache.gobblin.cluster.event.JobFailureEvent;
+import org.apache.gobblin.cluster.event.JobSummaryEvent;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
@@ -139,9 +139,10 @@ public class YarnServiceTest {
 
     yarnService.startUp();
 
-    eventBus.post(new JobFailureEvent(new JobState("name","id"), "summary"));
+    eventBus.post(new JobSummaryEvent(new JobState("name","id"), "summary"));
 
-    Thread.sleep(1000);
+    // Waiting for the event to be handled
+    Thread.sleep(100);
     Assert.assertEquals(yarnService.getJobState().getJobName(),"name");
     Assert.assertEquals(yarnService.getJobState().getJobId(),"id");
     Assert.assertEquals(yarnService.getJobIssuesSummary(),"summary");
