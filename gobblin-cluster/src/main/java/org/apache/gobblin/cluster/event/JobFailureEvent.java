@@ -4,8 +4,9 @@ import lombok.Getter;
 import org.apache.gobblin.runtime.JobState;
 
 
-/*
-
+/**
+ * The `JobFailureEvent` class represents an event that is triggered when a job fails.
+ * It contains information about the job state and a summary of the issues that caused the failure.
  */
 public class JobFailureEvent {
   @Getter
