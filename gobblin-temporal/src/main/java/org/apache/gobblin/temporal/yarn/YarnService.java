@@ -201,7 +201,11 @@ class YarnService extends AbstractIdleService {
   private final AtomicLong allocationRequestIdGenerator = new AtomicLong(DEFAULT_ALLOCATION_REQUEST_ID);
   private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
 
+  @VisibleForTesting
+  @Getter(AccessLevel.PROTECTED)
   private JobState jobState;
+  @VisibleForTesting
+  @Getter(AccessLevel.PROTECTED)
   private String jobIssuesSummary;
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,

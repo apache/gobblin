@@ -20,6 +20,8 @@ package org.apache.gobblin.temporal.yarn;
 import java.io.IOException;
 import java.net.URL;
 
+import org.apache.gobblin.cluster.event.JobFailureEvent;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -122,5 +124,26 @@ public class YarnServiceTest {
 
     String command = yarnService.buildContainerCommand(mockContainer, "testHelixParticipantId", "testHelixInstanceTag");
     Assert.assertTrue(command.contains("-Xmx" + expectedJvmMemory + "M"));
+  }
+
+  @Test
+  public void testHandleJobFailureEvent() throws Exception {
+    YarnService yarnService = new YarnService(
+        this.defaultConfigs,
+        "testApplicationName",
+        "testApplicationId",
+        yarnConfiguration,
+        mockFileSystem,
+        eventBus
+    );
+
+    yarnService.startUp();
+
+    eventBus.post(new JobFailureEvent(new JobState("name","id"), "summary"));
+
+    Thread.sleep(1000);
+    Assert.assertEquals(yarnService.getJobState().getJobName(),"name");
+    Assert.assertEquals(yarnService.getJobState().getJobId(),"id");
+    Assert.assertEquals(yarnService.getJobIssuesSummary(),"summary");
   }
 }
