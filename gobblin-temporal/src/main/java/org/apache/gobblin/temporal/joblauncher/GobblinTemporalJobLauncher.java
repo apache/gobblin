@@ -125,7 +125,6 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
             issue.getSummary(), issue.getSourceClass());
       }
       sb.append("^^^^^=============================================^^^^^");
-      sb.toString();
     }
     catch(Exception e) {
       log.warn("Failed to get issue summary", e);
