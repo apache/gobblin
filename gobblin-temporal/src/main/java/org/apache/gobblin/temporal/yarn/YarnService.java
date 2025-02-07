@@ -37,8 +37,6 @@ import java.util.concurrent.atomic.AtomicLong;
 import java.util.stream.IntStream;
 
 import org.apache.commons.lang.StringUtils;
-import org.apache.gobblin.cluster.event.JobSummaryEvent;
-import org.apache.gobblin.runtime.JobState;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -95,6 +93,8 @@ import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterMetricTagNames;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
+import org.apache.gobblin.cluster.event.JobSummaryEvent;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.metrics.MultiReporterException;

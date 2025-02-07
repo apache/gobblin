@@ -20,8 +20,6 @@ package org.apache.gobblin.temporal.yarn;
 import java.io.IOException;
 import java.net.URL;
 
-import org.apache.gobblin.cluster.event.JobSummaryEvent;
-import org.apache.gobblin.runtime.JobState;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.Resource;
@@ -43,6 +41,8 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 import com.google.common.eventbus.EventBus;
 
+import org.apache.gobblin.cluster.event.JobSummaryEvent;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
 import static org.mockito.Mockito.*;
