@@ -150,6 +150,19 @@ public class DynamicScalingYarnServiceTest {
     };
   }
 
+  @DataProvider(name = "ExitStatusProviderWhichDoesNotRequestReplacementContainer")
+  public Object[][] ExitStatusProviderWhichDoesNotRequestReplacementContainer() {
+    return new Object[][] {
+        {ContainerExitStatus.SUCCESS},
+        {ContainerExitStatus.INVALID},
+        {ContainerExitStatus.DISKS_FAILED},
+        {ContainerExitStatus.KILLED_BY_APPMASTER},
+        {ContainerExitStatus.KILLED_BY_RESOURCEMANAGER},
+        {ContainerExitStatus.KILLED_AFTER_APP_COMPLETION},
+        {ContainerExitStatus.KILLED_BY_CONTAINER_SCHEDULER}
+    };
+  }
+
   @Test(dataProvider = "OOMExitStatusProvider")
   public void testHandleContainerCompletionForStatusOOM(int containerExitStatusCode) throws Exception {
     ContainerId containerId = generateRandomContainerId();
@@ -245,6 +258,22 @@ public class DynamicScalingYarnServiceTest {
       Assert.assertEquals(capturedResource.getVirtualCores(), initCores);
     }
   }
+
+  @Test(dataProvider = "ExitStatusProviderWhichDoesNotRequestReplacementContainer")
+  public void testHandleContainerCompletionForExitStatusWhichDoesNotRequestReplacementContainer(int containerExitStatusCode) throws Exception {
+    ContainerId containerId = generateRandomContainerId();
+    DynamicScalingYarnService.ContainerInfo containerInfo = createBaselineContainerInfo(containerId);
+    ContainerStatus containerStatus = Mockito.mock(ContainerStatus.class);
+    Mockito.when(containerStatus.getContainerId()).thenReturn(containerId);
+    Mockito.when(containerStatus.getExitStatus()).thenReturn(containerExitStatusCode);
+    dynamicScalingYarnServiceSpy.containerMap.put(containerId, containerInfo); // Required to be done for test otherwise containerMap is always empty since it is updated after containers are allocated
+    dynamicScalingYarnServiceSpy.handleContainerCompletion(containerStatus);
+    // All zero invocation since startup is not called and no new containers should be requested
+    Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(0)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
+    Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(0)).requestContainersForWorkerProfile(Mockito.any(WorkerProfile.class), Mockito.anyInt());
+    Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(0)).requestContainers(Mockito.anyInt(), Mockito.any(Resource.class), Mockito.any(Optional.class));
+  }
+
 
   private ContainerId generateRandomContainerId() {
     return ContainerId.newContainerId(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),
