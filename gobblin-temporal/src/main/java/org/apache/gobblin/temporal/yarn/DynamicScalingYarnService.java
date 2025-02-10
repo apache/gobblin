@@ -21,8 +21,8 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
+import java.util.Queue;
+import java.util.concurrent.ConcurrentLinkedQueue;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.collections.CollectionUtils;
@@ -56,15 +56,15 @@ import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 public class DynamicScalingYarnService extends YarnService {
   private static final String DEFAULT_REPLACEMENT_CONTAINER_WORKER_PROFILE_NAME_PREFIX = "replacementWorkerProfile";
   private static final int LAUNCH_CONTAINER_FAILED_EXIT_CODE = 1;
-  private static final int GENERAL_OOM_EXIT_STATUS_CODE = 137;
-  private static final int DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER = 2;
+  protected static final int GENERAL_OOM_EXIT_STATUS_CODE = 137;
+  protected static final int DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER = 2;
   private static final int MAX_REPLACEMENT_CONTAINER_MEMORY_MBS = 65536; // 64GB
 
   /** this holds the current count of containers already requested for each worker profile */
   private final WorkforceStaffing actualWorkforceStaffing;
   /** this holds the current total workforce plan as per latest received scaling directives */
   private final WorkforcePlan workforcePlan;
-  private final Set<ContainerId> removedContainerIds;
+  private final Queue<ContainerId> removedContainerIds;
   private final AtomicLong profileNameSuffixGenerator;
 
   public DynamicScalingYarnService(Config config, String applicationName, String applicationId,
@@ -73,7 +73,7 @@ public class DynamicScalingYarnService extends YarnService {
 
     this.actualWorkforceStaffing = WorkforceStaffing.initialize(0);
     this.workforcePlan = new WorkforcePlan(this.config, this.config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY));
-    this.removedContainerIds = ConcurrentHashMap.newKeySet();
+    this.removedContainerIds = new ConcurrentLinkedQueue<>();
     this.profileNameSuffixGenerator = new AtomicLong();
   }
 
@@ -232,32 +232,32 @@ public class DynamicScalingYarnService extends YarnService {
     List<ScalingDirective> scalingDirectives = new ArrayList<>();
 
     WorkerProfile workerProfile = completedContainerInfo.getWorkerProfile();
+    long currTimeMillis = System.currentTimeMillis();
     // Update the current staffing to reflect the container that exited with OOM
     int currNumContainers = this.actualWorkforceStaffing.getStaffing(workerProfile.getName()).orElse(0);
     if (currNumContainers > 0) {
-      this.actualWorkforceStaffing.reviseStaffing(workerProfile.getName(), currNumContainers - 1, System.currentTimeMillis());
+      this.actualWorkforceStaffing.reviseStaffing(workerProfile.getName(), currNumContainers - 1, currTimeMillis + 1);
       // Add a scaling directive so that workforcePlan have uptodate setPoints for the workerProfile,
       // otherwise extra containers will be requested when calculating deltas
-      scalingDirectives.add(new ScalingDirective(workerProfile.getName(), currNumContainers - 1, System.currentTimeMillis()));
+      scalingDirectives.add(new ScalingDirective(workerProfile.getName(), currNumContainers - 1, currTimeMillis + 2));
     }
 
     // Request a replacement container
     int currContainerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
-    int newContainerMemoryMbs = currContainerMemoryMbs * DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER;
-    if (currContainerMemoryMbs < MAX_REPLACEMENT_CONTAINER_MEMORY_MBS && newContainerMemoryMbs > MAX_REPLACEMENT_CONTAINER_MEMORY_MBS) {
-      newContainerMemoryMbs = MAX_REPLACEMENT_CONTAINER_MEMORY_MBS;
-    } else if (newContainerMemoryMbs > MAX_REPLACEMENT_CONTAINER_MEMORY_MBS) {
-      log.warn("Expected replacement container memory exceeds the maximum allowed memory {}. Not requesting a replacement container.",
-          MAX_REPLACEMENT_CONTAINER_MEMORY_MBS);
+    if (currContainerMemoryMbs >= MAX_REPLACEMENT_CONTAINER_MEMORY_MBS) {
+      log.warn("Container {} already had max allowed memory {} MBs. Not requesting a replacement container.",
+          completedContainerId, currContainerMemoryMbs);
       return;
     }
+    int newContainerMemoryMbs = Math.min(currContainerMemoryMbs * DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER,
+        MAX_REPLACEMENT_CONTAINER_MEMORY_MBS);
     Optional<ProfileDerivation> optProfileDerivation = Optional.of(new ProfileDerivation(workerProfile.getName(),
         new ProfileOverlay.Adding(new ProfileOverlay.KVPair(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY, newContainerMemoryMbs + ""))
     ));
     scalingDirectives.add(new ScalingDirective(
         DEFAULT_REPLACEMENT_CONTAINER_WORKER_PROFILE_NAME_PREFIX + "-" + profileNameSuffixGenerator.getAndIncrement(),
         1,
-        System.currentTimeMillis(),
+        currTimeMillis + 3,
         optProfileDerivation
     ));
     reviseWorkforcePlanAndRequestNewContainers(scalingDirectives);
