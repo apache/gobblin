@@ -18,8 +18,8 @@
 package org.apache.gobblin.temporal.yarn;
 
 import java.util.Collections;
-
 import java.util.List;
+
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
@@ -170,17 +170,12 @@ public class DynamicScalingYarnServiceTest {
     ContainerStatus containerStatus = Mockito.mock(ContainerStatus.class);
     Mockito.when(containerStatus.getContainerId()).thenReturn(containerId);
     Mockito.when(containerStatus.getExitStatus()).thenReturn(containerExitStatusCode);
-
-    dynamicScalingYarnServiceSpy.startUp();
     dynamicScalingYarnServiceSpy.containerMap.put(containerId, containerInfo); // Required to be done for test otherwise containerMap is always empty since it is updated after containers are allocated
-
     dynamicScalingYarnServiceSpy.handleContainerCompletion(containerStatus);
-
     Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(1)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
     Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(2)).requestContainersForWorkerProfile(Mockito.any(WorkerProfile.class), Mockito.anyInt());
     ArgumentCaptor<Resource> resourceCaptor = ArgumentCaptor.forClass(Resource.class);
     Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(2)).requestContainers(Mockito.eq(1), resourceCaptor.capture(), Mockito.any(Optional.class));
-
     Resource capturedResource = resourceCaptor.getValue();
     Assert.assertEquals(capturedResource.getMemorySize(), (long) initMemoryMbs * DynamicScalingYarnService.DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER);
     Assert.assertEquals(capturedResource.getVirtualCores(), initCores);
@@ -193,16 +188,12 @@ public class DynamicScalingYarnServiceTest {
     ContainerStatus containerStatus = Mockito.mock(ContainerStatus.class);
     Mockito.when(containerStatus.getContainerId()).thenReturn(containerId);
     Mockito.when(containerStatus.getExitStatus()).thenReturn(containerExitStatusCode);
-
-    dynamicScalingYarnServiceSpy.startUp();
     dynamicScalingYarnServiceSpy.containerMap.put(containerId, containerInfo); // Required to be done for test otherwise containerMap is always empty since it is updated after containers are allocated
-
     dynamicScalingYarnServiceSpy.handleContainerCompletion(containerStatus);
     Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(0)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
-    Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(2)).requestContainersForWorkerProfile(Mockito.any(WorkerProfile.class), Mockito.anyInt());
+    Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(1)).requestContainersForWorkerProfile(Mockito.any(WorkerProfile.class), Mockito.anyInt());
     ArgumentCaptor<Resource> resourceCaptor = ArgumentCaptor.forClass(Resource.class);
-    Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(2)).requestContainers(Mockito.eq(1), resourceCaptor.capture(), Mockito.any(Optional.class));
-
+    Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(1)).requestContainers(Mockito.eq(1), resourceCaptor.capture(), Mockito.any(Optional.class));
     Resource capturedResource = resourceCaptor.getValue();
     Assert.assertEquals(capturedResource.getMemorySize(), initMemoryMbs);
     Assert.assertEquals(capturedResource.getVirtualCores(), initCores);
@@ -230,7 +221,6 @@ public class DynamicScalingYarnServiceTest {
     Mockito.when(containerStatus3.getContainerId()).thenReturn(containerId3);
     Mockito.when(containerStatus3.getExitStatus()).thenReturn(ContainerExitStatus.KILLED_EXCEEDED_PMEM);
 
-    dynamicScalingYarnServiceSpy.startUp();
     // Required to be done for test otherwise containerMap is always empty since it is updated after containers are allocated
     dynamicScalingYarnServiceSpy.containerMap.put(containerId1, containerInfo1);
     dynamicScalingYarnServiceSpy.containerMap.put(containerId2, containerInfo2);
@@ -268,7 +258,6 @@ public class DynamicScalingYarnServiceTest {
     Mockito.when(containerStatus.getExitStatus()).thenReturn(containerExitStatusCode);
     dynamicScalingYarnServiceSpy.containerMap.put(containerId, containerInfo); // Required to be done for test otherwise containerMap is always empty since it is updated after containers are allocated
     dynamicScalingYarnServiceSpy.handleContainerCompletion(containerStatus);
-    // All zero invocation since startup is not called and no new containers should be requested
     Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(0)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
     Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(0)).requestContainersForWorkerProfile(Mockito.any(WorkerProfile.class), Mockito.anyInt());
     Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(0)).requestContainers(Mockito.anyInt(), Mockito.any(Resource.class), Mockito.any(Optional.class));
