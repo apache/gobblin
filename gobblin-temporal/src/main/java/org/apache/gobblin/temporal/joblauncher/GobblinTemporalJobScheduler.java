@@ -218,7 +218,11 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
             throw new RuntimeException(e);
           }
         }));
-        launcher.launchJob(listener);
+        try {
+          launcher.launchJob(listener);
+        } finally {
+          launcher.close();
+        }
       }
     } catch (Exception je) {
       LOGGER.error("Failed to schedule or run job " + jobUri, je);

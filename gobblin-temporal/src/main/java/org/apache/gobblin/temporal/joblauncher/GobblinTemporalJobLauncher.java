@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.joblauncher;
 
+import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
 import java.util.concurrent.ConcurrentHashMap;
@@ -187,5 +188,16 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
   @Override
   protected void addTasksToCurrentJob(List<WorkUnit> workUnitsToAdd) {
     log.warn("NOT IMPLEMENTED: Temporal addTasksToCurrentJob");
+  }
+
+  @Override
+  public void close() throws IOException {
+    try {
+      this.workflowServiceStubs.getOptions().getMetricsScope().close();
+    } catch (Exception e) {
+      log.error("Exception occurred while closing MetricsScope ", e);
+    } finally {
+      super.close();
+    }
   }
 }
