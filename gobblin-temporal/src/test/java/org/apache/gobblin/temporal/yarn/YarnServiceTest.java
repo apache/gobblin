@@ -143,8 +143,8 @@ public class YarnServiceTest {
 
     // Waiting for the event to be handled
     Thread.sleep(100);
-    Assert.assertEquals(yarnService.getJobState().getJobName(),"name");
-    Assert.assertEquals(yarnService.getJobState().getJobId(),"id");
-    Assert.assertEquals(yarnService.getJobIssuesSummary(),"summary");
+    Assert.assertEquals(yarnService.jobSummaryEvent.getJobState().getJobName(),"name");
+    Assert.assertEquals(yarnService.jobSummaryEvent.getJobState().getJobId(),"id");
+    Assert.assertEquals(yarnService.jobSummaryEvent.getIssuesSummary(),"summary");
   }
 }
