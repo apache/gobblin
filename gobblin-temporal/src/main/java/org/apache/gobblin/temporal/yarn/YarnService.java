@@ -94,7 +94,6 @@ import org.apache.gobblin.cluster.GobblinClusterMetricTagNames;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
 import org.apache.gobblin.cluster.event.JobSummaryEvent;
-import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.metrics.MultiReporterException;
