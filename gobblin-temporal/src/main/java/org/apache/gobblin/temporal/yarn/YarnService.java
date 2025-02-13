@@ -201,9 +201,7 @@ class YarnService extends AbstractIdleService {
   private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
 
   @Getter
-  protected JobState jobState;
-  @Getter
-  protected String jobIssuesSummary;
+  protected JobSummaryEvent jobSummaryEvent;
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus) throws Exception {
@@ -314,8 +312,7 @@ class YarnService extends AbstractIdleService {
   @SuppressWarnings("unused")
   @Subscribe
   public void handleJobFailure(JobSummaryEvent jobSummaryEvent) {
-    this.jobState = jobSummaryEvent.getJobState();
-    this.jobIssuesSummary = jobSummaryEvent.getIssuesSummary();
+    this.jobSummaryEvent = jobSummaryEvent;
   }
 
   @Override
@@ -367,10 +364,10 @@ class YarnService extends AbstractIdleService {
         }
       }
 
-      if (this.jobState != null && !this.jobState.getState().isSuccess()) {
-        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.FAILED, this.getJobIssuesSummary(), null);
+      if (this.jobSummaryEvent.getJobState() != null && !this.jobSummaryEvent.getJobState().getState().isSuccess()) {
+        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.FAILED, this.jobSummaryEvent.getIssuesSummary(), null);
       } else {
-        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, StringUtils.defaultString(this.getJobIssuesSummary()), null);
+        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, StringUtils.defaultString(this.jobSummaryEvent.getIssuesSummary()), null);
       }
     } catch (IOException | YarnException e) {
       LOGGER.error("Failed to unregister the ApplicationMaster", e);
