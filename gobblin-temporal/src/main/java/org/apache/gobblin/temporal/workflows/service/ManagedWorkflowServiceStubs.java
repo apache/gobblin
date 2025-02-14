@@ -39,8 +39,12 @@ public class ManagedWorkflowServiceStubs implements Closeable {
   @Override
   public void close() {
     try {
-      workflowServiceStubs.getOptions().getMetricsScope().close();
-      workflowServiceStubs.shutdown();
+      try {
+        workflowServiceStubs.getOptions().getMetricsScope().close();
+      }
+      finally {
+        workflowServiceStubs.shutdown();
+      }
     }
     catch (Exception e) {
       log.error("Exception occurred while closing ManagedWorkflowServiceStubs", e);
