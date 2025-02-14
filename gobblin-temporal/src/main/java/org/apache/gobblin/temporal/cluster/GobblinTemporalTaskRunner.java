@@ -74,6 +74,7 @@ import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.api.TaskEventMetadataGenerator;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory;
+import org.apache.gobblin.temporal.workflows.service.ManagedWorkflowServiceStubs;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.FileUtils;
@@ -126,7 +127,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
   private final boolean isMetricReportingFailureFatal;
   private final boolean isEventReportingFailureFatal;
   private final List<TemporalWorker> workers;
-  private final WorkflowServiceStubs workflowServiceStubs;
+  private final ManagedWorkflowServiceStubs managedWorkflowServiceStubs;
 
   public GobblinTemporalTaskRunner(String applicationName,
       String applicationId,
@@ -165,7 +166,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     this.workers = new ArrayList<>();
 
     String connectionUri = clusterConfig.getString(GobblinTemporalConfigurationKeys.TEMPORAL_CONNECTION_STRING);
-    this.workflowServiceStubs = TemporalWorkflowClientFactory.createServiceInstance(connectionUri);
+    this.managedWorkflowServiceStubs = TemporalWorkflowClientFactory.createServiceInstance(connectionUri);
 
     logger.info("GobblinTaskRunner({}): applicationName {}, applicationId {}, taskRunnerId {}, config {}, appWorkDir {}",
         this.isTaskDriver ? "taskDriver" : "worker",
@@ -247,7 +248,8 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
 
     String namespace = ConfigUtils.getString(clusterConfig, GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_NAMESPACE,
             GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_NAMESPACE);
-    WorkflowClient client = TemporalWorkflowClientFactory.createClientInstance(workflowServiceStubs, namespace);
+    WorkflowClient client = TemporalWorkflowClientFactory.createClientInstance(
+        managedWorkflowServiceStubs.getWorkflowServiceStubs(), namespace);
 
     String workerClassName = ConfigUtils.getString(clusterConfig,
         GobblinTemporalConfigurationKeys.WORKER_CLASS, GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS);
@@ -293,13 +295,8 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
       this.containerMetrics.get().stopMetricsReporting();
     }
 
-    try {
-      this.workflowServiceStubs.getOptions().getMetricsScope().close();
-    } catch (Exception e) {
-      logger.error("Exception occurred while closing MetricsScope", e);
-    }
-
     workers.forEach(TemporalWorker::shutdown);
+    managedWorkflowServiceStubs.close();
 
     logger.info("All services are stopped.");
 

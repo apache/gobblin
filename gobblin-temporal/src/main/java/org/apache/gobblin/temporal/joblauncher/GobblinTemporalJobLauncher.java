@@ -34,7 +34,6 @@ import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowFailedException;
 import io.temporal.client.WorkflowStub;
-import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Workflow;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -49,6 +48,7 @@ import org.apache.gobblin.runtime.JobLauncher;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalTaskRunner;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
+import org.apache.gobblin.temporal.workflows.service.ManagedWorkflowServiceStubs;
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.*;
@@ -75,7 +75,7 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
   private static final Logger log = Workflow.getLogger(GobblinTemporalJobLauncher.class);
   private static final int TERMINATION_TIMEOUT_SECONDS = 3;
 
-  protected WorkflowServiceStubs workflowServiceStubs;
+  protected ManagedWorkflowServiceStubs managedWorkflowServiceStubs;
   protected WorkflowClient client;
   protected String queueName;
   protected String namespace;
@@ -88,10 +88,10 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     log.info("GobblinTemporalJobLauncher: appWorkDir {}; jobProps {}", appWorkDir, jobProps);
 
     String connectionUri = jobProps.getProperty(TEMPORAL_CONNECTION_STRING);
-    this.workflowServiceStubs = createServiceInstance(connectionUri);
+    this.managedWorkflowServiceStubs = createServiceInstance(connectionUri);
 
     this.namespace = jobProps.getProperty(GOBBLIN_TEMPORAL_NAMESPACE, DEFAULT_GOBBLIN_TEMPORAL_NAMESPACE);
-    this.client = createClientInstance(workflowServiceStubs, namespace);
+    this.client = createClientInstance(managedWorkflowServiceStubs.getWorkflowServiceStubs(), namespace);
 
     this.queueName = jobProps.getProperty(GOBBLIN_TEMPORAL_TASK_QUEUE, DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
 
@@ -140,7 +140,8 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
           .setNamespace(this.namespace)
           .setExecution(workflowStub.getExecution())
           .build();
-      DescribeWorkflowExecutionResponse response = workflowServiceStubs.blockingStub().describeWorkflowExecution(request);
+      DescribeWorkflowExecutionResponse response = managedWorkflowServiceStubs.getWorkflowServiceStubs()
+          .blockingStub().describeWorkflowExecution(request);
 
       WorkflowExecutionStatus status;
       try {
@@ -193,10 +194,12 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
   @Override
   public void close() throws IOException {
     try {
-      this.workflowServiceStubs.getOptions().getMetricsScope().close();
+      // Calling cancel before calling close on serviceStubs as it will shutdown the service which is required during cancellation.
+      cancelJob(jobListener);
     } catch (Exception e) {
-      log.error("Exception occurred while closing MetricsScope ", e);
+      log.error("Exception occurred while cancelling job", e);
     } finally {
+      managedWorkflowServiceStubs.close();
       super.close();
     }
   }

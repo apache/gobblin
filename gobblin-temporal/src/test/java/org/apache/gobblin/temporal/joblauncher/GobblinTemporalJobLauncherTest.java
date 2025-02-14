@@ -49,6 +49,7 @@ import org.apache.gobblin.runtime.locks.FileBasedJobLock;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.workflows.client.TemporalWorkflowClientFactory;
+import org.apache.gobblin.temporal.workflows.service.ManagedWorkflowServiceStubs;
 import org.apache.gobblin.util.JobLauncherUtils;
 
 import static org.mockito.Mockito.mock;
@@ -83,6 +84,7 @@ public class GobblinTemporalJobLauncherTest {
   @BeforeClass
   public void setUp() throws Exception {
     mockServiceStubs = mock(WorkflowServiceStubs.class);
+    ManagedWorkflowServiceStubs managedWorkflowServiceStubs = new ManagedWorkflowServiceStubs(mockServiceStubs);
     mockClient = mock(WorkflowClient.class);
     mockExecutionInfo = mock(WorkflowExecutionInfo.class);
     DescribeWorkflowExecutionResponse mockResponse = mock(DescribeWorkflowExecutionResponse.class);
@@ -93,7 +95,7 @@ public class GobblinTemporalJobLauncherTest {
 
     mockWorkflowClientFactory = Mockito.mockStatic(TemporalWorkflowClientFactory.class);
     mockWorkflowClientFactory.when(() -> TemporalWorkflowClientFactory.createServiceInstance(Mockito.anyString()))
-        .thenReturn(mockServiceStubs);
+        .thenReturn(managedWorkflowServiceStubs);
     mockWorkflowClientFactory.when(() -> TemporalWorkflowClientFactory.createClientInstance(Mockito.any(), Mockito.anyString()))
         .thenReturn(mockClient);
 
