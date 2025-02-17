@@ -17,14 +17,15 @@
 
 package org.apache.gobblin.temporal;
 
-import com.typesafe.config.Config;
 import java.util.Objects;
 import java.util.UUID;
-import lombok.NonNull;
+
+import com.typesafe.config.Config;
+
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.temporal.workflows.helloworld.HelloWorldJobLauncher;
 import org.apache.gobblin.temporal.workflows.helloworld.HelloWorldWorker;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -80,7 +81,16 @@ public interface GobblinTemporalConfigurationKeys {
   String DYNAMIC_SCALING_POLLING_INTERVAL_SECS = DYNAMIC_SCALING_PREFIX + "polling.interval.seconds";
   int DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS = 60;
 
-  static String getTemporalTaskQueueName(@NonNull Config config) {
+  /**
+   * Generates a unique task queue name for Gobblin Temporal task queue.
+   * The task queue name is created by concatenating a prefix from the configuration
+   * with a randomly generated UUID.
+   *
+   * @param config the configuration object from which to retrieve the queue prefix
+   * @return a unique task queue name
+   * @throws NullPointerException if the provided config is null
+   */
+  static String getTemporalTaskQueueName(Config config) {
     Objects.requireNonNull(config, "Config must not be null");
 
     final String queuePrefix =
