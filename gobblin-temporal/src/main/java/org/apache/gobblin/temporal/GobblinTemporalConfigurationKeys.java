@@ -17,9 +17,14 @@
 
 package org.apache.gobblin.temporal;
 
+import com.typesafe.config.Config;
+import java.util.Objects;
+import java.util.UUID;
+import lombok.NonNull;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.temporal.workflows.helloworld.HelloWorldJobLauncher;
 import org.apache.gobblin.temporal.workflows.helloworld.HelloWorldWorker;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -74,4 +79,13 @@ public interface GobblinTemporalConfigurationKeys {
 
   String DYNAMIC_SCALING_POLLING_INTERVAL_SECS = DYNAMIC_SCALING_PREFIX + "polling.interval.seconds";
   int DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS = 60;
+
+  static String getTemporalTaskQueueName(@NonNull Config config) {
+    Objects.requireNonNull(config, "Config must not be null");
+
+    final String queuePrefix =
+        ConfigUtils.getString(config, GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE,
+            GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
+    return queuePrefix + UUID.randomUUID();
+  }
 }

@@ -40,9 +40,7 @@ public abstract class AbstractTemporalWorker implements TemporalWorker {
     public AbstractTemporalWorker(Config cfg, WorkflowClient client) {
         config = cfg;
         workflowClient = client;
-        queueName = ConfigUtils.getString(cfg,
-            GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE,
-            GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
+        queueName = GobblinTemporalConfigurationKeys.getTemporalTaskQueueName(config);
 
         // Create a Worker factory that can be used to create Workers that poll specific Task Queues.
         workerFactory = WorkerFactory.newInstance(workflowClient);

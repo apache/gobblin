@@ -151,8 +151,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     this.containerMetrics = buildContainerMetrics();
     this.numTemporalWorkers = ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_NUM_WORKERS_PER_CONTAINER,
         GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_WORKERS_PER_CONTAINERS);
-    this.temporalQueueName = ConfigUtils.getString(config, GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE,
-        GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
+    this.temporalQueueName = GobblinTemporalConfigurationKeys.getTemporalTaskQueueName(config);
 
     this.isMetricReportingFailureFatal = ConfigUtils.getBoolean(this.clusterConfig,
         ConfigurationKeys.GOBBLIN_TASK_METRIC_REPORTING_FAILURE_FATAL,

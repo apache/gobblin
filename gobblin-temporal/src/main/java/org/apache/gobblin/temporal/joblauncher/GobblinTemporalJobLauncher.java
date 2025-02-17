@@ -36,6 +36,8 @@ import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.workflow.Workflow;
 
+import org.apache.gobblin.config.ConfigBuilder;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.slf4j.Logger;
@@ -92,7 +94,9 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     this.namespace = jobProps.getProperty(GOBBLIN_TEMPORAL_NAMESPACE, DEFAULT_GOBBLIN_TEMPORAL_NAMESPACE);
     this.client = createClientInstance(workflowServiceStubs, namespace);
 
-    this.queueName = jobProps.getProperty(GOBBLIN_TEMPORAL_TASK_QUEUE, DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
+    this.queueName = GobblinTemporalConfigurationKeys.getTemporalTaskQueueName(ConfigBuilder.create()
+        .addPrimitive(GOBBLIN_TEMPORAL_TASK_QUEUE, jobProps.getProperty(GOBBLIN_TEMPORAL_TASK_QUEUE))
+        .build());
 
     // non-null value indicates job has been submitted
     this.workflowId = null;
