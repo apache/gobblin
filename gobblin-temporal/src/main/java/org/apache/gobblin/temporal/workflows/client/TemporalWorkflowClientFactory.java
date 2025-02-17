@@ -46,11 +46,12 @@ import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.ddm.work.assistance.MDCContextPropagator;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalMetricsHelper;
+import org.apache.gobblin.temporal.workflows.service.ManagedWorkflowServiceStubs;
 import org.apache.gobblin.util.ConfigUtils;
 
 
 public class TemporalWorkflowClientFactory {
-    public static WorkflowServiceStubs createServiceInstance(String connectionUri) throws Exception {
+    public static ManagedWorkflowServiceStubs createServiceInstance(String connectionUri) throws Exception {
         GobblinClusterUtils.setSystemProperties(ConfigFactory.load());
         Config config = GobblinClusterUtils.addDynamicConfig(ConfigFactory.load());
         String SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT = "gobblin.kafka.sharedConfig.";
@@ -119,7 +120,7 @@ public class TemporalWorkflowClientFactory {
                 .setSslContext(sslContext)
                 .setMetricsScope(metricsScope)
                 .build();
-        return WorkflowServiceStubs.newServiceStubs(options);
+        return new ManagedWorkflowServiceStubs(WorkflowServiceStubs.newServiceStubs(options));
     }
 
     public static WorkflowClient createClientInstance(WorkflowServiceStubs service, String namespace) {

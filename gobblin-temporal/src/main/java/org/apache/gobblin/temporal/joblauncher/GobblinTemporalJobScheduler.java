@@ -209,16 +209,17 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
       } else {
         LOGGER.info("No job schedule found, so running job " + jobUri);
         GobblinTemporalJobLauncherListener listener = new GobblinTemporalJobLauncherListener(this.launcherMetrics);
-        JobLauncher launcher = buildJobLauncher(newJobArrival.getJobConfig());
-        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-          try {
-            launcher.cancelJob(listener);
-          } catch (JobException e) {
-            LOGGER.error("Failed to cancel the job during shutdown", e);
-            throw new RuntimeException(e);
-          }
-        }));
-        launcher.launchJob(listener);
+        try (JobLauncher launcher = buildJobLauncher(newJobArrival.getJobConfig())) {
+          Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+              launcher.cancelJob(listener);
+            } catch (JobException e) {
+              LOGGER.error("Failed to cancel the job during shutdown", e);
+              throw new RuntimeException(e);
+            }
+          }));
+          launcher.launchJob(listener);
+        }
       }
     } catch (Exception je) {
       LOGGER.error("Failed to schedule or run job " + jobUri, je);

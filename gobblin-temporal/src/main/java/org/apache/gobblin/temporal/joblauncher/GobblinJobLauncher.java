@@ -137,13 +137,9 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   @Override
   public void close() throws IOException {
     try {
-      executeCancellation();
+      cleanupWorkingDirectory();
     } finally {
-      try {
-        cleanupWorkingDirectory();
-      } finally {
-        super.close();
-      }
+      super.close();
     }
   }
 
