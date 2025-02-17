@@ -263,6 +263,21 @@ public class DynamicScalingYarnServiceTest {
     Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(0)).requestContainers(Mockito.anyInt(), Mockito.any(Resource.class), Mockito.any(Optional.class));
   }
 
+  @Test
+  public void testContainerRequestedWhenCompletionCalledBeforeAllocated() {
+    ContainerId containerId = generateRandomContainerId();
+    DynamicScalingYarnService.ContainerInfo containerInfo = createBaselineContainerInfo(containerId);
+    dynamicScalingYarnServiceSpy.removedContainerIds.add(containerId);
+    dynamicScalingYarnServiceSpy.containerMap.put(containerId, containerInfo);
+    dynamicScalingYarnServiceSpy.calcDeltasAndRequestContainers();
+    Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(1)).requestContainersForWorkerProfile(Mockito.any(WorkerProfile.class), Mockito.anyInt());
+    ArgumentCaptor<Resource> resourceCaptor = ArgumentCaptor.forClass(Resource.class);
+    Mockito.verify(dynamicScalingYarnServiceSpy, Mockito.times(1)).requestContainers(Mockito.eq(1), resourceCaptor.capture(), Mockito.any(Optional.class));
+    Resource capturedResource = resourceCaptor.getValue();
+    Assert.assertEquals(capturedResource.getMemorySize(), initMemoryMbs);
+    Assert.assertEquals(capturedResource.getVirtualCores(), initCores);
+  }
+
 
   private ContainerId generateRandomContainerId() {
     return ContainerId.newContainerId(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),

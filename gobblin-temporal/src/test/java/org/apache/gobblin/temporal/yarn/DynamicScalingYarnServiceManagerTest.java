@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.yarn;
 
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -64,6 +65,19 @@ public class DynamicScalingYarnServiceManagerTest {
     Thread.sleep(3000);
     testDynamicScalingYarnServiceManager.shutDown();
     Mockito.verify(mockDynamicScalingYarnService, Mockito.never()).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
+    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(3)).calcDeltasAndRequestContainers();
+  }
+
+  @Test
+  public void testWhenScalingDirectivesThrowsFNFE() throws IOException, InterruptedException {
+    Mockito.when(mockScalingDirectiveSource.getScalingDirectives()).thenThrow(FileNotFoundException.class);
+    TestDynamicScalingYarnServiceManager testDynamicScalingYarnServiceManager = new TestDynamicScalingYarnServiceManager(
+        mockGobblinTemporalApplicationMaster, mockScalingDirectiveSource);
+    testDynamicScalingYarnServiceManager.startUp();
+    Thread.sleep(2000);
+    testDynamicScalingYarnServiceManager.shutDown();
+    Mockito.verify(mockDynamicScalingYarnService, Mockito.never()).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
+    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(2)).calcDeltasAndRequestContainers();
   }
 
   /** Note : this test uses {@link DummyScalingDirectiveSource}*/
@@ -77,6 +91,7 @@ public class DynamicScalingYarnServiceManagerTest {
     Thread.sleep(7000); // 7 seconds sleep so that GetScalingDirectivesRunnable.run() is called for 7 times
     testDynamicScalingYarnServiceManager.shutDown();
     Mockito.verify(mockDynamicScalingYarnService, Mockito.times(5)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
+    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(2)).calcDeltasAndRequestContainers();
   }
 
   @Test
@@ -95,6 +110,7 @@ public class DynamicScalingYarnServiceManagerTest {
     Thread.sleep(5000);
     testDynamicScalingYarnServiceManager.shutDown();
     Mockito.verify(mockDynamicScalingYarnService, Mockito.times(2)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
+    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(3)).calcDeltasAndRequestContainers();
   }
 
   /** Test implementation of {@link AbstractDynamicScalingYarnServiceManager} which returns passed

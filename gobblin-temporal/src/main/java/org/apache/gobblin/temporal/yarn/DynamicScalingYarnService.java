@@ -64,7 +64,7 @@ public class DynamicScalingYarnService extends YarnService {
   private final WorkforceStaffing actualWorkforceStaffing;
   /** this holds the current total workforce plan as per latest received scaling directives */
   private final WorkforcePlan workforcePlan;
-  private final Queue<ContainerId> removedContainerIds;
+  protected final Queue<ContainerId> removedContainerIds;
   private final AtomicLong profileNameSuffixGenerator;
 
   public DynamicScalingYarnService(Config config, String applicationName, String applicationId,
@@ -164,7 +164,11 @@ public class DynamicScalingYarnService extends YarnService {
     if (CollectionUtils.isEmpty(scalingDirectives)) {
       return;
     }
+    this.workforcePlan.reviseWhenNewer(scalingDirectives);
+    calcDeltasAndRequestContainers();
+  }
 
+  public synchronized void calcDeltasAndRequestContainers() {
     // Correct the actualWorkforceStaffing in case of handleContainerCompletion() getting called before onContainersAllocated()
     Iterator<ContainerId> iterator = removedContainerIds.iterator();
     while (iterator.hasNext()) {
@@ -176,15 +180,10 @@ public class DynamicScalingYarnService extends YarnService {
         if (currNumContainers > 0) {
           this.actualWorkforceStaffing.reviseStaffing(workerProfile.getName(), currNumContainers - 1,
               System.currentTimeMillis());
-          // Add a scaling directive so that workforcePlan have uptodate setPoints for the workerProfile,
-          // otherwise extra containers will be requested when calculating deltas
-          scalingDirectives.add(new ScalingDirective(workerProfile.getName(), currNumContainers - 1, System.currentTimeMillis()));
         }
         iterator.remove();
       }
     }
-
-    this.workforcePlan.reviseWhenNewer(scalingDirectives);
     StaffingDeltas deltas = this.workforcePlan.calcStaffingDeltas(this.actualWorkforceStaffing);
     requestNewContainersForStaffingDeltas(deltas);
   }
