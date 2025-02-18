@@ -31,7 +31,6 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
-import org.apache.gobblin.temporal.ddm.util.TemporalActivityUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.DatasetStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
@@ -44,8 +43,7 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
 
   @Override
   public CommitStats commit(WUProcessingSpec workSpec, final Properties props) {
-    final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, TemporalActivityUtils.buildActivityOptions(
-        ActivityType.COMMIT, props));
+    final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, ActivityType.COMMIT.buildActivityOptions(props));
     CommitStats commitGobblinStats = activityStub.commit(workSpec);
     if (!commitGobblinStats.getOptFailure().isPresent() || commitGobblinStats.getNumCommittedWorkUnits() > 0) {
       TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(workSpec.getEventSubmitterContext());

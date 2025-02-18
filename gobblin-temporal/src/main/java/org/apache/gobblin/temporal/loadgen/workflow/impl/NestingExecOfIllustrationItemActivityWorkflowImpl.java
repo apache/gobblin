@@ -24,7 +24,6 @@ import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
-import org.apache.gobblin.temporal.ddm.util.TemporalActivityUtils;
 import org.apache.gobblin.temporal.loadgen.activity.IllustrationItemActivity;
 import org.apache.gobblin.temporal.loadgen.work.IllustrationItem;
 import org.apache.gobblin.temporal.util.nesting.workflow.AbstractNestingExecWorkflowImpl;
@@ -37,8 +36,7 @@ public class NestingExecOfIllustrationItemActivityWorkflowImpl
   @Override
   protected Promise<String> launchAsyncActivity(final IllustrationItem item, final Properties props) {
     final IllustrationItemActivity activityStub =
-        Workflow.newActivityStub(IllustrationItemActivity.class,
-            TemporalActivityUtils.buildActivityOptions(ActivityType.DEFAULT_ACTIVITY, props));
+        Workflow.newActivityStub(IllustrationItemActivity.class,ActivityType.DEFAULT_ACTIVITY.buildActivityOptions(props));
     return Async.function(activityStub::handleItem, item);
   }
 }

@@ -54,7 +54,6 @@ import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.activity.RecommendScalingForWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
-import org.apache.gobblin.temporal.ddm.util.TemporalActivityUtils;
 import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.DirDeletionResult;
@@ -91,7 +90,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     boolean isSuccessful = false;
     try (Closer closer = Closer.create()) {
       final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
-          TemporalActivityUtils.buildActivityOptions(ActivityType.GENERATE_WORKUNITS, jobProps));
+          ActivityType.GENERATE_WORKUNITS.buildActivityOptions(jobProps));
       GenerateWorkUnitsResult generateWorkUnitResult = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       optGenerateWorkUnitResult = Optional.of(generateWorkUnitResult);
       WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();
@@ -101,7 +100,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       if (numWUsGenerated > 0) {
         TimeBudget timeBudget = calcWUProcTimeBudget(jobSuccessTimer.getStartTime(), wuSizeSummary, jobProps);
         final RecommendScalingForWorkUnits recommendScalingStub = Workflow.newActivityStub(RecommendScalingForWorkUnits.class,
-            TemporalActivityUtils.buildActivityOptions(ActivityType.RECOMMEND_SCALING, jobProps));
+            ActivityType.RECOMMEND_SCALING.buildActivityOptions(jobProps));
         List<ScalingDirective> scalingDirectives =
             recommendScalingStub.recommendScaling(wuSizeSummary, generateWorkUnitResult.getSourceClass(), timeBudget, jobProps);
         log.info("Recommended scaling to process WUs within {}: {}", timeBudget, scalingDirectives);
@@ -233,7 +232,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
 
     final DeleteWorkDirsActivity deleteWorkDirsActivityStub = Workflow.newActivityStub(
         DeleteWorkDirsActivity.class,
-        TemporalActivityUtils.buildActivityOptions(ActivityType.DELETE_WORK_DIRS, jobState.getProperties())
+        ActivityType.DELETE_WORK_DIRS.buildActivityOptions(jobState.getProperties())
     );
 
     DirDeletionResult dirDeletionResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,

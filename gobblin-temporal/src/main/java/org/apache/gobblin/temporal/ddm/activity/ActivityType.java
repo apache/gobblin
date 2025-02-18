@@ -17,6 +17,15 @@
 
 package org.apache.gobblin.temporal.ddm.activity;
 
+import java.time.Duration;
+import java.util.Properties;
+
+import io.temporal.activity.ActivityOptions;
+import io.temporal.common.RetryOptions;
+
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
+import org.apache.gobblin.util.PropertiesUtils;
+
 
 /**
  * Enum representing different types of activities in the Temporal workflow.
@@ -24,20 +33,62 @@ package org.apache.gobblin.temporal.ddm.activity;
  */
 public enum ActivityType {
   /** Activity type for generating work units. */
-  GENERATE_WORKUNITS,
+  GENERATE_WORKUNITS(GobblinTemporalConfigurationKeys.TEMPORAL_GENERATE_WORKUNITS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES),
 
   /** Activity type for recommending scaling operations. */
-  RECOMMEND_SCALING,
+  RECOMMEND_SCALING(GobblinTemporalConfigurationKeys.TEMPORAL_RECOMMEND_SCALING_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES),
 
   /** Activity type for deleting work directories. */
-  DELETE_WORK_DIRS,
+  DELETE_WORK_DIRS(GobblinTemporalConfigurationKeys.TEMPORAL_DELETE_WORK_DIRS_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES),
 
   /** Activity type for processing a work unit. */
-  PROCESS_WORKUNIT,
+  PROCESS_WORKUNIT(GobblinTemporalConfigurationKeys.TEMPORAL_PROCESS_WORKUNIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES),
 
   /** Activity type for committing step. */
-  COMMIT,
+  COMMIT(GobblinTemporalConfigurationKeys.TEMPORAL_COMMIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES),
 
   /** Default placeholder activity type. */
-  DEFAULT_ACTIVITY
+  DEFAULT_ACTIVITY(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_MINUTES);
+
+  private final String startToCloseTimeoutConfigKey;
+
+  ActivityType(String startToCloseTimeoutConfigKey) {
+    this.startToCloseTimeoutConfigKey = startToCloseTimeoutConfigKey;
+  }
+
+  public ActivityOptions buildActivityOptions(Properties props) {
+    return ActivityOptions.newBuilder()
+        .setStartToCloseTimeout(getStartToCloseTimeout(props))
+        .setHeartbeatTimeout(getHeartbeatTimeout(props))
+        .setRetryOptions(buildRetryOptions(props))
+        .build();
+  }
+
+  private Duration getStartToCloseTimeout(Properties props) {
+    return Duration.ofMinutes(PropertiesUtils.getPropAsInt(props, this.startToCloseTimeoutConfigKey,
+        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
+  }
+
+  private Duration getHeartbeatTimeout(Properties props) {
+    return Duration.ofMinutes(PropertiesUtils.getPropAsInt(props,
+        GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_MINUTES,
+        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_MINUTES));
+  }
+
+  private RetryOptions buildRetryOptions(Properties props) {
+    return RetryOptions.newBuilder()
+        .setInitialInterval(Duration.ofSeconds(PropertiesUtils.getPropAsInt(props,
+            GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_INITIAL_INTERVAL_SECONDS,
+            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_INITIAL_INTERVAL_SECONDS)))
+        .setMaximumInterval(Duration.ofSeconds(PropertiesUtils.getPropAsInt(props,
+            GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS,
+            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS)))
+        .setBackoffCoefficient(PropertiesUtils.getPropAsInt(props,
+            GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT,
+            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT))
+        .setMaximumAttempts(PropertiesUtils.getPropAsInt(props,
+            GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS,
+            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS))
+        .build();
+  }
 }
