@@ -30,6 +30,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -87,10 +88,13 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     EventTimer jobSuccessTimer = timerFactory.createJobTimer();
     Optional<GenerateWorkUnitsResult> optGenerateWorkUnitResult = Optional.empty();
     WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
+    // Filtering only temporal job properties to pass to child workflows to avoid passing unnecessary properties
+    final Properties temporalJobProps = PropertiesUtils.extractPropertiesWithPrefix(jobProps,
+        com.google.common.base.Optional.of(GobblinTemporalConfigurationKeys.PREFIX));
     boolean isSuccessful = false;
     try (Closer closer = Closer.create()) {
       final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
-          ActivityType.GENERATE_WORKUNITS.buildActivityOptions(jobProps));
+          ActivityType.GENERATE_WORKUNITS.buildActivityOptions(temporalJobProps));
       GenerateWorkUnitsResult generateWorkUnitResult = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       optGenerateWorkUnitResult = Optional.of(generateWorkUnitResult);
       WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();
@@ -100,7 +104,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       if (numWUsGenerated > 0) {
         TimeBudget timeBudget = calcWUProcTimeBudget(jobSuccessTimer.getStartTime(), wuSizeSummary, jobProps);
         final RecommendScalingForWorkUnits recommendScalingStub = Workflow.newActivityStub(RecommendScalingForWorkUnits.class,
-            ActivityType.RECOMMEND_SCALING.buildActivityOptions(jobProps));
+            ActivityType.RECOMMEND_SCALING.buildActivityOptions(temporalJobProps));
         List<ScalingDirective> scalingDirectives =
             recommendScalingStub.recommendScaling(wuSizeSummary, generateWorkUnitResult.getSourceClass(), timeBudget, jobProps);
         log.info("Recommended scaling to process WUs within {}: {}", timeBudget, scalingDirectives);
@@ -116,7 +120,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         }
 
         ProcessWorkUnitsWorkflow processWUsWorkflow = createProcessWorkUnitsWorkflow(jobProps);
-        commitStats = processWUsWorkflow.process(wuSpec, jobProps);
+        commitStats = processWUsWorkflow.process(wuSpec, temporalJobProps);
         numWUsCommitted = commitStats.getNumCommittedWorkUnits();
       }
       jobSuccessTimer.stop();

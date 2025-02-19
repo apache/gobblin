@@ -18,8 +18,8 @@ package org.apache.gobblin.temporal.ddm.workflow.impl;
 
 import java.util.Map;
 import java.util.Optional;
-
 import java.util.Properties;
+
 import lombok.extern.slf4j.Slf4j;
 
 import com.typesafe.config.ConfigFactory;
