@@ -30,6 +30,7 @@ import com.google.common.cache.CacheBuilder;
 import com.google.common.io.Closer;
 import com.typesafe.config.ConfigFactory;
 
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -237,5 +238,10 @@ public class JobStateUtils {
             ConfigFactory.parseProperties(jobState.getProperties()),
             GobblinScopeTypes.GLOBAL.defaultScopeInstance());
     return globalBroker.newSubscopedBuilder(new JobScopeInstance(jobState.getJobName(), jobState.getJobId())).build();
+  }
+
+  public static int getHeartBeatInterval(JobState jobState) {
+    return jobState.getPropAsInt(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_HEARTBEAT_INTERVAL_MINUTES,
+        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_HEARTBEAT_INTERVAL_MINUTES);
   }
 }

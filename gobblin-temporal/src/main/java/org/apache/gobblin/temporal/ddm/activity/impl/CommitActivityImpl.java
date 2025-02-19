@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -27,9 +29,13 @@ import java.util.Queue;
 import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -85,12 +91,21 @@ public class CommitActivityImpl implements CommitActivity {
 
   @Override
   public CommitStats commit(WUProcessingSpec workSpec) {
+    ActivityExecutionContext activityExecutionContext = Activity.getExecutionContext();
+    ScheduledExecutorService heartBeatExecutor = Executors.newSingleThreadScheduledExecutor(
+        ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log),
+            com.google.common.base.Optional.of("CommitActivityHeartBeatExecutor")));
     // TODO: Make this configurable
     int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
     Optional<String> optJobName = Optional.empty();
     AutomaticTroubleshooter troubleshooter = null;
     try (FileSystem fs = Help.loadFileSystem(workSpec)) {
       JobState jobState = Help.loadJobState(workSpec, fs);
+
+      int heartBeatInterval = JobStateUtils.getHeartBeatInterval(jobState);
+      heartBeatExecutor.scheduleAtFixedRate(() -> activityExecutionContext.heartbeat("Running Commit Activity"),
+          heartBeatInterval, heartBeatInterval, TimeUnit.MINUTES);
+
       optJobName = Optional.ofNullable(jobState.getJobName());
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker = JobStateUtils.getSharedResourcesBroker(jobState);
       troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobState.getProperties());
@@ -147,6 +162,7 @@ public class CommitActivityImpl implements CommitActivity {
       String errCorrelator = String.format("Commit [%s]", calcCommitId(workSpec));
       EventSubmitter eventSubmitter = workSpec.getEventSubmitterContext().create();
       Help.finalizeTroubleshooting(troubleshooter, eventSubmitter, log, errCorrelator);
+      ExecutorsUtils.shutdownExecutorService(heartBeatExecutor, com.google.common.base.Optional.of(log));
     }
   }
 
