@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
-import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityExecutionContext;
 import java.io.IOException;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -35,7 +33,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 import javax.annotation.Nullable;
 
-import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -47,6 +44,9 @@ import com.google.common.base.Strings;
 import com.google.common.collect.ImmutableList;
 import com.google.common.collect.Iterables;
 import com.google.common.io.Closer;
+
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
 import io.temporal.failure.ApplicationFailure;
 
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;

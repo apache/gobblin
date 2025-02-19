@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
-import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityExecutionContext;
 import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
@@ -29,11 +27,12 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -62,6 +61,7 @@ import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
 
 
