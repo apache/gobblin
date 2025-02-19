@@ -30,6 +30,8 @@ import org.apache.commons.io.FileUtils;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
+import com.uber.m3.tally.RootScopeBuilder;
+import com.uber.m3.tally.Scope;
 
 import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
@@ -41,11 +43,15 @@ import javax.net.ssl.KeyManagerFactory;
 import javax.net.ssl.TrustManagerFactory;
 
 import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.ddm.work.assistance.MDCContextPropagator;
+import org.apache.gobblin.temporal.workflows.metrics.TemporalMetricsHelper;
+import org.apache.gobblin.temporal.workflows.service.ManagedWorkflowServiceStubs;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 public class TemporalWorkflowClientFactory {
-    public static WorkflowServiceStubs createServiceInstance(String connectionUri) throws Exception {
+    public static ManagedWorkflowServiceStubs createServiceInstance(String connectionUri) throws Exception {
         GobblinClusterUtils.setSystemProperties(ConfigFactory.load());
         Config config = GobblinClusterUtils.addDynamicConfig(ConfigFactory.load());
         String SHARED_KAFKA_CONFIG_PREFIX_WITH_DOT = "gobblin.kafka.sharedConfig.";
@@ -100,12 +106,21 @@ public class TemporalWorkflowClientFactory {
                 .ciphers(SSL_CONFIG_DEFAULT_CIPHER_SUITES)
                 .build();
 
+        // Initialize metrics
+        int reportInterval = ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_METRICS_REPORT_INTERVAL_SECS,
+            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_METRICS_REPORT_INTERVAL_SECS);
+        Scope metricsScope = new RootScopeBuilder()
+            .reporter(TemporalMetricsHelper.getStatsReporter(config))
+            .tags(TemporalMetricsHelper.getDimensions(config))
+            .reportEvery(com.uber.m3.util.Duration.ofSeconds(reportInterval));
+
         WorkflowServiceStubsOptions options = WorkflowServiceStubsOptions.newBuilder()
                 .setTarget(connectionUri)
                 .setEnableHttps(true)
                 .setSslContext(sslContext)
+                .setMetricsScope(metricsScope)
                 .build();
-        return WorkflowServiceStubs.newServiceStubs(options);
+        return new ManagedWorkflowServiceStubs(WorkflowServiceStubs.newServiceStubs(options));
     }
 
     public static WorkflowClient createClientInstance(WorkflowServiceStubs service, String namespace) {
