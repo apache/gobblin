@@ -20,6 +20,8 @@ package org.apache.gobblin.temporal.ddm.activity;
 import java.time.Duration;
 import java.util.Properties;
 
+import lombok.Getter;
+
 import io.temporal.activity.ActivityOptions;
 import io.temporal.common.RetryOptions;
 
@@ -48,9 +50,9 @@ public enum ActivityType {
   COMMIT(GobblinTemporalConfigurationKeys.TEMPORAL_COMMIT_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES),
 
   /** Default placeholder activity type. */
-  DEFAULT_ACTIVITY(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_MINUTES);
+  DEFAULT_ACTIVITY(GobblinTemporalConfigurationKeys.ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES);
 
-  private final String startToCloseTimeoutConfigKey;
+  @Getter private final String startToCloseTimeoutConfigKey;
 
   ActivityType(String startToCloseTimeoutConfigKey) {
     this.startToCloseTimeoutConfigKey = startToCloseTimeoutConfigKey;
