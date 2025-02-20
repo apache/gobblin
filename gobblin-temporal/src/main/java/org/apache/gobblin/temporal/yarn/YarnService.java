@@ -93,6 +93,7 @@ import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterMetricTagNames;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.cluster.event.ClusterManagerShutdownRequest;
+import org.apache.gobblin.cluster.event.JobSummaryEvent;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.MetricReporterException;
 import org.apache.gobblin.metrics.MultiReporterException;
@@ -197,6 +198,9 @@ class YarnService extends AbstractIdleService {
   private static final long DEFAULT_ALLOCATION_REQUEST_ID = 0L;
   private final AtomicLong allocationRequestIdGenerator = new AtomicLong(DEFAULT_ALLOCATION_REQUEST_ID);
   private final ConcurrentMap<Long, WorkerProfile> workerProfileByAllocationRequestId = new ConcurrentHashMap<>();
+
+  @Getter
+  protected JobSummaryEvent jobSummaryEvent;
 
   public YarnService(Config config, String applicationName, String applicationId, YarnConfiguration yarnConfiguration,
       FileSystem fs, EventBus eventBus) throws Exception {
@@ -304,6 +308,12 @@ class YarnService extends AbstractIdleService {
     }
   }
 
+  @SuppressWarnings("unused")
+  @Subscribe
+  public void handleJobFailure(JobSummaryEvent jobSummaryEvent) {
+    this.jobSummaryEvent = jobSummaryEvent;
+  }
+
   @Override
   protected synchronized void startUp() throws Exception {
     LOGGER.info("Starting the TemporalYarnService");
@@ -353,7 +363,11 @@ class YarnService extends AbstractIdleService {
         }
       }
 
-      this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, null);
+      if (this.jobSummaryEvent.getJobState() != null && !this.jobSummaryEvent.getJobState().getState().isSuccess()) {
+        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.FAILED, this.jobSummaryEvent.getIssuesSummary(), null);
+      } else {
+        this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, StringUtils.defaultString(this.jobSummaryEvent.getIssuesSummary()), null);
+      }
     } catch (IOException | YarnException e) {
       LOGGER.error("Failed to unregister the ApplicationMaster", e);
     } finally {

@@ -230,6 +230,8 @@ public class GobblinYarnAppLauncher {
   // This flag tells if the Yarn application has already completed. This is used to
   // tell if it is necessary to send a shutdown message to the ApplicationMaster.
   private volatile boolean applicationCompleted = false;
+  private final Object applicationDone = new Object();
+  private volatile boolean applicationFailed = false;
 
   private volatile boolean stopped = false;
 
@@ -380,6 +382,22 @@ public class GobblinYarnAppLauncher {
     }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
 
     addServices();
+
+    // The YarnClient and all the services are started asynchronously.
+    // This will block until the application is completed and throws an exception to fail the Azkaban Job in case the
+    // underlying Yarn Application reports a job failure.
+    synchronized (this.applicationDone) {
+      while (!this.applicationCompleted) {
+        try {
+          this.applicationDone.wait();
+          if (this.applicationFailed) {
+            throw new RuntimeException("Gobblin Yarn application failed");
+          }
+        } catch (InterruptedException ie) {
+          LOGGER.error("Interrupted while waiting for the Gobblin Yarn application to finish", ie);
+        }
+      }
+    }
   }
 
   public boolean isApplicationRunning() {
@@ -453,7 +471,6 @@ public class GobblinYarnAppLauncher {
         this.closer.close();
       }
     }
-
     this.stopped = true;
   }
 
@@ -482,8 +499,16 @@ public class GobblinYarnAppLauncher {
       LOGGER.info("Gobblin Yarn application finished with final status: " +
           applicationReport.getFinalApplicationStatus().toString());
       if (applicationReport.getFinalApplicationStatus() == FinalApplicationStatus.FAILED) {
-        LOGGER.error("Gobblin Yarn application failed for the following reason: " + applicationReport.getDiagnostics());
+        applicationFailed = true;
+        LOGGER.error("Gobblin Yarn application failed because of the following issues: " + applicationReport.getDiagnostics());
+      } else if (StringUtils.isNotBlank(applicationReport.getDiagnostics())) {
+        LOGGER.error("Gobblin Yarn application succeeded but has some warning issues: " + applicationReport.getDiagnostics());
       }
+
+      synchronized (this.applicationDone) {
+        this.applicationDone.notify();
+      }
+
 
       try {
         GobblinYarnAppLauncher.this.stop();
