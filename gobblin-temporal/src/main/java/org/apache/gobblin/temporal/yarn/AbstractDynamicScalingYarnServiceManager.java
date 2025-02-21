@@ -110,13 +110,9 @@ public abstract class AbstractDynamicScalingYarnServiceManager extends AbstractI
         List<ScalingDirective> scalingDirectives = scalingDirectiveSource.getScalingDirectives();
         if (CollectionUtils.isNotEmpty(scalingDirectives)) {
           dynamicScalingYarnService.reviseWorkforcePlanAndRequestNewContainers(scalingDirectives);
-        } else {
-          dynamicScalingYarnService.calcDeltasAndRequestContainers();
         }
       } catch (FileNotFoundException fnfe) {
-        // FNFE comes when scaling directives path is not yet created, so we should just calc delta & request containers if needed
-        log.debug("Scaling directives file not found(possibly not yet created). Falling back to delta calculation. - " + fnfe.getMessage());
-        dynamicScalingYarnService.calcDeltasAndRequestContainers();
+        log.warn("Failed to get scaling directives - " + fnfe.getMessage()); // important message, but no need for a stack trace
       } catch (IOException e) {
         log.error("Failed to get scaling directives", e);
       } catch (Throwable t) {

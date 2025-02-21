@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.temporal.yarn;
 
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -65,33 +64,19 @@ public class DynamicScalingYarnServiceManagerTest {
     Thread.sleep(3000);
     testDynamicScalingYarnServiceManager.shutDown();
     Mockito.verify(mockDynamicScalingYarnService, Mockito.never()).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
-    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(3)).calcDeltasAndRequestContainers();
-  }
-
-  @Test
-  public void testWhenScalingDirectivesThrowsFNFE() throws IOException, InterruptedException {
-    Mockito.when(mockScalingDirectiveSource.getScalingDirectives()).thenThrow(FileNotFoundException.class);
-    TestDynamicScalingYarnServiceManager testDynamicScalingYarnServiceManager = new TestDynamicScalingYarnServiceManager(
-        mockGobblinTemporalApplicationMaster, mockScalingDirectiveSource);
-    testDynamicScalingYarnServiceManager.startUp();
-    Thread.sleep(2000);
-    testDynamicScalingYarnServiceManager.shutDown();
-    Mockito.verify(mockDynamicScalingYarnService, Mockito.never()).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
-    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(2)).calcDeltasAndRequestContainers();
   }
 
   /** Note : this test uses {@link DummyScalingDirectiveSource}*/
   @Test
   public void testWithDummyScalingDirectiveSource() throws IOException, InterruptedException {
-    // DummyScalingDirectiveSource returns 2 scaling directives in first 5 invocations and after that it returns empty list
-    // so the total number of invocations after five invocations should always be 5
+    // DummyScalingDirectiveSource returns 2 scaling directives in first 3 invocations and after that it returns empty list
+    // so the total number of invocations after three invocations should always be 3
     TestDynamicScalingYarnServiceManager testDynamicScalingYarnServiceManager = new TestDynamicScalingYarnServiceManager(
         mockGobblinTemporalApplicationMaster, new DummyScalingDirectiveSource());
     testDynamicScalingYarnServiceManager.startUp();
-    Thread.sleep(7000); // 7 seconds sleep so that GetScalingDirectivesRunnable.run() is called for 7 times
+    Thread.sleep(5000); // 5 seconds sleep so that GetScalingDirectivesRunnable.run() is called for 5 times
     testDynamicScalingYarnServiceManager.shutDown();
-    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(5)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
-    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(2)).calcDeltasAndRequestContainers();
+    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(3)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
   }
 
   @Test
@@ -110,7 +95,6 @@ public class DynamicScalingYarnServiceManagerTest {
     Thread.sleep(5000);
     testDynamicScalingYarnServiceManager.shutDown();
     Mockito.verify(mockDynamicScalingYarnService, Mockito.times(2)).reviseWorkforcePlanAndRequestNewContainers(Mockito.anyList());
-    Mockito.verify(mockDynamicScalingYarnService, Mockito.times(3)).calcDeltasAndRequestContainers();
   }
 
   /** Test implementation of {@link AbstractDynamicScalingYarnServiceManager} which returns passed

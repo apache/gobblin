@@ -70,18 +70,6 @@ public class DummyScalingDirectiveSource implements ScalingDirectiveSource {
           new ScalingDirective("firstProfile", 5, currentTime),
           new ScalingDirective("secondProfile", 3, currentTime + 1)
       );
-    } else if (currNumInvocations == 3) {
-      // changing set point to 0 for both profiles so that all containers should be released
-      return Arrays.asList(
-          new ScalingDirective("firstProfile", 0, currentTime),
-          new ScalingDirective("secondProfile", 0, currentTime + 1)
-      );
-    } else if (currNumInvocations == 4) {
-      // increasing containers count for both profiles so that new containers should be launched
-      return Arrays.asList(
-          new ScalingDirective("firstProfile", 5, currentTime),
-          new ScalingDirective("secondProfile", 5, currentTime + 1)
-      );
     }
     return new ArrayList<>();
   }

@@ -20,13 +20,8 @@ package org.apache.gobblin.temporal.yarn;
 import java.io.IOException;
 import java.net.URL;
 
-import org.apache.gobblin.temporal.dynamic.WorkerProfile;
-import org.apache.gobblin.temporal.dynamic.WorkforceProfiles;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.protocolrecords.RegisterApplicationMasterResponse;
-import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
-import org.apache.hadoop.yarn.api.records.ApplicationId;
-import org.apache.hadoop.yarn.api.records.ContainerId;
 import org.apache.hadoop.yarn.api.records.Resource;
 import org.apache.hadoop.yarn.api.records.Container;
 import org.apache.hadoop.yarn.client.api.async.AMRMClientAsync;
@@ -108,6 +103,12 @@ public class YarnServiceTest {
         .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_XMX_RATIO_KEY, ConfigValueFactory.fromAnyRef(jvmMemoryXmxRatio))
         .withValue(GobblinYarnConfigurationKeys.CONTAINER_JVM_MEMORY_OVERHEAD_MBS_KEY, ConfigValueFactory.fromAnyRef(jvmMemoryOverheadMbs));
 
+    Resource resource = Resource.newInstance(resourceMemoryMB, 2);
+
+    Container mockContainer = Mockito.mock(Container.class);
+    Mockito.when(mockContainer.getResource()).thenReturn(resource);
+    Mockito.when(mockContainer.getAllocationRequestId()).thenReturn(0L);
+
     YarnService yarnService = new YarnService(
         config,
         "testApplicationName",
@@ -117,13 +118,9 @@ public class YarnServiceTest {
         eventBus
     );
 
-    WorkerProfile workerProfile = new WorkerProfile(config);
-    ContainerId containerId = ContainerId.newContainerId(ApplicationAttemptId.newInstance(ApplicationId.newInstance(1, 0),
-        0), 0);
-    Resource resource = Resource.newInstance(resourceMemoryMB, 2);
-    Container container = Container.newInstance(containerId, null, null, resource, null, null);
-    YarnService.ContainerInfo containerInfo = yarnService.new ContainerInfo(container, WorkforceProfiles.BASELINE_NAME_RENDERING, workerProfile);
-    String command = containerInfo.getStartupCommand();
+    yarnService.startUp();
+
+    String command = yarnService.buildContainerCommand(mockContainer, "testHelixParticipantId", "testHelixInstanceTag");
     Assert.assertTrue(command.contains("-Xmx" + expectedJvmMemory + "M"));
   }
 }
