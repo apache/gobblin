@@ -101,4 +101,20 @@ public class PropertiesUtilsTest {
 
     Assert.assertEqualsNoOrder(PropertiesUtils.getValuesAsList(properties, Optional.of("k")).toArray(), new String[]{"v1", "v2", "v2"});
   }
+
+  @Test
+  public void testGetPropAsDouble() {
+    Properties properties = new Properties();
+    properties.put("k1", "1.0");
+    properties.put("k2", "1");
+    properties.put("k3", "1.00");
+    properties.put("k4", "");
+
+    Assert.assertEquals(PropertiesUtils.getPropAsDouble(properties, "key", 5.01), 5.01, 0.01);
+    Assert.assertEquals(PropertiesUtils.getPropAsDouble(properties, "k1", 2.02), 1.00, 0.01);
+    Assert.assertEquals(PropertiesUtils.getPropAsDouble(properties, "k2", 2.02), 1.00, 0.01);
+    Assert.assertEquals(PropertiesUtils.getPropAsDouble(properties, "k3", 2.02), 1.00, 0.01);
+    Assert.assertEquals(PropertiesUtils.getPropAsDouble(properties, "k4", 10.001), 10.001, 0.001);
+  }
+
 }

@@ -78,14 +78,19 @@ public enum ActivityType {
   }
 
   private RetryOptions buildRetryOptions(Properties props) {
+    int maximumIntervalSeconds = PropertiesUtils.getPropAsInt(props,
+        GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS,
+        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS);
+
+    int initialIntervalSeconds = Math.min(PropertiesUtils.getPropAsInt(props,
+        GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_INITIAL_INTERVAL_SECONDS,
+        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_INITIAL_INTERVAL_SECONDS),
+        maximumIntervalSeconds);
+
     return RetryOptions.newBuilder()
-        .setInitialInterval(Duration.ofSeconds(PropertiesUtils.getPropAsInt(props,
-            GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_INITIAL_INTERVAL_SECONDS,
-            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_INITIAL_INTERVAL_SECONDS)))
-        .setMaximumInterval(Duration.ofSeconds(PropertiesUtils.getPropAsInt(props,
-            GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS,
-            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS)))
-        .setBackoffCoefficient(PropertiesUtils.getPropAsInt(props,
+        .setInitialInterval(Duration.ofSeconds(initialIntervalSeconds))
+        .setMaximumInterval(Duration.ofSeconds(maximumIntervalSeconds))
+        .setBackoffCoefficient(PropertiesUtils.getPropAsDouble(props,
             GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT,
             GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT))
         .setMaximumAttempts(PropertiesUtils.getPropAsInt(props,

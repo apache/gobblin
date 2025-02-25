@@ -55,7 +55,7 @@ public class ActivityTypeTest {
       Assert.assertEquals(activityOptions.getRetryOptions().getMaximumInterval(),
           Duration.ofSeconds(GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS));
       Assert.assertEquals(activityOptions.getRetryOptions().getBackoffCoefficient(),
-          (double) GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT);
+          GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT, 0.01);
       Assert.assertEquals(activityOptions.getRetryOptions().getMaximumAttempts(),
           GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS);
     });
@@ -91,13 +91,13 @@ public class ActivityTypeTest {
   public void testRetryOptions() {
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_INITIAL_INTERVAL_SECONDS, "115");
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS, "5550");
-    props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT, "7");
+    props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT, "7.0");
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS, "21");
 
     activityTypes.stream().map(activityType -> activityType.buildActivityOptions(props)).forEach(activityOptions -> {
       Assert.assertEquals(activityOptions.getRetryOptions().getInitialInterval(), Duration.ofSeconds(115));
       Assert.assertEquals(activityOptions.getRetryOptions().getMaximumInterval(), Duration.ofSeconds(5550));
-      Assert.assertEquals(activityOptions.getRetryOptions().getBackoffCoefficient(), 7.0);
+      Assert.assertEquals(activityOptions.getRetryOptions().getBackoffCoefficient(), 7.0, 0.01);
       Assert.assertEquals(activityOptions.getRetryOptions().getMaximumAttempts(), 21);
     });
   }
@@ -108,7 +108,7 @@ public class ActivityTypeTest {
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_MINUTES, "144");
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_INITIAL_INTERVAL_SECONDS, "115");
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS, "5550");
-    props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT, "7");
+    props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT, "7.0");
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS, "21");
 
     ActivityOptions activityOptions = activityType.buildActivityOptions(props);
@@ -117,7 +117,7 @@ public class ActivityTypeTest {
     Assert.assertEquals(activityOptions.getHeartbeatTimeout(), Duration.ofMinutes(144));
     Assert.assertEquals(activityOptions.getRetryOptions().getInitialInterval(), Duration.ofSeconds(115));
     Assert.assertEquals(activityOptions.getRetryOptions().getMaximumInterval(), Duration.ofSeconds(5550));
-    Assert.assertEquals(activityOptions.getRetryOptions().getBackoffCoefficient(), 7.0);
+    Assert.assertEquals(activityOptions.getRetryOptions().getBackoffCoefficient(), 7.0, 0.01);
     Assert.assertEquals(activityOptions.getRetryOptions().getMaximumAttempts(), 21);
   }
 

@@ -92,6 +92,14 @@ public class PropertiesUtils {
     return Long.parseLong(properties.getProperty(key, Long.toString(defaultValue)));
   }
 
+  public static double getPropAsDouble(Properties properties, String key, double defaultValue) {
+    try {
+      return Double.parseDouble(properties.getProperty(key, Double.toString(defaultValue)));
+    } catch (NullPointerException | NumberFormatException e) {
+      return defaultValue;
+    }
+  }
+
   /**
    * Get the value of a comma separated property as a {@link List} of strings.
    *
