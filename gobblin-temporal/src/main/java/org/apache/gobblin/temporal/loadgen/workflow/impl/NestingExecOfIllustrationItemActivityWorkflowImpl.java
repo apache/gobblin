@@ -17,12 +17,13 @@
 
 package org.apache.gobblin.temporal.loadgen.workflow.impl;
 
-import io.temporal.activity.ActivityOptions;
-import io.temporal.common.RetryOptions;
+import java.util.Properties;
+
 import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
-import java.time.Duration;
+
+import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.loadgen.activity.IllustrationItemActivity;
 import org.apache.gobblin.temporal.loadgen.work.IllustrationItem;
 import org.apache.gobblin.temporal.util.nesting.workflow.AbstractNestingExecWorkflowImpl;
@@ -32,24 +33,10 @@ import org.apache.gobblin.temporal.util.nesting.workflow.AbstractNestingExecWork
 public class NestingExecOfIllustrationItemActivityWorkflowImpl
     extends AbstractNestingExecWorkflowImpl<IllustrationItem, String> {
 
-  // RetryOptions specify how to automatically handle retries when Activities fail.
-  private static final RetryOptions ACTIVITY_RETRY_OPTS = RetryOptions.newBuilder()
-      .setInitialInterval(Duration.ofSeconds(1))
-      .setMaximumInterval(Duration.ofSeconds(100))
-      .setBackoffCoefficient(2)
-      .setMaximumAttempts(3)
-      .build();
-
-  private static final ActivityOptions ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(Duration.ofSeconds(10))
-      .setRetryOptions(ACTIVITY_RETRY_OPTS)
-      .build();
-
-  private final IllustrationItemActivity activityStub =
-      Workflow.newActivityStub(IllustrationItemActivity.class, ACTIVITY_OPTS);
-
   @Override
-  protected Promise<String> launchAsyncActivity(final IllustrationItem item) {
+  protected Promise<String> launchAsyncActivity(final IllustrationItem item, final Properties props) {
+    final IllustrationItemActivity activityStub =
+        Workflow.newActivityStub(IllustrationItemActivity.class,ActivityType.DEFAULT_ACTIVITY.buildActivityOptions(props));
     return Async.function(activityStub::handleItem, item);
   }
 }

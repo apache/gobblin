@@ -46,6 +46,7 @@ import org.apache.gobblin.runtime.SourceDecorator;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.ddm.work.EagerFsDirBackedWorkUnitClaimCheckWorkload;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.util.JobLauncherUtils;
@@ -237,5 +238,10 @@ public class JobStateUtils {
             ConfigFactory.parseProperties(jobState.getProperties()),
             GobblinScopeTypes.GLOBAL.defaultScopeInstance());
     return globalBroker.newSubscopedBuilder(new JobScopeInstance(jobState.getJobName(), jobState.getJobId())).build();
+  }
+
+  public static int getHeartBeatInterval(JobState jobState) {
+    return jobState.getPropAsInt(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_HEARTBEAT_INTERVAL_MINUTES,
+        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_HEARTBEAT_INTERVAL_MINUTES);
   }
 }

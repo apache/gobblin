@@ -22,6 +22,7 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -35,6 +36,7 @@ import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
+import org.apache.gobblin.temporal.util.nesting.work.NestingExecWorkloadInput;
 import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 
@@ -46,14 +48,18 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
   public static final int MAX_CHILD_SUB_TREE_LEAVES_BEFORE_SHOULD_PAUSE_DEFAULT = 100;
 
   @Override
-  public int performWorkload(
-      final WorkflowAddr addr,
-      final Workload<WORK_ITEM> workload,
-      final int startIndex,
-      final int maxBranchesPerTree,
-      final int maxSubTreesPerTree,
-      final Optional<Integer> maxSubTreesForCurrentTreeOverride
-  ) {
+  public int performWorkload(NestingExecWorkloadInput<WORK_ITEM> performWorkloadInput) {
+    return performWorkloadInternal(performWorkloadInput);
+  }
+
+  private int performWorkloadInternal(NestingExecWorkloadInput<WORK_ITEM> performWorkloadInput) {
+    final WorkflowAddr addr = performWorkloadInput.getAddr();
+    final Workload<WORK_ITEM> workload = performWorkloadInput.getWorkload();
+    final int startIndex = performWorkloadInput.getStartIndex();
+    final int maxBranchesPerTree = performWorkloadInput.getMaxBranchesPerTree();
+    final int maxSubTreesPerTree = performWorkloadInput.getMaxSubTreesPerTree();
+    final Optional<Integer> maxSubTreesForCurrentTreeOverride = performWorkloadInput.getMaxSubTreesForCurrentTreeOverride();
+    final Properties props = performWorkloadInput.getProps();
     final int maxSubTreesForCurrent = maxSubTreesForCurrentTreeOverride.orElse(maxSubTreesPerTree);
     final int maxLeaves = maxBranchesPerTree - maxSubTreesForCurrent;
     final Optional<Workload.WorkSpan<WORK_ITEM>> optSpan = workload.getSpan(startIndex, maxLeaves);
@@ -65,7 +71,7 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
       final Workload.WorkSpan<WORK_ITEM> workSpan = optSpan.get();
       final Iterable<WORK_ITEM> iterable = () -> workSpan;
       final List<Promise<ACTIVITY_RESULT>> childActivities = StreamSupport.stream(iterable.spliterator(), false)
-          .map(t -> launchAsyncActivity(t))
+          .map(t -> launchAsyncActivity(t, props))
           .collect(Collectors.toList());
       final List<Promise<Integer>> childSubTrees = new ArrayList<>();
       if (workSpan.getNumElems() == maxLeaves) { // received as many as requested (did not stop short)
@@ -84,9 +90,11 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
             if (numDirectLeavesChildMayHave > 0) {
               Workflow.sleep(calcPauseDurationBeforeCreatingSubTree(numDirectLeavesChildMayHave));
             }
-            childSubTrees.add(
-                Async.function(child::performWorkload, childAddr, workload, childStartIndex, maxBranchesPerTree,
-                    maxSubTreesPerTree, Optional.of(subTreeChildMaxSubTreesPerTree)));
+            NestingExecWorkloadInput<WORK_ITEM> childInput = new NestingExecWorkloadInput<>(
+                childAddr, workload, childStartIndex, maxBranchesPerTree,
+                maxSubTreesPerTree, Optional.of(subTreeChildMaxSubTreesPerTree), props
+            );
+            childSubTrees.add(Async.function(child::performWorkload, childInput));
             ++subTreeId;
           }
         }
@@ -103,7 +111,7 @@ public abstract class AbstractNestingExecWorkflowImpl<WORK_ITEM, ACTIVITY_RESULT
   }
 
   /** Factory for invoking the specific activity by providing it args via {@link Async::function} */
-  protected abstract Promise<ACTIVITY_RESULT> launchAsyncActivity(WORK_ITEM task);
+  protected abstract Promise<ACTIVITY_RESULT> launchAsyncActivity(WORK_ITEM task, Properties props);
 
   protected NestingExecWorkflow<WORK_ITEM> createChildWorkflow(final WorkflowAddr childAddr) {
     // preserve the current workflow ID of this parent, but add the (hierarchical) address extension specific to each child

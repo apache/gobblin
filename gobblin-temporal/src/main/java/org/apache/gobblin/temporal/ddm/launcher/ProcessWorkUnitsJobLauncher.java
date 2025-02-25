@@ -112,7 +112,7 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
       Help.propagateGaaSFlowExecutionContext(Help.loadJobState(wuSpec, Help.loadFileSystem(wuSpec)));
 
       ProcessWorkUnitsWorkflow workflow = this.client.newWorkflowStub(ProcessWorkUnitsWorkflow.class, options);
-      workflow.process(wuSpec);
+      workflow.process(wuSpec, jobProps);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

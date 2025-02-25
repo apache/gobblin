@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.Set;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.hadoop.fs.FileSystem;
@@ -38,6 +41,8 @@ import com.google.common.base.Preconditions;
 import com.google.common.io.Closer;
 import com.tdunning.math.stats.TDigest;
 import io.temporal.failure.ApplicationFailure;
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -66,6 +71,7 @@ import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.writer.initializer.WriterInitializer;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
 
@@ -122,10 +128,18 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
 
   @Override
   public GenerateWorkUnitsResult generateWorkUnits(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
+    ActivityExecutionContext activityExecutionContext = Activity.getExecutionContext();
+    ScheduledExecutorService heartBeatExecutor = Executors.newSingleThreadScheduledExecutor(
+        ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log),
+            com.google.common.base.Optional.of("GenerateWorkUnitsActivityHeartBeatExecutor")));
     // TODO: decide whether to acquire a job lock (as MR did)!
     // TODO: provide for job cancellation (unless handling at the temporal-level of parent workflows)!
     JobState jobState = new JobState(jobProps);
     log.info("Created jobState: {}", jobState.toJsonString(true));
+
+    int heartBeatInterval = JobStateUtils.getHeartBeatInterval(jobState);
+    heartBeatExecutor.scheduleAtFixedRate(() -> activityExecutionContext.heartbeat("Running GenerateWorkUnits"),
+        heartBeatInterval, heartBeatInterval, TimeUnit.MINUTES);
 
     Path workDirRoot = JobStateUtils.getWorkDirRoot(jobState);
     log.info("Using work dir root path for job '{}' - '{}'", jobState.getJobId(), workDirRoot);
@@ -177,6 +191,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     } finally {
       EventSubmitter eventSubmitter = eventSubmitterContext.create();
       Help.finalizeTroubleshooting(troubleshooter, eventSubmitter, log, jobState.getJobId());
+      ExecutorsUtils.shutdownExecutorService(heartBeatExecutor, com.google.common.base.Optional.of(log));
     }
   }
 

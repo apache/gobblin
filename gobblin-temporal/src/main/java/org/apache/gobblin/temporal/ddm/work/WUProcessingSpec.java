@@ -18,7 +18,6 @@
 package org.apache.gobblin.temporal.ddm.work;
 
 import java.net.URI;
-import java.util.Optional;
 
 import org.apache.hadoop.fs.Path;
 
@@ -36,8 +35,6 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemApt;
 import org.apache.gobblin.temporal.ddm.work.styles.FileSystemJobStateful;
-import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
-import org.apache.gobblin.temporal.util.nesting.work.Workload;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 
 
@@ -75,7 +72,7 @@ public class WUProcessingSpec implements FileSystemApt, FileSystemJobStateful {
     return new Path(new Path(workUnitsDir).getParent(), AbstractJobLauncher.JOB_STATE_FILE_NAME);
   }
 
-  /** Configuration for {@link org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow#performWorkload(WorkflowAddr, Workload, int, int, int, Optional)}*/
+  /** Configuration for {@link org.apache.gobblin.temporal.util.nesting.work.NestingExecWorkloadInput} */
   @Data
   @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
   @NoArgsConstructor // IMPORTANT: for jackson (de)serialization

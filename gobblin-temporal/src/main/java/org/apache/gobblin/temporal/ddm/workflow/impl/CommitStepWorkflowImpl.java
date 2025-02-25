@@ -17,13 +17,11 @@
 
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
-import java.time.Duration;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Properties;
 
-import io.temporal.activity.ActivityOptions;
-import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 
@@ -31,6 +29,7 @@ import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.DatasetTaskSummary;
+import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.DatasetStats;
@@ -42,22 +41,9 @@ import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
 @Slf4j
 public class CommitStepWorkflowImpl implements CommitStepWorkflow {
 
-  private static final RetryOptions ACTIVITY_RETRY_OPTS = RetryOptions.newBuilder()
-      .setInitialInterval(Duration.ofSeconds(3))
-      .setMaximumInterval(Duration.ofSeconds(100))
-      .setBackoffCoefficient(2)
-      .setMaximumAttempts(4)
-      .build();
-
-  private static final ActivityOptions ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(Duration.ofHours(3)) // TODO: make configurable... also add activity heartbeats
-      .setRetryOptions(ACTIVITY_RETRY_OPTS)
-      .build();
-
-  private final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, ACTIVITY_OPTS);
-
   @Override
-  public CommitStats commit(WUProcessingSpec workSpec) {
+  public CommitStats commit(WUProcessingSpec workSpec, final Properties props) {
+    final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, ActivityType.COMMIT.buildActivityOptions(props));
     CommitStats commitGobblinStats = activityStub.commit(workSpec);
     if (!commitGobblinStats.getOptFailure().isPresent() || commitGobblinStats.getNumCommittedWorkUnits() > 0) {
       TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(workSpec.getEventSubmitterContext());

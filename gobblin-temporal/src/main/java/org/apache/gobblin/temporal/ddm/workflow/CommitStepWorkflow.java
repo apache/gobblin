@@ -17,6 +17,8 @@
 
 package org.apache.gobblin.temporal.ddm.workflow;
 
+import java.util.Properties;
+
 import io.temporal.workflow.WorkflowInterface;
 import io.temporal.workflow.WorkflowMethod;
 
@@ -35,5 +37,5 @@ public interface CommitStepWorkflow {
      * @return number of workunits committed
      */
     @WorkflowMethod
-    CommitStats commit(WUProcessingSpec workSpec);
+    CommitStats commit(WUProcessingSpec workSpec, Properties props);
 }

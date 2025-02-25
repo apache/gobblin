@@ -39,9 +39,7 @@ import com.google.common.io.Closer;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import io.temporal.activity.ActivityOptions;
 import io.temporal.api.enums.v1.ParentClosePolicy;
-import io.temporal.common.RetryOptions;
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
@@ -50,6 +48,7 @@ import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.activity.RecommendScalingForWorkUnits;
@@ -72,6 +71,7 @@ import org.apache.gobblin.temporal.dynamic.ScalingDirectivesRecipient;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
@@ -81,49 +81,6 @@ import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   public static final String PROCESS_WORKFLOW_ID_BASE = "ProcessWorkUnits";
 
-  public static final Duration genWUsStartToCloseTimeout = Duration.ofHours(2); // TODO: make configurable... also add activity heartbeats
-
-  private static final RetryOptions GEN_WUS_ACTIVITY_RETRY_OPTS = RetryOptions.newBuilder()
-      .setInitialInterval(Duration.ofSeconds(3))
-      .setMaximumInterval(Duration.ofSeconds(100))
-      .setBackoffCoefficient(2)
-      .setMaximumAttempts(4)
-      .build();
-
-  private static final ActivityOptions GEN_WUS_ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(genWUsStartToCloseTimeout)
-      .setRetryOptions(GEN_WUS_ACTIVITY_RETRY_OPTS)
-      .build();
-
-  private final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class, GEN_WUS_ACTIVITY_OPTS);
-
-  private static final RetryOptions RECOMMEND_SCALING_RETRY_OPTS = RetryOptions.newBuilder()
-      .setInitialInterval(Duration.ofSeconds(3))
-      .setMaximumInterval(Duration.ofSeconds(100))
-      .setBackoffCoefficient(2)
-      .setMaximumAttempts(4)
-      .build();
-
-  private static final ActivityOptions RECOMMEND_SCALING_ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(Duration.ofMinutes(5))
-      .setRetryOptions(RECOMMEND_SCALING_RETRY_OPTS)
-      .build();
-  private final RecommendScalingForWorkUnits recommendScalingStub = Workflow.newActivityStub(RecommendScalingForWorkUnits.class,
-      RECOMMEND_SCALING_ACTIVITY_OPTS);
-
-  private static final RetryOptions DELETE_WORK_DIRS_RETRY_OPTS = RetryOptions.newBuilder()
-      .setInitialInterval(Duration.ofSeconds(3))
-      .setMaximumInterval(Duration.ofSeconds(100))
-      .setBackoffCoefficient(2)
-      .setMaximumAttempts(4)
-      .build();
-
-  private static final ActivityOptions DELETE_WORK_DIRS_ACTIVITY_OPTS = ActivityOptions.newBuilder()
-      .setStartToCloseTimeout(Duration.ofMinutes(10))
-      .setRetryOptions(DELETE_WORK_DIRS_RETRY_OPTS)
-      .build();
-  private final DeleteWorkDirsActivity deleteWorkDirsActivityStub = Workflow.newActivityStub(DeleteWorkDirsActivity.class, DELETE_WORK_DIRS_ACTIVITY_OPTS);
-
   @Override
   public ExecGobblinStats execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext);
@@ -131,8 +88,13 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     EventTimer jobSuccessTimer = timerFactory.createJobTimer();
     Optional<GenerateWorkUnitsResult> optGenerateWorkUnitResult = Optional.empty();
     WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
+    // Filtering only temporal job properties to pass to child workflows to avoid passing unnecessary properties
+    final Properties temporalJobProps = PropertiesUtils.extractPropertiesWithPrefix(jobProps,
+        com.google.common.base.Optional.of(GobblinTemporalConfigurationKeys.PREFIX));
     boolean isSuccessful = false;
     try (Closer closer = Closer.create()) {
+      final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
+          ActivityType.GENERATE_WORKUNITS.buildActivityOptions(temporalJobProps));
       GenerateWorkUnitsResult generateWorkUnitResult = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       optGenerateWorkUnitResult = Optional.of(generateWorkUnitResult);
       WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();
@@ -141,6 +103,8 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       CommitStats commitStats = CommitStats.createEmpty();
       if (numWUsGenerated > 0) {
         TimeBudget timeBudget = calcWUProcTimeBudget(jobSuccessTimer.getStartTime(), wuSizeSummary, jobProps);
+        final RecommendScalingForWorkUnits recommendScalingStub = Workflow.newActivityStub(RecommendScalingForWorkUnits.class,
+            ActivityType.RECOMMEND_SCALING.buildActivityOptions(temporalJobProps));
         List<ScalingDirective> scalingDirectives =
             recommendScalingStub.recommendScaling(wuSizeSummary, generateWorkUnitResult.getSourceClass(), timeBudget, jobProps);
         log.info("Recommended scaling to process WUs within {}: {}", timeBudget, scalingDirectives);
@@ -156,7 +120,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         }
 
         ProcessWorkUnitsWorkflow processWUsWorkflow = createProcessWorkUnitsWorkflow(jobProps);
-        commitStats = processWUsWorkflow.process(wuSpec);
+        commitStats = processWUsWorkflow.process(wuSpec, temporalJobProps);
         numWUsCommitted = commitStats.getNumCommittedWorkUnits();
       }
       jobSuccessTimer.stop();
@@ -269,6 +233,11 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       log.info("Skipping cleanup of work dirs for job due to initializer handling the cleanup");
       return;
     }
+
+    final DeleteWorkDirsActivity deleteWorkDirsActivityStub = Workflow.newActivityStub(
+        DeleteWorkDirsActivity.class,
+        ActivityType.DELETE_WORK_DIRS.buildActivityOptions(jobState.getProperties())
+    );
 
     DirDeletionResult dirDeletionResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,
         calculateWorkDirsToDelete(jobState.getJobId(), directoriesToClean));

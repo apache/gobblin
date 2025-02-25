@@ -21,6 +21,9 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
@@ -28,6 +31,8 @@ import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
 import com.google.common.collect.Lists;
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -56,6 +61,7 @@ import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
 
 
@@ -68,6 +74,10 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
 
   @Override
   public int processWorkUnit(WorkUnitClaimCheck wu) {
+    ActivityExecutionContext activityExecutionContext = Activity.getExecutionContext();
+    ScheduledExecutorService heartBeatExecutor = Executors.newSingleThreadScheduledExecutor(
+        ExecutorsUtils.newThreadFactory(com.google.common.base.Optional.of(log),
+            com.google.common.base.Optional.of("CommitActivityHeartBeatExecutor")));
     AutomaticTroubleshooter troubleshooter = null;
     EventSubmitter eventSubmitter = wu.getEventSubmitterContext().create();
     String correlator = String.format("(M)WU [%s]", wu.getCorrelator());
@@ -75,6 +85,9 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       List<WorkUnit> workUnits = loadFlattenedWorkUnits(wu, fs);
       log.info("{} - loaded; found {} workUnits", correlator, workUnits.size());
       JobState jobState = Help.loadJobState(wu, fs);
+      int heartBeatInterval = JobStateUtils.getHeartBeatInterval(jobState);
+      heartBeatExecutor.scheduleAtFixedRate(() -> activityExecutionContext.heartbeat("Running ProcessWorkUnit Activity"),
+          heartBeatInterval, heartBeatInterval, TimeUnit.MINUTES);
       troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobState.getProperties());
       troubleshooter.start();
       return execute(workUnits, wu, jobState, fs, troubleshooter.getIssueRepository());
@@ -82,6 +95,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       throw new RuntimeException(e);
     } finally {
       Help.finalizeTroubleshooting(troubleshooter, eventSubmitter, log, correlator);
+      ExecutorsUtils.shutdownExecutorService(heartBeatExecutor, com.google.common.base.Optional.of(log));
     }
   }
 

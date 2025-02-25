@@ -38,6 +38,7 @@ import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobScheduler;
 import org.apache.gobblin.temporal.loadgen.work.IllustrationItem;
 import org.apache.gobblin.temporal.loadgen.work.SimpleGeneratedWorkload;
+import org.apache.gobblin.temporal.util.nesting.work.NestingExecWorkloadInput;
 import org.apache.gobblin.temporal.util.nesting.work.WorkflowAddr;
 import org.apache.gobblin.temporal.util.nesting.work.Workload;
 import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
@@ -86,6 +87,8 @@ public class GenArbitraryLoadJobLauncher extends GobblinTemporalJobLauncher {
     // WARNING: although type param must agree w/ that of `workload`, it's entirely unverified by type checker!
     // ...and more to the point, mismatch would occur at runtime (`performWorkload` on the workflow type given to the stub)!
     NestingExecWorkflow<IllustrationItem> workflow = this.client.newWorkflowStub(NestingExecWorkflow.class, options);
-    workflow.performWorkload(WorkflowAddr.ROOT, workload, 0, maxBranchesPerTree, maxSubTreesPerTree, Optional.empty());
+    NestingExecWorkloadInput<IllustrationItem> performWorkloadInput = new NestingExecWorkloadInput<>(WorkflowAddr.ROOT,
+        workload, 0, maxBranchesPerTree, maxSubTreesPerTree, Optional.empty(), new Properties());
+    workflow.performWorkload(performWorkloadInput);
   }
 }
