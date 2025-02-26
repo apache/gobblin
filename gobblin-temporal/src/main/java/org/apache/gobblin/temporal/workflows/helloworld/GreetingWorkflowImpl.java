@@ -19,6 +19,7 @@ package org.apache.gobblin.temporal.workflows.helloworld;
 
 import java.time.Duration;
 
+import java.util.Properties;
 import org.slf4j.Logger;
 
 import io.temporal.activity.ActivityOptions;
@@ -57,7 +58,7 @@ public class GreetingWorkflowImpl implements GreetingWorkflow {
         /**
          * Example of the {@link TemporalEventTimer.Factory} invoking child activity for instrumentation.
          */
-        TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext);
+        TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext, new Properties());
         try (TemporalEventTimer timer = timerFactory.create("getGreetingTime")) {
             LOG.info("Executing getGreeting");
             timer.withMetadata("name", name);

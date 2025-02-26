@@ -19,6 +19,7 @@ package org.apache.gobblin.temporal.workflows.metrics;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.Properties;
 import java.util.function.Supplier;
 
 import lombok.AccessLevel;
@@ -32,6 +33,7 @@ import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.util.GsonUtils;
+import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 
 
 /**
@@ -153,16 +155,9 @@ public class TemporalEventTimer implements EventTimer {
    *  addition, it uses the `Workflow`-safe {@link Workflow#currentTimeMillis()}.
    */
   public static class WithinWorkflowFactory extends Factory {
-    private static final ActivityOptions DEFAULT_OPTS = ActivityOptions.newBuilder()
-        .setStartToCloseTimeout(Duration.ofHours(6)) // maximum timeout for the actual event submission to kafka, waiting out a kafka outage
-        .build();
 
-    public WithinWorkflowFactory(EventSubmitterContext eventSubmitterContext) {
-      this(eventSubmitterContext, DEFAULT_OPTS);
-    }
-
-    public WithinWorkflowFactory(EventSubmitterContext eventSubmitterContext, ActivityOptions opts) {
-      super(eventSubmitterContext, Workflow.newActivityStub(SubmitGTEActivity.class, opts), WithinWorkflowFactory::getCurrentInstant);
+    public WithinWorkflowFactory(EventSubmitterContext eventSubmitterContext, Properties props) {
+      super(eventSubmitterContext, Workflow.newActivityStub(SubmitGTEActivity.class, ActivityType.SUBMIT_GTE.buildActivityOptions(props)), WithinWorkflowFactory::getCurrentInstant);
     }
 
     /**

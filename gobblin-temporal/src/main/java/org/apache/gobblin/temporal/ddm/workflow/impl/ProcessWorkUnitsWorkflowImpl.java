@@ -55,7 +55,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
 
   @Override
   public CommitStats process(WUProcessingSpec workSpec, final Properties props) {
-    Optional<EventTimer> timer = this.createOptJobEventTimer(workSpec);
+    Optional<EventTimer> timer = this.createOptJobEventTimer(workSpec, props);
     CommitStats result = performWork(workSpec, props);
     timer.ifPresent(EventTimer::stop);
     return result;
@@ -111,10 +111,10 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     return result;
   }
 
-  private Optional<EventTimer> createOptJobEventTimer(WUProcessingSpec workSpec) {
+  private Optional<EventTimer> createOptJobEventTimer(WUProcessingSpec workSpec, Properties props) {
     if (workSpec.isToDoJobLevelTiming()) {
       EventSubmitterContext eventSubmitterContext = workSpec.getEventSubmitterContext();
-      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext);
+      TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext, props);
       return Optional.of(timerFactory.createJobTimer());
     } else {
       return Optional.empty();
