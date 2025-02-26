@@ -69,8 +69,14 @@ public class ActivityTypeTest {
         {ActivityType.DELETE_WORK_DIRS, 222},
         {ActivityType.PROCESS_WORKUNIT, 555},
         {ActivityType.COMMIT, 444},
+        {ActivityType.SUBMIT_GTE, 999},
         {ActivityType.DEFAULT_ACTIVITY, 1}
     };
+  }
+
+  @Test
+  public void testActivityTypesWithStartToCloseTimeoutDataProviderHasAllActivityTypes() {
+    Assert.assertEquals(activityTypesWithStartToCloseTimeout().length, activityTypes.size());
   }
 
   @Test(dataProvider = "activityTypesWithStartToCloseTimeout")

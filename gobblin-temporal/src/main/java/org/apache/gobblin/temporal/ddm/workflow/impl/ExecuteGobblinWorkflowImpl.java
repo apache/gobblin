@@ -83,14 +83,14 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
 
   @Override
   public ExecGobblinStats execute(Properties jobProps, EventSubmitterContext eventSubmitterContext) {
-    TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext);
+    // Filtering only temporal job properties to pass to child workflows to avoid passing unnecessary properties
+    final Properties temporalJobProps = PropertiesUtils.extractPropertiesWithPrefix(jobProps,
+        com.google.common.base.Optional.of(GobblinTemporalConfigurationKeys.PREFIX));
+    TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext, temporalJobProps);
     timerFactory.create(TimingEvent.LauncherTimings.JOB_PREPARE).submit(); // update GaaS: `TimingEvent.JOB_START_TIME`
     EventTimer jobSuccessTimer = timerFactory.createJobTimer();
     Optional<GenerateWorkUnitsResult> optGenerateWorkUnitResult = Optional.empty();
     WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
-    // Filtering only temporal job properties to pass to child workflows to avoid passing unnecessary properties
-    final Properties temporalJobProps = PropertiesUtils.extractPropertiesWithPrefix(jobProps,
-        com.google.common.base.Optional.of(GobblinTemporalConfigurationKeys.PREFIX));
     boolean isSuccessful = false;
     try (Closer closer = Closer.create()) {
       final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
