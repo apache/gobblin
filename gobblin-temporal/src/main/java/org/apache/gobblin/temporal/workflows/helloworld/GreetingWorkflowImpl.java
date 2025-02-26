@@ -18,8 +18,8 @@
 package org.apache.gobblin.temporal.workflows.helloworld;
 
 import java.time.Duration;
-
 import java.util.Properties;
+
 import org.slf4j.Logger;
 
 import io.temporal.activity.ActivityOptions;
