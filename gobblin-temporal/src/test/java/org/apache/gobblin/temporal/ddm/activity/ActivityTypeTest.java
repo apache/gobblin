@@ -74,6 +74,11 @@ public class ActivityTypeTest {
     };
   }
 
+  @Test
+  public void testActivityTypesWithStartToCloseTimeoutDataProviderHasAllActivityTypes() {
+    Assert.assertEquals(activityTypesWithStartToCloseTimeout().length, activityTypes.size());
+  }
+
   @Test(dataProvider = "activityTypesWithStartToCloseTimeout")
   public void testStartToCloseTimeout(ActivityType activityType, int expectedTimeout) {
     props.setProperty(activityType.getStartToCloseTimeoutConfigKey(), Integer.toString(expectedTimeout));
