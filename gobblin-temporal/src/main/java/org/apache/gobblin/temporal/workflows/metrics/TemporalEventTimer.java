@@ -26,7 +26,6 @@ import lombok.AccessLevel;
 import lombok.Getter;
 import lombok.RequiredArgsConstructor;
 
-import io.temporal.activity.ActivityOptions;
 import io.temporal.workflow.Workflow;
 
 import org.apache.gobblin.metrics.event.EventSubmitter;
