@@ -156,7 +156,7 @@ public class TemporalEventTimer implements EventTimer {
   public static class WithinWorkflowFactory extends Factory {
 
     public WithinWorkflowFactory(EventSubmitterContext eventSubmitterContext, Properties props) {
-      super(eventSubmitterContext, Workflow.newActivityStub(SubmitGTEActivity.class, ActivityType.SUBMIT_GTE.buildActivityOptions(props)), WithinWorkflowFactory::getCurrentInstant);
+      super(eventSubmitterContext, Workflow.newActivityStub(SubmitGTEActivity.class, ActivityType.SUBMIT_GTE.buildActivityOptions(props, false)), WithinWorkflowFactory::getCurrentInstant);
     }
 
     /**
