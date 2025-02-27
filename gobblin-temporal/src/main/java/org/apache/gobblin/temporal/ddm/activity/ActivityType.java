@@ -61,8 +61,8 @@ public enum ActivityType {
     this.startToCloseTimeoutConfigKey = startToCloseTimeoutConfigKey;
   }
 
-  public ActivityOptions buildActivityOptions(Properties props, boolean setHeartBeatTimeout) {
-    if (!setHeartBeatTimeout) {
+  public ActivityOptions buildActivityOptions(Properties props, boolean setHeartbeatTimeout) {
+    if (!setHeartbeatTimeout) {
       return buildActivityOptionsWithoutHeartBeatTimeout(props);
     }
     return ActivityOptions.newBuilder()
