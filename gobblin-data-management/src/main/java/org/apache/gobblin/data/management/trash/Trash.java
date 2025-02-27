@@ -178,7 +178,7 @@ public class Trash implements GobblinTrash {
   }
 
   public static Trash getTrash(FileSystem fs, Properties props, String user) throws IOException {
-    if (props.contains(TRASH_CLASS_KEY)) {
+    if (props.containsKey(TRASH_CLASS_KEY)) {
       return GobblinConstructorUtils.invokeConstructor(Trash.class, props.getProperty(TRASH_CLASS_KEY), fs, props, user);
     } else {
       return new Trash(fs, props, user);
