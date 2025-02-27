@@ -45,7 +45,7 @@ public class ActivityTypeTest {
 
   @Test
   public void testDefaultValuesForTimeouts() {
-    activityTypes.stream().map(activityType -> activityType.buildActivityOptions(props)).forEach(activityOptions -> {
+    activityTypes.stream().map(activityType -> activityType.buildActivityOptions(props, true)).forEach(activityOptions -> {
       Assert.assertEquals(activityOptions.getStartToCloseTimeout(),
           Duration.ofMinutes(GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_STARTTOCLOSE_TIMEOUT_MINUTES));
       Assert.assertEquals(activityOptions.getHeartbeatTimeout(),
@@ -82,13 +82,13 @@ public class ActivityTypeTest {
   @Test(dataProvider = "activityTypesWithStartToCloseTimeout")
   public void testStartToCloseTimeout(ActivityType activityType, int expectedTimeout) {
     props.setProperty(activityType.getStartToCloseTimeoutConfigKey(), Integer.toString(expectedTimeout));
-    Assert.assertEquals(activityType.buildActivityOptions(props).getStartToCloseTimeout(), Duration.ofMinutes(expectedTimeout));
+    Assert.assertEquals(activityType.buildActivityOptions(props, false).getStartToCloseTimeout(), Duration.ofMinutes(expectedTimeout));
   }
 
   @Test
   public void testHeartBeatTimeout() {
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_MINUTES, "14");
-    activityTypes.stream().map(activityType -> activityType.buildActivityOptions(props)).forEach(activityOptions -> {
+    activityTypes.stream().map(activityType -> activityType.buildActivityOptions(props, true)).forEach(activityOptions -> {
       Assert.assertEquals(activityOptions.getHeartbeatTimeout(), Duration.ofMinutes(14));
     });
   }
@@ -100,7 +100,7 @@ public class ActivityTypeTest {
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT, "7.0");
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS, "21");
 
-    activityTypes.stream().map(activityType -> activityType.buildActivityOptions(props)).forEach(activityOptions -> {
+    activityTypes.stream().map(activityType -> activityType.buildActivityOptions(props, false)).forEach(activityOptions -> {
       Assert.assertEquals(activityOptions.getRetryOptions().getInitialInterval(), Duration.ofSeconds(115));
       Assert.assertEquals(activityOptions.getRetryOptions().getMaximumInterval(), Duration.ofSeconds(5550));
       Assert.assertEquals(activityOptions.getRetryOptions().getBackoffCoefficient(), 7.0, 0.01);
@@ -117,7 +117,7 @@ public class ActivityTypeTest {
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT, "7.0");
     props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS, "21");
 
-    ActivityOptions activityOptions = activityType.buildActivityOptions(props);
+    ActivityOptions activityOptions = activityType.buildActivityOptions(props, true);
 
     Assert.assertEquals(activityOptions.getStartToCloseTimeout(), Duration.ofMinutes(expectedTimeout));
     Assert.assertEquals(activityOptions.getHeartbeatTimeout(), Duration.ofMinutes(144));

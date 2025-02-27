@@ -61,10 +61,20 @@ public enum ActivityType {
     this.startToCloseTimeoutConfigKey = startToCloseTimeoutConfigKey;
   }
 
-  public ActivityOptions buildActivityOptions(Properties props) {
+  public ActivityOptions buildActivityOptions(Properties props, boolean setHeartbeatTimeout) {
+    if (!setHeartbeatTimeout) {
+      return buildActivityOptionsWithoutHeartBeatTimeout(props);
+    }
     return ActivityOptions.newBuilder()
         .setStartToCloseTimeout(getStartToCloseTimeout(props))
         .setHeartbeatTimeout(getHeartbeatTimeout(props))
+        .setRetryOptions(buildRetryOptions(props))
+        .build();
+  }
+
+  private ActivityOptions buildActivityOptionsWithoutHeartBeatTimeout(Properties props) {
+    return ActivityOptions.newBuilder()
+        .setStartToCloseTimeout(getStartToCloseTimeout(props))
         .setRetryOptions(buildRetryOptions(props))
         .build();
   }

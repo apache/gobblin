@@ -36,7 +36,7 @@ public class NestingExecOfIllustrationItemActivityWorkflowImpl
   @Override
   protected Promise<String> launchAsyncActivity(final IllustrationItem item, final Properties props) {
     final IllustrationItemActivity activityStub =
-        Workflow.newActivityStub(IllustrationItemActivity.class,ActivityType.DEFAULT_ACTIVITY.buildActivityOptions(props));
+        Workflow.newActivityStub(IllustrationItemActivity.class,ActivityType.DEFAULT_ACTIVITY.buildActivityOptions(props, false));
     return Async.function(activityStub::handleItem, item);
   }
 }

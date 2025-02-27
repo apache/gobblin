@@ -35,7 +35,7 @@ public class NestingExecOfProcessWorkUnitWorkflowImpl extends AbstractNestingExe
   @Override
   protected Promise<Integer> launchAsyncActivity(final WorkUnitClaimCheck wu, final Properties props) {
     final ProcessWorkUnit processWorkUnitStub = Workflow.newActivityStub(ProcessWorkUnit.class,
-        ActivityType.PROCESS_WORKUNIT.buildActivityOptions(props));
+        ActivityType.PROCESS_WORKUNIT.buildActivityOptions(props, true));
     return Async.function(processWorkUnitStub::processWorkUnit, wu);
   }
 }

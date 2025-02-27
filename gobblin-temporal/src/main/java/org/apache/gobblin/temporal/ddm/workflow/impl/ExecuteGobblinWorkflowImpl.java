@@ -94,7 +94,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     boolean isSuccessful = false;
     try (Closer closer = Closer.create()) {
       final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
-          ActivityType.GENERATE_WORKUNITS.buildActivityOptions(temporalJobProps));
+          ActivityType.GENERATE_WORKUNITS.buildActivityOptions(temporalJobProps, true));
       GenerateWorkUnitsResult generateWorkUnitResult = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       optGenerateWorkUnitResult = Optional.of(generateWorkUnitResult);
       WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();
@@ -104,7 +104,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       if (numWUsGenerated > 0) {
         TimeBudget timeBudget = calcWUProcTimeBudget(jobSuccessTimer.getStartTime(), wuSizeSummary, jobProps);
         final RecommendScalingForWorkUnits recommendScalingStub = Workflow.newActivityStub(RecommendScalingForWorkUnits.class,
-            ActivityType.RECOMMEND_SCALING.buildActivityOptions(temporalJobProps));
+            ActivityType.RECOMMEND_SCALING.buildActivityOptions(temporalJobProps, false));
         List<ScalingDirective> scalingDirectives =
             recommendScalingStub.recommendScaling(wuSizeSummary, generateWorkUnitResult.getSourceClass(), timeBudget, jobProps);
         log.info("Recommended scaling to process WUs within {}: {}", timeBudget, scalingDirectives);
@@ -236,7 +236,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
 
     final DeleteWorkDirsActivity deleteWorkDirsActivityStub = Workflow.newActivityStub(
         DeleteWorkDirsActivity.class,
-        ActivityType.DELETE_WORK_DIRS.buildActivityOptions(jobState.getProperties())
+        ActivityType.DELETE_WORK_DIRS.buildActivityOptions(jobState.getProperties(), false)
     );
 
     DirDeletionResult dirDeletionResult = deleteWorkDirsActivityStub.delete(workSpec, eventSubmitterContext,
