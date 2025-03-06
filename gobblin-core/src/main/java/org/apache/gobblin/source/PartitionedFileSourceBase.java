@@ -390,7 +390,7 @@ public abstract class PartitionedFileSourceBase<SCHEMA, DATA> extends FileBasedS
       Duration lookBackDuration = PartitionAwareFileRetrieverUtils.getLookbackTimeDuration(lookBackTime);
       return new DateTime().minus(lookBackDuration).getMillis();
     } catch (IOException e) {
-      Throwables.propagate(e);
+      log.warn("Failed to parse lookback time: {} , Returning 0 as low watermark value, ", lookBackTime, e);
     }
     return 0;
   }
