@@ -77,13 +77,10 @@ public class PartitionAwareFileRetrieverUtils {
         long lookBack = Long.parseLong(lookBackTime.substring(0, lookBackTime.length() - 1));
         return new Duration(lookBack * lookBackTimeGranularityInMillis);
       } catch(NumberFormatException ex) {
-        log.error("Exception Caught while parsing lookback time", ex);
         throw new IOException("Invalid lookback time: " + lookBackTime, ex);
       }
     } else {
-      String errMsg = String.format("There is no valid time granularity for lookback time: %s", lookBackTime);
-      log.error(errMsg);
-      throw new IOException(errMsg);
+      throw new IOException("There is no valid time granularity in lookback time: " + lookBackTime);
     }
   }
 }
