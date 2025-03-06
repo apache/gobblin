@@ -59,8 +59,7 @@ public class LaunchDagTask extends DagTask {
         return true;
       }
     } catch (SpecNotFoundException | URISyntaxException e) {
-      log.error("Unable to retrieve flowSpec to delete from flowCatalog if adhoc.");
-      throw new RuntimeException(e);
+      log.error("Unable to retrieve flowSpec to delete from flowCatalog if adhoc.", e);
     }
     return false;
   }
