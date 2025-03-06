@@ -38,7 +38,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Set up JDK 1.8
@@ -47,7 +47,7 @@ jobs:
           java-version: 1.8
       # Stores external dependencies, can be further improved with Gradle 6.1
       - name: Cache Gradle Dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.gradle/caches
@@ -70,14 +70,14 @@ jobs:
     needs: build
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
       - name: Set up JDK 1.8
         uses: actions/setup-java@v1
         with:
           java-version: 1.8
       # Stores external dependencies, can be further improved with Gradle 6.1
       - name: Cache Gradle Dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.gradle/caches
@@ -112,7 +112,7 @@ jobs:
         options: --health-cmd="mysqladmin ping" --health-interval=10s --health-timeout=5s --health-retries=5
     steps:
       - name: Check out the repo
-        uses: actions/checkout@v2
+        uses: actions/checkout@v3
         with:
           persist-credentials: false
       - name: Set up JDK 1.8
@@ -137,7 +137,7 @@ jobs:
             mysql --host 127.0.0.1 --port 3306 -uroot -ptestPassword -e "SHOW DATABASES"
             mysql --host 127.0.0.1 --port 3306 -uroot -ptestPassword -e "SET GLOBAL max_connections=2000"
       - name: Cache Gradle Dependencies
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: |
             ~/.gradle/caches
