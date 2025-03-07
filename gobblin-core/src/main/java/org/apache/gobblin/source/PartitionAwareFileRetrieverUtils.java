@@ -16,7 +16,13 @@
  */
 package org.apache.gobblin.source;
 
+import java.io.IOException;
+
+import org.joda.time.DateTimeFieldType;
 import org.joda.time.Duration;
+import org.joda.time.chrono.ISOChronology;
+
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.DatePartitionType;
@@ -31,6 +37,7 @@ import static org.apache.gobblin.source.PartitionedFileSourceBase.DEFAULT_PARTIT
  * Utility functions for parsing configuration parameters commonly used by {@link PartitionAwareFileRetriever}
  * objects.
  */
+@Slf4j
 public class PartitionAwareFileRetrieverUtils {
   /**
    * Retrieve the lead time duration from the LEAD_TIME and LEAD_TIME granularity config settings.
@@ -51,5 +58,29 @@ public class PartitionAwareFileRetrieverUtils {
     }
 
     return new Duration(leadTime * leadTimeGranularity.getUnitMilliseconds());
+  }
+
+  /**
+   * Calculates the lookback time duration based on the provided lookback time string.
+   *
+   * @param lookBackTime the lookback time string, which should include a numeric value followed by a time unit character.
+   *                     For example, "5d" for 5 days or "10h" for 10 hours. See {@link DatePartitionType#lookupByPattern}
+   * @return an {@link Duration} of lookBackTime if the lookback time is valid
+   * @throws IOException if the lookback time is invalid
+   */
+  public static Duration getLookbackTimeDuration(String lookBackTime) throws IOException {
+    DateTimeFieldType lookBackTimeGranularity = DatePartitionType.getLowestIntervalUnit(lookBackTime);
+    if (lookBackTimeGranularity != null) {
+      long lookBackTimeGranularityInMillis =
+          lookBackTimeGranularity.getDurationType().getField(ISOChronology.getInstance()).getUnitMillis();
+      try {
+        long lookBack = Long.parseLong(lookBackTime.substring(0, lookBackTime.length() - 1));
+        return new Duration(lookBack * lookBackTimeGranularityInMillis);
+      } catch(NumberFormatException ex) {
+        throw new IOException("Invalid lookback time: " + lookBackTime, ex);
+      }
+    } else {
+      throw new IOException("There is no valid time granularity in lookback time: " + lookBackTime);
+    }
   }
 }
