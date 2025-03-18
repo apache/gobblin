@@ -76,7 +76,7 @@ public class RecommendScalingForWorkUnitsLinearHeuristicImpl extends AbstractRec
     double meanBytesPerMWU = remainingWork.getTopLevelWorkUnitsMeanSize();
     double totalBytes = numMWUs * meanBytesPerMWU;
     long bytesPerMinuteProcRatePerThread = calcAmortizedBytesPerMinute(jobState);
-    log.info("Calculating auto-scaling (for {} remaining work units within {}) using: bytesPerMinuteProcRate = {}; meanBytesPerMWU = {}",
+    log.info("Calculating auto-scaling (for {} remaining work units within {}) using: bytesPerMinuteProcRatePerThread = {}; meanBytesPerMWU = {}",
         numMWUs, jobTimeBudget, bytesPerMinuteProcRatePerThread, meanBytesPerMWU);
 
     // calc how many container*minutes to process all MWUs, based on mean MWU size
