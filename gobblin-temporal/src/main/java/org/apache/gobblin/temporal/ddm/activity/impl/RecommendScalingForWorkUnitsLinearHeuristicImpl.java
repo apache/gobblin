@@ -66,7 +66,7 @@ public class RecommendScalingForWorkUnitsLinearHeuristicImpl extends AbstractRec
   @Override
   protected int calcDerivationSetPoint(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget jobTimeBudget, JobState jobState) {
     if (!jobState.getPropAsBoolean(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED, false)) {
-      int initialContainerCount = Integer.valueOf(jobState.getProp(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY, "1"));
+      int initialContainerCount = Integer.parseInt(jobState.getProp(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY, "1"));
       log.info("Dynamic scaling is disabled, returning initial container count: " + initialContainerCount);
       return initialContainerCount;
     }

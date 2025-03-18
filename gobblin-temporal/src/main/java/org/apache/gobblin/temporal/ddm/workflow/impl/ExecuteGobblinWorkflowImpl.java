@@ -19,7 +19,6 @@ package org.apache.gobblin.temporal.ddm.workflow.impl;
 
 import java.io.IOException;
 import java.net.URI;
-import java.time.Duration;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -171,9 +170,9 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         ConfigurationKeys.JOB_TARGET_COMPLETION_DURATION_IN_MINUTES_KEY,
         ConfigurationKeys.DEFAULT_JOB_TARGET_COMPLETION_DURATION_IN_MINUTES));
     double permittedOveragePercentage = .2;
-    Duration genWUsDuration = Duration.between(jobStartTime, TemporalEventTimer.WithinWorkflowFactory.getCurrentInstant());
 
     // since actual generate WU duration can vary significantly across jobs, removing that from computation to enable deterministic duration for WU processing
+    // Duration genWUsDuration = Duration.between(jobStartTime, TemporalEventTimer.WithinWorkflowFactory.getCurrentInstant());
     long remainingMins = totalTargetTimeMins - maxGenWUsMins - commitStepMins;
     return TimeBudget.withOveragePercentage(remainingMins, permittedOveragePercentage);
   }
@@ -187,7 +186,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     ArrayList<ScalingDirective> adjustedScaling = new ArrayList<>(recommendedScalingDirectives);
     ScalingDirective firstDirective = adjustedScaling.get(0);
     // deduct one for (already existing) `GenerateWorkUnits` worker (we presume its "baseline" `WorkerProfile` similar enough to substitute for this new one)
-    int initialContainerCount = Integer.valueOf(jobProps.getProperty(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY, "1"));
+    int initialContainerCount = Integer.parseInt(jobProps.getProperty(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY, "1"));
     adjustedScaling.set(0, firstDirective.updateSetPoint(firstDirective.getSetPoint() - initialContainerCount));
     // CAUTION: filter out set point zero, which (depending upon `.getProfileName()`) *could* down-scale away our only current worker
     // TODO: consider whether to allow either a) "pre-defining" a profile w/ set point zero, available for later use OR b) down-scaling to zero to pause worker
