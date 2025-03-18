@@ -24,6 +24,7 @@ import com.typesafe.config.Config;
 import io.temporal.client.WorkflowClient;
 import io.temporal.worker.WorkerOptions;
 
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
 import org.apache.gobblin.temporal.ddm.activity.impl.CommitActivityImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.DeleteWorkDirsActivityImpl;
@@ -36,15 +37,18 @@ import org.apache.gobblin.temporal.ddm.workflow.impl.GenerateWorkUnitsWorkflowIm
 import org.apache.gobblin.temporal.ddm.workflow.impl.NestingExecOfProcessWorkUnitWorkflowImpl;
 import org.apache.gobblin.temporal.ddm.workflow.impl.ProcessWorkUnitsWorkflowImpl;
 import org.apache.gobblin.temporal.workflows.metrics.SubmitGTEActivityImpl;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /** Worker for the {@link ProcessWorkUnitsWorkflowImpl} super-workflow */
 public class WorkFulfillmentWorker extends AbstractTemporalWorker {
     public static final long DEADLOCK_DETECTION_TIMEOUT_SECONDS = 120; // TODO: make configurable!
-    public static final int MAX_EXECUTION_CONCURRENCY = 5; // TODO: make configurable!
+    public int maxExecutionConcurrency;
 
     public WorkFulfillmentWorker(Config config, WorkflowClient workflowClient) {
         super(config, workflowClient);
+        this.maxExecutionConcurrency = ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER,
+            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER);
     }
 
     @Override
@@ -64,9 +68,9 @@ public class WorkFulfillmentWorker extends AbstractTemporalWorker {
         return WorkerOptions.newBuilder()
             // default is only 1s - WAY TOO SHORT for `o.a.hadoop.fs.FileSystem#listStatus`!
             .setDefaultDeadlockDetectionTimeout(TimeUnit.SECONDS.toMillis(DEADLOCK_DETECTION_TIMEOUT_SECONDS))
-            .setMaxConcurrentActivityExecutionSize(MAX_EXECUTION_CONCURRENCY)
-            .setMaxConcurrentLocalActivityExecutionSize(MAX_EXECUTION_CONCURRENCY)
-            .setMaxConcurrentWorkflowTaskExecutionSize(MAX_EXECUTION_CONCURRENCY)
+            .setMaxConcurrentActivityExecutionSize(this.maxExecutionConcurrency)
+            .setMaxConcurrentLocalActivityExecutionSize(this.maxExecutionConcurrency)
+            .setMaxConcurrentWorkflowTaskExecutionSize(this.maxExecutionConcurrency)
             .build();
     }
 }
