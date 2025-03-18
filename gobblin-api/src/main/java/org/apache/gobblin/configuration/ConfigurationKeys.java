@@ -210,7 +210,7 @@ public class ConfigurationKeys {
   public static final String JOB_COMMIT_POLICY_KEY = "job.commit.policy";
   public static final String DEFAULT_JOB_COMMIT_POLICY = "full";
   public static final String JOB_TARGET_COMPLETION_DURATION_IN_MINUTES_KEY = "job.duration.target.completion.in.minutes";
-  public static final long DEFAULT_JOB_TARGET_COMPLETION_DURATION_IN_MINUTES = 360;
+  public static final long DEFAULT_JOB_TARGET_COMPLETION_DURATION_IN_MINUTES = 120;
 
   public static final String PARTIAL_FAIL_TASK_FAILS_JOB_COMMIT = "job.commit.partial.fail.task.fails.job.commit";
   // If true, commit of different datasets will be performed in parallel

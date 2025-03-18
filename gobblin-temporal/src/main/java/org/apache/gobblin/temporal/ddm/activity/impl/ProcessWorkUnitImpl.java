@@ -90,7 +90,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
           heartBeatInterval, heartBeatInterval, TimeUnit.MINUTES);
       troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobState.getProperties());
       troubleshooter.start();
-      return execute(workUnits, wu, jobState, fs, troubleshooter.getIssueRepository());
+      return execute(workUnits, wu, jobState, fs, troubleshooter.getIssueRepository(), jobState.getProperties());
     } catch (IOException | InterruptedException e) {
       throw new RuntimeException(e);
     } finally {
@@ -110,12 +110,13 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
    * NOTE: adapted from {@link org.apache.gobblin.runtime.mapreduce.MRJobLauncher.TaskRunner#run(org.apache.hadoop.mapreduce.Mapper.Context)}
    * @return count of how many tasks executed (0 if execution ultimately failed, but we *believe* TaskState should already have been recorded beforehand)
    */
-  protected int execute(List<WorkUnit> workUnits, WorkUnitClaimCheck wu, JobState jobState, FileSystem fs, IssueRepository issueRepository) throws IOException, InterruptedException {
+  protected int execute(List<WorkUnit> workUnits, WorkUnitClaimCheck wu, JobState jobState, FileSystem fs, IssueRepository issueRepository,
+                        Properties jobProperties) throws IOException, InterruptedException {
     String containerId = "container-id-for-wu-" + wu.getCorrelator();
     StateStore<TaskState> taskStateStore = Help.openTaskStateStore(wu, fs);
 
     TaskStateTracker taskStateTracker = createEssentializedTaskStateTracker(wu);
-    TaskExecutor taskExecutor = new TaskExecutor(new Properties());
+    TaskExecutor taskExecutor = new TaskExecutor(jobProperties);
     GobblinMultiTaskAttempt.CommitPolicy multiTaskAttemptCommitPolicy = GobblinMultiTaskAttempt.CommitPolicy.IMMEDIATE; // as no speculative exec
 
     SharedResourcesBroker<GobblinScopeTypes> resourcesBroker = JobStateUtils.getSharedResourcesBroker(jobState);

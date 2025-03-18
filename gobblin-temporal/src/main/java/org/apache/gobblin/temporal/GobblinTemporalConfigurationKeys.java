@@ -65,12 +65,26 @@ public interface GobblinTemporalConfigurationKeys {
    */
   String TEMPORAL_NUM_WORKERS_PER_CONTAINER = PREFIX + "num.workers.per.container";
   int DEFAULT_TEMPORAL_NUM_WORKERS_PER_CONTAINERS = 1;
+  String TEMPORAL_NUM_THREADS_PER_WORKER = PREFIX + "num.threads.per.worker";
+  int DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER = 15;
+
+  // Configuration key for setting the amortized throughput per worker thread per minute
+  String TEMPORAL_WORKER_THREAD_AMORTIZED_THROUGHPUT_PER_MINUTE = PREFIX + "worker.thread.amortized.throughput.per.minute";
+  long DEFAULT_TEMPORAL_WORKER_THREAD_AMORTIZED_THROUGHPUT_PER_MINUTE = 500 * 1000 * 1000L; // 500MB/min
+
+  // Configuration key for setting the maximum number of work units allowed per container
+  String TEMPORAL_WORKUNITS_PER_CONTAINER = PREFIX + "workunits.per.container";
+  int DEFAULT_MAX_WORKUNITS_PER_CONTAINER = 2000;
+
   String TEMPORAL_CONNECTION_STRING = PREFIX + "connection.string";
 
   /**
    * Prefix for Gobblin-on-Temporal Dynamic Scaling
    */
   String DYNAMIC_SCALING_PREFIX = PREFIX + "dynamic.scaling.";
+
+  // Configuration key to enable/disable dynamic scaling
+  String DYNAMIC_SCALING_ENABLED = DYNAMIC_SCALING_PREFIX + "enabled";
 
   String DYNAMIC_SCALING_POLLING_INTERVAL_SECS = DYNAMIC_SCALING_PREFIX + "polling.interval.seconds";
   int DEFAULT_DYNAMIC_SCALING_POLLING_INTERVAL_SECS = 60;

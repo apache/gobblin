@@ -110,7 +110,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         log.info("Recommended scaling to process WUs within {}: {}", timeBudget, scalingDirectives);
         try {
           ScalingDirectivesRecipient recipient = createScalingDirectivesRecipient(jobProps, closer);
-          List<ScalingDirective> adjustedScalingDirectives = adjustRecommendedScaling(scalingDirectives);
+          List<ScalingDirective> adjustedScalingDirectives = adjustRecommendedScaling(jobProps, scalingDirectives);
           log.info("Submitting (adjusted) scaling directives: {}", adjustedScalingDirectives);
           recipient.receive(adjustedScalingDirectives);
           // TODO: when eliminating the "GenWUs Worker", pause/block until scaling is complete
@@ -166,17 +166,19 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   protected TimeBudget calcWUProcTimeBudget(Instant jobStartTime, WorkUnitsSizeSummary wuSizeSummary, Properties jobProps) {
     // TODO: make fully configurable!  for now, cap Work Discovery at 45 mins and set aside 10 mins for the `CommitStepWorkflow`
     long maxGenWUsMins = 45;
-    long commitStepMins = 10;
+    long commitStepMins = 15;
     long totalTargetTimeMins = TimeUnit.MINUTES.toMinutes(PropertiesUtils.getPropAsLong(jobProps,
         ConfigurationKeys.JOB_TARGET_COMPLETION_DURATION_IN_MINUTES_KEY,
         ConfigurationKeys.DEFAULT_JOB_TARGET_COMPLETION_DURATION_IN_MINUTES));
     double permittedOveragePercentage = .2;
     Duration genWUsDuration = Duration.between(jobStartTime, TemporalEventTimer.WithinWorkflowFactory.getCurrentInstant());
-    long remainingMins = totalTargetTimeMins - Math.min(genWUsDuration.toMinutes(), maxGenWUsMins) - commitStepMins;
+
+    // since actual generate WU duration can vary significantly across jobs, removing that from computation to enable deterministic duration for WU processing
+    long remainingMins = totalTargetTimeMins - maxGenWUsMins - commitStepMins;
     return TimeBudget.withOveragePercentage(remainingMins, permittedOveragePercentage);
   }
 
-  protected List<ScalingDirective> adjustRecommendedScaling(List<ScalingDirective> recommendedScalingDirectives) {
+  protected List<ScalingDirective> adjustRecommendedScaling(Properties jobProps, List<ScalingDirective> recommendedScalingDirectives) {
     // TODO: make any adjustments - e.g. decide whether to shutdown the (often oversize) `GenerateWorkUnits` worker or alternatively to deduct one to count it
     if (recommendedScalingDirectives.size() == 0) {
       return recommendedScalingDirectives;
@@ -185,7 +187,8 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     ArrayList<ScalingDirective> adjustedScaling = new ArrayList<>(recommendedScalingDirectives);
     ScalingDirective firstDirective = adjustedScaling.get(0);
     // deduct one for (already existing) `GenerateWorkUnits` worker (we presume its "baseline" `WorkerProfile` similar enough to substitute for this new one)
-    adjustedScaling.set(0, firstDirective.updateSetPoint(firstDirective.getSetPoint() - 1));
+    int initialContainerCount = Integer.valueOf(jobProps.getProperty(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY, "1"));
+    adjustedScaling.set(0, firstDirective.updateSetPoint(firstDirective.getSetPoint() - initialContainerCount));
     // CAUTION: filter out set point zero, which (depending upon `.getProfileName()`) *could* down-scale away our only current worker
     // TODO: consider whether to allow either a) "pre-defining" a profile w/ set point zero, available for later use OR b) down-scaling to zero to pause worker
     return adjustedScaling.stream().filter(sd -> sd.getSetPoint() > 0).collect(Collectors.toList());
