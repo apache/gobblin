@@ -386,6 +386,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
   private static List<? extends Tag<?>> addAdditionalMetadataTags(Properties jobProps) {
     List<Tag<?>> metadataTags = Lists.newArrayList();
     String jobExecutionId = jobProps.getProperty(ConfigurationKeys.GAAS_JOB_EXEC_ID, "");
+    //As a fallback setting the value of jobExecutionId to Azkaban Flow exec Id if GAAS_JOB_EXEC_ID is not set
     if (Strings.isNullOrEmpty(jobExecutionId)) {
       jobExecutionId = jobProps.getProperty(AZKABAN_FLOW_EXEC_ID,"");
     }

@@ -38,7 +38,6 @@ public class AzkabanTags {
       .put(ConfigurationKeys.AZKABAN_FLOW_ID, "azkabanFlowId")
       .put(ConfigurationKeys.AZKABAN_JOB_ID, "azkabanJobId")
       .put(ConfigurationKeys.AZKABAN_EXEC_ID, "azkabanExecId")
-      .put(ConfigurationKeys.GAAS_JOB_EXEC_ID,"gaasJobExecId")
       .put(ConfigurationKeys.AZKABAN_URL, "azkabanURL")
       .put(ConfigurationKeys.AZKABAN_FLOW_URL, "azkabanFlowURL")
       .put(ConfigurationKeys.AZKABAN_JOB_URL, "azkabanJobURL")
