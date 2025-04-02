@@ -385,7 +385,10 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
    */
   private static List<? extends Tag<?>> addAdditionalMetadataTags(Properties jobProps) {
     List<Tag<?>> metadataTags = Lists.newArrayList();
-    String jobExecutionId = jobProps.getProperty(AZKABAN_FLOW_EXEC_ID, "");
+    String jobExecutionId = jobProps.getProperty(ConfigurationKeys.GAAS_JOB_EXEC_ID, "");
+    if (Strings.isNullOrEmpty(jobExecutionId)) {
+      jobExecutionId = jobProps.getProperty(AZKABAN_FLOW_EXEC_ID,"");
+    }
     // Display the proxy URL in the metadata tag if it exists
     String jobExecutionUrl = jobProps.getProperty(AZKABAN_LINK_JOBEXEC_PROXY_URL, jobProps.getProperty(AZKABAN_LINK_JOBEXEC_URL, ""));
 

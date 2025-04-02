@@ -59,7 +59,6 @@ import org.apache.gobblin.util.SerializationUtils;
 public class Help {
   public static final int MAX_DESERIALIZATION_FS_LOAD_ATTEMPTS = 5;
   public static final int LOG_CACHE_STATS_EVERY_N_ACCESSES = 1000;
-  public static final String AZKABAN_FLOW_EXEC_ID_KEY = "azkaban.flow.execid";
   public static final String USER_TO_PROXY_KEY = "user.to.proxy";
   public static final String USER_TO_PROXY_SEARCH_KEY = "userToProxy";
   public static final String GAAS_FLOW_ID_SEARCH_KEY = "gaasFlowIdSearchKey";
@@ -104,9 +103,9 @@ public class Help {
   public static String calcPerExecQualifier(Config workerConfig) {
     String userToProxy = workerConfig.hasPath(USER_TO_PROXY_KEY)
         ? workerConfig.getString(USER_TO_PROXY_KEY) : "";
-    String azFlowExecId = workerConfig.hasPath(AZKABAN_FLOW_EXEC_ID_KEY)
-        ? workerConfig.getString(AZKABAN_FLOW_EXEC_ID_KEY) : UUID.randomUUID().toString();
-    return userToProxy + "_" + azFlowExecId;
+    String gaasFlowExecId = workerConfig.hasPath(ConfigurationKeys.GAAS_JOB_EXEC_ID)
+        ? workerConfig.getString(ConfigurationKeys.GAAS_JOB_EXEC_ID) : UUID.randomUUID().toString();
+    return userToProxy + "_" + gaasFlowExecId;
   }
 
   public static FileSystem loadFileSystem(FileSystemApt a) throws IOException {
