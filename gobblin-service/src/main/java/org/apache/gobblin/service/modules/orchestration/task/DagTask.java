@@ -65,10 +65,15 @@ public abstract class DagTask {
       boolean completedLease = this.leaseObtainedStatus.completeLease();
       this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), completedLease);
       return completedLease;
-    } catch (IOException e) {
-      this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), false);
+    } catch (Exception e) {
+      try {
+        this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), false);
+      } catch(Exception ex){
+        log.error("Exception encountered in emitting metrics for dag node ID: {}, dag action type: {}. Stacktrace: ", dagAction.getDagNodeId(), dagAction.getDagActionType(), ex);
+      }
       // TODO: Decide appropriate exception to throw and add to the commit method's signature
-      throw new RuntimeException(e);
+      log.error("Exception encountered in processing this DagTask, for dag node ID: {}, dag action type: {}. Stacktrace: ", dagAction.getDagNodeId(), dagAction.getDagActionType(), e);
+      return false;
     }
   }
 }
