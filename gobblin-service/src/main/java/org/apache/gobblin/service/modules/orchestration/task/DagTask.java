@@ -68,7 +68,7 @@ public abstract class DagTask {
     } catch (Exception e) {
       this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), false);
       // TODO: Decide appropriate exception to throw and add to the commit method's signature
-      log.error("Exception encountered in processing this DagTask.", e);
+      log.error("Exception encountered in processing this DagTask, for dag node ID: {}, dag action type: {}. Stacktrace: ", dagAction.getDagNodeId(), dagAction.getDagActionType(), e);
       return false;
     }
   }
