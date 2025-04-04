@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.service.modules.orchestration.task;
 
-import java.io.IOException;
-
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
