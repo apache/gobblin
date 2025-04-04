@@ -65,10 +65,11 @@ public abstract class DagTask {
       boolean completedLease = this.leaseObtainedStatus.completeLease();
       this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), completedLease);
       return completedLease;
-    } catch (IOException e) {
+    } catch (Exception e) {
       this.dagProcEngineMetrics.markDagActionsConclude(this.dagAction.getDagActionType(), false);
       // TODO: Decide appropriate exception to throw and add to the commit method's signature
-      throw new RuntimeException(e);
+      log.error("Exception encountered in processing this DagTask.", e);
+      return false;
     }
   }
 }
