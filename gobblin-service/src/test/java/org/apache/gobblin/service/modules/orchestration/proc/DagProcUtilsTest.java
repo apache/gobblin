@@ -45,6 +45,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerMetrics;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.mockito.Mockito;
+import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -76,6 +77,23 @@ public class DagProcUtilsTest {
               DagActionStore.DagActionType.REEVALUATE);
     }
     Mockito.verifyNoMoreInteractions(dagManagementStateStore);
+  }
+  @Test
+  public void testGaaSJobExecutionIdInjection() throws URISyntaxException, IOException {
+    Dag.DagId dagId = new Dag.DagId("testFlowGroup", "testFlowName", 2345678);
+    List<JobExecutionPlan> jobExecutionPlans = getJobExecutionPlans();
+    List<Dag.DagNode<JobExecutionPlan>> dagNodeList = jobExecutionPlans.stream()
+        .map(Dag.DagNode<JobExecutionPlan>::new)
+        .collect(Collectors.toList());
+    Dag<JobExecutionPlan> dag = new Dag<>(dagNodeList);
+    Mockito.doNothing().when(dagManagementStateStore).addJobDagAction(Mockito.anyString(), Mockito.anyString(), Mockito.anyLong(), Mockito.anyString(), Mockito.any());
+    DagProcUtils.submitNextNodes(dagManagementStateStore, dag, dagId);
+    // Assertion to test that GaaS job execution Id has been successfully injected
+    for(JobExecutionPlan jobExecutionPlan : jobExecutionPlans) {
+      final String gaasJobExecutionId = jobExecutionPlan.getJobSpec().getConfig().getString(ConfigurationKeys.GAAS_JOB_EXEC_ID);
+      Assert.assertNotNull(gaasJobExecutionId);
+      Assert.assertEquals(gaasJobExecutionId.length(), 36);
+    }
   }
 
   @Test

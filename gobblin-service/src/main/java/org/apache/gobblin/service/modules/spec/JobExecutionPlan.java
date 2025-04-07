@@ -19,6 +19,7 @@ package org.apache.gobblin.service.modules.spec;
 
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.util.UUID;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
 
@@ -116,6 +117,8 @@ public class JobExecutionPlan {
 
       String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
       String edgeId = ConfigUtils.getString(jobConfig, FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "");
+      final String gaasJobExecutionId = UUID.randomUUID().toString(); // Creating a unique Identifier for JobExecution
+
       if (!ConfigUtils.getBoolean(jobConfig, JOB_MAINTAIN_JOBNAME, false) || jobName.isEmpty()) {
         // Modify the job name to include the flow group, flow name, edge id, and a random string to avoid collisions since
         // job names are assumed to be unique within a dag.
@@ -152,6 +155,7 @@ public class JobExecutionPlan {
           .withValue(ConfigurationKeys.FLOW_FAILURE_OPTION, ConfigValueFactory.fromAnyRef(flowFailureOption))
           .withValue(ConfigurationKeys.FLOW_EDGE_ID_KEY, ConfigValueFactory.fromAnyRef(edgeId))
           .withValue(FlowSpec.MODIFICATION_TIME_KEY, ConfigValueFactory.fromAnyRef(flowModTime))
+          .withValue(ConfigurationKeys.GAAS_JOB_EXEC_ID,ConfigValueFactory.fromAnyRef(gaasJobExecutionId)) // Setting a unique Identifier for jobExecution
       );
 
       //Add tracking config to JobSpec.
