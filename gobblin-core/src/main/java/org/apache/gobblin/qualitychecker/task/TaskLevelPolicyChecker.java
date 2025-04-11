@@ -44,6 +44,7 @@ public class TaskLevelPolicyChecker {
   private static final Logger LOG = LoggerFactory.getLogger(TaskLevelPolicyChecker.class);
   
   public static final String TASK_LEVEL_POLICY_RESULT_KEY = "gobblin.task.level.policy.result";
+  public static final String DATASET_QUALITY_STATUS_KEY = "gobblin.dataset.quality.status";
 
   public TaskLevelPolicyChecker(List<TaskLevelPolicy> list) {
     this.list = list;

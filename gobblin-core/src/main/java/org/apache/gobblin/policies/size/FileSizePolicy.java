@@ -29,7 +29,7 @@ import org.apache.gobblin.qualitychecker.task.TaskLevelPolicy;
  */
 public class FileSizePolicy extends TaskLevelPolicy {
   private static final Logger LOG = LoggerFactory.getLogger(FileSizePolicy.class);
-  
+
   public static final String BYTES_READ_KEY = "gobblin.copy.bytesRead";
   public static final String BYTES_WRITTEN_KEY = "gobblin.copy.bytesWritten";
   public static final String FILE_SIZE_TOLERANCE_KEY = "gobblin.copy.fileSizeTolerance";
@@ -72,10 +72,4 @@ public class FileSizePolicy extends TaskLevelPolicy {
         this.bytesRead, this.bytesWritten, this.sizeTolerance);
   }
 
-  @Override
-  public State getFinalState() {
-    State state = new State();
-    state.setProp(FILE_SIZE_POLICY_RESULT_KEY, executePolicy().name());
-    return state;
-  }
-} 
+}

@@ -31,6 +31,7 @@ import lombok.Getter;
 import lombok.Setter;
 
 import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.apache.gobblin.runtime.job.JobProgress;
 
 import org.apache.commons.lang3.StringUtils;
@@ -788,12 +789,37 @@ public class JobState extends SourceState implements JobProgress {
       return Integer.parseInt(super.getProp(ConfigurationKeys.JOB_FAILURES_KEY));
     }
 
+    /**
+     * Computes and stores the overall data quality status based on task-level policy results.
+     * The status will be "PASSED" if all tasks passed their quality checks, "FAILED" otherwise.
+     */
+    public void computeAndStoreQualityStatus() {
+      boolean allTasksPassed = true;
+      for (TaskState taskState : getTaskStates()) {
+        String qualityResult = taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY);
+        if (qualityResult == null || !qualityResult.equals("PASSED")) {
+          allTasksPassed = false;
+          break;
+        }
+      }
+      super.setProp(TaskLevelPolicyChecker.DATASET_QUALITY_STATUS_KEY, allTasksPassed ? "PASSED" : "FAILED");
+    }
+
+    /**
+     * Gets the overall data quality status of the dataset.
+     * @return "PASSED" if all tasks passed their quality checks, "FAILED" otherwise
+     */
+    public String getQualityStatus() {
+      return super.getProp(TaskLevelPolicyChecker.DATASET_QUALITY_STATUS_KEY, "FAILED");
+    }
+
     @Override
     protected void propsToJson(JsonWriter jsonWriter)
         throws IOException {
       jsonWriter.beginObject();
       jsonWriter.name(ConfigurationKeys.DATASET_URN_KEY).value(getDatasetUrn());
       jsonWriter.name(ConfigurationKeys.JOB_FAILURES_KEY).value(getJobFailures());
+      jsonWriter.name(TaskLevelPolicyChecker.DATASET_QUALITY_STATUS_KEY).value(getQualityStatus());
       jsonWriter.endObject();
     }
 

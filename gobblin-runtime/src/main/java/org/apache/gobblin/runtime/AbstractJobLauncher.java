@@ -752,12 +752,12 @@ public abstract class AbstractJobLauncher implements JobLauncher {
         }
         LOG.info(String.format("DatasetMetrics for '%s' - (records: %d; bytes: %d)", datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten));
         datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), totalRecordsWritten, totalBytesWritten,
-            datasetState.getState() == JobState.RunningState.COMMITTED));
+            datasetState.getState() == JobState.RunningState.COMMITTED, datasetState.getQualityStatus().equals("PASSED")));
       } else if (datasetState.getState() == JobState.RunningState.FAILED) {
         // Check if config is turned on for submitting writer metrics on failure due to non-atomic write semantics
         if (this.jobContext.getJobCommitPolicy() == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
           LOG.info("Due to task failure, will report that no records or bytes were written for " + datasetState.getDatasetUrn());
-          datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), 0, 0, false));
+          datasetTaskSummaries.add(new DatasetTaskSummary(datasetState.getDatasetUrn(), 0, 0, false, datasetState.getQualityStatus().equals("PASSED")));
         }
       }
     }

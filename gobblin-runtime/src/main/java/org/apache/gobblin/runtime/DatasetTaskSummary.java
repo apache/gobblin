@@ -41,6 +41,7 @@ public class DatasetTaskSummary {
   @NonNull private long recordsWritten;
   @NonNull private long bytesWritten;
   @NonNull private boolean successfullyCommitted;
+  @NonNull private boolean dataQualityCheckPassed;
 
   /**
    * Convert a {@link DatasetTaskSummary} to a {@link DatasetMetric}.

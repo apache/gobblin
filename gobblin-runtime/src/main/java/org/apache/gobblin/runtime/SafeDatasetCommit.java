@@ -50,6 +50,7 @@ import org.apache.gobblin.publisher.CommitSequencePublisher;
 import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.publisher.DataPublisherFactory;
 import org.apache.gobblin.publisher.UnpublishedHandling;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
@@ -90,6 +91,7 @@ public final class SafeDatasetCommit implements Callable<Void> {
     metricContext = Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class);
 
     finalizeDatasetStateBeforeCommit(this.datasetState);
+    this.datasetState.computeAndStoreQualityStatus();
     Class<? extends DataPublisher> dataPublisherClass;
     try (Closer closer = Closer.create()) {
       dataPublisherClass = JobContext.getJobDataPublisherClass(this.jobContext.getJobState())
@@ -327,6 +329,20 @@ public final class SafeDatasetCommit implements Callable<Void> {
 
     datasetState.setState(JobState.RunningState.SUCCESSFUL);
     datasetState.setNoJobFailure();
+  }
+
+  /**
+   * Finalize a given {@link JobState.DatasetState} before committing the dataset.
+   *
+   * This method is thread-safe.
+   */
+  private String finalizeDatasetDataQualityBeforeCommit(JobState.DatasetState datasetState) {
+    for (TaskState taskState : datasetState.getTaskStates()) {
+      if (taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY).equals("FAILED")) {
+        return "FAILED";
+      }
+    }
+    return "PASSED";
   }
 
   /**
