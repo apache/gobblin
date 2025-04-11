@@ -18,6 +18,7 @@
 package org.apache.gobblin.qualitychecker.task;
 
 import java.util.List;
+import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,6 +42,8 @@ public class TaskLevelPolicyChecker {
   }
   private final List<TaskLevelPolicy> list;
   private static final Logger LOG = LoggerFactory.getLogger(TaskLevelPolicyChecker.class);
+  
+  public static final String TASK_LEVEL_POLICY_RESULT_KEY = "gobblin.task.level.policy.result";
 
   public TaskLevelPolicyChecker(List<TaskLevelPolicy> list) {
     this.list = list;
@@ -54,5 +57,26 @@ public class TaskLevelPolicyChecker {
       LOG.info("TaskLevelPolicy " + p + " of type " + p.getType() + " executed with result " + result);
     }
     return results;
+  }
+
+  public State getFinalState() {
+    if (this.list.isEmpty()) {
+      return new State();
+    }
+    
+    // Use the task state from the first policy
+    State state = this.list.get(0).getTaskState();
+    TaskLevelPolicyCheckResults results = executePolicies();
+    boolean allPoliciesPassed = true;
+    
+    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : results.getPolicyResults().entrySet()) {
+      if (entry.getKey().equals(TaskLevelPolicy.Result.FAILED) && entry.getValue().equals(TaskLevelPolicy.Type.FAIL)) {
+        allPoliciesPassed = false;
+        break;
+      }
+    }
+    
+    state.setProp(TASK_LEVEL_POLICY_RESULT_KEY, allPoliciesPassed ? "PASSED" : "FAILED");
+    return state;
   }
 }

@@ -40,6 +40,7 @@ import com.codahale.metrics.Meter;
 import com.google.common.base.Optional;
 import com.google.common.base.Predicate;
 import com.google.common.base.Strings;
+import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -74,6 +75,7 @@ import org.apache.gobblin.util.io.StreamCopier;
 import org.apache.gobblin.util.io.StreamThrottler;
 import org.apache.gobblin.util.io.ThrottledInputStream;
 import org.apache.gobblin.writer.DataWriter;
+import org.apache.gobblin.data.management.copy.FileSizePolicy;
 
 
 /**
@@ -93,6 +95,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public static final boolean DEFAULT_COPY_SHOULD_FAIL_WHEN_PERMISSIONS_FAIL = true;
 
   protected final AtomicLong bytesWritten = new AtomicLong();
+  protected final AtomicLong bytesRead = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
   protected final WorkUnitState state;
   protected final FileSystem fs;
@@ -457,7 +460,10 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   @Override
   public void commit()
       throws IOException {
-
+    // Update task state with bytes read/written
+    this.state.setProp(FileSizePolicy.BYTES_READ_KEY, this.bytesRead.get());
+    this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, this.bytesWritten.get());
+    
     if (!this.actualProcessedCopyableFile.isPresent()) {
       return;
     }
@@ -518,5 +524,20 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   @Override
   public boolean isSpeculativeAttemptSafe() {
     return this.writerAttemptIdOptional.isPresent() && this.getClass() == FileAwareInputStreamDataWriter.class;
+  }
+
+  @Override
+  public void write(FileAwareInputStream record) throws IOException {
+    Preconditions.checkNotNull(record);
+    Preconditions.checkNotNull(record.getFile());
+    Preconditions.checkNotNull(record.getInputStream());
+
+    try {
+      writeImpl(record);
+      this.bytesRead.addAndGet(record.getFile().getFileStatus().getLen());
+      this.bytesWritten.addAndGet(record.getFile().getFileStatus().getLen());
+    } catch (IOException e) {
+      throw new IOException(String.format("Failed to write file %s", record.getFile().getPath()), e);
+    }
   }
 }
