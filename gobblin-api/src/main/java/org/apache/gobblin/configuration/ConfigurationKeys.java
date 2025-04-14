@@ -1049,6 +1049,10 @@ public class ConfigurationKeys {
   public static final String AZKABAN_EXEC_ID = "azkaban.flow.execid";
   // Configuration Key for setting a unique job execution identifier in GaaS, the value is a UUID
   public static final String GAAS_JOB_EXEC_ID = "gaas.job.execid";
+
+  // Configuration Key for to store has of gaas.job.execid, to be used for jobExecutionId for backwards compatibility
+  public static final String GAAS_JOB_EXEC_ID_HASH = "gaas.job.execid.hash";
+
   public static final String AZKABAN_URL = "azkaban.link.execution.url";
   public static final String AZKABAN_FLOW_URL = "azkaban.link.workflow.url";
   public static final String AZKABAN_JOB_URL = "azkaban.link.job.url";

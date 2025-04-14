@@ -117,7 +117,9 @@ public class JobExecutionPlan {
 
       String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
       String edgeId = ConfigUtils.getString(jobConfig, FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "");
-      final String gaasJobExecutionId = UUID.randomUUID().toString(); // Creating a unique Identifier for JobExecution
+      final UUID gaasJobExecutionUUID = UUID.randomUUID();
+      final String gaasJobExecutionId = gaasJobExecutionUUID.toString(); // Creating a unique Identifier for JobExecution
+      final int gaasJobExecutionIdHash = gaasJobExecutionId.hashCode();  // Passing the hashCode of the uniqueIdentifier to be used as jobExecutionId for backward compatibility
 
       if (!ConfigUtils.getBoolean(jobConfig, JOB_MAINTAIN_JOBNAME, false) || jobName.isEmpty()) {
         // Modify the job name to include the flow group, flow name, edge id, and a random string to avoid collisions since
@@ -155,7 +157,8 @@ public class JobExecutionPlan {
           .withValue(ConfigurationKeys.FLOW_FAILURE_OPTION, ConfigValueFactory.fromAnyRef(flowFailureOption))
           .withValue(ConfigurationKeys.FLOW_EDGE_ID_KEY, ConfigValueFactory.fromAnyRef(edgeId))
           .withValue(FlowSpec.MODIFICATION_TIME_KEY, ConfigValueFactory.fromAnyRef(flowModTime))
-          .withValue(ConfigurationKeys.GAAS_JOB_EXEC_ID,ConfigValueFactory.fromAnyRef(gaasJobExecutionId)) // Setting a unique Identifier for jobExecution
+          .withValue(ConfigurationKeys.GAAS_JOB_EXEC_ID, ConfigValueFactory.fromAnyRef(gaasJobExecutionId)) // Setting a unique Identifier for jobExecution
+          .withValue(ConfigurationKeys.GAAS_JOB_EXEC_ID_HASH, ConfigValueFactory.fromAnyRef(gaasJobExecutionIdHash))
       );
 
       //Add tracking config to JobSpec.

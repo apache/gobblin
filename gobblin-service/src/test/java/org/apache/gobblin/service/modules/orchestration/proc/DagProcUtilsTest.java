@@ -91,8 +91,11 @@ public class DagProcUtilsTest {
     // Assertion to test that GaaS job execution Id has been successfully injected
     for(JobExecutionPlan jobExecutionPlan : jobExecutionPlans) {
       final String gaasJobExecutionId = jobExecutionPlan.getJobSpec().getConfig().getString(ConfigurationKeys.GAAS_JOB_EXEC_ID);
+      final Long gaasJobExecutionIdHash = Long.parseLong(jobExecutionPlan.getJobSpec().getConfig().getString(ConfigurationKeys.GAAS_JOB_EXEC_ID_HASH));
+
       Assert.assertNotNull(gaasJobExecutionId);
       Assert.assertEquals(gaasJobExecutionId.length(), 36);
+      Assert.assertNotNull(gaasJobExecutionIdHash);
     }
   }
 
