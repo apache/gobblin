@@ -33,6 +33,7 @@ import com.uber.m3.tally.StatsReporter;
 
 import io.micrometer.core.instrument.Clock;
 import io.micrometer.core.instrument.MeterRegistry;
+import io.micrometer.registry.otlp.AggregationTemporality;
 import io.micrometer.registry.otlp.OtlpConfig;
 import io.micrometer.registry.otlp.OtlpMeterRegistry;
 import io.temporal.common.reporter.MicrometerClientStatsReporter;
@@ -89,6 +90,12 @@ public class TemporalMetricsHelper {
       @Override
       public String prefix() {
         return GobblinTemporalConfigurationKeys.TEMPORAL_METRICS_OTLP_PREFIX_WITHOUT_DOT;
+      }
+
+      @NotNull
+      @Override
+      public AggregationTemporality aggregationTemporality() {
+        return AggregationTemporality.DELTA;
       }
 
       @NotNull
