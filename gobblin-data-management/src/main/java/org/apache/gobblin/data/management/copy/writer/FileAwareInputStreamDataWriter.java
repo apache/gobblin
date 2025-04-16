@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.gobblin.policies.size.FileSizePolicy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileContext;
@@ -75,7 +76,6 @@ import org.apache.gobblin.util.io.StreamCopier;
 import org.apache.gobblin.util.io.StreamThrottler;
 import org.apache.gobblin.util.io.ThrottledInputStream;
 import org.apache.gobblin.writer.DataWriter;
-import org.apache.gobblin.data.management.copy.FileSizePolicy;
 
 
 /**
@@ -86,6 +86,10 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   public static final String GOBBLIN_COPY_BYTES_COPIED_METER = "gobblin.copy.bytesCopiedMeter";
   public static final String GOBBLIN_COPY_CHECK_FILESIZE = "gobblin.copy.checkFileSize";
+  public static final String GOBBLIN_COPY_REPORT_INCORRECT_SIZE = "gobblin.copy.reportIncorrectSize";
+  public static final String GOBBLIN_COPY_INCORRECT_SIZE_RATIO = "gobblin.copy.incorrectSizeRatio";
+  public static final boolean DEFAULT_GOBBLIN_COPY_REPORT_INCORRECT_SIZE = false;
+  public static final double DEFAULT_GOBBLIN_COPY_INCORRECT_SIZE_RATIO = 0.9;
   // setting GOBBLIN_COPY_CHECK_FILESIZE to true may result in failures because the calculation of
   // expected bytes to be copied and actual bytes copied may have bugs
   public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
@@ -107,6 +111,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected final SharedResourcesBroker<GobblinScopeTypes> taskBroker;
   protected final int bufferSize;
   private final boolean checkFileSize;
+  private final boolean reportIncorrectSize;
+  private final double incorrectSizeRatio;
   private final Options.Rename renameOptions;
   private final URI uri;
   private final Configuration conf;
@@ -180,6 +186,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         .getConfigForBranch(EncryptionConfigParser.EntityType.WRITER, this.state, numBranches, branchId);
 
     this.checkFileSize = state.getPropAsBoolean(GOBBLIN_COPY_CHECK_FILESIZE, DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE);
+    this.reportIncorrectSize = state.getPropAsBoolean(GOBBLIN_COPY_REPORT_INCORRECT_SIZE, DEFAULT_GOBBLIN_COPY_REPORT_INCORRECT_SIZE);
+    this.incorrectSizeRatio = state.getPropAsDouble(GOBBLIN_COPY_INCORRECT_SIZE_RATIO, DEFAULT_GOBBLIN_COPY_INCORRECT_SIZE_RATIO);
     boolean taskOverwriteOnCommit = state.getPropAsBoolean(GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT, DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT);
     if (taskOverwriteOnCommit) {
       this.renameOptions = Options.Rename.OVERWRITE;
@@ -446,7 +454,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   @Override
   public long bytesWritten()
       throws IOException {
-    return this.bytesWritten.get();
+    long actualBytes = this.bytesWritten.get();
+    if (this.reportIncorrectSize) {
+      return (long)(actualBytes * this.incorrectSizeRatio);
+    }
+    return actualBytes;
   }
 
   /**
@@ -463,7 +475,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     // Update task state with bytes read/written
     this.state.setProp(FileSizePolicy.BYTES_READ_KEY, this.bytesRead.get());
     this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, this.bytesWritten.get());
-    
+
     if (!this.actualProcessedCopyableFile.isPresent()) {
       return;
     }
@@ -526,18 +538,4 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     return this.writerAttemptIdOptional.isPresent() && this.getClass() == FileAwareInputStreamDataWriter.class;
   }
 
-  @Override
-  public void write(FileAwareInputStream record) throws IOException {
-    Preconditions.checkNotNull(record);
-    Preconditions.checkNotNull(record.getFile());
-    Preconditions.checkNotNull(record.getInputStream());
-
-    try {
-      writeImpl(record);
-      this.bytesRead.addAndGet(record.getFile().getFileStatus().getLen());
-      this.bytesWritten.addAndGet(record.getFile().getFileStatus().getLen());
-    } catch (IOException e) {
-      throw new IOException(String.format("Failed to write file %s", record.getFile().getPath()), e);
-    }
-  }
 }
