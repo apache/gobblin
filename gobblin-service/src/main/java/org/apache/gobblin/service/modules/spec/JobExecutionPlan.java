@@ -117,8 +117,7 @@ public class JobExecutionPlan {
 
       String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
       String edgeId = ConfigUtils.getString(jobConfig, FlowGraphConfigurationKeys.FLOW_EDGE_ID_KEY, "");
-      final UUID gaasJobExecutionUUID = UUID.randomUUID();
-      final String gaasJobExecutionId = gaasJobExecutionUUID.toString(); // Creating a unique Identifier for JobExecution
+      final String gaasJobExecutionId = UUID.randomUUID().toString(); // Creating a unique Identifier for JobExecution
       final int gaasJobExecutionIdHash = gaasJobExecutionId.hashCode();  // Passing the hashCode of the uniqueIdentifier to be used as jobExecutionId for backward compatibility
 
       if (!ConfigUtils.getBoolean(jobConfig, JOB_MAINTAIN_JOBNAME, false) || jobName.isEmpty()) {

@@ -411,7 +411,7 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
     metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
         jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobExecutionId)));
 
-    //Use azkaban.flow.execid as the jobExecutionId
+    //Use gaas.job.execid.hash as the jobExecutionId
     metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, jobExecutionId));
 
     metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD,
