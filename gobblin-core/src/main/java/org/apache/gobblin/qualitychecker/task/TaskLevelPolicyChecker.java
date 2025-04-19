@@ -19,9 +19,13 @@ package org.apache.gobblin.qualitychecker.task;
 
 import java.util.List;
 import java.util.Map;
+import java.io.File;
 
+import org.apache.gobblin.configuration.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**
@@ -42,9 +46,8 @@ public class TaskLevelPolicyChecker {
   }
   private final List<TaskLevelPolicy> list;
   private static final Logger LOG = LoggerFactory.getLogger(TaskLevelPolicyChecker.class);
-  
+
   public static final String TASK_LEVEL_POLICY_RESULT_KEY = "gobblin.task.level.policy.result";
-  public static final String DATASET_QUALITY_STATUS_KEY = "gobblin.dataset.quality.status";
 
   public TaskLevelPolicyChecker(List<TaskLevelPolicy> list) {
     this.list = list;
@@ -52,32 +55,17 @@ public class TaskLevelPolicyChecker {
 
   public TaskLevelPolicyCheckResults executePolicies() {
     TaskLevelPolicyCheckResults results = new TaskLevelPolicyCheckResults();
+    boolean allRequiredPoliciesPassed = true;
+    State state = this.list.get(0).getTaskState();
     for (TaskLevelPolicy p : this.list) {
       TaskLevelPolicy.Result result = p.executePolicy();
       results.getPolicyResults().put(result, p.getType());
+      if(TaskLevelPolicy.Type.FAIL.equals(p.getType()) && TaskLevelPolicy.Result.PASSED.name().equals(result.name())){
+        allRequiredPoliciesPassed = false;
+      }
       LOG.info("TaskLevelPolicy " + p + " of type " + p.getType() + " executed with result " + result);
     }
+    state.setProp(TASK_LEVEL_POLICY_RESULT_KEY, allRequiredPoliciesPassed ? "PASSED" : "FAILED");
     return results;
-  }
-
-  public State getFinalState() {
-    if (this.list.isEmpty()) {
-      return new State();
-    }
-    
-    // Use the task state from the first policy
-    State state = this.list.get(0).getTaskState();
-    TaskLevelPolicyCheckResults results = executePolicies();
-    boolean allPoliciesPassed = true;
-    
-    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : results.getPolicyResults().entrySet()) {
-      if (entry.getKey().equals(TaskLevelPolicy.Result.FAILED) && entry.getValue().equals(TaskLevelPolicy.Type.FAIL)) {
-        allPoliciesPassed = false;
-        break;
-      }
-    }
-    
-    state.setProp(TASK_LEVEL_POLICY_RESULT_KEY, allPoliciesPassed ? "PASSED" : "FAILED");
-    return state;
   }
 }

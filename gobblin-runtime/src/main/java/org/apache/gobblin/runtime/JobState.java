@@ -802,7 +802,7 @@ public class JobState extends SourceState implements JobProgress {
           break;
         }
       }
-      super.setProp(TaskLevelPolicyChecker.DATASET_QUALITY_STATUS_KEY, allTasksPassed ? "PASSED" : "FAILED");
+      super.setProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, allTasksPassed ? "PASSED" : "FAILED");
     }
 
     /**
@@ -810,7 +810,7 @@ public class JobState extends SourceState implements JobProgress {
      * @return "PASSED" if all tasks passed their quality checks, "FAILED" otherwise
      */
     public String getQualityStatus() {
-      return super.getProp(TaskLevelPolicyChecker.DATASET_QUALITY_STATUS_KEY, "FAILED");
+      return super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, "FAILED");
     }
 
     @Override
@@ -819,7 +819,7 @@ public class JobState extends SourceState implements JobProgress {
       jsonWriter.beginObject();
       jsonWriter.name(ConfigurationKeys.DATASET_URN_KEY).value(getDatasetUrn());
       jsonWriter.name(ConfigurationKeys.JOB_FAILURES_KEY).value(getJobFailures());
-      jsonWriter.name(TaskLevelPolicyChecker.DATASET_QUALITY_STATUS_KEY).value(getQualityStatus());
+      jsonWriter.name(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY).value(getQualityStatus());
       jsonWriter.endObject();
     }
 
