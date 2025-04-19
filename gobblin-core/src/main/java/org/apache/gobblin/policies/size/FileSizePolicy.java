@@ -20,7 +20,6 @@ package org.apache.gobblin.policies.size;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicy;
 

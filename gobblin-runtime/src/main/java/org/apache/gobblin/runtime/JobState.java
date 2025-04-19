@@ -809,7 +809,7 @@ public class JobState extends SourceState implements JobProgress {
      * Gets the overall data quality status of the dataset.
      * @return "PASSED" if all tasks passed their quality checks, "FAILED" otherwise
      */
-    public String getQualityStatus() {
+    public String getDataQualityStatus() {
       return super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, "FAILED");
     }
 
@@ -819,7 +819,7 @@ public class JobState extends SourceState implements JobProgress {
       jsonWriter.beginObject();
       jsonWriter.name(ConfigurationKeys.DATASET_URN_KEY).value(getDatasetUrn());
       jsonWriter.name(ConfigurationKeys.JOB_FAILURES_KEY).value(getJobFailures());
-      jsonWriter.name(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY).value(getQualityStatus());
+      jsonWriter.name(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY).value(getDataQualityStatus());
       jsonWriter.endObject();
     }
 

@@ -18,14 +18,10 @@
 package org.apache.gobblin.qualitychecker.task;
 
 import java.util.List;
-import java.util.Map;
-import java.io.File;
 
 import org.apache.gobblin.configuration.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
 
 
 /**
