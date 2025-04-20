@@ -56,7 +56,7 @@ public class TaskLevelPolicyChecker {
     for (TaskLevelPolicy p : this.list) {
       TaskLevelPolicy.Result result = p.executePolicy();
       results.getPolicyResults().put(result, p.getType());
-      if(TaskLevelPolicy.Type.FAIL.equals(p.getType()) && TaskLevelPolicy.Result.PASSED.name().equals(result.name())){
+      if(TaskLevelPolicy.Type.FAIL.equals(p.getType()) && TaskLevelPolicy.Result.FAILED.name().equals(result.name())){
         allRequiredPoliciesPassed = false;
       }
       LOG.info("TaskLevelPolicy " + p + " of type " + p.getType() + " executed with result " + result);

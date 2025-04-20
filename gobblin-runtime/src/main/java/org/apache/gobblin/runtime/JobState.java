@@ -30,6 +30,7 @@ import java.util.Properties;
 import lombok.Getter;
 import lombok.Setter;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.apache.gobblin.runtime.job.JobProgress;
@@ -757,6 +758,7 @@ public class JobState extends SourceState implements JobProgress {
    *   and {@link #setProp(String, Object)} are not supported.
    * </p>
    */
+  @Slf4j
   public static class DatasetState extends JobState {
 
     // For serialization/deserialization
@@ -797,12 +799,15 @@ public class JobState extends SourceState implements JobProgress {
       boolean allTasksPassed = true;
       for (TaskState taskState : getTaskStates()) {
         String qualityResult = taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY);
-        if (qualityResult == null || !qualityResult.equals("PASSED")) {
+        log.info("Data quality status of this task is: " + qualityResult);
+        if (qualityResult != null && !qualityResult.equals("PASSED")) {
+          log.info("Data quality not passed: " + qualityResult);
           allTasksPassed = false;
           break;
         }
       }
       super.setProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, allTasksPassed ? "PASSED" : "FAILED");
+
     }
 
     /**
