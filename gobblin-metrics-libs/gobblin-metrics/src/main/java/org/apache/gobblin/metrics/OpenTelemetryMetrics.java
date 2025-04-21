@@ -33,6 +33,7 @@ import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
+import io.opentelemetry.sdk.metrics.export.AggregationTemporalitySelector;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
 import io.opentelemetry.sdk.metrics.export.PeriodicMetricReader;
 import io.opentelemetry.sdk.resources.Resource;
@@ -86,6 +87,7 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
         httpExporterBuilder.addHeader(header.getKey(), header.getValue());
       }
     }
+    httpExporterBuilder.setAggregationTemporalitySelector(AggregationTemporalitySelector.deltaPreferred());
     return httpExporterBuilder.build();
   }
 
