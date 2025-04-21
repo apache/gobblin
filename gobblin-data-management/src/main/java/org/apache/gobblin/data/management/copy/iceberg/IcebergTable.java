@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -30,6 +31,8 @@ import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
@@ -57,6 +60,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
 import org.apache.gobblin.util.measurement.GrowthMilestoneTracker;
+import org.apache.iceberg.relocated.com.google.common.collect.ImmutableList;
 
 import static org.apache.gobblin.data.management.copy.iceberg.IcebergSnapshotInfo.ManifestFileInfo;
 
@@ -200,12 +204,22 @@ public class IcebergTable {
   }
 
   protected static IcebergSnapshotInfo.ManifestFileInfo calcManifestFileInfo(ManifestFile manifest, FileIO io) throws IOException {
+    if (manifest.content() == ManifestContent.DELETES) {
+      return new ManifestFileInfo(manifest.path(), discoverDeleteFilePaths(manifest, io));
+    }
     return new ManifestFileInfo(manifest.path(), discoverDataFilePaths(manifest, io));
   }
 
   protected static List<String> discoverDataFilePaths(ManifestFile manifest, FileIO io) throws IOException {
     try (CloseableIterable<String> manifestPathsIterable = ManifestFiles.readPaths(manifest, io)) {
       return Lists.newArrayList(manifestPathsIterable);
+    }
+  }
+
+  protected static List<String> discoverDeleteFilePaths(ManifestFile manifest, FileIO io) throws IOException {
+    try (ManifestReader<DeleteFile> deleteFileManifestReader = ManifestFiles.readDeleteManifest(manifest, io, null);
+        CloseableIterator<DeleteFile> deleteFiles = deleteFileManifestReader.iterator()) {
+      return Lists.newArrayList(Iterators.transform(deleteFiles, (deleteFile) -> deleteFile.path().toString()));
     }
   }
 
