@@ -48,9 +48,12 @@ public class ForkThrowableHolder {
     return throwables.isEmpty();
   }
 
-  public ForkException getAggregatedException (List<Integer> failedForkIds, String taskId) {
+  public ForkException getAggregatedException (List<Integer> failedForkIds, String taskId, String taskDataQuality) {
     StringBuffer stringBuffer = new StringBuffer();
     stringBuffer.append("Fork branches " + failedForkIds + " failed for task " + taskId + "\n");
+    if(taskDataQuality!=null && !"PASSED".equals(taskDataQuality)){
+      stringBuffer.append("DataQuality failed for task: " + taskId + "\n");
+    }
     for (Integer idx: failedForkIds) {
       stringBuffer.append("<Fork " + idx + ">\n");
       if (this.throwables.containsKey(idx)) {

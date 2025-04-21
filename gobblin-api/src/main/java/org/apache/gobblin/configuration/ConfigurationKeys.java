@@ -435,6 +435,8 @@ public class ConfigurationKeys {
   public static final long DEFAULT_FORK_FINISHED_CHECK_INTERVAL = 1000;
   public static final String FORK_CLOSE_WRITER_ON_COMPLETION = "fork.closeWriterOnCompletion";
   public static final boolean DEFAULT_FORK_CLOSE_WRITER_ON_COMPLETION = false;
+  public static final boolean DEFAULT_IS_DATA_QUALITY_ENABLED = true;
+  public static final String IS_DATA_QUALITY_ENABLED = "task.dataquality.enabled";
 
 
   /**

@@ -32,6 +32,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.BooleanUtils;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -385,7 +386,7 @@ public class Task implements TaskIFace {
           if (failedForksId.size() == 1 && holder.getThrowable(failedForksId.get(0)).isPresent()) {
             e = holder.getThrowable(failedForksId.get(0)).get();
           }else{
-            e = holder.getAggregatedException(failedForksId, this.taskId);
+            e = holder.getAggregatedException(failedForksId, this.taskId, null);
           }
         }
         throw e == null ? new RuntimeException("Some forks failed") : e;
@@ -942,7 +943,8 @@ public class Task implements TaskIFace {
           if (failedForkIds.size() == 1 && holder.getThrowable(failedForkIds.get(0)).isPresent()) {
             failTask(holder.getThrowable(failedForkIds.get(0)).get());
           } else {
-            failTask(holder.getAggregatedException(failedForkIds, this.taskId));
+            String taskDataQuality = taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY);
+            failTask(holder.getAggregatedException(failedForkIds, this.taskId, taskDataQuality));
           }
         } else {
           // just in case there are some corner cases where Fork throw an exception but doesn't add into holder

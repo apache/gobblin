@@ -246,6 +246,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     final long blockSize = copyableFile.getBlockSize(this.fs);
     final long fileSize = copyableFile.getFileStatus().getLen();
 
+    // Store source file size in task state
+    this.state.setProp(FileSizePolicy.BYTES_READ_KEY, fileSize);
+
     long expectedBytes = fileSize;
     Long maxBytes = null;
     // Whether writer must write EXACTLY maxBytes.
@@ -301,11 +304,18 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
           copier.withCopySpeedMeter(this.copySpeedMeter);
         }
         long numBytes = copier.copy();
+
         if ((this.checkFileSize || mustMatchMaxBytes) && numBytes != expectedBytes) {
           throw new IOException(String.format("Incomplete write: expected %d, wrote %d bytes.",
               expectedBytes, numBytes));
         }
         this.bytesWritten.addAndGet(numBytes);
+        this.bytesRead.addAndGet(fileSize);
+
+//        // Get actual file size from destination filesystem
+//        long actualFileSize = this.fs.getFileStatus(writeAt).getLen();
+//        this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, actualFileSize);
+
         if (isInstrumentationEnabled()) {
           log.info("File {}: copied {} bytes, average rate: {} B/s", copyableFile.getOrigin().getPath(),
               this.copySpeedMeter.getCount(), this.copySpeedMeter.getMeanRate());
@@ -316,8 +326,14 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         log.warn("Broker error. Some features of stream copier may not be available.", nce);
       } finally {
         os.close();
+
         log.info("OutputStream for file {} is closed.", writeAt);
         inputStream.close();
+        long actualFileSize = this.fs.getFileStatus(writeAt).getLen();
+        if (this.reportIncorrectSize) {
+          actualFileSize = (long)(actualFileSize * this.incorrectSizeRatio);
+        }
+        this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, actualFileSize);
       }
     }
   }
@@ -472,9 +488,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public void commit()
       throws IOException {
     // Update task state with bytes read/written
-    this.state.setProp(FileSizePolicy.BYTES_READ_KEY, this.bytesRead.get());
-    this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, this.bytesWritten.get());
-
     if (!this.actualProcessedCopyableFile.isPresent()) {
       return;
     }
