@@ -796,18 +796,17 @@ public class JobState extends SourceState implements JobProgress {
      * The status will be "PASSED" if all tasks passed their quality checks, "FAILED" otherwise.
      */
     public void computeAndStoreQualityStatus() {
-      boolean allTasksPassed = true;
+      TaskLevelPolicyChecker.DataQualityStatus jobDataQuality = TaskLevelPolicyChecker.DataQualityStatus.PASSED;
       for (TaskState taskState : getTaskStates()) {
         String qualityResult = taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY);
         log.info("Data quality status of this task is: " + qualityResult);
-        if (qualityResult != null && !qualityResult.equals("PASSED")) {
+        if (qualityResult != null && !TaskLevelPolicyChecker.DataQualityStatus.PASSED.name().equals(qualityResult)) {
           log.info("Data quality not passed: " + qualityResult);
-          allTasksPassed = false;
+          jobDataQuality = TaskLevelPolicyChecker.DataQualityStatus.FAILED;
           break;
         }
       }
-      super.setProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, allTasksPassed ? "PASSED" : "FAILED");
-
+      super.setProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, jobDataQuality.name());
     }
 
     /**
@@ -815,7 +814,7 @@ public class JobState extends SourceState implements JobProgress {
      * @return "PASSED" if all tasks passed their quality checks, "FAILED" otherwise
      */
     public String getDataQualityStatus() {
-      return super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, "FAILED");
+      return super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, TaskLevelPolicyChecker.DataQualityStatus.FAILED.name());
     }
 
     @Override

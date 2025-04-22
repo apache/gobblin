@@ -317,6 +317,23 @@ public class Task implements TaskIFace {
     this.shutdownLatch.countDown();
   }
 
+  private void computeAndUpdateTaskDataQuality() {
+    String overallTaskDataQuality = TaskLevelPolicyChecker.DataQualityStatus.PASSED.name();
+    for (Optional<Fork> fork : this.forks.keySet()) {
+      if (fork.isPresent()) {
+        TaskState forkTaskState = fork.get().getTaskState();
+        if (forkTaskState != null) {
+          String forkDataQualityResult = forkTaskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY);
+          if (forkDataQualityResult != null && TaskLevelPolicyChecker.DataQualityStatus.FAILED.name().equals(forkDataQualityResult)) {
+            overallTaskDataQuality = TaskLevelPolicyChecker.DataQualityStatus.FAILED.name();
+          }
+        }
+      }
+    }
+    LOG.info("Data quality state of the task is " + overallTaskDataQuality);
+    this.taskState.setProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY, overallTaskDataQuality);
+  }
+
   private boolean shutdownRequested() {
     if (!this.shutdownRequested.get()) {
       this.shutdownRequested.set(Thread.currentThread().isInterrupted());
@@ -928,7 +945,7 @@ public class Task implements TaskIFace {
           }
         }
       }
-
+      this.computeAndUpdateTaskDataQuality();
       if (failedForkIds.size() == 0) {
         // Set the task state to SUCCESSFUL. The state is not set to COMMITTED
         // as the data publisher will do that upon successful data publishing.
