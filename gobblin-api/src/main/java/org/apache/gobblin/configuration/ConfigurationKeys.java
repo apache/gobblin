@@ -1051,7 +1051,7 @@ public class ConfigurationKeys {
   public static final String GAAS_JOB_EXEC_ID = "gaas.job.execid";
 
   // Configuration Key for storing hash of gaas.job.execid, to be used as jobExecutionId(integer) for backwards compatibility
-  public static final String GAAS_JOB_EXEC_ID_HASH = "gaas.job.execid.hash";
+  public static final String GAAS_JOB_EXEC_ID_HASH = "gaas.job.executionid.hash";
 
   public static final String AZKABAN_URL = "azkaban.link.execution.url";
   public static final String AZKABAN_FLOW_URL = "azkaban.link.workflow.url";
