@@ -85,10 +85,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
 
   public static final String GOBBLIN_COPY_BYTES_COPIED_METER = "gobblin.copy.bytesCopiedMeter";
   public static final String GOBBLIN_COPY_CHECK_FILESIZE = "gobblin.copy.checkFileSize";
-  public static final String GOBBLIN_COPY_REPORT_INCORRECT_SIZE = "gobblin.copy.reportIncorrectSize";
-  public static final String GOBBLIN_COPY_INCORRECT_SIZE_RATIO = "gobblin.copy.incorrectSizeRatio";
-  public static final boolean DEFAULT_GOBBLIN_COPY_REPORT_INCORRECT_SIZE = false;
-  public static final double DEFAULT_GOBBLIN_COPY_INCORRECT_SIZE_RATIO = 0.9;
   // setting GOBBLIN_COPY_CHECK_FILESIZE to true may result in failures because the calculation of
   // expected bytes to be copied and actual bytes copied may have bugs
   public static final boolean DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE = false;
@@ -98,7 +94,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public static final boolean DEFAULT_COPY_SHOULD_FAIL_WHEN_PERMISSIONS_FAIL = true;
 
   protected final AtomicLong bytesWritten = new AtomicLong();
-  protected final AtomicLong bytesRead = new AtomicLong();
   protected final AtomicLong filesWritten = new AtomicLong();
   protected final WorkUnitState state;
   protected final FileSystem fs;
@@ -110,8 +105,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   protected final SharedResourcesBroker<GobblinScopeTypes> taskBroker;
   protected final int bufferSize;
   private final boolean checkFileSize;
-  private final boolean reportIncorrectSize;
-  private final double incorrectSizeRatio;
   private final Options.Rename renameOptions;
   private final URI uri;
   private final Configuration conf;
@@ -185,8 +178,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         .getConfigForBranch(EncryptionConfigParser.EntityType.WRITER, this.state, numBranches, branchId);
 
     this.checkFileSize = state.getPropAsBoolean(GOBBLIN_COPY_CHECK_FILESIZE, DEFAULT_GOBBLIN_COPY_CHECK_FILESIZE);
-    this.reportIncorrectSize = state.getPropAsBoolean(GOBBLIN_COPY_REPORT_INCORRECT_SIZE, DEFAULT_GOBBLIN_COPY_REPORT_INCORRECT_SIZE);
-    this.incorrectSizeRatio = state.getPropAsDouble(GOBBLIN_COPY_INCORRECT_SIZE_RATIO, DEFAULT_GOBBLIN_COPY_INCORRECT_SIZE_RATIO);
     boolean taskOverwriteOnCommit = state.getPropAsBoolean(GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT, DEFAULT_GOBBLIN_COPY_TASK_OVERWRITE_ON_COMMIT);
     if (taskOverwriteOnCommit) {
       this.renameOptions = Options.Rename.OVERWRITE;
@@ -310,11 +301,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
               expectedBytes, numBytes));
         }
         this.bytesWritten.addAndGet(numBytes);
-        this.bytesRead.addAndGet(fileSize);
-
-//        // Get actual file size from destination filesystem
-//        long actualFileSize = this.fs.getFileStatus(writeAt).getLen();
-//        this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, actualFileSize);
 
         if (isInstrumentationEnabled()) {
           log.info("File {}: copied {} bytes, average rate: {} B/s", copyableFile.getOrigin().getPath(),
@@ -330,9 +316,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         log.info("OutputStream for file {} is closed.", writeAt);
         inputStream.close();
         long actualFileSize = this.fs.getFileStatus(writeAt).getLen();
-        if (this.reportIncorrectSize) {
-          actualFileSize = (long)(actualFileSize * this.incorrectSizeRatio);
-        }
         this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, actualFileSize);
       }
     }
@@ -469,11 +452,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   @Override
   public long bytesWritten()
       throws IOException {
-    long actualBytes = this.bytesWritten.get();
-    if (this.reportIncorrectSize) {
-      return (long)(actualBytes * this.incorrectSizeRatio);
-    }
-    return actualBytes;
+    return this.bytesWritten.get();
   }
 
   /**
@@ -487,7 +466,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   @Override
   public void commit()
       throws IOException {
-    // Update task state with bytes read/written
     if (!this.actualProcessedCopyableFile.isPresent()) {
       return;
     }

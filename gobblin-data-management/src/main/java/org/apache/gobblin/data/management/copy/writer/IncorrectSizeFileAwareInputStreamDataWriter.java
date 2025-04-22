@@ -23,6 +23,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
+import org.apache.gobblin.policies.size.FileSizePolicy;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.hadoop.fs.Path;
 
@@ -41,7 +42,7 @@ public class IncorrectSizeFileAwareInputStreamDataWriter extends FileAwareInputS
   public static final String INCORRECT_SIZE_RATIO_KEY = "gobblin.copy.incorrect.size.ratio";
   public static final String INCORRECT_SIZE_OFFSET_KEY = "gobblin.copy.incorrect.size.offset";
   public static final String DESTINATION_FILE_SIZE_KEY = "gobblin.copy.destination.file.size";
-  public static final double DEFAULT_INCORRECT_SIZE_RATIO = 1.0;
+  public static final double DEFAULT_INCORRECT_SIZE_RATIO = 0.9;
   public static final long DEFAULT_INCORRECT_SIZE_OFFSET = 0L;
 
   private final double sizeRatio;
@@ -73,7 +74,8 @@ public class IncorrectSizeFileAwareInputStreamDataWriter extends FileAwareInputS
 
     // Store both actual and incorrect sizes in state
     this.state.setProp(DESTINATION_FILE_SIZE_KEY, actualDestSize);
-    this.state.setProp("gobblin.copy.reported.file.size", incorrectBytes);
+//    this.state.setProp("gobblin.copy.reported.file.size", incorrectBytes);
+    this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, incorrectBytes);
 
     log.info("File size reporting: actual={}, reported={} (ratio={}, offset={})",
         actualDestSize, incorrectBytes, this.sizeRatio, this.sizeOffset);
