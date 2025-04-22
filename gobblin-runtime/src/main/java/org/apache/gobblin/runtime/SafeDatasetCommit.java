@@ -332,20 +332,6 @@ public final class SafeDatasetCommit implements Callable<Void> {
   }
 
   /**
-   * Finalize a given {@link JobState.DatasetState} before committing the dataset.
-   *
-   * This method is thread-safe.
-   */
-  private String finalizeDatasetDataQualityBeforeCommit(JobState.DatasetState datasetState) {
-    for (TaskState taskState : datasetState.getTaskStates()) {
-      if (taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY).equals("FAILED")) {
-        return "FAILED";
-      }
-    }
-    return "PASSED";
-  }
-
-  /**
    * Check if it is OK to commit the output data of a dataset.
    *
    * <p>
