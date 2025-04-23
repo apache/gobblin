@@ -27,7 +27,7 @@ import org.testng.annotations.Test;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.qualitychecker.TestTaskLevelPolicy;
 
-@Test(groups = {"gobblin.qualitychecker"})
+@Test
 public class TaskLevelPolicyCheckerTest {
 
   @Test
@@ -47,7 +47,8 @@ public class TaskLevelPolicyCheckerTest {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.PASSED);
       Assert.assertEquals(entry.getValue(), TaskLevelPolicy.Type.FAIL);
     }
-    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY), "PASSED");
+    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY),
+        TaskLevelPolicyChecker.DataQualityStatus.PASSED.name());
   }
 
   @Test
@@ -67,7 +68,7 @@ public class TaskLevelPolicyCheckerTest {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.FAILED);
       Assert.assertEquals(entry.getValue(), TaskLevelPolicy.Type.FAIL);
     }
-    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY), "FAILED");
+    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY), TaskLevelPolicyChecker.DataQualityStatus.FAILED.name());
   }
 
   @Test
@@ -117,7 +118,7 @@ public class TaskLevelPolicyCheckerTest {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.FAILED);
       Assert.assertEquals(entry.getValue(), TaskLevelPolicy.Type.OPTIONAL);
     }
-    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY), "PASSED");
+    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY), TaskLevelPolicyChecker.DataQualityStatus.PASSED.name());
   }
 
   // Helper class for testing failing policies

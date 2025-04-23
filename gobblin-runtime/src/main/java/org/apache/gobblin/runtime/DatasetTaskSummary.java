@@ -35,7 +35,7 @@ import org.apache.gobblin.metrics.DatasetMetric;
 @Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
 @RequiredArgsConstructor
 @NoArgsConstructor
-@ToString// IMPORTANT: for jackson (de)serialization
+@ToString
 public class DatasetTaskSummary {
   @NonNull private String datasetUrn;
   @NonNull private long recordsWritten;

@@ -34,7 +34,6 @@ public class IncorrectSizeFileAwareInputStreamDataWriterBuilder extends DataWrit
   @Override
   public final DataWriter<FileAwareInputStream> build() throws IOException {
     setJobSpecificOutputPaths(this.destination.getProperties());
-    // Each writer/mapper gets its own task-staging directory
     this.destination.getProperties().setProp(ConfigurationKeys.WRITER_FILE_PATH, this.writerId);
     return buildWriter();
   }
@@ -49,7 +48,6 @@ public class IncorrectSizeFileAwareInputStreamDataWriterBuilder extends DataWrit
    * produced by this execution.
    */
   public synchronized static void setJobSpecificOutputPaths(State state) {
-    // Other tasks may have set this already
     if (!StringUtils.containsIgnoreCase(state.getProp(ConfigurationKeys.WRITER_STAGING_DIR),
         state.getProp(ConfigurationKeys.JOB_ID_KEY))) {
 

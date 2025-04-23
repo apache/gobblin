@@ -24,7 +24,7 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicy;
 
 /**
- * A task-level policy that checks if the bytes read match the bytes written for a file copy operation.
+ * A task-level policy that checks if the bytes read matches the bytes written for a file copy operation.
  */
 public class FileSizePolicy extends TaskLevelPolicy {
   private static final Logger LOG = LoggerFactory.getLogger(FileSizePolicy.class);
