@@ -21,7 +21,6 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
-import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
