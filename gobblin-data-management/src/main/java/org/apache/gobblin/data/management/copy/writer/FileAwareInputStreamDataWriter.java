@@ -295,13 +295,11 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
           copier.withCopySpeedMeter(this.copySpeedMeter);
         }
         long numBytes = copier.copy();
-
         if ((this.checkFileSize || mustMatchMaxBytes) && numBytes != expectedBytes) {
           throw new IOException(String.format("Incomplete write: expected %d, wrote %d bytes.",
               expectedBytes, numBytes));
         }
         this.bytesWritten.addAndGet(numBytes);
-
         if (isInstrumentationEnabled()) {
           log.info("File {}: copied {} bytes, average rate: {} B/s", copyableFile.getOrigin().getPath(),
               this.copySpeedMeter.getCount(), this.copySpeedMeter.getMeanRate());
@@ -312,7 +310,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         log.warn("Broker error. Some features of stream copier may not be available.", nce);
       } finally {
         os.close();
-
         log.info("OutputStream for file {} is closed.", writeAt);
         inputStream.close();
         long actualFileSize = this.fs.getFileStatus(writeAt).getLen();
@@ -527,5 +524,4 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   public boolean isSpeculativeAttemptSafe() {
     return this.writerAttemptIdOptional.isPresent() && this.getClass() == FileAwareInputStreamDataWriter.class;
   }
-
 }

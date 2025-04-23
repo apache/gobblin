@@ -672,9 +672,10 @@ public class FileAwareInputStreamDataWriterTest {
         "Source file size should be recorded in state");
 
     // Verify bytes written in state
-    Assert.assertEquals(dataWriter.bytesWritten.get(), expectedSourceSize,
+    String destinationSizeKey = FileSizePolicy.BYTES_WRITTEN_KEY;
+    Assert.assertEquals(state.getPropAsLong(destinationSizeKey), expectedSourceSize,
         "Bytes written should match source file size");
-    
+
   }
 
   @AfterClass

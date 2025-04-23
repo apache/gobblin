@@ -41,7 +41,6 @@ public class IncorrectSizeFileAwareInputStreamDataWriter extends FileAwareInputS
 
   public static final String INCORRECT_SIZE_RATIO_KEY = "gobblin.copy.incorrect.size.ratio";
   public static final String INCORRECT_SIZE_OFFSET_KEY = "gobblin.copy.incorrect.size.offset";
-  public static final String DESTINATION_FILE_SIZE_KEY = "gobblin.copy.destination.file.size";
   public static final double DEFAULT_INCORRECT_SIZE_RATIO = 0.9;
   public static final long DEFAULT_INCORRECT_SIZE_OFFSET = 0L;
 
@@ -72,18 +71,9 @@ public class IncorrectSizeFileAwareInputStreamDataWriter extends FileAwareInputS
     long actualDestSize = this.fs.getFileStatus(writeAt).getLen();
     long incorrectBytes = (long)(actualDestSize * this.sizeRatio) + this.sizeOffset;
 
-    // Store both actual and incorrect sizes in state
-    this.state.setProp(DESTINATION_FILE_SIZE_KEY, actualDestSize);
-//    this.state.setProp("gobblin.copy.reported.file.size", incorrectBytes);
     this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, incorrectBytes);
 
     log.info("File size reporting: actual={}, reported={} (ratio={}, offset={})",
         actualDestSize, incorrectBytes, this.sizeRatio, this.sizeOffset);
-  }
-
-  @Override
-  public long bytesWritten() throws IOException {
-    long actualBytes = super.bytesWritten();
-    return (long)(actualBytes * this.sizeRatio) + this.sizeOffset;
   }
 }

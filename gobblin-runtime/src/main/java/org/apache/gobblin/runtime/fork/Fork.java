@@ -617,9 +617,6 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       TaskLevelPolicyCheckResults taskResults =
           this.taskContext.getTaskLevelPolicyChecker(this.forkTaskState, this.branches > 1 ? this.index : -1)
               .executePolicies();
-//      String forkDataQuality = this.forkTaskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY);
-//      this.logger.info("Data quality state for the fork is " + forkDataQuality);
-//      this.taskState.setProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY, forkDataQuality);
       TaskPublisher publisher = this.taskContext.getTaskPublisher(this.forkTaskState, taskResults);
       switch (publisher.canPublish()) {
         case SUCCESS:
