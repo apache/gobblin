@@ -31,6 +31,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.security.Credentials;
 import org.apache.log4j.Level;
@@ -385,10 +386,10 @@ public class AzkabanJobLauncher extends AbstractJob implements ApplicationLaunch
    */
   private static List<? extends Tag<?>> addAdditionalMetadataTags(Properties jobProps) {
     List<Tag<?>> metadataTags = Lists.newArrayList();
-    String jobExecutionId = jobProps.getProperty(ConfigurationKeys.GAAS_JOB_EXEC_ID_HASH, "");
+    String jobExecutionId = jobProps.getProperty(ConfigurationKeys.GAAS_JOB_EXEC_ID_HASH, StringUtils.EMPTY);
     //As a fallback setting the value of jobExecutionId to Azkaban Flow exec Id if GAAS_JOB_EXEC_ID is not set
     if (Strings.isNullOrEmpty(jobExecutionId)) {
-      jobExecutionId = jobProps.getProperty(AZKABAN_FLOW_EXEC_ID,"");
+      jobExecutionId = jobProps.getProperty(AZKABAN_FLOW_EXEC_ID, StringUtils.EMPTY);
     }
     // Display the proxy URL in the metadata tag if it exists
     String jobExecutionUrl = jobProps.getProperty(AZKABAN_LINK_JOBEXEC_PROXY_URL, jobProps.getProperty(AZKABAN_LINK_JOBEXEC_URL, ""));
