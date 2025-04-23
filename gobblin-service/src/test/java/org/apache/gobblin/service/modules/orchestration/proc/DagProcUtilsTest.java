@@ -45,6 +45,7 @@ import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerMetrics;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.commons.lang.StringUtils;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -92,8 +93,8 @@ public class DagProcUtilsTest {
     DagProcUtils.submitNextNodes(dagManagementStateStore, dag, dagId);
     // Assertion to test that GaaS job execution Id has been successfully injected
     for(JobExecutionPlan jobExecutionPlan : jobExecutionPlans) {
-      final String gaasJobExecutionId = ConfigUtils.getString(jobExecutionPlan.getJobSpec().getConfig(),ConfigurationKeys.GAAS_JOB_EXEC_ID,"");
-      final Long gaasJobExecutionIdHash = Long.parseLong(ConfigUtils.getString(jobExecutionPlan.getJobSpec().getConfig(),ConfigurationKeys.GAAS_JOB_EXEC_ID_HASH,""));
+      final String gaasJobExecutionId = ConfigUtils.getString(jobExecutionPlan.getJobSpec().getConfig(), ConfigurationKeys.GAAS_JOB_EXEC_ID, StringUtils.EMPTY);
+      final Long gaasJobExecutionIdHash = Long.parseLong(ConfigUtils.getString(jobExecutionPlan.getJobSpec().getConfig(), ConfigurationKeys.GAAS_JOB_EXEC_ID_HASH, StringUtils.EMPTY));
 
       Assert.assertNotNull(gaasJobExecutionId);
       Assert.assertEquals(gaasJobExecutionId.length(), 36);
