@@ -44,13 +44,4 @@ public class FileSizePolicyTest {
     Assert.assertTrue(policy.executePolicy().equals(TaskLevelPolicy.Result.FAILED));
   }
 
-  @Test
-  public void testPolicyWithTolerance() {
-    State state = new State();
-    state.setProp(FileSizePolicy.BYTES_READ_KEY, 1000L);
-    state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, 999L);
-
-    FileSizePolicy policy = new FileSizePolicy(state, TaskLevelPolicy.Type.FAIL);
-    Assert.assertTrue(policy.executePolicy().equals(TaskLevelPolicy.Result.FAILED));
-  }
 }

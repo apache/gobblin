@@ -640,23 +640,19 @@ public class FileAwareInputStreamDataWriterTest {
     byte[] contentBytes = testContent.getBytes(StandardCharsets.UTF_8);
     long expectedSourceSize = contentBytes.length;
 
-    // Setup test environment
     FileStatus status = fs.getFileStatus(testTempPath);
     OwnerAndPermission ownerAndPermission =
         new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
     CopyableFile cf = CopyableFileUtils.getTestCopyableFile(expectedSourceSize, ownerAndPermission);
     CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
 
-    // Configure WorkUnitState
     WorkUnitState state = TestUtils.createTestWorkUnitState();
     state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
     state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
     state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
-    state.setProp(FileAwareInputStreamDataWriter.GOBBLIN_COPY_CHECK_FILESIZE, true); // Enable file size checking
     CopySource.serializeCopyEntity(state, cf);
     CopySource.serializeCopyableDataset(state, metadata);
 
-    // Create writer and write data
     FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
     FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder()
         .file(cf)

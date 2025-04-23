@@ -31,44 +31,33 @@ public class FileSizePolicy extends TaskLevelPolicy {
 
   public static final String BYTES_READ_KEY = "gobblin.copy.bytesRead";
   public static final String BYTES_WRITTEN_KEY = "gobblin.copy.bytesWritten";
-  public static final String FILE_SIZE_TOLERANCE_KEY = "gobblin.copy.fileSizeTolerance";
-  public static final String FILE_SIZE_POLICY_RESULT_KEY = "gobblin.copy.fileSizePolicyResult";
-  public static final double DEFAULT_FILE_SIZE_TOLERANCE = 0.0; // No tolerance by default
 
   private final long bytesRead;
   private final long bytesWritten;
-  private final double sizeTolerance;
 
   public FileSizePolicy(State state, TaskLevelPolicy.Type type) {
     super(state, type);
     this.bytesRead = state.getPropAsLong(BYTES_READ_KEY, 0);
     this.bytesWritten = state.getPropAsLong(BYTES_WRITTEN_KEY, 0);
-    this.sizeTolerance = state.getPropAsDouble(FILE_SIZE_TOLERANCE_KEY, DEFAULT_FILE_SIZE_TOLERANCE);
   }
 
   @Override
   public Result executePolicy() {
-    if (this.bytesRead == 0 || this.bytesWritten == 0) {
-      LOG.warn("File size check skipped - bytes read or written is 0");
-      return Result.PASSED;
-    }
-
     double sizeDifference = Math.abs(this.bytesRead - this.bytesWritten);
-    double tolerance = this.bytesRead * this.sizeTolerance;
 
-    if (sizeDifference <= tolerance) {
+    if (sizeDifference == 0) {
       return Result.PASSED;
     }
 
-    LOG.warn("File size check failed - bytes read: {}, bytes written: {}, difference: {}, tolerance: {}",
-        this.bytesRead, this.bytesWritten, sizeDifference, tolerance);
+    LOG.warn("File size check failed - bytes read: {}, bytes written: {}, difference: {}",
+        this.bytesRead, this.bytesWritten, sizeDifference);
     return Result.FAILED;
   }
 
   @Override
   public String toString() {
-    return String.format("FileSizePolicy [bytesRead=%s, bytesWritten=%s, tolerance=%s]",
-        this.bytesRead, this.bytesWritten, this.sizeTolerance);
+    return String.format("FileSizePolicy [bytesRead=%s, bytesWritten=%s]",
+        this.bytesRead, this.bytesWritten);
   }
 
 }

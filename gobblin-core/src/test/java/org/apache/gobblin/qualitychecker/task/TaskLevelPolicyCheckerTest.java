@@ -96,7 +96,8 @@ public class TaskLevelPolicyCheckerTest {
     }
     Assert.assertEquals(passedCount, 1);
     Assert.assertEquals(failedCount, 1);
-    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY), "FAILED");
+    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY),
+        TaskLevelPolicyChecker.DataQualityStatus.FAILED.name());
   }
 
   @Test
