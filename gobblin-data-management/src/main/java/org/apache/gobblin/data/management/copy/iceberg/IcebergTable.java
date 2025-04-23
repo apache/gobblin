@@ -30,6 +30,8 @@ import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
@@ -200,12 +202,22 @@ public class IcebergTable {
   }
 
   protected static IcebergSnapshotInfo.ManifestFileInfo calcManifestFileInfo(ManifestFile manifest, FileIO io) throws IOException {
+    if (manifest.content() == ManifestContent.DELETES) {
+      return new ManifestFileInfo(manifest.path(), discoverDeleteFilePaths(manifest, io));
+    }
     return new ManifestFileInfo(manifest.path(), discoverDataFilePaths(manifest, io));
   }
 
   protected static List<String> discoverDataFilePaths(ManifestFile manifest, FileIO io) throws IOException {
     try (CloseableIterable<String> manifestPathsIterable = ManifestFiles.readPaths(manifest, io)) {
       return Lists.newArrayList(manifestPathsIterable);
+    }
+  }
+
+  protected static List<String> discoverDeleteFilePaths(ManifestFile manifest, FileIO io) throws IOException {
+    try (ManifestReader<DeleteFile> deleteFileManifestReader = ManifestFiles.readDeleteManifest(manifest, io, null);
+        CloseableIterator<DeleteFile> deleteFiles = deleteFileManifestReader.iterator()) {
+      return Lists.newArrayList(Iterators.transform(deleteFiles, (deleteFile) -> deleteFile.path().toString()));
     }
   }
 
