@@ -258,6 +258,12 @@
                 "name": "successfullyCommitted",
                 "type": "boolean",
                 "doc": "Whether the dataset was successfully committed by Gobblin and fully successful, versus when users configure partial failures or non-atomic writes"
+              },
+              {
+                "name": "datasetDataQualityStatus",
+                "type": ["null","string"],
+                "doc": "Whether the dataset passed the overall data quality check",
+                "default": "NOT_EVALUATED"
               }
             ]
           }
