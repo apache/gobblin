@@ -25,6 +25,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.Setter;
 
 import org.apache.gobblin.metrics.DatasetMetric;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 
 
 /**
@@ -45,6 +46,7 @@ public class DatasetTaskSummary {
    * Convert a {@link DatasetTaskSummary} to a {@link DatasetMetric}.
    */
   public static DatasetMetric toDatasetMetric(DatasetTaskSummary datasetTaskSummary) {
-    return new DatasetMetric(datasetTaskSummary.getDatasetUrn(), datasetTaskSummary.getBytesWritten(), datasetTaskSummary.getRecordsWritten(), datasetTaskSummary.isSuccessfullyCommitted());
+    return new DatasetMetric(datasetTaskSummary.getDatasetUrn(), datasetTaskSummary.getBytesWritten(), datasetTaskSummary.getRecordsWritten(), datasetTaskSummary.isSuccessfullyCommitted(),
+        TaskLevelPolicyChecker.DataQualityStatus.NOT_EVALUATED.name());
   }
 }
