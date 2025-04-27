@@ -41,18 +41,19 @@ public class TaskLevelPolicyChecker {
     NOT_EVALUATED
   }
   private final List<TaskLevelPolicy> list;
+  private final State state;
   private static final Logger LOG = LoggerFactory.getLogger(TaskLevelPolicyChecker.class);
 
   public static final String TASK_LEVEL_POLICY_RESULT_KEY = "gobblin.task.level.policy.result";
 
-  public TaskLevelPolicyChecker(List<TaskLevelPolicy> list) {
+  public TaskLevelPolicyChecker(List<TaskLevelPolicy> list, State state) {
     this.list = list;
+    this.state = state;
   }
 
   public TaskLevelPolicyCheckResults executePolicies() {
     TaskLevelPolicyCheckResults results = new TaskLevelPolicyCheckResults();
     boolean allRequiredPoliciesPassed = true;
-    State state = this.list.get(0).getTaskState();
     for (TaskLevelPolicy p : this.list) {
       TaskLevelPolicy.Result result = p.executePolicy();
       results.getPolicyResults().put(result, p.getType());
@@ -61,7 +62,8 @@ public class TaskLevelPolicyChecker {
       }
       LOG.info("TaskLevelPolicy " + p + " of type " + p.getType() + " executed with result " + result);
     }
-    state.setProp(TASK_LEVEL_POLICY_RESULT_KEY, allRequiredPoliciesPassed ? DataQualityStatus.PASSED.name() : DataQualityStatus.FAILED.name());
+    state.setProp(TASK_LEVEL_POLICY_RESULT_KEY,
+        allRequiredPoliciesPassed ? DataQualityStatus.PASSED.name() : DataQualityStatus.FAILED.name());
     return results;
   }
 }

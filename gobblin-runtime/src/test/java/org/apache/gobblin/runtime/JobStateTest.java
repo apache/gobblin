@@ -245,7 +245,7 @@ public class JobStateTest {
     }
 
     // Create dataset state and compute quality status
-    datasetState.computeAndStoreQualityStatus();
+    datasetState.computeAndStoreQualityStatus(jobState);
 
     // Verify dataset quality status
     Assert.assertEquals(datasetState.getDataQualityStatus(), "FAILED",

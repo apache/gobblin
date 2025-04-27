@@ -38,7 +38,7 @@ public class TaskLevelPolicyCheckerTest {
     policies.add(new TestTaskLevelPolicy(state, TaskLevelPolicy.Type.FAIL));
 
     // Create checker and execute policies
-    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies);
+    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies, state);
     TaskLevelPolicyCheckResults results = checker.executePolicies();
 
     // Verify results
@@ -59,7 +59,7 @@ public class TaskLevelPolicyCheckerTest {
     policies.add(new FailingTaskLevelPolicy(state, TaskLevelPolicy.Type.FAIL));
 
     // Create checker and execute policies
-    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies);
+    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies, state);
     TaskLevelPolicyCheckResults results = checker.executePolicies();
 
     // Verify results
@@ -81,7 +81,7 @@ public class TaskLevelPolicyCheckerTest {
     policies.add(new TestTaskLevelPolicy(state, TaskLevelPolicy.Type.OPTIONAL)); // Passes
 
     // Create checker and execute policies
-    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies);
+    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies, state);
     TaskLevelPolicyCheckResults results = checker.executePolicies();
 
     // Verify results
@@ -109,7 +109,7 @@ public class TaskLevelPolicyCheckerTest {
     policies.add(new FailingTaskLevelPolicy(state, TaskLevelPolicy.Type.OPTIONAL));
 
     // Create checker and execute policies
-    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies);
+    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies, state);
     TaskLevelPolicyCheckResults results = checker.executePolicies();
 
     // Verify results

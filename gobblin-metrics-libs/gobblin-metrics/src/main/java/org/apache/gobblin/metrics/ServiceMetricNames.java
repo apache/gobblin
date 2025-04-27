@@ -22,6 +22,7 @@ public class ServiceMetricNames {
   public static final String GOBBLIN_SERVICE_PREFIX = "GobblinService";
   public static final String GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER = GOBBLIN_SERVICE_PREFIX + ".";
   public static final String GOBBLIN_JOB_METRICS_PREFIX = "JobMetrics";
+  public static final String DATA_QUALITY_STATUS_METRIC_NAME = "dataQualityStatus";
 
   // Flow Compilation Meters and Timer
   public static final String FLOW_COMPILATION_SUCCESSFUL_METER = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowCompilation.successful";
