@@ -18,6 +18,7 @@
 package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.HashMap;
@@ -31,6 +32,7 @@ import java.util.concurrent.TimeUnit;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.permission.FsAction;
 
 import com.google.common.base.Optional;
 import com.google.common.cache.Cache;
@@ -113,6 +115,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     List<FileStatus> toDelete = Lists.newArrayList();
     // map of paths and permissions sorted by depth of path, so that permissions can be set in order
     Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissions = new HashMap<>();
+    Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissionsForSetPermissionStep = new HashMap<>();
     TreeMap<String, OwnerAndPermission> flattenedAncestorPermissions = new TreeMap<>(
         Comparator.comparingInt((String o) -> o.split("/").length).thenComparing(o -> o));
     try {
@@ -143,12 +146,28 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             copyableFile.setFsDatasets(srcFs, targetFs);
             copyEntities.add(copyableFile);
 
+            // In case of directory with 000 permission, the permission is changed to 100 due to HadoopUtils::addExecutePermissionToOwner
+            // getting called from CopyDataPublisher::preserveFileAttrInPublisher -> FileAwareInputStreamDataWriter::setPathPermission ->
+            // FileAwareInputStreamDataWriter::setOwnerExecuteBitIfDirectory -> HadoopUtils::addExecutePermissionToOwner
+            // We need to revert this extra permission change in setPermissionStep
+            if (srcFile.isDirectory() && !srcFile.getPermission().getUserAction().implies(FsAction.EXECUTE)
+                && !ancestorOwnerAndPermissionsForSetPermissionStep.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fileToCopy).toString())
+                && !targetFs.exists(fileToCopy)) {
+              List<OwnerAndPermission> ancestorsOwnerAndPermission = new ArrayList<>(copyableFile.getAncestorsOwnerAndPermission());
+              OwnerAndPermission srcFileOwnerPermission = new OwnerAndPermission(srcFile.getOwner(), srcFile.getGroup(), srcFile.getPermission());
+              ancestorsOwnerAndPermission.add(0, srcFileOwnerPermission);
+              ancestorOwnerAndPermissionsForSetPermissionStep.put(fileToCopy.toString(), ancestorsOwnerAndPermission);
+            }
+
             // Always grab the parent since the above permission setting should be setting the permission for a folder itself
             // {@link CopyDataPublisher#preserveFileAttrInPublisher} will be setting the permission for the empty child dir
             Path fromPath = fileToCopy.getParent();
             // Avoid duplicate calculation for the same ancestor
             if (fromPath != null && !ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString()) && !targetFs.exists(fromPath)) {
               ancestorOwnerAndPermissions.put(fromPath.toString(), copyableFile.getAncestorsOwnerAndPermission());
+              if (!ancestorOwnerAndPermissionsForSetPermissionStep.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString())) {
+                ancestorOwnerAndPermissionsForSetPermissionStep.put(fromPath.toString(), copyableFile.getAncestorsOwnerAndPermission());
+              }
             }
 
             if (existOnTarget && srcFile.isFile()) {
@@ -167,7 +186,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
       copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), createDirectoryWithPermissionsCommitStep, 1));
 
       if (this.enableSetPermissionPostPublish) {
-        for (Map.Entry<String, List<OwnerAndPermission>> recursiveParentPermissions : ancestorOwnerAndPermissions.entrySet()) {
+        for (Map.Entry<String, List<OwnerAndPermission>> recursiveParentPermissions : ancestorOwnerAndPermissionsForSetPermissionStep.entrySet()) {
           Path currentPath = new Path(recursiveParentPermissions.getKey());
           for (OwnerAndPermission ownerAndPermission : recursiveParentPermissions.getValue()) {
             // Ignore folders that already exist in destination, we assume that the publisher will re-sync those permissions if needed and
