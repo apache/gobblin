@@ -153,10 +153,11 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             if (srcFile.isDirectory() && !srcFile.getPermission().getUserAction().implies(FsAction.EXECUTE)
                 && !ancestorOwnerAndPermissionsForSetPermissionStep.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fileToCopy).toString())
                 && !targetFs.exists(fileToCopy)) {
-              List<OwnerAndPermission> ancestorsOwnerAndPermission = new ArrayList<>(copyableFile.getAncestorsOwnerAndPermission());
-              OwnerAndPermission srcFileOwnerPermission = new OwnerAndPermission(srcFile.getOwner(), srcFile.getGroup(), srcFile.getPermission());
-              ancestorsOwnerAndPermission.add(0, srcFileOwnerPermission);
-              ancestorOwnerAndPermissionsForSetPermissionStep.put(fileToCopy.toString(), ancestorsOwnerAndPermission);
+              List<OwnerAndPermission> ancestorsOwnerAndPermissionUpdated = new ArrayList<>();
+              OwnerAndPermission srcFileOwnerPermissionReplicatedForDest = new OwnerAndPermission(copyableFile.getDestinationOwnerAndPermission());
+              ancestorsOwnerAndPermissionUpdated.add(srcFileOwnerPermissionReplicatedForDest);
+              copyableFile.getAncestorsOwnerAndPermission().forEach(ancestorOwnPerm -> ancestorsOwnerAndPermissionUpdated.add(new OwnerAndPermission(ancestorOwnPerm)));
+              ancestorOwnerAndPermissionsForSetPermissionStep.put(fileToCopy.toString(), ancestorsOwnerAndPermissionUpdated);
             }
 
             // Always grab the parent since the above permission setting should be setting the permission for a folder itself
