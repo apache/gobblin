@@ -41,7 +41,7 @@ import org.apache.gobblin.service.ExecutionStatus;
 @Slf4j
 public class FlowStatusGenerator {
   public static final List<String> FINISHED_STATUSES = Lists.newArrayList(ExecutionStatus.FAILED.name(),
-      ExecutionStatus.COMPLETE.name(), ExecutionStatus.CANCELLED.name());
+      ExecutionStatus.COMPLETE.name(), ExecutionStatus.CANCELLED.name(), ExecutionStatus.SKIPPED.name());
   public static final int MAX_LOOKBACK = 100;
 
   private final JobStatusRetriever jobStatusRetriever;

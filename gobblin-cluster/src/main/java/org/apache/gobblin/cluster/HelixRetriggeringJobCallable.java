@@ -279,6 +279,7 @@ class HelixRetriggeringJobCallable implements Callable {
 
       try {
         if (planningJobIdFromStore.isPresent() && !canRun(planningJobIdFromStore.get(), planningJobHelixManager)) {
+          // todo it should emit SKIPPED_JOB event that sets the job status SKIPPED rather than CANCELLED
           TimingEvent timer = new TimingEvent(eventSubmitter, TimingEvent.JOB_SKIPPED_TIME);
           HashMap<String, String> metadata = new HashMap<>(Tag.toMap(Tag.tagValuesToString(
               HelixUtils.initBaseEventTags(jobProps, Lists.newArrayList()))));
