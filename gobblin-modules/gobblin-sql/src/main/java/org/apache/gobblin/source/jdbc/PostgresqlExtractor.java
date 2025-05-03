@@ -110,7 +110,7 @@ public class PostgresqlExtractor extends JdbcExtractor {
     if (StringUtils.isBlank(watermarkFilter)) {
       watermarkFilter = "1=1";
     }
-    query = query.replace(this.getOutputColumnProjection(), columnProjection)
+    query = StringUtils.replaceOnce(query, this.getOutputColumnProjection(), columnProjection)
         .replace(ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL, watermarkFilter);
 
     commands.add(getCommand(query, JdbcCommand.JdbcCommandType.QUERY));
@@ -131,7 +131,7 @@ public class PostgresqlExtractor extends JdbcExtractor {
       watermarkFilter = "1=1";
     }
 
-    query = query.replace(this.getOutputColumnProjection(), columnProjection)
+    query = StringUtils.replaceOnce(query, this.getOutputColumnProjection(), columnProjection)
         .replace(ConfigurationKeys.DEFAULT_SOURCE_QUERYBASED_WATERMARK_PREDICATE_SYMBOL, watermarkFilter);
     String sampleFilter = this.constructSampleClause();
     query = query + sampleFilter;
