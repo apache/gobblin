@@ -35,7 +35,6 @@ import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
-import lombok.NonNull;
 
 
 /**
@@ -66,7 +65,7 @@ public class OwnerAndPermission implements Writable {
    *
    * @param other the {@code OwnerAndPermission} instance to copy from.
    */
-  public OwnerAndPermission(@NonNull OwnerAndPermission other) {
+  public OwnerAndPermission(OwnerAndPermission other) {
     this(other.owner, other.group, new FsPermission(other.fsPermission),
         other.aclEntries == null ? Lists.newArrayList() : Lists.newArrayList(other.aclEntries));
   }
