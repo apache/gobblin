@@ -36,6 +36,7 @@ import org.apache.hadoop.fs.permission.AclStatus;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.mockito.Mockito;
 import org.testng.Assert;
+import org.testng.annotations.DataProvider;
 import org.testng.annotations.Test;
 
 import com.google.common.io.Files;
@@ -341,6 +342,77 @@ public class ManifestBasedDatasetFinderTest {
     Assert.assertTrue(fileSets.hasNext());
     FileSet<CopyEntity> fileSet = fileSets.next();
     Assert.assertEquals(fileSet.getFiles().size(), 2);  // 1 files to copy + 1 pre publish step
+  }
+
+  @DataProvider
+  public Object[][] dirPermissionWithExpectedSetPermissionStepCount() {
+    return new Object[][] {
+        {"d---------", 2},
+        {"drw-rw--w-", 2},
+        {"d-w-r----x", 2},
+        {"drwxrwxrwx", 1},
+        {"dr-xr-xr-x", 1},
+        {"d--x------", 1},
+    };
+  }
+
+  @Test(dataProvider = "dirPermissionWithExpectedSetPermissionStepCount")
+  public void testSetPermissionWhenCopyingDirectoryWithOwnerExecutePermissionSetUnset(String dirPermission, int expectedCount) throws IOException, URISyntaxException {
+    Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/sampleManifestWithOnlyDirectory.json").getPath());
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    props.setProperty("gobblin.copy.preserved.attributes", "rbugpvta");
+    try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class)) {
+
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, false);
+
+      Mockito.when(destFs.exists(new Path("/tmp/dataset"))).thenReturn(false);
+      Mockito.when(destFs.exists(new Path("/tmp"))).thenReturn(false);
+
+      Mockito.when(destFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
+
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset", dirPermission, "owner1", "group1", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp", "dr--r--r--", "owner2", "group2", true);
+
+      Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
+          CopyConfiguration.builder(destFs, props).build());
+
+      Assert.assertTrue(fileSets.hasNext());
+      FileSet<CopyEntity> fileSet = fileSets.next();
+      // 1 dir to copy + 1 pre publish step + 1 post publish step
+      Assert.assertEquals(fileSet.getFiles().size(),3);
+
+      CommitStep createDirectoryStep = ((PrePublishStep) fileSet.getFiles().get(1)).getStep();
+      Assert.assertTrue(createDirectoryStep instanceof CreateDirectoryWithPermissionsCommitStep);
+      Map<String, List<OwnerAndPermission>> pathAndPermissions = ((CreateDirectoryWithPermissionsCommitStep) createDirectoryStep).getPathAndPermissions();
+      Assert.assertEquals(pathAndPermissions.size(), 1);
+
+      Assert.assertTrue(pathAndPermissions.containsKey("/tmp"));
+      Assert.assertEquals(pathAndPermissions.get("/tmp").size(), 1);
+      Assert.assertEquals(pathAndPermissions.get("/tmp").get(0).getFsPermission(), FsPermission.valueOf("dr--r--r--"));
+      Assert.assertEquals(pathAndPermissions.get("/tmp").get(0).getOwner(), "owner2");
+      Assert.assertEquals(pathAndPermissions.get("/tmp").get(0).getGroup(), "group2");
+
+      CommitStep setPermissionStep = ((PostPublishStep) fileSet.getFiles().get(2)).getStep();
+      Assert.assertTrue(setPermissionStep instanceof SetPermissionCommitStep);
+      Map<String, OwnerAndPermission> ownerAndPermissionMap = ((SetPermissionCommitStep) setPermissionStep).getPathAndPermissions();
+      Assert.assertEquals(ownerAndPermissionMap.size(), expectedCount);
+
+      List<String> sortedMapKeys = new ArrayList<>(ownerAndPermissionMap.keySet());
+      Assert.assertEquals(sortedMapKeys.get(0), "/tmp");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp").getFsPermission(), FsPermission.valueOf("dr--r--r--"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp").getOwner(), "owner2");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp").getGroup(), "group2");
+
+      if (expectedCount > 1) {
+        Assert.assertEquals(sortedMapKeys.get(1), "/tmp/dataset");
+        Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getFsPermission(), FsPermission.valueOf(dirPermission));
+        Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getOwner(), "owner1");
+        Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getGroup(), "group1");
+      }
+    }
   }
 
   private void setSourceAndDestFsMocks(FileSystem sourceFs, FileSystem destFs, Path manifestPath, FileSystem manifestReadFs, boolean setFileStatusMock) throws IOException, URISyntaxException {

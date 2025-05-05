@@ -54,6 +54,22 @@ public class OwnerAndPermission implements Writable {
     this(owner, group, fsPermission, Lists.newArrayList());
   }
 
+
+  /**
+   * Copy constructor for {@link OwnerAndPermission}.
+   * <p>
+   * Creates a new instance by copying the values from another {@link OwnerAndPermission} object.
+   * Performs a deep copy of {@link FsPermission} and a shallow copy of the {@code aclEntries} list,
+   * since {@link org.apache.hadoop.fs.permission.AclEntry} is immutable.
+   * </p>
+   *
+   * @param other the {@code OwnerAndPermission} instance to copy from.
+   */
+  public OwnerAndPermission(OwnerAndPermission other) {
+    this(other.owner, other.group, new FsPermission(other.fsPermission),
+        other.aclEntries == null ? Lists.newArrayList() : Lists.newArrayList(other.aclEntries));
+  }
+
   @Override
   public void write(DataOutput dataOutput) throws IOException {
     Text.writeString(dataOutput, this.owner);
