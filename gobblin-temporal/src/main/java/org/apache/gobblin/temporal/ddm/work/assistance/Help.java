@@ -62,6 +62,7 @@ public class Help {
   public static final String USER_TO_PROXY_KEY = "user.to.proxy";
   public static final String USER_TO_PROXY_SEARCH_KEY = "userToProxy";
   public static final String GAAS_FLOW_ID_SEARCH_KEY = "gaasFlowIdSearchKey";
+  public static final String DEFAULT_GAAS_ATTEMPT_ID = "1";
 
   // treat `JobState` as immutable and cache, for reuse among activities executed by the same worker
   private static final transient Cache<Path, JobState> jobStateByPath = CacheBuilder.newBuilder().recordStats().build();
@@ -105,7 +106,9 @@ public class Help {
         ? workerConfig.getString(USER_TO_PROXY_KEY) : "";
     String gaasFlowExecId = workerConfig.hasPath(ConfigurationKeys.GAAS_JOB_EXEC_ID)
         ? workerConfig.getString(ConfigurationKeys.GAAS_JOB_EXEC_ID) : UUID.randomUUID().toString();
-    return userToProxy + "_" + gaasFlowExecId;
+    String gaasAttemptId = workerConfig.hasPath(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)
+        ? workerConfig.getString(ConfigurationKeys.JOB_CURRENT_ATTEMPTS) : DEFAULT_GAAS_ATTEMPT_ID;
+    return userToProxy + "_" + gaasFlowExecId + "_" + gaasAttemptId;
   }
 
   public static FileSystem loadFileSystem(FileSystemApt a) throws IOException {
