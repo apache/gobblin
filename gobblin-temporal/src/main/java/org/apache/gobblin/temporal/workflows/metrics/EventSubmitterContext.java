@@ -109,9 +109,9 @@ public class EventSubmitterContext {
         this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY)));
       }
 
-      if (jobProps.containsKey(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)) {
+      if (jobProps.containsKey(ConfigurationKeys.JOB_ATTEMPT_ID)) {
         this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
-            jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "1")));
+            jobProps.getProperty(ConfigurationKeys.JOB_ATTEMPT_ID, "1")));
         this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD,
             jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "1")));
         this.tags.add(new Tag<>(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD,

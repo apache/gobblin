@@ -106,9 +106,9 @@ public class Help {
         ? workerConfig.getString(USER_TO_PROXY_KEY) : "";
     String gaasFlowExecId = workerConfig.hasPath(ConfigurationKeys.GAAS_JOB_EXEC_ID)
         ? workerConfig.getString(ConfigurationKeys.GAAS_JOB_EXEC_ID) : UUID.randomUUID().toString();
-    String gaasAttemptId = workerConfig.hasPath(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)
-        ? workerConfig.getString(ConfigurationKeys.JOB_CURRENT_ATTEMPTS) : DEFAULT_GAAS_ATTEMPT_ID;
-    return userToProxy + "_" + gaasFlowExecId + "_" + gaasAttemptId;
+    String gaasAttemptId = workerConfig.hasPath(ConfigurationKeys.JOB_ATTEMPT_ID)
+        ? workerConfig.getString(ConfigurationKeys.JOB_ATTEMPT_ID) : DEFAULT_GAAS_ATTEMPT_ID;
+    return String.join("_", userToProxy, gaasFlowExecId, gaasAttemptId);
   }
 
   public static FileSystem loadFileSystem(FileSystemApt a) throws IOException {
