@@ -183,9 +183,9 @@ public class HelixUtils {
           jobProps.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, jobExecutionId)));
     }
 
-    if (jobProps.containsKey(ConfigurationKeys.JOB_CURRENT_ATTEMPTS)) {
+    if (jobProps.containsKey(ConfigurationKeys.JOB_ATTEMPT_ID)) {
       metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD,
-          jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, "1")));
+          jobProps.getProperty(ConfigurationKeys.JOB_ATTEMPT_ID, "1")));
       metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD,
           jobProps.getProperty(ConfigurationKeys.JOB_CURRENT_GENERATION, "1")));
       metadataTags.add(new Tag<>(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD,

@@ -128,7 +128,7 @@ public class DagUtils {
 
   public static JobSpec getJobSpec(DagNode<JobExecutionPlan> dagNode) {
     JobSpec jobSpec = dagNode.getValue().getJobSpec();
-    Map<String, String> configWithCurrentAttempts = ImmutableMap.of(ConfigurationKeys.JOB_CURRENT_ATTEMPTS, String.valueOf(dagNode.getValue().getCurrentAttempts()),
+    Map<String, String> configWithCurrentAttempts = ImmutableMap.of(ConfigurationKeys.JOB_ATTEMPT_ID, String.valueOf(dagNode.getValue().getCurrentAttempts()),
         ConfigurationKeys.JOB_CURRENT_GENERATION, String.valueOf(dagNode.getValue().getCurrentGeneration()));
     Properties configAsProperties = (Properties) jobSpec.getConfigAsProperties().clone();
     configAsProperties.putAll(configWithCurrentAttempts);
