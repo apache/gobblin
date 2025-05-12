@@ -36,7 +36,7 @@ import org.apache.hadoop.hive.serde2.typeinfo.PrimitiveTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.StructTypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.TypeInfo;
 import org.apache.hadoop.hive.serde2.typeinfo.UnionTypeInfo;
-import org.codehaus.jackson.node.JsonNodeFactory;
+import org.fasterxml.jackson.node.JsonNodeFactory;
 import com.linkedin.avroutil1.compatibility.AvroCompatibilityHelper;
 
 
