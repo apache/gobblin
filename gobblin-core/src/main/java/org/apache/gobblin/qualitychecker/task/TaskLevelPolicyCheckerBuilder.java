@@ -85,6 +85,6 @@ public class TaskLevelPolicyCheckerBuilder {
   }
 
   public TaskLevelPolicyChecker build() throws Exception {
-    return new TaskLevelPolicyChecker(createPolicyList());
+    return new TaskLevelPolicyChecker(createPolicyList(), this.state);
   }
 }

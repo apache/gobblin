@@ -76,8 +76,8 @@ public class GaaSJobObservabilityProducerTest {
         createTestIssue("issueSummary", "issueCode", IssueSeverity.INFO)
     );
     List<DatasetTaskSummary> summaries = new ArrayList<>();
-    DatasetTaskSummary dataset1 = new DatasetTaskSummary("/testFolder", 100, 1000, true);
-    DatasetTaskSummary dataset2 = new DatasetTaskSummary("/testFolder2", 1000, 10000, false);
+    DatasetTaskSummary dataset1 = new DatasetTaskSummary("/testFolder", 100, 1000, true, "PASSED");
+    DatasetTaskSummary dataset2 = new DatasetTaskSummary("/testFolder2", 1000, 10000, false, "PASSED");
     summaries.add(dataset1);
     summaries.add(dataset2);
     Properties jobProps = new Properties();

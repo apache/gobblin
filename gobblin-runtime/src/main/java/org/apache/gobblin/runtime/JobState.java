@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime;
 
+import io.opentelemetry.api.common.Attributes;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -30,7 +31,10 @@ import java.util.Properties;
 import lombok.Getter;
 import lombok.Setter;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.apache.gobblin.runtime.job.JobProgress;
 
 import org.apache.commons.lang3.StringUtils;
@@ -68,6 +72,9 @@ import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ImmutableProperties;
 import org.apache.gobblin.util.JobLauncherUtils;
+import org.apache.gobblin.metrics.OpenTelemetryMetrics;
+import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 
 
 /**
@@ -94,6 +101,8 @@ public class JobState extends SourceState implements JobProgress {
    *    <li> SUCCESSFUL => CANCELLED  (cancelled before committing)
    * </ul>
    */
+  public static final String GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX = "GaaSJobObservabilityEventProducer.";
+  public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
   public enum RunningState implements MonitoredObject {
     /** Pending creation of {@link WorkUnit}s. */
     PENDING,
@@ -756,6 +765,7 @@ public class JobState extends SourceState implements JobProgress {
    *   and {@link #setProp(String, Object)} are not supported.
    * </p>
    */
+  @Slf4j
   public static class DatasetState extends JobState {
 
     // For serialization/deserialization
@@ -788,12 +798,60 @@ public class JobState extends SourceState implements JobProgress {
       return Integer.parseInt(super.getProp(ConfigurationKeys.JOB_FAILURES_KEY));
     }
 
+    /**
+     * Computes and stores the overall data quality status based on task-level policy results.
+     * The status will be "PASSED" if all tasks passed their quality checks, "FAILED" otherwise.
+     */
+    public void computeAndStoreQualityStatus(JobState jobState) {
+      TaskLevelPolicyChecker.DataQualityStatus jobDataQuality = TaskLevelPolicyChecker.DataQualityStatus.PASSED;
+
+      for (TaskState taskState : getTaskStates()) {
+        String qualityResult = taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY);
+        log.info("Data quality status of this task is: " + qualityResult);
+        if (qualityResult != null && !TaskLevelPolicyChecker.DataQualityStatus.PASSED.name().equals(qualityResult)) {
+          log.info("Data quality not passed: " + qualityResult);
+          jobDataQuality = TaskLevelPolicyChecker.DataQualityStatus.FAILED;
+          break;
+        }
+      }
+      super.setProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, jobDataQuality.name());
+
+      // Emit OTEL metrics for data quality
+      OpenTelemetryMetricsBase otelMetrics = OpenTelemetryMetrics.getInstance(jobState);
+      if (otelMetrics != null) {
+        Attributes tags = Attributes.builder()
+            .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobState.getJobName())
+            .put(TimingEvent.DATASET_URN, this.getDatasetUrn())
+            .build();
+        
+        // Emit data quality status (1 for PASSED, 0 for FAILED)
+        TaskLevelPolicyChecker.DataQualityStatus finalJobDataQuality = jobDataQuality;
+        log.info("Data quality status for this job is " + finalJobDataQuality);
+        otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
+            .gaugeBuilder(ServiceMetricNames.DATA_QUALITY_STATUS_METRIC_NAME)
+            .ofLongs()
+            .buildWithCallback(measurement -> {
+              log.info("Emitting metric for data quality");
+              measurement.record(TaskLevelPolicyChecker.DataQualityStatus.PASSED.equals(finalJobDataQuality) ? 1 : 0, tags);
+            });
+      }
+    }
+
+    /**
+     * Gets the overall data quality status of the dataset.
+     * @return "PASSED" if all tasks passed their quality checks, "FAILED" otherwise
+     */
+    public String getDataQualityStatus() {
+      return super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, TaskLevelPolicyChecker.DataQualityStatus.FAILED.name());
+    }
+
     @Override
     protected void propsToJson(JsonWriter jsonWriter)
         throws IOException {
       jsonWriter.beginObject();
       jsonWriter.name(ConfigurationKeys.DATASET_URN_KEY).value(getDatasetUrn());
       jsonWriter.name(ConfigurationKeys.JOB_FAILURES_KEY).value(getJobFailures());
+      jsonWriter.name(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY).value(getDataQualityStatus());
       jsonWriter.endObject();
     }
 
