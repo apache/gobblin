@@ -57,7 +57,7 @@ public class EnforceFlowFinishDeadlineDagProc extends DeadlineEnforcementDagProc
       log.info("Found {} DagNodes to cancel (DagId {}).", dagNodesToCancel.size(), getDagId());
 
       for (Dag.DagNode<JobExecutionPlan> dagNodeToCancel : dagNodesToCancel) {
-        DagProcUtils.cancelDagNode(dagNodeToCancel, dagManagementStateStore);
+        DagProcUtils.cancelDagNode(dagNodeToCancel);
       }
 
       dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
