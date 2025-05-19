@@ -761,6 +761,16 @@ public class HadoopUtils {
     }
   }
 
+  public static void ensureDirectoryExists(FileSystem fs,
+      Path path,
+      Iterator<OwnerAndPermission> ownerAndPermissionIterator,
+      boolean failIfOwnerSetFails)
+      throws IOException {
+    // delegate to your new implementation, passing `false` for the copy‐ACL flag
+    ensureDirectoryExists(fs, path, ownerAndPermissionIterator, failIfOwnerSetFails, false);
+  }
+
+
   /**
    * Creates a directory with the given path and enforces the given owner and permissions recursively all the way up to root, or
    * until the list of owner and permissions is exhausted.
@@ -772,7 +782,7 @@ public class HadoopUtils {
    * @throws IOException
    */
 
-  public static void ensureDirectoryExists(FileSystem fs, Path path, Iterator<OwnerAndPermission> ownerAndPermissionIterator, boolean failIfOwnerSetFails)
+  public static void ensureDirectoryExists(FileSystem fs, Path path, Iterator<OwnerAndPermission> ownerAndPermissionIterator, boolean failIfOwnerSetFails, boolean copyOnlySourceAclToDest)
       throws IOException {
 
     if (fs.exists(path)) {
@@ -783,14 +793,21 @@ public class HadoopUtils {
       OwnerAndPermission ownerAndPermission = ownerAndPermissionIterator.next();
 
       if (path.getParent() != null) {
-        ensureDirectoryExists(fs, path.getParent(), ownerAndPermissionIterator, failIfOwnerSetFails);
+        ensureDirectoryExists(fs, path.getParent(), ownerAndPermissionIterator, failIfOwnerSetFails, copyOnlySourceAclToDest);
       }
 
       if (!fs.mkdirs(path)) {
         // fs.mkdirs returns false if path already existed. Do not overwrite permissions
         return;
       }
-
+      try {
+        if (copyOnlySourceAclToDest) {
+          fs.removeAcl(path);
+        }
+      } catch(UnsupportedOperationException uoe) {
+        // ignore ACL calls for local FS, as it is not supported
+        log.info("removeACL operation is not supported for this file system");
+      }
       List<AclEntry> aclEntries = ownerAndPermission.getAclEntries();
       if (!aclEntries.isEmpty()) {
         // use modify acls instead of setAcl since latter requires all three acl entry types: user, group and others
