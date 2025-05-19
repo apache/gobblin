@@ -38,7 +38,6 @@ import org.apache.hadoop.fs.TrashPolicy;
 import org.apache.hadoop.fs.permission.AclEntry;
 import org.apache.hadoop.fs.permission.AclEntryScope;
 import org.apache.hadoop.fs.permission.AclEntryType;
-import org.apache.hadoop.fs.permission.AclStatus;
 import org.apache.hadoop.fs.permission.FsAction;
 import org.apache.hadoop.fs.permission.FsPermission;
 import org.mockito.Mockito;
@@ -59,6 +58,9 @@ import org.apache.gobblin.configuration.State;
 
 @Test(groups = { "gobblin.util" })
 public class HadoopUtilsTest {
+
+  public static final String TEST_DIR_PATH = "path/to/dir";
+  public static final String TEST_CHILD_DIR_NAME = "HadoopUtilsTestDir";
 
   @Test
   public void fsShortSerializationTest() {
@@ -84,7 +86,7 @@ public class HadoopUtilsTest {
   @Test
   public void testRenameRecursively() throws Exception {
 
-    final Path hadoopUtilsTestDir = new Path(Files.createTempDir().getAbsolutePath(), "HadoopUtilsTestDir");
+    final Path hadoopUtilsTestDir = new Path(Files.createTempDir().getAbsolutePath(), TEST_CHILD_DIR_NAME);
     FileSystem fs = FileSystem.getLocal(new Configuration());
     try {
       fs.mkdirs(hadoopUtilsTestDir);
@@ -345,7 +347,7 @@ public class HadoopUtilsTest {
 
   @Test
   public void testEnsureDirectoryExistsWithAclPreservation() throws Exception {
-    final Path testDir = new Path(new Path("path/to/dir"), "HadoopUtilsTestDir");
+    final Path testDir = new Path(new Path(TEST_DIR_PATH), "HadoopUtilsTestDir");
     FileSystem fs = Mockito.mock(FileSystem.class);
     Path targetDir = new Path(testDir, "target");
 
@@ -369,12 +371,7 @@ public class HadoopUtilsTest {
     );
 
     // Create OwnerAndPermission with the ACLs
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(
-        "owner",
-        "group",
-        new FsPermission("755"),
-        aclEntries
-    );
+    OwnerAndPermission ownerAndPermission = getOwnerAndPermissionForAclEntries(aclEntries);
 
     // Mock mkdirs to return true
     Mockito.when(fs.mkdirs(targetDir)).thenReturn(true);
@@ -391,7 +388,7 @@ public class HadoopUtilsTest {
 
   @Test
   public void testEnsureDirectoryExistsWithExistingDirectory() throws Exception {
-    final Path testDir = new Path(new Path("path/to/dir"), "HadoopUtilsTestDir");
+    final Path testDir = new Path(new Path(TEST_DIR_PATH), TEST_CHILD_DIR_NAME);
     FileSystem fs = Mockito.mock(FileSystem.class);
     // Create target directory path
     Path targetDir = new Path(testDir, "target");
@@ -409,12 +406,7 @@ public class HadoopUtilsTest {
             .build()
     );
 
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(
-        "owner",
-        "group",
-        new FsPermission("755"),
-        aclEntries
-    );
+    OwnerAndPermission ownerAndPermission = getOwnerAndPermissionForAclEntries(aclEntries);
 
     // Call ensureDirectoryExists - should be a no-op since directory exists
     HadoopUtils.ensureDirectoryExists(fs, targetDir,
@@ -432,7 +424,7 @@ public class HadoopUtilsTest {
 
   @Test
   public void testEnsureDirectoryExistsWithAcl() throws Exception {
-    final Path testDir = new Path(new Path("path/to/dir"), "HadoopUtilsTestDir");
+    final Path testDir = new Path(new Path(TEST_DIR_PATH), TEST_CHILD_DIR_NAME);
     FileSystem fs = Mockito.mock(FileSystem.class);
 
     // Create target directory path
@@ -458,12 +450,7 @@ public class HadoopUtilsTest {
     );
 
     // Create OwnerAndPermission with the ACLs
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(
-        "owner",
-        "group",
-        new FsPermission("755"),
-        aclEntries
-    );
+    OwnerAndPermission ownerAndPermission = getOwnerAndPermissionForAclEntries(aclEntries);
 
     // Mock mkdirs to return true
     Mockito.when(fs.mkdirs(targetDir)).thenReturn(true);
@@ -483,7 +470,7 @@ public class HadoopUtilsTest {
 
   @Test
   public void testEnsureDirectoryExistsWithEmptyAcl() throws Exception {
-    final Path testDir = new Path(new Path("path/to/dir"), "HadoopUtilsTestDir");
+    final Path testDir = new Path(new Path(TEST_DIR_PATH), TEST_CHILD_DIR_NAME);
     FileSystem fs = Mockito.mock(FileSystem.class);
 
     // Create target directory path
@@ -493,12 +480,7 @@ public class HadoopUtilsTest {
     Mockito.when(fs.exists(targetDir.getParent())).thenReturn(true);
 
     // Create OwnerAndPermission with empty ACLs
-    OwnerAndPermission ownerAndPermission = new OwnerAndPermission(
-        "owner",
-        "group",
-        new FsPermission("755"),
-        Collections.emptyList()
-    );
+    OwnerAndPermission ownerAndPermission = getOwnerAndPermissionForAclEntries(Collections.emptyList());
 
     // Mock mkdirs to return true
     Mockito.when(fs.mkdirs(targetDir)).thenReturn(true);
@@ -514,5 +496,14 @@ public class HadoopUtilsTest {
     Mockito.verify(fs, Mockito.never()).removeAcl(Mockito.any(Path.class));
     // Verify modifyAclEntries was not called since ACLs are empty
     Mockito.verify(fs, Mockito.never()).modifyAclEntries(Mockito.any(Path.class), Mockito.anyList());
+  }
+
+  private OwnerAndPermission getOwnerAndPermissionForAclEntries(List<AclEntry> aclEntries) {
+    return new OwnerAndPermission(
+        "owner",
+        "group",
+        new FsPermission("755"),
+        aclEntries
+    );
   }
 }
