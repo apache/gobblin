@@ -33,7 +33,6 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.commit.CommitStep;
 import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.filesystem.OwnerAndPermission;
-import org.apache.hadoop.fs.permission.AclStatus;
 
 
 /**
