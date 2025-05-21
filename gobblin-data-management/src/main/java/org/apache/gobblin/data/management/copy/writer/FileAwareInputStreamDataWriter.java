@@ -27,6 +27,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
+import org.apache.gobblin.policies.size.FileSizePolicy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileContext;
@@ -236,6 +237,9 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     final long blockSize = copyableFile.getBlockSize(this.fs);
     final long fileSize = copyableFile.getFileStatus().getLen();
 
+    // Store source file size in task state
+    this.state.setProp(FileSizePolicy.BYTES_READ_KEY, fileSize);
+
     long expectedBytes = fileSize;
     Long maxBytes = null;
     // Whether writer must write EXACTLY maxBytes.
@@ -308,6 +312,8 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         os.close();
         log.info("OutputStream for file {} is closed.", writeAt);
         inputStream.close();
+        long actualFileSize = this.fs.getFileStatus(writeAt).getLen();
+        this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, actualFileSize);
       }
     }
   }
@@ -457,7 +463,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   @Override
   public void commit()
       throws IOException {
-
     if (!this.actualProcessedCopyableFile.isPresent()) {
       return;
     }

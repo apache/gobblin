@@ -352,6 +352,9 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
     return parentTaskDone;
   }
 
+
+  public TaskState getTaskState() { return this.forkTaskState; }
+
   /**
    * Update record-level metrics.
    */
