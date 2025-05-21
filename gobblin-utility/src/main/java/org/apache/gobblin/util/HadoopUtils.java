@@ -829,7 +829,7 @@ public class HadoopUtils {
         }
       } catch(UnsupportedOperationException uoe) {
         // ignore ACL calls through some unit tests, as it is not supported for local FileSystem
-        log.info("removeACL operation is not supported for this file system");
+        log.info("removeACL operation is not supported for this file system", uoe);
       }
       List<AclEntry> aclEntries = ownerAndPermission.getAclEntries();
       if (!aclEntries.isEmpty()) {
