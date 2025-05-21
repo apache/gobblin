@@ -762,33 +762,11 @@ public class HadoopUtils {
   }
 
   /**
-   * Creates a directory with the given path and enforces the given owner and permissions recursively all the way up to root,
-   * or until the list of owner and permissions is exhausted.
    *
    * This is a convenience method that delegates to {@link #ensureDirectoryExists(FileSystem, Path, Iterator, boolean, boolean)}
    * with copyOnlySourceAclToDest set to false, meaning it will preserve any existing ACLs on the target directory.
    *
-   * This method will:
-   * 1. Create the directory if it doesn't exist
-   * 2. Apply owner, group, and permission settings from the OwnerAndPermission iterator
-   * 3. Apply ACL entries if present in the OwnerAndPermission
-   * 4. Recursively create and set permissions for parent directories if they don't exist
-   *
-   * If any of the parent directories already exists, it will not overwrite the existing permissions
-   * and this function will be a no-op for those directories.
-   *
-   * The method will add execute permission to the owner of each directory to ensure proper access.
-   *
-   * @param fs The FileSystem instance to use for operations
-   * @param path The path of the directory to create
-   * @param ownerAndPermissionIterator Iterator containing OwnerAndPermission objects for each level of the directory hierarchy.
-   *                                  Each OwnerAndPermission contains:
-   *                                  - owner: The owner of the directory
-   *                                  - group: The group of the directory
-   *                                  - permission: The FsPermission to set
-   *                                  - aclEntries: List of ACL entries to apply
-   * @param failIfOwnerSetFails If true, throws an IOException if setting owner/group fails.
-   *                           If false, logs a warning and continues if owner/group setting fails.
+   * see {@link #ensureDirectoryExists(FileSystem, Path, Iterator, boolean, boolean)} (...)}
    */
   public static void ensureDirectoryExists(FileSystem fs,
       Path path,

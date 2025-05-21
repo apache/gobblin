@@ -28,7 +28,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 
-import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
@@ -54,6 +53,7 @@ import com.google.common.collect.Maps;
 import com.google.common.io.Files;
 
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
 
 
 @Test(groups = { "gobblin.util" })
