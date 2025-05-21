@@ -75,7 +75,8 @@ public class CreateDirectoryWithPermissionsCommitStep implements CommitStep {
       try {
         // Is a no-op if directory already exists, stops when it hits first parent
         // Sets the execute bit for USER in order to rename files to the folder, so it should be reset after this step is completed
-        HadoopUtils.ensureDirectoryExists(fs, path, entry.getValue().listIterator(), throwOnError);
+        // Any inherited ACLs from parent are removed and directory is created with only source ACLs
+        HadoopUtils.ensureDirectoryExists(fs, path, entry.getValue().listIterator(), throwOnError, true);
       } catch (IOException e) {
         log.warn("Error while creating directory or setting owners/permission on " + path, e);
         if (this.throwOnError) {
