@@ -19,10 +19,8 @@ package org.apache.gobblin.qualitychecker.task;
 
 import java.util.List;
 
-import org.apache.gobblin.configuration.State;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-
 
 /**
  * PolicyChecker takes in a list of Policy objects
@@ -30,40 +28,21 @@ import org.slf4j.LoggerFactory;
  * in a PolicyCheckResults object
  */
 public class TaskLevelPolicyChecker {
-  /**
-   * An enumeration for possible statuses for Data quality checks,
-   * its values will be PASSED, FAILED, in case if data quality check
-   * evaluation is not performed for Job, it will be NOT_EVALUATED
-   */
-  public enum DataQualityStatus {
-    PASSED,
-    FAILED,
-    NOT_EVALUATED
-  }
+
   private final List<TaskLevelPolicy> list;
-  private final State state;
   private static final Logger LOG = LoggerFactory.getLogger(TaskLevelPolicyChecker.class);
 
-  public static final String TASK_LEVEL_POLICY_RESULT_KEY = "gobblin.task.level.policy.result";
-
-  public TaskLevelPolicyChecker(List<TaskLevelPolicy> list, State state) {
+  public TaskLevelPolicyChecker(List<TaskLevelPolicy> list) {
     this.list = list;
-    this.state = state;
   }
 
   public TaskLevelPolicyCheckResults executePolicies() {
     TaskLevelPolicyCheckResults results = new TaskLevelPolicyCheckResults();
-    boolean allRequiredPoliciesPassed = true;
     for (TaskLevelPolicy p : this.list) {
       TaskLevelPolicy.Result result = p.executePolicy();
       results.getPolicyResults().put(result, p.getType());
-      if(TaskLevelPolicy.Type.FAIL.equals(p.getType()) && TaskLevelPolicy.Result.FAILED.name().equals(result.name())){
-        allRequiredPoliciesPassed = false;
-      }
       LOG.info("TaskLevelPolicy " + p + " of type " + p.getType() + " executed with result " + result);
     }
-    state.setProp(TASK_LEVEL_POLICY_RESULT_KEY,
-        allRequiredPoliciesPassed ? DataQualityStatus.PASSED.name() : DataQualityStatus.FAILED.name());
     return results;
   }
 }

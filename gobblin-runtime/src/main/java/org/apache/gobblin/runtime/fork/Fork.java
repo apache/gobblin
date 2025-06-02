@@ -21,6 +21,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.gobblin.qualitychecker.DataQualityStatus;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -353,6 +355,17 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
   }
 
 
+  /**
+   * Get the {@link TaskState} associated with this {@link Fork}.
+   *
+   * <p>
+   *   The {@link TaskState} contains information about the execution state of the Fork {@link Fork},
+   *   including metrics and other runtime data. This method allows access to the {@link TaskState}
+   *   for monitoring or reporting purposes.
+   * </p>
+   *
+   * @return the {@link TaskState} of the {@link Fork}.
+   */
   public TaskState getTaskState() { return this.forkTaskState; }
 
   /**
@@ -616,6 +629,11 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       TaskLevelPolicyCheckResults taskResults =
           this.taskContext.getTaskLevelPolicyChecker(this.forkTaskState, this.branches > 1 ? this.index : -1)
               .executePolicies();
+      boolean allRequiredPoliciesPassed = taskResults.getPolicyResults().entrySet().stream()
+          .filter(e -> e.getValue() == TaskLevelPolicy.Type.FAIL)
+          .allMatch(e -> e.getKey() == TaskLevelPolicy.Result.PASSED);
+      forkTaskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY,
+          allRequiredPoliciesPassed ? DataQualityStatus.PASSED.name() : DataQualityStatus.FAILED.name());
       TaskPublisher publisher = this.taskContext.getTaskPublisher(this.forkTaskState, taskResults);
       switch (publisher.canPublish()) {
         case SUCCESS:

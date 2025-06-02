@@ -22,7 +22,7 @@ import java.util.Properties;
 import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.ScheduledFuture;
 
-import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
+import org.apache.gobblin.qualitychecker.DataQualityStatus;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -91,8 +91,8 @@ public class LocalTaskStateTracker extends AbstractTaskStateTracker {
       // Check the task state and handle task retry if task failed and
       // it has not reached the maximum number of retries
       WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
-      String dataQualityResult = task.getTaskState().getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY);
-      if (TaskLevelPolicyChecker.DataQualityStatus.FAILED.name().equals(dataQualityResult) || state == WorkUnitState.WorkingState.FAILED && task.getRetryCount() < this.maxTaskRetries) {
+      String dataQualityResult = task.getTaskState().getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY);
+      if ((DataQualityStatus.FAILED.name().equals(dataQualityResult) || state == WorkUnitState.WorkingState.FAILED) && task.getRetryCount() < this.maxTaskRetries) {
         this.taskExecutor.retry(task);
         return;
       }

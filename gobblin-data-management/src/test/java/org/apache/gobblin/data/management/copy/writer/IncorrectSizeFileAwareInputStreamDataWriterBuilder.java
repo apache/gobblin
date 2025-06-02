@@ -19,12 +19,12 @@ package org.apache.gobblin.data.management.copy.writer;
 
 import java.io.IOException;
 import org.apache.commons.lang.StringUtils;
+import org.apache.hadoop.fs.Path;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.DataWriterBuilder;
-import org.apache.hadoop.fs.Path;
 
 /**
  * Builder for {@link IncorrectSizeFileAwareInputStreamDataWriter}.

@@ -38,7 +38,7 @@ public class TaskLevelPolicyCheckerTest {
     policies.add(new TestTaskLevelPolicy(state, TaskLevelPolicy.Type.FAIL));
 
     // Create checker and execute policies
-    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies, state);
+    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies);
     TaskLevelPolicyCheckResults results = checker.executePolicies();
 
     // Verify results
@@ -47,8 +47,6 @@ public class TaskLevelPolicyCheckerTest {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.PASSED);
       Assert.assertEquals(entry.getValue(), TaskLevelPolicy.Type.FAIL);
     }
-    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY),
-        TaskLevelPolicyChecker.DataQualityStatus.PASSED.name());
   }
 
   @Test
@@ -59,7 +57,7 @@ public class TaskLevelPolicyCheckerTest {
     policies.add(new FailingTaskLevelPolicy(state, TaskLevelPolicy.Type.FAIL));
 
     // Create checker and execute policies
-    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies, state);
+    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies);
     TaskLevelPolicyCheckResults results = checker.executePolicies();
 
     // Verify results
@@ -68,7 +66,6 @@ public class TaskLevelPolicyCheckerTest {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.FAILED);
       Assert.assertEquals(entry.getValue(), TaskLevelPolicy.Type.FAIL);
     }
-    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY), TaskLevelPolicyChecker.DataQualityStatus.FAILED.name());
   }
 
   @Test
@@ -81,7 +78,7 @@ public class TaskLevelPolicyCheckerTest {
     policies.add(new TestTaskLevelPolicy(state, TaskLevelPolicy.Type.OPTIONAL)); // Passes
 
     // Create checker and execute policies
-    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies, state);
+    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies);
     TaskLevelPolicyCheckResults results = checker.executePolicies();
 
     // Verify results
@@ -97,8 +94,6 @@ public class TaskLevelPolicyCheckerTest {
     }
     Assert.assertEquals(passedCount, 1);
     Assert.assertEquals(failedCount, 1);
-    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY),
-        TaskLevelPolicyChecker.DataQualityStatus.FAILED.name());
   }
 
   @Test
@@ -109,7 +104,7 @@ public class TaskLevelPolicyCheckerTest {
     policies.add(new FailingTaskLevelPolicy(state, TaskLevelPolicy.Type.OPTIONAL));
 
     // Create checker and execute policies
-    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies, state);
+    TaskLevelPolicyChecker checker = new TaskLevelPolicyChecker(policies);
     TaskLevelPolicyCheckResults results = checker.executePolicies();
 
     // Verify results
@@ -118,7 +113,6 @@ public class TaskLevelPolicyCheckerTest {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.FAILED);
       Assert.assertEquals(entry.getValue(), TaskLevelPolicy.Type.OPTIONAL);
     }
-    Assert.assertEquals(state.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY), TaskLevelPolicyChecker.DataQualityStatus.PASSED.name());
   }
 
   // Helper class for testing failing policies

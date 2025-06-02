@@ -90,7 +90,7 @@ public final class SafeDatasetCommit implements Callable<Void> {
     metricContext = Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class);
 
     finalizeDatasetStateBeforeCommit(this.datasetState);
-    this.datasetState.computeAndStoreQualityStatus(this.jobContext.getJobState());
+    this.datasetState.computeAndStoreDatasetQualityStatus(this.jobContext.getJobState());
     Class<? extends DataPublisher> dataPublisherClass;
     try (Closer closer = Closer.create()) {
       dataPublisherClass = JobContext.getJobDataPublisherClass(this.jobContext.getJobState())

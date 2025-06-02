@@ -27,7 +27,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.atomic.AtomicLong;
 
-import org.apache.gobblin.policies.size.FileSizePolicy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileContext;
@@ -63,6 +62,7 @@ import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.data.management.copy.recovery.RecoveryHelper;
 import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.instrumented.writer.InstrumentedDataWriter;
+import org.apache.gobblin.policies.size.FileSizePolicy;
 import org.apache.gobblin.state.ConstructState;
 import org.apache.gobblin.util.FileListUtils;
 import org.apache.gobblin.util.FinalState;
@@ -214,6 +214,21 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
   }
 
   /**
+   * Records the actual file size in the state after writing.
+   * @param writeAt The path where the file was written
+   * @throws IOException if there is an error getting the file status
+   */
+  private void recordBytesWritten(Path writeAt) throws IOException {
+    try {
+      long actualFileSize = this.fs.getFileStatus(writeAt).getLen();
+      this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, actualFileSize);
+    } catch (IOException e) {
+      log.error("Failed to get file status for {} to record bytes written", writeAt, e);
+      throw e;
+    }
+  }
+
+  /**
    * Write the contents of input stream into staging path.
    *
    * <p>
@@ -312,8 +327,7 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
         os.close();
         log.info("OutputStream for file {} is closed.", writeAt);
         inputStream.close();
-        long actualFileSize = this.fs.getFileStatus(writeAt).getLen();
-        this.state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, actualFileSize);
+        recordBytesWritten(writeAt);
       }
     }
   }
@@ -475,7 +489,6 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
     log.info(String.format("Committing data from %s to %s", stagingFilePath, outputFilePath));
     try {
       setFilePermissions(copyableFile);
-
       Iterator<OwnerAndPermission> ancestorOwnerAndPermissionIt =
           copyableFile.getAncestorsOwnerAndPermission() == null ? Collections.emptyIterator()
               : copyableFile.getAncestorsOwnerAndPermission().listIterator();

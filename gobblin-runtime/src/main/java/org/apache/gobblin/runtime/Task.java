@@ -32,7 +32,7 @@ import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.BooleanUtils;
-import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
+import org.mortbay.log.Log;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
@@ -97,6 +97,7 @@ import org.apache.gobblin.writer.TrackerBasedWatermarkManager;
 import org.apache.gobblin.writer.WatermarkAwareWriter;
 import org.apache.gobblin.writer.WatermarkManager;
 import org.apache.gobblin.writer.WatermarkStorage;
+import org.apache.gobblin.qualitychecker.DataQualityStatus;
 
 
 /**
@@ -318,20 +319,29 @@ public class Task implements TaskIFace {
   }
 
   private void computeAndUpdateTaskDataQuality() {
-    String overallTaskDataQuality = TaskLevelPolicyChecker.DataQualityStatus.PASSED.name();
+    DataQualityStatus overallTaskDataQuality = DataQualityStatus.PASSED;
     for (Optional<Fork> fork : this.forks.keySet()) {
       if (fork.isPresent()) {
         TaskState forkTaskState = fork.get().getTaskState();
         if (forkTaskState != null) {
-          String forkDataQualityResult = forkTaskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY);
-          if (forkDataQualityResult != null && TaskLevelPolicyChecker.DataQualityStatus.FAILED.name().equals(forkDataQualityResult)) {
-            overallTaskDataQuality = TaskLevelPolicyChecker.DataQualityStatus.FAILED.name();
+          String result = forkTaskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY);
+          DataQualityStatus forkDataQualityStatus = null;
+          try {
+            if (result != null) {
+              forkDataQualityStatus = DataQualityStatus.valueOf(result);
+            }
+          } catch (IllegalArgumentException e) {
+            Log.warn("Unknown data quality status encountered: " + result);
+            forkDataQualityStatus = DataQualityStatus.UNKNOWN;
+          }
+          if (DataQualityStatus.FAILED == forkDataQualityStatus) {
+            overallTaskDataQuality = DataQualityStatus.FAILED;
           }
         }
       }
     }
-    LOG.info("Data quality state of the task is " + overallTaskDataQuality);
-    this.taskState.setProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY, overallTaskDataQuality);
+    LOG.info("Data quality state of the task is {}", overallTaskDataQuality);
+    this.taskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY, overallTaskDataQuality.name());
   }
 
   private boolean shutdownRequested() {
@@ -960,8 +970,12 @@ public class Task implements TaskIFace {
           if (failedForkIds.size() == 1 && holder.getThrowable(failedForkIds.get(0)).isPresent()) {
             failTask(holder.getThrowable(failedForkIds.get(0)).get());
           } else {
-            String taskDataQuality = taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY);
-            failTask(holder.getAggregatedException(failedForkIds, this.taskId, taskDataQuality));
+            String taskDataQualityString = taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY);
+            DataQualityStatus dataQualityStatus = DataQualityStatus.NOT_EVALUATED;
+            if(taskDataQualityString != null) {
+              dataQualityStatus = DataQualityStatus.valueOf(taskDataQualityString);
+            }
+            failTask(holder.getAggregatedException(failedForkIds, this.taskId, dataQualityStatus));
           }
         } else {
           // just in case there are some corner cases where Fork throw an exception but doesn't add into holder

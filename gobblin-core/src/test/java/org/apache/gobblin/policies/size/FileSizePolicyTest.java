@@ -31,7 +31,7 @@ public class FileSizePolicyTest {
     state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, 1000L);
 
     FileSizePolicy policy = new FileSizePolicy(state, TaskLevelPolicy.Type.FAIL);
-    Assert.assertTrue(policy.executePolicy().equals(TaskLevelPolicy.Result.PASSED));
+    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.PASSED);
   }
 
   @Test
@@ -41,7 +41,32 @@ public class FileSizePolicyTest {
     state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, 900L);
 
     FileSizePolicy policy = new FileSizePolicy(state, TaskLevelPolicy.Type.FAIL);
-    Assert.assertTrue(policy.executePolicy().equals(TaskLevelPolicy.Result.FAILED));
+    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.FAILED);
+  }
+
+  @Test
+  public void testMissingProperties() {
+    State state = new State();
+    // No properties set at all
+    FileSizePolicy policy = new FileSizePolicy(state, TaskLevelPolicy.Type.FAIL);
+    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.FAILED);
+  }
+
+  @Test
+  public void testPartiallySetProperties() {
+    State state = new State();
+    // Only set bytes read, not bytes written
+    state.setProp(FileSizePolicy.BYTES_READ_KEY, 1000L);
+
+    FileSizePolicy policy = new FileSizePolicy(state, TaskLevelPolicy.Type.FAIL);
+    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.FAILED);
+
+    // Reset state and only set bytes written, not bytes read
+    state = new State();
+    state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, 1000L);
+
+    policy = new FileSizePolicy(state, TaskLevelPolicy.Type.FAIL);
+    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.FAILED);
   }
 
 }

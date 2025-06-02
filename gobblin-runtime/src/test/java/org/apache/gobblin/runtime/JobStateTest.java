@@ -28,7 +28,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
+import org.apache.gobblin.qualitychecker.DataQualityStatus;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -230,11 +230,11 @@ public class JobStateTest {
       switch (i) {
         case 0:
           // First task passes data quality
-          taskState.setProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY, "PASSED");
+          taskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY, DataQualityStatus.PASSED.name());
           break;
         case 1:
           // Second task fails data quality
-          taskState.setProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY, "FAILED");
+          taskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY, DataQualityStatus.FAILED.name());
           break;
         case 2:
           // Third task has no data quality result
@@ -245,7 +245,7 @@ public class JobStateTest {
     }
 
     // Create dataset state and compute quality status
-    datasetState.computeAndStoreQualityStatus(jobState);
+    datasetState.computeAndStoreDatasetQualityStatus(jobState);
 
     // Verify dataset quality status
     Assert.assertEquals(datasetState.getDataQualityStatus(), "FAILED",
@@ -258,13 +258,13 @@ public class JobStateTest {
     List<TaskState> taskStates = Lists.newArrayList(datasetState.getTaskStates());
     for (TaskState taskState : taskStates) {
       if (taskState.getTaskId().equals("DataQualityTask-0")) {
-        Assert.assertEquals(taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY), "PASSED",
+        Assert.assertEquals(taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY), "PASSED",
             "First task should have PASSED status");
       } else if (taskState.getTaskId().equals("DataQualityTask-1")) {
-        Assert.assertEquals(taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY), "FAILED",
+        Assert.assertEquals(taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY), "FAILED",
             "Second task should have FAILED status");
       } else if (taskState.getTaskId().equals("DataQualityTask-2")) {
-        Assert.assertNull(taskState.getProp(TaskLevelPolicyChecker.TASK_LEVEL_POLICY_RESULT_KEY),
+        Assert.assertNull(taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY),
             "Third task should have no data quality result");
       }
     }

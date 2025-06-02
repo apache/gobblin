@@ -20,12 +20,13 @@ package org.apache.gobblin.data.management.copy.writer;
 import java.io.IOException;
 import java.io.InputStream;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.hadoop.fs.Path;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.CopyableFile;
+import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.policies.size.FileSizePolicy;
 import org.apache.gobblin.writer.DataWriter;
-import org.apache.hadoop.fs.Path;
 
 /**
  * A {@link DataWriter} that extends {@link FileAwareInputStreamDataWriter} to intentionally report incorrect file sizes.
@@ -39,9 +40,9 @@ import org.apache.hadoop.fs.Path;
 @Slf4j
 public class IncorrectSizeFileAwareInputStreamDataWriter extends FileAwareInputStreamDataWriter {
 
-  public static final String INCORRECT_SIZE_RATIO_KEY = "gobblin.copy.incorrect.size.ratio";
-  public static final String INCORRECT_SIZE_OFFSET_KEY = "gobblin.copy.incorrect.size.offset";
-  public static final double DEFAULT_INCORRECT_SIZE_RATIO = 0.9;
+  public static final String INCORRECT_SIZE_RATIO_KEY = CopyConfiguration.COPY_PREFIX + ".incorrect.size.ratio";
+  public static final String INCORRECT_SIZE_OFFSET_KEY = CopyConfiguration.COPY_PREFIX + ".incorrect.size.offset";
+  public static final double DEFAULT_INCORRECT_SIZE_RATIO = 1.0;
   public static final long DEFAULT_INCORRECT_SIZE_OFFSET = 0L;
 
   private final double sizeRatio;
