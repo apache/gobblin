@@ -15,27 +15,18 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.temporal.ddm.work;
-
-import lombok.AccessLevel;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-import lombok.NonNull;
-import lombok.RequiredArgsConstructor;
-import lombok.Setter;
-
+package org.apache.gobblin.qualitychecker;
 
 /**
- * Stats for a dataset that was committed.
+ * An enumeration for possible statuses for Data quality checks.
+ * Its values will be:
+ * - PASSED: When all data quality checks pass
+ * - FAILED: When any data quality check fails
+ * - NOT_EVALUATED: When data quality check evaluation is not performed
  */
-@Data
-@Setter(AccessLevel.NONE) // NOTE: non-`final` members solely to enable deserialization
-@RequiredArgsConstructor
-@NoArgsConstructor // IMPORTANT: for jackson (de)serialization
-public class DatasetStats {
-  @NonNull private long recordsWritten;
-  @NonNull private long bytesWritten;
-  @NonNull private boolean successfullyCommitted;
-  @NonNull private int numCommittedWorkunits;
-  @NonNull private String dataQualityCheckStatus;
+public enum DataQualityStatus {
+  PASSED,
+  FAILED,
+  NOT_EVALUATED,
+  UNKNOWN
 }

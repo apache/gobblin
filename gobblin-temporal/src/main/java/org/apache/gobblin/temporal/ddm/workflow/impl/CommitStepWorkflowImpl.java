@@ -61,8 +61,9 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
   private List<DatasetTaskSummary> convertDatasetStatsToTaskSummaries(Map<String, DatasetStats> datasetStats) {
     List<DatasetTaskSummary> datasetTaskSummaries = new ArrayList<>();
     for (Map.Entry<String, DatasetStats> entry : datasetStats.entrySet()) {
-      datasetTaskSummaries.add(new DatasetTaskSummary(entry.getKey(), entry.getValue().getRecordsWritten(), entry.getValue().getBytesWritten(), entry.getValue().isSuccessfullyCommitted()));
+      datasetTaskSummaries.add(new DatasetTaskSummary(entry.getKey(), entry.getValue().getRecordsWritten(), entry.getValue().getBytesWritten(), entry.getValue().isSuccessfullyCommitted(), entry.getValue().getDataQualityCheckStatus()));
     }
+    log.info("Converted dataset stats to task summaries: {}", datasetTaskSummaries);
     return datasetTaskSummaries;
   }
 }
