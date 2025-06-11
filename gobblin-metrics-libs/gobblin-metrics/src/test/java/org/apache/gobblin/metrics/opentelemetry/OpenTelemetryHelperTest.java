@@ -30,7 +30,6 @@ import io.opentelemetry.api.common.Attributes;
 /**
  * Tests for {@link OpenTelemetryHelper} class.
  */
-@Test
 public class OpenTelemetryHelperTest {
 
   @Test
