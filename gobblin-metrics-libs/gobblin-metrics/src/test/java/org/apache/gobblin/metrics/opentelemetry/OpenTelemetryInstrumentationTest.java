@@ -31,7 +31,11 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.service.ServiceConfigKeys;
 
 
-@Test
+/**
+ * Unit tests for {@link OpenTelemetryInstrumentation}.
+ * These tests ensure that the singleton instance is created correctly,
+ * common attributes are built from dimensions, and metrics are created and cached properly.
+ */
 public class OpenTelemetryInstrumentationTest {
 
   private OpenTelemetryInstrumentation instrumentation;
