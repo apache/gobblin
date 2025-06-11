@@ -50,7 +50,7 @@ public class OpenTelemetryInstrumentation {
   // Adding the gobblin-service.main (BaseFlowGraphHelper.FLOW_EDGE_LABEL_JOINER_CHAR) dependency is creating circular dependency issues
   private static final String FLOW_EDGE_LABEL_JOINER_CHAR = "_";
   private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
-  private static OpenTelemetryInstrumentation GLOBAL_INSTANCE;
+  private static volatile OpenTelemetryInstrumentation GLOBAL_INSTANCE;
 
   private final Attributes commonAttributes;
   private final Meter meter;
@@ -85,7 +85,12 @@ public class OpenTelemetryInstrumentation {
    */
   public static OpenTelemetryInstrumentation getInstance(final State state) {
     if (GLOBAL_INSTANCE == null) {
-      GLOBAL_INSTANCE = new OpenTelemetryInstrumentation(state);
+      synchronized (OpenTelemetryInstrumentation.class) {
+        if (GLOBAL_INSTANCE == null) {
+          log.info("Creating OpenTelemetryInstrumentation instance");
+          GLOBAL_INSTANCE = new OpenTelemetryInstrumentation(state);
+        }
+      }
     }
     return GLOBAL_INSTANCE;
   }

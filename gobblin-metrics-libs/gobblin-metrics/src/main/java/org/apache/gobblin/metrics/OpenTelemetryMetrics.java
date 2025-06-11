@@ -57,7 +57,7 @@ import org.apache.gobblin.util.PropertiesUtils;
 @Slf4j
 public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
-  private static OpenTelemetryMetrics GLOBAL_INSTANCE;
+  private static volatile OpenTelemetryMetrics GLOBAL_INSTANCE;
   private static final Long DEFAULT_OPENTELEMETRY_REPORTING_INTERVAL_MILLIS = 10000L;
   private static final int DEFAULT_OPENTELEMETRY_HISTOGRAM_MAX_BUCKETS = 256;
   private static final int DEFAULT_OPENTELEMETRY_HISTOGRAM_MAX_SCALE = 3;
@@ -101,7 +101,12 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
   public static OpenTelemetryMetrics getInstance(State state) {
     if (state.getPropAsBoolean(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED) && GLOBAL_INSTANCE == null) {
-      GLOBAL_INSTANCE = new OpenTelemetryMetrics(state);
+      synchronized (OpenTelemetryMetrics.class) {
+        if (GLOBAL_INSTANCE == null) {
+          log.info("Creating OpenTelemetryMetrics instance");
+          GLOBAL_INSTANCE = new OpenTelemetryMetrics(state);
+        }
+      }
     }
     return GLOBAL_INSTANCE;
   }
