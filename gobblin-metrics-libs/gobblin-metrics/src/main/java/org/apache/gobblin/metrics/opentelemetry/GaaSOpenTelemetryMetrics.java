@@ -24,8 +24,8 @@ import lombok.Getter;
 @Getter
 @AllArgsConstructor
 public enum GaaSOpenTelemetryMetrics {
-  GAAS_JOB_STATUS("gaas_job_status", "Gaas job status test counter", "1", OpenTelemetryMetricType.LONG_COUNTER),
-  GAAS_JOB_STATE_LATENCY("gaas_job_state_latency", "Gaas job state latency test", "s", OpenTelemetryMetricType.DOUBLE_HISTOGRAM);
+  GAAS_JOB_STATUS("gaas_job_status", "Gaas job status counter", "1", OpenTelemetryMetricType.LONG_COUNTER),
+  GAAS_JOB_STATE_LATENCY("gaas_job_state_latency", "Gaas job state latency", "s", OpenTelemetryMetricType.DOUBLE_HISTOGRAM);
 
   private final String metricName;
   private final String metricDescription;
