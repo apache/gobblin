@@ -54,6 +54,7 @@ import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.quality.DataQualityEvaluator;
 
 
 /**
@@ -90,7 +91,8 @@ public final class SafeDatasetCommit implements Callable<Void> {
     metricContext = Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class);
 
     finalizeDatasetStateBeforeCommit(this.datasetState);
-    this.datasetState.computeAndStoreDatasetQualityStatus(this.jobContext.getJobState());
+    // Handle data quality evaluation at the commit level
+    evaluateAndEmitDatasetQuality();
     Class<? extends DataPublisher> dataPublisherClass;
     try (Closer closer = Closer.create()) {
       dataPublisherClass = JobContext.getJobDataPublisherClass(this.jobContext.getJobState())
@@ -437,6 +439,16 @@ public final class SafeDatasetCommit implements Callable<Void> {
     log.info("Creating " + DatasetStateCommitStep.class.getSimpleName() + " for dataset " + datasetUrn);
     return Optional.of(new DatasetStateCommitStep.Builder<>().withProps(datasetState).withDatasetUrn(datasetUrn)
         .withDatasetState(datasetState).build());
+  }
+
+  /**
+   * Evaluates and stores the data quality status for the dataset.
+   * This method handles the business logic of data quality evaluation
+   * at the dataset commit level, which is more appropriate than having
+   * it in the JobState data container.
+   */
+  private void evaluateAndEmitDatasetQuality() {
+    DataQualityEvaluator.evaluateAndReportDatasetQuality(this.datasetState, this.jobContext.getJobState());
   }
 
 }

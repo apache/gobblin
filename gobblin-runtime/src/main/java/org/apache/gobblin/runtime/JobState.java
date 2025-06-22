@@ -33,27 +33,13 @@ import lombok.Setter;
 
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.metastore.DatasetStateStore;
-import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.job.JobProgress;
+import org.apache.gobblin.runtime.util.MetricGroup;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
+
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.util.PropertiesUtils;
-import org.apache.hadoop.io.Text;
-
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Meter;
-import com.google.common.base.Enums;
-import com.google.common.base.Optional;
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.gson.stream.JsonWriter;
-import com.linkedin.data.template.StringMap;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
@@ -68,16 +54,24 @@ import org.apache.gobblin.rest.MetricTypeEnum;
 import org.apache.gobblin.rest.TaskExecutionInfoArray;
 import org.apache.gobblin.runtime.api.MonitoredObject;
 import org.apache.gobblin.runtime.util.JobMetrics;
-import org.apache.gobblin.runtime.util.MetricGroup;
-import org.apache.gobblin.source.extractor.JobCommitPolicy;
-import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.qualitychecker.DataQualityStatus;
+import org.apache.gobblin.quality.DataQualityEvaluator;
+
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
+import com.google.common.base.Enums;
+import com.google.common.base.Optional;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.gson.stream.JsonWriter;
+import com.linkedin.data.template.StringMap;
+import org.apache.hadoop.io.Text;
 import org.apache.gobblin.util.ImmutableProperties;
 import org.apache.gobblin.util.JobLauncherUtils;
-import org.apache.gobblin.metrics.OpenTelemetryMetrics;
-import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
-import org.apache.gobblin.metrics.ServiceMetricNames;
-import org.apache.gobblin.qualitychecker.DataQualityStatus;
-
 
 /**
  * A class for tracking job state information.
@@ -801,98 +795,11 @@ public class JobState extends SourceState implements JobProgress {
     }
 
     /**
-     * Computes and stores the overall data quality status based on task-level policy results.
-     * The status will be "PASSED" if all tasks passed their quality checks, "FAILED" otherwise.
-     */
-    public void computeAndStoreDatasetQualityStatus(JobState jobState) {
-      DataQualityStatus jobDataQuality = DataQualityStatus.PASSED;
-      int totalFiles = 0;
-      int failedFilesSize = 0;
-      int passedFilesSize = 0;
-      for (TaskState taskState : getTaskStates()) {
-        totalFiles++;
-        DataQualityStatus qualityResult = null;
-        String result = taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY);
-        if (result != null) {
-          try {
-            qualityResult = DataQualityStatus.valueOf(result);
-          } catch (IllegalArgumentException e) {
-            log.warn("Unknown data quality status encountered " + result);
-            qualityResult = DataQualityStatus.UNKNOWN;
-          }
-        }
-        log.info("Data quality status of this task is: " + qualityResult);
-        if (DataQualityStatus.PASSED != qualityResult) {
-          failedFilesSize++;
-          log.warn("Data quality not passed: " + qualityResult);
-          jobDataQuality = DataQualityStatus.FAILED;
-        }
-        else {
-          passedFilesSize++;
-        }
-      }
-
-      super.setProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, jobDataQuality.name());
-
-      // Emit OTEL metrics for data quality
-      OpenTelemetryMetricsBase otelMetrics = OpenTelemetryMetrics.getInstance(jobState);
-      if (otelMetrics != null) {
-        Attributes tags = getTagsForDataQualityMetrics(jobState);
-        // Emit data quality status (1 for PASSED, 0 for FAILED)
-        DataQualityStatus finalJobDataQuality = jobDataQuality;
-        log.info("Data quality status for this job is " + finalJobDataQuality);
-        otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-            .gaugeBuilder(ServiceMetricNames.DATA_QUALITY_STATUS_METRIC_NAME)
-            .ofLongs()
-            .buildWithCallback(measurement -> {
-              log.info("Emitting metric for data quality");
-              measurement.record(DataQualityStatus.PASSED.equals(finalJobDataQuality) ? 1 : 0, tags);
-            });
-
-        otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-            .counterBuilder(ServiceMetricNames.DATA_QUALITY_OVERALL_FILE_COUNT)
-            .build()
-            .add(totalFiles, tags);
-        // Emit passed files count
-        otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-            .counterBuilder(ServiceMetricNames.DATA_QUALITY_SUCCESS_FILE_COUNT)
-            .build().add(passedFilesSize, tags);
-        // Emit failed files count
-        otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-            .counterBuilder(ServiceMetricNames.DATA_QUALITY_FAILURE_FILE_COUNT)
-            .build().add(failedFilesSize, tags);
-      }
-    }
-
-    private Attributes getTagsForDataQualityMetrics(JobState jobState) {
-      Properties jobProperties = new Properties();
-      try {
-        jobProperties = PropertiesUtils.deserialize(jobState.getProp("job.props", ""));
-        log.info("Job properties loaded: " + jobProperties);
-      } catch (IOException e) {
-        log.error("Could not deserialize job properties", e);
-      }
-
-      return Attributes.builder()
-          .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobState.getJobName())
-          .put(TimingEvent.DATASET_URN, this.getDatasetUrn())
-          .put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD))
-          .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD))
-          .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
-          .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD))
-          .put(TimingEvent.FlowEventConstants.FLOW_FABRIC ,jobState.getProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, null))
-          .put(TimingEvent.FlowEventConstants.FLOW_SOURCE ,jobProperties.getProperty(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))
-          .put(TimingEvent.FlowEventConstants.FLOW_DESTINATION, jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ""))
-          .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, jobState.getProp(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, ""))
-          .build();
-    }
-
-    /**
      * Gets the overall data quality status of the dataset.
      * @return "PASSED" if all tasks passed their quality checks, "FAILED" otherwise
      */
     public String getDataQualityStatus() {
-      return super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, DataQualityStatus.FAILED.name());
+      return super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, DataQualityStatus.NOT_EVALUATED.name());
     }
 
     @Override

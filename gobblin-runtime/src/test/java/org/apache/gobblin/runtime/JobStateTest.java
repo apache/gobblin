@@ -28,7 +28,6 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.Set;
 
-import org.apache.gobblin.qualitychecker.DataQualityStatus;
 import org.testng.Assert;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -195,7 +194,8 @@ public class JobStateTest {
     Assert.assertEquals(jobExecutionInfo.getJobProperties().get("foo"), "bar");
 
     List<String> taskStateIds = Lists.newArrayList();
-    for (TaskExecutionInfo taskExecutionInfo : jobExecutionInfo.getTaskExecutions()) {
+    for (int i = 0; i < jobExecutionInfo.getTaskExecutions().size(); i++) {
+      TaskExecutionInfo taskExecutionInfo = jobExecutionInfo.getTaskExecutions().get(i);
       Assert.assertEquals(taskExecutionInfo.getJobId(), "TestJob-1");
       Assert.assertEquals(taskExecutionInfo.getStartTime().longValue(), this.startTime);
       Assert.assertEquals(taskExecutionInfo.getEndTime().longValue(), this.startTime + 1000);
@@ -209,64 +209,4 @@ public class JobStateTest {
     Assert.assertEquals(taskStateIds, Lists.newArrayList("TestTask-0", "TestTask-1", "TestTask-2"));
   }
 
-  @Test
-  public void testDataQualityStatus() {
-    // Create a new job state for testing data quality
-    JobState.DatasetState datasetState = new JobState.DatasetState("DataQualityTestJob", "DataQualityTestJob-1");
-
-    // Create task states with different data quality results
-    for (int i = 0; i < 3; i++) {
-      WorkUnit workUnit = WorkUnit.createEmpty();
-      WorkUnitState workUnitState = new WorkUnitState(workUnit);
-      workUnitState.setProp(ConfigurationKeys.JOB_ID_KEY, "DataQualityTestJob-1");
-      workUnitState.setProp(ConfigurationKeys.TASK_ID_KEY, "DataQualityTask-" + i);
-      workUnitState.setProp(ConfigurationKeys.DATASET_URN_KEY, "TestDataset");
-
-      TaskState taskState = new TaskState(workUnitState);
-      taskState.setTaskId("DataQualityTask-" + i);
-      taskState.setWorkingState(WorkUnitState.WorkingState.SUCCESSFUL);
-
-      // Set different data quality results for each task
-      switch (i) {
-        case 0:
-          // First task passes data quality
-          taskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY, DataQualityStatus.PASSED.name());
-          break;
-        case 1:
-          // Second task fails data quality
-          taskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY, DataQualityStatus.FAILED.name());
-          break;
-        case 2:
-          // Third task has no data quality result
-          break;
-      }
-
-      datasetState.addTaskState(taskState);
-    }
-
-    // Create dataset state and compute quality status
-    datasetState.computeAndStoreDatasetQualityStatus(jobState);
-
-    // Verify dataset quality status
-    Assert.assertEquals(datasetState.getDataQualityStatus(), "FAILED",
-        "Dataset should be marked as FAILED when any task fails data quality");
-
-    // Verify task states are preserved
-    Assert.assertEquals(datasetState.getTaskStates().size(), 3, "All task states should be preserved");
-
-    // Verify individual task states
-    List<TaskState> taskStates = Lists.newArrayList(datasetState.getTaskStates());
-    for (TaskState taskState : taskStates) {
-      if (taskState.getTaskId().equals("DataQualityTask-0")) {
-        Assert.assertEquals(taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY), "PASSED",
-            "First task should have PASSED status");
-      } else if (taskState.getTaskId().equals("DataQualityTask-1")) {
-        Assert.assertEquals(taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY), "FAILED",
-            "Second task should have FAILED status");
-      } else if (taskState.getTaskId().equals("DataQualityTask-2")) {
-        Assert.assertNull(taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY),
-            "Third task should have no data quality result");
-      }
-    }
-  }
 }

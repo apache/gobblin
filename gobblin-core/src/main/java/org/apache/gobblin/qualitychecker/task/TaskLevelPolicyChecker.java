@@ -22,15 +22,27 @@ import java.util.List;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+
 /**
  * PolicyChecker takes in a list of Policy objects
  * executes each one, and then stores the output
  * in a PolicyCheckResults object
  */
 public class TaskLevelPolicyChecker {
-
+  /**
+   * An enumeration for possible statuses for Data quality checks,
+   * its values will be PASSED, FAILED, in case if data quality check
+   * evaluation is not performed for Job, it will be NOT_EVALUATED
+   */
+  public enum DataQualityStatus {
+    PASSED,
+    FAILED,
+    NOT_EVALUATED
+  }
   private final List<TaskLevelPolicy> list;
   private static final Logger LOG = LoggerFactory.getLogger(TaskLevelPolicyChecker.class);
+
+  public static final String TASK_LEVEL_POLICY_RESULT_KEY = "gobblin.task.level.policy.result";
 
   public TaskLevelPolicyChecker(List<TaskLevelPolicy> list) {
     this.list = list;
