@@ -21,7 +21,6 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Optional;
-import java.util.Properties;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
@@ -186,7 +185,8 @@ public class KillDagProcTest {
         message("Test message").eventName(ExecutionStatus.COMPLETE.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
 
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
-    doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+    // third node (job2) will be queried for by the KillDagProc because we are killing that node
+    doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(2)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
 
     LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow2",
@@ -215,8 +215,6 @@ public class KillDagProcTest {
             .getInvocations()
             .stream()
             .filter(a -> a.getMethod().getName().equals("cancelJob"))
-            .filter(a -> ((Properties) a.getArgument(1))
-                .getProperty(ConfigurationKeys.SPEC_PRODUCER_SERIALIZED_FUTURE).equals(MockedSpecExecutor.dummySerializedFuture))
             .count())
         .sum();
     // kill dag proc tries to cancel only the exact dag node that was provided

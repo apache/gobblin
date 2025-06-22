@@ -116,7 +116,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   private static final List<ExecutionStatus> ORDERED_EXECUTION_STATUSES = ImmutableList
       .of(ExecutionStatus.COMPILED, ExecutionStatus.PENDING, ExecutionStatus.PENDING_RESUME, ExecutionStatus.PENDING_RETRY,
-          ExecutionStatus.ORCHESTRATED, ExecutionStatus.RUNNING, ExecutionStatus.COMPLETE,
+          ExecutionStatus.ORCHESTRATED, ExecutionStatus.RUNNING, ExecutionStatus.SKIPPED, ExecutionStatus.COMPLETE,
           ExecutionStatus.FAILED, ExecutionStatus.CANCELLED);
 
   private final JobIssueEventHandler jobIssueEventHandler;
