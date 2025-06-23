@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.runtime;
 
-import io.opentelemetry.api.common.Attributes;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
@@ -55,7 +54,6 @@ import org.apache.gobblin.rest.TaskExecutionInfoArray;
 import org.apache.gobblin.runtime.api.MonitoredObject;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.qualitychecker.DataQualityStatus;
-import org.apache.gobblin.quality.DataQualityEvaluator;
 
 import com.codahale.metrics.Counter;
 import com.codahale.metrics.Gauge;
@@ -798,8 +796,8 @@ public class JobState extends SourceState implements JobProgress {
      * Gets the overall data quality status of the dataset.
      * @return "PASSED" if all tasks passed their quality checks, "FAILED" otherwise
      */
-    public String getDataQualityStatus() {
-      return super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, DataQualityStatus.NOT_EVALUATED.name());
+    public DataQualityStatus getDataQualityStatus() {
+      return DataQualityStatus.fromString(super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY));
     }
 
     @Override
@@ -808,7 +806,7 @@ public class JobState extends SourceState implements JobProgress {
       jsonWriter.beginObject();
       jsonWriter.name(ConfigurationKeys.DATASET_URN_KEY).value(getDatasetUrn());
       jsonWriter.name(ConfigurationKeys.JOB_FAILURES_KEY).value(getJobFailures());
-      jsonWriter.name(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY).value(getDataQualityStatus());
+      jsonWriter.name(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY).value(getDataQualityStatus().name());
       jsonWriter.endObject();
     }
 
@@ -846,7 +844,7 @@ public class JobState extends SourceState implements JobProgress {
     protected void writeStateSummary(JsonWriter jsonWriter)
         throws IOException {
       super.writeStateSummary(jsonWriter);
-      jsonWriter.name(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY).value(getDataQualityStatus());
+      jsonWriter.name(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY).value(getDataQualityStatus().name());
       jsonWriter.name("datasetUrn").value(getDatasetUrn());
     }
 

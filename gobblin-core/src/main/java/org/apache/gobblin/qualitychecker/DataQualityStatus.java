@@ -17,6 +17,9 @@
 
 package org.apache.gobblin.qualitychecker;
 
+import lombok.extern.slf4j.Slf4j;
+
+
 /**
  * An enumeration for possible statuses for Data quality checks.
  * Its values will be:
@@ -24,9 +27,22 @@ package org.apache.gobblin.qualitychecker;
  * - FAILED: When any data quality check fails
  * - NOT_EVALUATED: When data quality check evaluation is not performed
  */
+@Slf4j
 public enum DataQualityStatus {
   PASSED,
   FAILED,
   NOT_EVALUATED,
-  UNKNOWN
+  UNKNOWN;
+
+  public static DataQualityStatus fromString(String value) {
+    if (value == null) {
+      return NOT_EVALUATED;
+    }
+    try {
+      return DataQualityStatus.valueOf(value.toUpperCase());
+    } catch (IllegalArgumentException e) {
+      log.error("Invalid DataQualityStatus value: {}. Returning UNKNOWN.", value, e);
+      return UNKNOWN;
+    }
+  }
 }

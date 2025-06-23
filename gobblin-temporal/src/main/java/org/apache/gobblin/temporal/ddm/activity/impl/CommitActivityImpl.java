@@ -270,11 +270,11 @@ public class CommitActivityImpl implements CommitActivity {
         }
         log.info(String.format("DatasetMetrics for '%s' - (records: %d; bytes: %d)", datasetState.getDatasetUrn(),
             totalRecordsWritten, totalBytesWritten));
-        datasetTaskStats.put(datasetState.getDatasetUrn(), new DatasetStats(totalRecordsWritten, totalBytesWritten, true, totalCommittedTasks, datasetState.getDataQualityStatus()));
+        datasetTaskStats.put(datasetState.getDatasetUrn(), new DatasetStats(totalRecordsWritten, totalBytesWritten, true, totalCommittedTasks, datasetState.getDataQualityStatus().name()));
       } else if (datasetState.getState() == JobState.RunningState.FAILED && commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
         // Check if config is turned on for submitting writer metrics on failure due to non-atomic write semantics
         log.info("Due to task failure, will report that no records or bytes were written for " + datasetState.getDatasetUrn());
-        datasetTaskStats.put(datasetState.getDatasetUrn(), new DatasetStats( 0, 0, false, 0, datasetState.getDataQualityStatus()));
+        datasetTaskStats.put(datasetState.getDatasetUrn(), new DatasetStats( 0, 0, false, 0, datasetState.getDataQualityStatus().name()));
       }
     }
     return datasetTaskStats;

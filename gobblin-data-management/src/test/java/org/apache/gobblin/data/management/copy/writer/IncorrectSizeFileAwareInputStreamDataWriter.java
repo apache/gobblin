@@ -42,7 +42,7 @@ public class IncorrectSizeFileAwareInputStreamDataWriter extends FileAwareInputS
 
   public static final String INCORRECT_SIZE_RATIO_KEY = CopyConfiguration.COPY_PREFIX + ".incorrect.size.ratio";
   public static final String INCORRECT_SIZE_OFFSET_KEY = CopyConfiguration.COPY_PREFIX + ".incorrect.size.offset";
-  public static final double DEFAULT_INCORRECT_SIZE_RATIO = 1.0;
+  public static final double DEFAULT_INCORRECT_SIZE_RATIO = 0.9; // Default to 90% of actual size
   public static final long DEFAULT_INCORRECT_SIZE_OFFSET = 0L;
 
   private final double sizeRatio;
@@ -57,6 +57,9 @@ public class IncorrectSizeFileAwareInputStreamDataWriter extends FileAwareInputS
       throws IOException {
     super(state, numBranches, branchId, writerAttemptId);
     this.sizeRatio = state.getPropAsDouble(INCORRECT_SIZE_RATIO_KEY, DEFAULT_INCORRECT_SIZE_RATIO);
+    if (this.sizeRatio <= 0 || this.sizeRatio > 1) {
+      throw new IllegalArgumentException("Incorrect size ratio must be in the range (0, 1]: " + this.sizeRatio);
+    }
     this.sizeOffset = state.getPropAsLong(INCORRECT_SIZE_OFFSET_KEY, DEFAULT_INCORRECT_SIZE_OFFSET);
     log.info("Initialized IncorrectSizeFileAwareInputStreamDataWriter with ratio={}, offset={}",
         this.sizeRatio, this.sizeOffset);

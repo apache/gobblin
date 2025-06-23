@@ -19,6 +19,7 @@ package org.apache.gobblin.qualitychecker.task;
 
 import java.util.List;
 
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,6 +29,7 @@ import org.slf4j.LoggerFactory;
  * executes each one, and then stores the output
  * in a PolicyCheckResults object
  */
+@Getter
 public class TaskLevelPolicyChecker {
   /**
    * An enumeration for possible statuses for Data quality checks,

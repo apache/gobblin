@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.policies.size;
 
+import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.State;
@@ -32,38 +33,69 @@ public class FileSizePolicy extends TaskLevelPolicy {
   public static final String BYTES_READ_KEY = COPY_PREFIX + ".bytesRead";
   public static final String BYTES_WRITTEN_KEY = COPY_PREFIX + ".bytesWritten";
 
-  private final Long bytesRead;
-  private final Long bytesWritten;
-
   public FileSizePolicy(State state, TaskLevelPolicy.Type type) {
     super(state, type);
-    String bytesReadString = state.getProp(BYTES_READ_KEY);
-    String bytesWrittenString = state.getProp(BYTES_WRITTEN_KEY);
-    this.bytesRead = bytesReadString == null ? null : Long.parseLong(bytesReadString);
-    this.bytesWritten = bytesWrittenString == null ? null : Long.parseLong(bytesWrittenString);
   }
 
   @Override
   public Result executePolicy() {
-    if(this.bytesRead == null || this.bytesWritten == null) {
-      log.error("No bytes read or bytes written for this request");
+    TransferBytes bytes = getBytesReadAndWritten(this.state);
+    if (bytes == null) {
       return Result.FAILED;
     }
-    double sizeDifference = Math.abs(this.bytesRead - this.bytesWritten);
+    Long bytesRead = bytes.getBytesRead();
+    Long bytesWritten = bytes.getBytesWritten();
+
+    if(bytesRead == null || bytesWritten == null) {
+      log.error("Missing value(s): bytesRead={}, bytesWritten={}", bytesRead, bytesWritten);
+      return Result.FAILED;
+    }
+    Long sizeDifference = Math.abs(bytesRead - bytesWritten);
 
     if (sizeDifference == 0) {
       return Result.PASSED;
     }
 
     log.warn("File size check failed - bytes read: {}, bytes written: {}, difference: {}",
-        this.bytesRead, this.bytesWritten, sizeDifference);
+        bytesRead, bytesWritten, sizeDifference);
     return Result.FAILED;
   }
 
   @Override
   public String toString() {
-    return String.format("FileSizePolicy [bytesRead=%s, bytesWritten=%s]",
-        this.bytesRead, this.bytesWritten);
+    TransferBytes bytes = getBytesReadAndWritten(this.state);
+    return String.format("FileSizePolicy [bytesRead=%s, bytesWritten=%s]", bytes.getBytesRead(), bytes.getBytesWritten());
   }
 
+  /**
+   * Helper class to hold transfer bytes information
+   */
+  @Getter
+  private static class TransferBytes {
+    final Long bytesRead;
+    final Long bytesWritten;
+    TransferBytes(Long bytesRead, Long bytesWritten) {
+      this.bytesRead = bytesRead;
+      this.bytesWritten = bytesWritten;
+    }
+  }
+
+  /**
+   * Extracts bytesRead and bytesWritten from the given state.
+   * Returns null if parsing fails.
+   */
+  private TransferBytes getBytesReadAndWritten(State state) {
+    String bytesReadString = state.getProp(BYTES_READ_KEY);
+    String bytesWrittenString = state.getProp(BYTES_WRITTEN_KEY);
+    Long bytesRead = null;
+    Long bytesWritten = null;
+    try {
+      bytesRead = bytesReadString == null ? null : Long.parseLong(bytesReadString);
+      bytesWritten = bytesWrittenString == null ? null : Long.parseLong(bytesWrittenString);
+    } catch (NumberFormatException e) {
+      log.error("Invalid number format for bytesRead or bytesWritten: bytesRead='{}', bytesWritten='{}'", bytesReadString, bytesWrittenString, e);
+      return null;
+    }
+    return new TransferBytes(bytesRead, bytesWritten);
+  }
 }

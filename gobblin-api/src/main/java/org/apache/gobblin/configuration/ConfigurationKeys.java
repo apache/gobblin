@@ -940,7 +940,7 @@ public class ConfigurationKeys {
   public static final Boolean DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED = false;
 
   public static final String METRICS_REPORTING_OPENTELEMETRY_ENDPOINT = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "endpoint";
-
+  public static final String METRICS_REPORTING_OPENTELEMETRY_FABRIC = METRICS_REPORTING_OPENTELEMETRY_CONFIGS_PREFIX + "fabric";
   // Headers to add to the OpenTelemetry HTTP Exporter, formatted as a JSON String with string keys and values
   public static final String METRICS_REPORTING_OPENTELEMETRY_HEADERS = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "headers";
 

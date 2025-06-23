@@ -1,24 +1,39 @@
+/*
+ * Licensed to the Apache Software Foundation (ASF) under one or more
+ * contributor license agreements.  See the NOTICE file distributed with
+ * this work for additional information regarding copyright ownership.
+ * The ASF licenses this file to You under the Apache License, Version 2.0
+ * (the "License"); you may not use this file except in compliance with
+ * the License.  You may obtain a copy of the License at
+ *
+ *    http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+ */
+
 package org.apache.gobblin.quality;
 
-import java.io.IOException;
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.Meter;
+import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.List;
 import java.util.Properties;
-
+import java.util.concurrent.atomic.AtomicLong;
+import lombok.Getter;
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.OpenTelemetryMetrics;
 import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.qualitychecker.DataQualityStatus;
-import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskState;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.gobblin.util.PropertiesUtils;
-
-import io.opentelemetry.api.common.Attributes;
-import lombok.Getter;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * Evaluates data quality for a set of task states and emits relevant metrics.
@@ -51,10 +66,6 @@ public class DataQualityEvaluator {
             this.failedFiles = failedFiles;
             this.nonEvaluatedFiles = nonEvaluatedFiles;
         }
-
-        public DataQualityEvaluationResult(DataQualityStatus qualityStatus, int totalFiles, int passedFiles, int failedFiles) {
-            this(qualityStatus, totalFiles, passedFiles, failedFiles, 0);
-        }
     }
 
     /**
@@ -72,7 +83,7 @@ public class DataQualityEvaluator {
         // Store the result in the dataset state
         jobState.setProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, result.getQualityStatus().name());
         // Emit dataset-specific metrics
-        emitMetrics(jobState, result.getQualityStatus(), result.getTotalFiles(),
+        emitMetrics(jobState, result.getQualityStatus() == DataQualityStatus.PASSED? 1 : 0, result.getTotalFiles(),
             result.getPassedFiles(), result.getFailedFiles(), result.nonEvaluatedFiles, datasetState.getDatasetUrn());
 
         return result;
@@ -94,18 +105,19 @@ public class DataQualityEvaluator {
 
         for (TaskState taskState : taskStates) {
             totalFiles++;
+
+            // Handle null task states gracefully
+            if (taskState == null) {
+                log.warn("Encountered null task state, skipping data quality evaluation for this task");
+                nonEvaluatedFilesSize++;
+                continue;
+            }
+
             DataQualityStatus taskDataQuality = null;
             String result = taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY);
-            if (result != null) {
-                try {
-                    taskDataQuality = DataQualityStatus.valueOf(result);
-                } catch (IllegalArgumentException e) {
-                    log.warn("Unknown data quality status encountered " + result);
-                    // since we are setting known enums to task state, this should never happen
-                    taskDataQuality = DataQualityStatus.UNKNOWN;
-                }
-
-                log.info("Data quality status of this task is: " + taskDataQuality);
+            taskDataQuality = DataQualityStatus.fromString(result);
+            if (taskDataQuality != DataQualityStatus.NOT_EVALUATED) {
+                log.debug("Data quality status of this task is: " + taskDataQuality);
                 if (DataQualityStatus.PASSED == taskDataQuality) {
                     passedFilesSize++;
                 } else if (DataQualityStatus.FAILED == taskDataQuality){
@@ -113,9 +125,9 @@ public class DataQualityEvaluator {
                     jobDataQuality = DataQualityStatus.FAILED;
                 }
             } else {
-                // Handle files without data quality evaluation (result is null)
+                // Handle files without data quality evaluation
                 nonEvaluatedFilesSize++;
-                log.warn("No data quality evaluation available for task: " + taskState.getTaskId());
+                log.warn("No data quality evaluation for task: " + taskState.getTaskId());
             }
         }
 
@@ -125,78 +137,55 @@ public class DataQualityEvaluator {
         return new DataQualityEvaluationResult(jobDataQuality, totalFiles, passedFilesSize, failedFilesSize, nonEvaluatedFilesSize);
     }
 
-    private static void emitMetrics(JobState jobState, DataQualityStatus jobDataQuality, int totalFiles,
-            int passedFilesSize, int failedFilesSize, int nonEvaluatedFilesSize) {
-        emitMetrics(jobState, jobDataQuality, totalFiles, passedFilesSize, failedFilesSize, nonEvaluatedFilesSize,
-            jobState.getProp(ConfigurationKeys.DATASET_URN_KEY));
-    }
-
-    private static void emitMetrics(JobState jobState, DataQualityStatus jobDataQuality, int totalFiles,
-            int passedFilesSize, int failedFilesSize, String datasetUrn) {
-        emitMetrics(jobState, jobDataQuality, totalFiles, passedFilesSize, failedFilesSize, 0, datasetUrn);
-    }
-
-    private static void emitMetrics(JobState jobState, DataQualityStatus jobDataQuality, int totalFiles,
+    private static void emitMetrics(JobState jobState, int jobDataQuality, int totalFiles,
             int passedFilesSize, int failedFilesSize, int nonEvaluatedFilesSize, String datasetUrn) {
         OpenTelemetryMetricsBase otelMetrics = OpenTelemetryMetrics.getInstance(jobState);
-        if (otelMetrics != null) {
+        if(otelMetrics != null) {
+            Meter meter = otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME);
+            AtomicLong jobDataQualityRef = new AtomicLong(jobDataQuality);
+            AtomicLong totalFilesRef = new AtomicLong(totalFiles);
+            AtomicLong passedFilesRef = new AtomicLong(passedFilesSize);
+            AtomicLong failedFilesRef = new AtomicLong(failedFilesSize);
+            AtomicLong nonEvaluatedFilesRef = new AtomicLong(nonEvaluatedFilesSize);
+// Define the observable counters
+            ObservableLongMeasurement dataQualityStatusCounter =
+                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_STATUS_METRIC_NAME).buildObserver();
+            ObservableLongMeasurement totalCounter =
+                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_OVERALL_FILE_COUNT).buildObserver();
+            ObservableLongMeasurement successCounter =
+                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_SUCCESS_FILE_COUNT).buildObserver();
+            ObservableLongMeasurement failureCounter =
+                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_FAILURE_FILE_COUNT).buildObserver();
+            ObservableLongMeasurement nonEvaluatedFilesCounter =
+                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_NON_EVALUATED_FILE_COUNT).buildObserver();
             Attributes tags = getTagsForDataQualityMetrics(jobState, datasetUrn);
-            // Emit data quality status (1 for PASSED, 0 for FAILED)
-            DataQualityStatus finalJobDataQuality = jobDataQuality;
-            log.info("Data quality status for this job is " + finalJobDataQuality);
-            otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-                .gaugeBuilder(ServiceMetricNames.DATA_QUALITY_STATUS_METRIC_NAME)
-                .ofLongs()
-                .buildWithCallback(measurement -> {
-                    log.info("Emitting metric for data quality");
-                    measurement.record(DataQualityStatus.PASSED.equals(finalJobDataQuality) ? 1 : 0, tags);
-                });
-
-            otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-                .counterBuilder(ServiceMetricNames.DATA_QUALITY_OVERALL_FILE_COUNT)
-                .build()
-                .add(totalFiles, tags);
-            // Emit passed files count
-            otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-                .counterBuilder(ServiceMetricNames.DATA_QUALITY_SUCCESS_FILE_COUNT)
-                .build().add(passedFilesSize, tags);
-            // Emit failed files count
-            otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-                .counterBuilder(ServiceMetricNames.DATA_QUALITY_FAILURE_FILE_COUNT)
-                .build().add(failedFilesSize, tags);
-            // Emit non-evaluated files count
-            otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-                .counterBuilder(ServiceMetricNames.DATA_QUALITY_NON_EVALUATED_FILE_COUNT)
-                .build().add(nonEvaluatedFilesSize, tags);
+            log.info("About to make batch callback for all data quality metrics with tags: " + tags.toString());
+            meter.batchCallback(() -> {
+                dataQualityStatusCounter.record(jobDataQualityRef.get(), tags);
+                totalCounter.record(totalFilesRef.get(), tags);
+                successCounter.record(passedFilesRef.get(), tags);
+                failureCounter.record(failedFilesRef.get(), tags);
+                nonEvaluatedFilesCounter.record(nonEvaluatedFilesRef.get(), tags);
+            }, dataQualityStatusCounter, totalCounter, successCounter, failureCounter, nonEvaluatedFilesCounter);
         }
-    }
-
-    private static Attributes getTagsForDataQualityMetrics(JobState jobState) {
-        return getTagsForDataQualityMetrics(jobState, jobState.getProp(ConfigurationKeys.DATASET_URN_KEY));
     }
 
     private static Attributes getTagsForDataQualityMetrics(JobState jobState, String datasetUrn) {
-        Properties jobProperties = new Properties();
-        try {
-            jobProperties = PropertiesUtils.deserialize(jobState.getProp("job.props", ""));
-            log.info("Job properties loaded: " + jobProperties);
-        } catch (IOException e) {
-            log.error("Could not deserialize job properties", e);
-        }
+        Properties jobProperties = jobState.getProperties();
+        log.info("Job properties loaded: " + jobProperties);
 
         return Attributes.builder()
             .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobState.getJobName())
             .put(TimingEvent.DATASET_URN, datasetUrn)
-            .put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobState.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD))
-            .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, jobState.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD))
-            .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
-            .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD))
-            .put(TimingEvent.FlowEventConstants.FLOW_FABRIC, jobState.getProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, null))
+            .put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobProperties.getProperty(ConfigurationKeys.FLOW_NAME_KEY))
+            .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, jobProperties.getProperty(ConfigurationKeys.FLOW_GROUP_KEY))
+            .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, jobProperties.getProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY))
+            .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, jobProperties.getProperty(ConfigurationKeys.FLOW_EDGE_ID_KEY))
+            .put(TimingEvent.FlowEventConstants.FLOW_FABRIC, jobProperties.getProperty(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_FABRIC, null))
             .put(TimingEvent.FlowEventConstants.FLOW_SOURCE, jobProperties.getProperty(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))
             .put(TimingEvent.FlowEventConstants.FLOW_DESTINATION, jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ""))
-            .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, jobState.getProp(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, ""))
+            .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, jobProperties.getProperty(ConfigurationKeys.FLOW_SPEC_EXECUTOR, ""))
             .build();
     }
 }
-    }
-}
+
