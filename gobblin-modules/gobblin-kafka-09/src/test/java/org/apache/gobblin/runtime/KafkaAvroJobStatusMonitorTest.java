@@ -131,6 +131,7 @@ public class KafkaAvroJobStatusMonitorTest {
   @Test
   public void testProcessMessageForSuccessfulFlow() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic1");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -152,7 +153,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-      new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
+      new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore, errorClassifier);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
@@ -197,6 +198,7 @@ public class KafkaAvroJobStatusMonitorTest {
   @Test (dependsOnMethods = "testProcessMessageForSuccessfulFlow")
   public void testProcessMessageForFailedFlow() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic2");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -223,8 +225,8 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
-        ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor( new AtomicBoolean(false),
+        ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore, errorClassifier);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
@@ -302,6 +304,7 @@ public class KafkaAvroJobStatusMonitorTest {
   @Test (dependsOnMethods = "testProcessMessageForFailedFlow")
   public void testProcessMessageForSkippedFlow() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic2");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -321,7 +324,7 @@ public class KafkaAvroJobStatusMonitorTest {
     }
 
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-        new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
+        new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore, errorClassifier);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
@@ -367,6 +370,7 @@ public class KafkaAvroJobStatusMonitorTest {
   @Test (dependsOnMethods = "testProcessMessageForSkippedFlow")
   public void testProcessingRetriedForApparentlyTransientErrors() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic3");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -388,7 +392,7 @@ public class KafkaAvroJobStatusMonitorTest {
     Config conf = ConfigFactory.empty().withValue(
         KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX + "." + RETRY_MULTIPLIER, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.toMillis(1L)));
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(shouldThrowFakeExceptionInParseJobStatusToggle, conf,
-        new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
+        new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore, errorClassifier);
 
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
@@ -428,6 +432,7 @@ public class KafkaAvroJobStatusMonitorTest {
   @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
   public void testProcessMessageForCancelledAndKilledEvent() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -452,7 +457,7 @@ public class KafkaAvroJobStatusMonitorTest {
     }
 
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
-        ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
+        ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore, errorClassifier);
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
@@ -514,6 +519,7 @@ public class KafkaAvroJobStatusMonitorTest {
   @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
   public void testProcessMessageForFlowPendingResume() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -537,7 +543,7 @@ public class KafkaAvroJobStatusMonitorTest {
     }
 
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
-        ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
+        ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore, errorClassifier);
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
@@ -593,6 +599,7 @@ public class KafkaAvroJobStatusMonitorTest {
   @Test (dependsOnMethods = "testProcessMessageForCancelledAndKilledEvent")
   public void testProcessProgressingMessageWhenNoPreviousStatus() throws IOException, ReflectiveOperationException {
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic5");
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
 
     //Submit GobblinTrackingEvents to Kafka
     ImmutableList.of(
@@ -609,7 +616,7 @@ public class KafkaAvroJobStatusMonitorTest {
     }
 
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-        new NoopGaaSJobObservabilityEventProducer(), mock(DagManagementStateStore.class));
+        new NoopGaaSJobObservabilityEventProducer(), mock(DagManagementStateStore.class), errorClassifier);
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
@@ -642,7 +649,7 @@ public class KafkaAvroJobStatusMonitorTest {
     MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(ConfigUtils.configToState(ConfigFactory.empty()),
         issueRepository, false);
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
-        ConfigFactory.empty(), mockEventProducer, mock(DagManagementStateStore.class));
+        ConfigFactory.empty(), mockEventProducer, mock(DagManagementStateStore.class), mock(ErrorClassifier.class));
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
@@ -689,7 +696,7 @@ public class KafkaAvroJobStatusMonitorTest {
     MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(ConfigUtils.configToState(ConfigFactory.empty()),
         issueRepository, false);
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
-        ConfigFactory.empty(), mockEventProducer, mock(DagManagementStateStore.class));
+        ConfigFactory.empty(), mockEventProducer, mock(DagManagementStateStore.class), mock(ErrorClassifier.class));
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
@@ -740,7 +747,7 @@ public class KafkaAvroJobStatusMonitorTest {
     MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(producerState,
         issueRepository, false);
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-        mockEventProducer, mock(DagManagementStateStore.class));
+        mockEventProducer, mock(DagManagementStateStore.class), mock(ErrorClassifier.class));
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
@@ -800,7 +807,7 @@ public class KafkaAvroJobStatusMonitorTest {
     MockGaaSJobObservabilityEventProducer mockEventProducer = new MockGaaSJobObservabilityEventProducer(producerState,
         issueRepository, false);
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-        mockEventProducer, mock(DagManagementStateStore.class));
+        mockEventProducer, mock(DagManagementStateStore.class), mock(ErrorClassifier.class));
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),
@@ -950,14 +957,14 @@ public class KafkaAvroJobStatusMonitorTest {
   }
 
   MockKafkaAvroJobStatusMonitor createMockKafkaAvroJobStatusMonitor(AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, Config additionalConfig,
-      GaaSJobObservabilityEventProducer eventProducer, DagManagementStateStore dagManagementStateStore) throws IOException, ReflectiveOperationException {
+      GaaSJobObservabilityEventProducer eventProducer, DagManagementStateStore dagManagementStateStore, ErrorClassifier errorClassifier) throws IOException, ReflectiveOperationException {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"))
         .withFallback(additionalConfig);
     return new MockKafkaAvroJobStatusMonitor("test", config, 1, shouldThrowFakeExceptionInParseJobStatusToggle,
-        eventProducer, dagManagementStateStore);
+        eventProducer, dagManagementStateStore, errorClassifier);
   }
   /**
    *   Create a dummy event to test if it is filtered out by the consumer.
@@ -1013,9 +1020,9 @@ public class KafkaAvroJobStatusMonitorTest {
      */
     public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
         AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, GaaSJobObservabilityEventProducer producer,
-        DagManagementStateStore dagManagementStateStore)
+        DagManagementStateStore dagManagementStateStore, ErrorClassifier errorClassifier)
         throws IOException, ReflectiveOperationException {
-      super(topic, config, numThreads, mock(JobIssueEventHandler.class), producer, dagManagementStateStore);
+      super(topic, config, numThreads, mock(JobIssueEventHandler.class), producer, dagManagementStateStore, errorClassifier);
       shouldThrowFakeExceptionInParseJobStatus = shouldThrowFakeExceptionInParseJobStatusToggle;
     }
 

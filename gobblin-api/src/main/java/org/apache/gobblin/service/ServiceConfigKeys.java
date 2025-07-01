@@ -160,4 +160,7 @@ public class ServiceConfigKeys {
   public static final String DAG_PROC_ENGINE_NON_RETRYABLE_EXCEPTIONS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "nonRetryableExceptions";
   public static final Integer DEFAULT_NUM_DAG_PROC_THREADS = 3;
   public static final long DEFAULT_FLOW_FINISH_DEADLINE_MILLIS = TimeUnit.HOURS.toMillis(24);
+
+  public static final String ERROR_ISSUE_STORE_CLASS = "errorIssueStore.class"; //TBD: new config to be set
+
 }

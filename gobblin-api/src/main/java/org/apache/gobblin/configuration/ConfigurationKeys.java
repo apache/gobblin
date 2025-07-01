@@ -85,6 +85,10 @@ public class ConfigurationKeys {
 
   public static final String DATASETURN_STATESTORE_NAME_PARSER = "state.store.datasetUrnStateStoreNameParser";
 
+  //DB metrics for Error Issue Store
+  public static final String ERROR_ISSUES_DB_TABLE_KEY = "state.store.db.issuesTableName";
+  public static final String ERROR_CATEGORIES_DB_TABLE_KEY = "state.store.db.categoriesTableName";
+
   /**
    * Job scheduler configuration properties.
    */

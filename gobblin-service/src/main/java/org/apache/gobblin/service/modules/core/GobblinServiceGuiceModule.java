@@ -35,6 +35,7 @@ import com.typesafe.config.Config;
 import javax.inject.Singleton;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.ErrorClassifier;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.instance.StandardGobblinInstanceLauncher;
@@ -93,6 +94,9 @@ import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitorFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.metastore.ErrorIssueStore;
+import org.apache.gobblin.metastore.MysqlErrorIssueStore;
+import org.apache.gobblin.metastore.DefaultErrorIssueStore;
 
 
 public class GobblinServiceGuiceModule implements Module {
@@ -183,6 +187,19 @@ public class GobblinServiceGuiceModule implements Module {
     if (serviceConfig.isFlowCatalogEnabled()) {
       binder.bind(FlowCatalog.class);
     }
+
+    /*
+        // Bind ErrorIssueStore as a singleton, using config if available, else default to DefaultErrorIssueStore
+        binder.bind(ErrorIssueStore.class)
+            .to(getClassByNameOrAlias(ErrorIssueStore.class, serviceConfig.getInnerConfig(),
+                ServiceConfigKeys.ERROR_ISSUE_STORE_CLASS,
+                MysqlErrorIssueStore.class.getName())).in(Singleton.class);
+        binder.bind(MysqlErrorIssueStore.class).in(Singleton.class);
+        binder.bind(ErrorClassifier.class).in(Singleton.class);
+    */
+
+    binder.bind(ErrorIssueStore.class).to(MysqlErrorIssueStore.class);
+    binder.bind(ErrorClassifier.class);
 
     if (serviceConfig.isJobStatusMonitorEnabled()) {
       binder.bind(KafkaJobStatusMonitor.class).toProvider(KafkaJobStatusMonitorFactory.class).in(Singleton.class);

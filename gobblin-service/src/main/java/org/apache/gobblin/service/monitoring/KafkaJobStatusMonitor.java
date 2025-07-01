@@ -29,6 +29,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
+import javax.inject.Inject;
+
 import org.apache.commons.lang3.tuple.ImmutablePair;
 import org.apache.commons.lang3.tuple.Pair;
 
@@ -58,11 +60,14 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.ErrorClassifier;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.retention.DatasetCleanerTask;
+import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -72,6 +77,7 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExceptionUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
+
 
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
@@ -125,8 +131,13 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final DagManagementStateStore dagManagementStateStore;
   private final List<Class<? extends Exception>> nonRetryableExceptions = Collections.singletonList(SQLIntegrityConstraintViolationException.class);
 
+  private final ErrorClassifier errorClassifier;
+
+  //TBD: Add @Inject for Guice constructor injection
+  @Inject
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
-      GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore)
+      GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore,
+      ErrorClassifier errorClassifier) //TBD: inject
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
@@ -137,6 +148,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
     this.jobIssueEventHandler = jobIssueEventHandler;
     this.dagManagementStateStore = dagManagementStateStore;
+    this.errorClassifier = errorClassifier; //TBD Save injected classifier
 
     Config retryerOverridesConfig = config.hasPath(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
@@ -216,7 +228,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
           Pair<org.apache.gobblin.configuration.State, NewState> updatedJobStatus = recalcJobStatus(jobStatus, this.stateStore);
           jobStatus = updatedJobStatus.getLeft();
-
           String flowName = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD);
           String flowGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD);
           long flowExecutionId = jobStatus.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
@@ -232,9 +243,21 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           // this can also be addressed by some other new job status like FAILED_PENDING_RETRY which does not alert the user
           // as much as FAILED does if we chose to emit ObservabilityEvent for FAILED_PENDING_RETRY
           boolean retryRequired = modifyStateIfRetryRequired(jobStatus);
-
           if (updatedJobStatus.getRight() == NewState.FINISHED && !retryRequired) {
-            // do not send event if retry is required, because it can alert users to re-submit a job that is already set to be retried by GaaS
+            List<Issue> issues = jobIssueEventHandler.getErrorIssuesForClassification(TroubleshooterUtils.getContextIdForJob(jobStatus.getProperties()));
+            // Use ErrorClassifier to get a final categorized Issue
+            try {
+              //TBD Use injected ErrorClassifier instead of new instance
+              Issue finalIssue = errorClassifier.classify(issues);
+              if (finalIssue != null) {
+                log.info("Final categorized issue: {}", finalIssue);
+                jobIssueEventHandler.LogFinalError(finalIssue, flowName, flowGroup, String.valueOf(flowExecutionId), jobName);
+              }
+            } catch (Exception e) {
+              log.error("Error classifying issues for job: {}", jobStatus, e);
+            }
+            // do not send event if retry is required, because it can alert users to re-submit a job that is already set to be retried by Gaa
+
             this.eventProducer.emitObservabilityEvent(jobStatus);
           }
 

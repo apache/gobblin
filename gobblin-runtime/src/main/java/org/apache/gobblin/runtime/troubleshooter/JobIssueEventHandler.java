@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime.troubleshooter;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
@@ -83,8 +84,9 @@ public class JobIssueEventHandler {
     try {
       issueRepository.put(contextId, issueEvent.getIssue());
     } catch (TroubleshooterException e) {
-      log.warn(String.format("Failed to save issue to repository. Issue time: %s, code: %s",
-                             issueEvent.getIssue().getTime(), issueEvent.getIssue().getCode()), e);
+      log.warn(
+          String.format("Failed to save issue to repository. Issue time: %s, code: %s", issueEvent.getIssue().getTime(),
+              issueEvent.getIssue().getCode()), e);
     }
 
     if (logReceivedEvents) {
@@ -113,5 +115,22 @@ public class JobIssueEventHandler {
     String flowExecutionId;
     String jobName;
     Issue issue;
+  }
+
+  public List<Issue> getErrorIssuesForClassification(String contextId)
+      throws TroubleshooterException {
+    return issueRepository.getAll(contextId);
+  }
+
+  public void LogFinalError(Issue issue, String flowName, String flowGroup, String flowExecutionId, String jobName) {
+    JobIssueLogEntry logEntry = new JobIssueLogEntry();
+    logEntry.issue = issue;
+    logEntry.flowName = flowName;
+    logEntry.flowGroup = flowGroup;
+    logEntry.flowExecutionId = flowExecutionId;
+    logEntry.jobName = jobName;
+
+    String serializedIssueEvent = GsonUtils.GSON_WITH_DATE_HANDLING.toJson(logEntry);
+    issueLogger.info(serializedIssueEvent);
   }
 }
