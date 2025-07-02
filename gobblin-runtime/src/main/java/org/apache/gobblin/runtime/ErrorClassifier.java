@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.regex.Pattern;
 
 import javax.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.Category;
 import org.apache.gobblin.configuration.ErrorIssue;
@@ -20,6 +21,7 @@ import org.apache.gobblin.metastore.ErrorIssueStore;
 /**
  * Classifies issues by matching their summary to in-memory error patterns and categories.
  */
+@Slf4j
 public class ErrorClassifier {
   private final List<PatternedErrorIssue> errorIssues;
   private final Map<String, Category> categoryMap;
@@ -35,16 +37,21 @@ public class ErrorClassifier {
   @Inject
   public ErrorClassifier(ErrorIssueStore store)
       throws IOException {
+    log.info("Inside ErrorClassifier constructor");
     this.errorStore = store;
     this.errorIssues = new ArrayList<>();
     for (ErrorIssue issue : store.getAllErrorIssues()) {
       errorIssues.add(new PatternedErrorIssue(issue));
     }
+    log.info("Error classifier: Completed pattern loading");
     this.categoryMap = new HashMap<>();
     for (Category cat : store.getAllErrorCategories()) {
       categoryMap.put(cat.getCategoryName(), cat);
     }
+    log.info("Error classifier: Completed error category loading");
     this.defaultCategory = store.getDefaultCategory();
+    log.info("ErrorClassifier constructor construction complete with {} error issues and {} categories loaded. Default Category is {}",
+        errorIssues.size(), categoryMap.size(), this.defaultCategory != null ? this.defaultCategory.getCategoryName() : "null");
   }
 
   /**
@@ -128,7 +135,7 @@ public class ErrorClassifier {
 
     PatternedErrorIssue(ErrorIssue issue) {
       this.issue = issue;
-      this.pattern = Pattern.compile(issue.getDescriptionRegex());
+      this.pattern = Pattern.compile(issue.getDescriptionRegex()); //TBD: catch exception if regex is invalid
     }
 
     boolean matches(String summary) {
