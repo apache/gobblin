@@ -338,7 +338,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
       KafkaConsumerRecord record = null;
       try {
         while (true) {
-          record = queue.take();
+          record = queue.take(); //was commented out
+          // Thread.sleep(5000); //TBD: was done for testing one-time working, to be deleted
           messagesRead.inc();
           try {
             HighLevelConsumer.this.processMessage((DecodeableKafkaRecord) record);

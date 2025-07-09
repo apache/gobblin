@@ -25,14 +25,26 @@ import java.util.List;
 
 /**
  * MySQL-backed implementation of IssueStore, following Gobblin's MysqlDagActionStore pattern.
+ *
+ * Expected table schemas:
+ *
+ * 1. error_summary_regex_store
+ *    - description_regex: VARCHAR(255) NOT NULL UNIQUE
+ *    - error_category_name: VARCHAR(255) NOT NULL
+ *
+ * 2. error_categories
+ *    - error_category_name: VARCHAR(255) PRIMARY KEY
+ *    - priority: INT NOT NULL
+ *    - is_default: BOOLEAN (optional, not compulsory; used if present to indicate the default category)
+ *
  * This class provides methods to primarily retrieve error regex patterns and error categories.
  */
 @Slf4j
-public class MysqlErrorIssueStore implements ErrorIssueStore {
+public class MysqlErrorPatternStore implements ErrorPatternStore {
   private final DataSource dataSource;
   private final String errorRegexSummaryStoreTable;
   private final String errorCategoriesTable;
-  public static final String CONFIG_PREFIX = "MysqlErrorIssueStore";
+  public static final String CONFIG_PREFIX = "MysqlErrorPatternStore";
 
   private static final int MAX_CHARACTERS_IN_DESCRIPTION_REGEX = 255; //do we want to configure this?
 
@@ -65,38 +77,27 @@ public class MysqlErrorIssueStore implements ErrorIssueStore {
 
   private static final String GET_DEFAULT_CATEGORY_STATEMENT = "SELECT error_category_name, priority FROM %s WHERE is_default = TRUE ORDER BY priority DESC";
 
+  private static final String GET_ALL_ERROR_ISSUES_ORDERED_BY_CATEGORY_PRIORITY_STATEMENT =
+      "SELECT e.description_regex, e.error_category_name FROM %s e " +
+      "JOIN %s c ON e.error_category_name = c.error_category_name " +
+      "ORDER BY c.priority ASC, e.description_regex ASC";
+
   @Inject
-  public MysqlErrorIssueStore(Config config)
+  public MysqlErrorPatternStore(Config config)
       throws IOException {
-    log.info("Inside MysqlErrorIssueStore constructor");
+    log.info("Inside MysqlErrorPatternStore constructor");
     if (config.hasPath(CONFIG_PREFIX)) {
       config = config.getConfig(CONFIG_PREFIX).withFallback(config);
     } else {
-      throw new IOException("Please specify the config for MysqlDagActionStore");
+      throw new IOException("Please specify the config for MysqlErrorPatternStore");
     }
     this.errorRegexSummaryStoreTable = ConfigUtils.getString(config, ConfigurationKeys.ERROR_REGEX_DB_TABLE_KEY, "error_summary_regex_store");
     this.errorCategoriesTable = ConfigUtils.getString(config, ConfigurationKeys.ERROR_CATEGORIES_DB_TABLE_KEY, "error_categories");
     this.dataSource = MysqlDataSourceFactory.get(config, SharedResourcesBrokerFactory.getImplicitBroker());
-    log.info("MysqlErrorIssueStore almost initialized");
+    log.info("MysqlErrorPatternStore almost initialized");
     createTablesIfNotExist();
-    log.info("MysqlErrorIssueStore initialized");
+    log.info("MysqlErrorPatternStore initialized");
   }
-
-  /*
-    //TBD: should we follow the pattern of MysqlStateStore and do a sample query to ensure connection is valid?
-    private DataSource newDataSource(Config config) {
-      HikariDataSource ds = new HikariDataSource();
-      PasswordManager pm = PasswordManager.getInstance(ConfigUtils.configToProperties(config));
-      ds.setJdbcUrl(config.getString(ConfigurationKeys.STATE_STORE_DB_URL_KEY)); //TBD: should we use a different key? like: SERVICE_DB_URL_KEY
-      ds.setUsername(pm.readPassword(config.getString(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
-      ds.setPassword(pm.readPassword(config.getString(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
-      ds.setDriverClassName(ConfigUtils.getString(config,ConfigurationKeys.STATE_STORE_DB_JDBC_DRIVER_KEY,
-          ConfigurationKeys.DEFAULT_STATE_STORE_DB_JDBC_DRIVER));
-      ds.setMinimumIdle(0);
-      ds.setAutoCommit(false);
-      return ds;
-    }
-  */
 
   private void createTablesIfNotExist()
       throws IOException {
@@ -154,7 +155,7 @@ public class MysqlErrorIssueStore implements ErrorIssueStore {
   public int getErrorCategoryPriority(String categoryName)
       throws IOException {
     Category cat = getErrorCategory(categoryName);
-    return cat != null ? cat.getPriority() : -1;
+    return cat != null ? cat.getPriority() : -1; //TBD: should this be exception instead? ot instead of -1, we set MAXINT value?
   }
 
   @Override
@@ -173,7 +174,7 @@ public class MysqlErrorIssueStore implements ErrorIssueStore {
   }
 
   @Override
-  public void addErrorIssue(ErrorIssue issue)
+  public void addErrorPattern(ErrorIssue issue)
       throws IOException {
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(String.format(INSERT_ERROR_REGEX_SUMMARY_STATEMENT, errorRegexSummaryStoreTable))) {
       ps.setString(1, issue.getDescriptionRegex());
@@ -186,7 +187,7 @@ public class MysqlErrorIssueStore implements ErrorIssueStore {
   }
 
   @Override
-  public boolean deleteErrorIssue(String descriptionRegex)
+  public boolean deleteErrorPattern(String descriptionRegex)
       throws IOException {
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(String.format(DELETE_ERROR_REGEX_SUMMARY_STATEMENT, errorRegexSummaryStoreTable))) {
       ps.setString(1, descriptionRegex);
@@ -199,7 +200,7 @@ public class MysqlErrorIssueStore implements ErrorIssueStore {
   }
 
   @Override
-  public ErrorIssue getErrorIssue(String descriptionRegex)
+  public ErrorIssue getErrorPattern(String descriptionRegex)
       throws IOException {
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(String.format(GET_ERROR_REGEX_SUMMARY_STATEMENT, errorRegexSummaryStoreTable))) {
       ps.setString(1, descriptionRegex);
@@ -215,7 +216,7 @@ public class MysqlErrorIssueStore implements ErrorIssueStore {
   }
 
   @Override
-  public List<ErrorIssue> getAllErrorIssues()
+  public List<ErrorIssue> getAllErrorPatterns()
       throws IOException {
     List<ErrorIssue> issues = new ArrayList<>();
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(String.format(GET_ALL_ERROR_REGEX_SUMMARIES_STATEMENT, errorRegexSummaryStoreTable));
@@ -230,7 +231,7 @@ public class MysqlErrorIssueStore implements ErrorIssueStore {
   }
 
   @Override
-  public List<ErrorIssue> getErrorIssuesByCategory(String categoryName)
+  public List<ErrorIssue> getErrorPatternsByCategory(String categoryName)
       throws IOException {
     String sql = "SELECT description_regex, error_category_name FROM " + errorRegexSummaryStoreTable + " WHERE error_category_name = ?";
     List<ErrorIssue> issues = new ArrayList<>();
@@ -284,6 +285,7 @@ public class MysqlErrorIssueStore implements ErrorIssueStore {
     }
   }
 
+
   /**
    * Returns the default category using is_default column, or null if not found.
    */
@@ -300,5 +302,24 @@ public class MysqlErrorIssueStore implements ErrorIssueStore {
       throw new IOException("Failed to get default category with is_default", e);
     }
     return null;
+  }
+
+  /**
+   * Returns all ErrorIssues ordered by the priority of their category (ascending), then by description_regex.
+   */
+  @Override
+  public List<ErrorIssue> getAllErrorIssuesOrderedByCategoryPriority() throws IOException {
+    List<ErrorIssue> issues = new ArrayList<>();
+    String sql = String.format(GET_ALL_ERROR_ISSUES_ORDERED_BY_CATEGORY_PRIORITY_STATEMENT, errorRegexSummaryStoreTable, errorCategoriesTable);
+    log.info("Executing SQL to get all issues ordered by category priority: {}", sql);
+    try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql);
+        ResultSet rs = ps.executeQuery()) {
+      while (rs.next()) {
+        issues.add(new ErrorIssue(rs.getString(1), rs.getString(2)));
+      }
+    } catch (SQLException e) {
+      throw new IOException("Failed to get all issues ordered by category priority", e);
+    }
+    return issues;
   }
 }

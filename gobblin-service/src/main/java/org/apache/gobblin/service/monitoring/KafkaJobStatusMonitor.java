@@ -140,6 +140,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       ErrorClassifier errorClassifier) //TBD: inject
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
+    log.info("Inside KafkaJobStatusMonitor constructor"); //TBD: delete log
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
 
     this.stateStore =
@@ -207,9 +208,10 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
     GobblinTrackingEvent gobblinTrackingEvent = deserializeEvent(message);
 
-    if (gobblinTrackingEvent == null) {
+    //TBD: was being used for local testing to always get job- did not work
+    /*if (gobblinTrackingEvent == null) {
       return;
-    }
+    }*/
 
     if (IssueEventBuilder.isIssueEvent(gobblinTrackingEvent)) {
       try (Timer.Context context = getMetricContext().timer(PROCESS_JOB_ISSUE).time()) {
@@ -220,10 +222,14 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     try {
       persistJobStatusRetryer.call(() -> {
         // re-create `jobStatus` on each attempt, since mutated within `addJobStatusToStateStore`
+        log.info("Entered jobStatusRetryer"); //TBD: delete this log
+//        org.apache.gobblin.configuration.State jobStatus = new org.apache.gobblin.configuration.State();
         org.apache.gobblin.configuration.State jobStatus = parseJobStatus(gobblinTrackingEvent);
         if (jobStatus == null) {
+          log.info("null job status"); //TBD: delete this log
           return null;
         }
+//        log.info("Created job status: {}", jobStatus);
 
         try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
           Pair<org.apache.gobblin.configuration.State, NewState> updatedJobStatus = recalcJobStatus(jobStatus, this.stateStore);
@@ -243,12 +249,15 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           // this can also be addressed by some other new job status like FAILED_PENDING_RETRY which does not alert the user
           // as much as FAILED does if we chose to emit ObservabilityEvent for FAILED_PENDING_RETRY
           boolean retryRequired = modifyStateIfRetryRequired(jobStatus);
+          log.info("Just outside"); //TBD: delete this log
           if (updatedJobStatus.getRight() == NewState.FINISHED && !retryRequired) {
-            List<Issue> issues = jobIssueEventHandler.getErrorIssuesForClassification(TroubleshooterUtils.getContextIdForJob(jobStatus.getProperties()));
+            log.info("jobstatus finished"); //TBD: delete this log
+          List<Issue> issues = jobIssueEventHandler.getErrorListForClassification(TroubleshooterUtils.getContextIdForJob(jobStatus.getProperties()));
+            log.info("Issues for classification received"); //TBD: delete this log
             // Use ErrorClassifier to get a final categorized Issue
             try {
               //TBD Use injected ErrorClassifier instead of new instance
-              Issue finalIssue = errorClassifier.classify(issues);
+              Issue finalIssue = errorClassifier.classifyEarlyStopWithDefaultV4(issues);
               if (finalIssue != null) {
                 log.info("Final categorized issue: {}", finalIssue);
                 jobIssueEventHandler.LogFinalError(finalIssue, flowName, flowGroup, String.valueOf(flowExecutionId), jobName);
@@ -256,7 +265,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             } catch (Exception e) {
               log.error("Error classifying issues for job: {}", jobStatus, e);
             }
-            // do not send event if retry is required, because it can alert users to re-submit a job that is already set to be retried by Gaa
+            // do not send event if retry is required, because it can alert users to re-submit a job that is already set to be retried by GaaS
 
             this.eventProducer.emitObservabilityEvent(jobStatus);
           }
@@ -364,11 +373,13 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
 
       NewState newState = newState(jobStatus, states);
+      log.info("newState: {}", newState); //TBD: delete this log
       String newStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       if (newState == NewState.FINISHED) {
         log.info("Flow/Job {}:{}:{}:{} reached a terminal state {}", flowGroup, flowName, flowExecutionId, jobName, newStatus);
       }
-      return ImmutablePair.of(jobStatus, newState);
+      //return ImmutablePair.of(jobStatus, newState); //TBD: restore this line
+      return ImmutablePair.of(jobStatus, NewState.FINISHED); // TBD: delete this line and return ImmutablePair.of(jobStatus, newState); once we are sure that the newState is always NewState.FINISHED
     } catch (Exception e) {
       log.warn("Meet exception when adding jobStatus to state store at "
           + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);

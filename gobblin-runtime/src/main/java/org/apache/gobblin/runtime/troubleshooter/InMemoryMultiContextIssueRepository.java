@@ -71,6 +71,18 @@ public class InMemoryMultiContextIssueRepository extends AbstractIdleService imp
   }
 
   @Override
+  public synchronized List<Issue> getAllErrors(String contextId)
+      throws TroubleshooterException {
+
+    InMemoryIssueRepository issueRepository = contextIssues.getOrDefault(contextId, null);
+
+    if (issueRepository != null) {
+      return issueRepository.getAllErrors();
+    }
+    return Collections.emptyList();
+  }
+
+  @Override
   public synchronized void put(String contextId, Issue issue)
       throws TroubleshooterException {
     InMemoryIssueRepository issueRepository = contextIssues

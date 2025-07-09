@@ -117,14 +117,19 @@ public class JobIssueEventHandler {
     Issue issue;
   }
 
-  public List<Issue> getErrorIssuesForClassification(String contextId)
+  public List<Issue> getErrorListForClassification(String contextId)
       throws TroubleshooterException {
-    return issueRepository.getAll(contextId);
+      log.info("Retrieving issues for context: {}", contextId);
+      return IssueTestDataProvider.testUserCategoryIssues();
+    //return issueRepository.getAll(contextId); //TBD: check if being filtered by error anywhere?
   }
 
   public void LogFinalError(Issue issue, String flowName, String flowGroup, String flowExecutionId, String jobName) {
     JobIssueLogEntry logEntry = new JobIssueLogEntry();
     logEntry.issue = issue;
+    if (logEntry.issue != null) { //TBD: delete this log
+      log.info("Entry {}",logEntry.issue.getDetails());
+    }
     logEntry.flowName = flowName;
     logEntry.flowGroup = flowGroup;
     logEntry.flowExecutionId = flowExecutionId;

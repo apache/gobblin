@@ -94,9 +94,8 @@ import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitorFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.metastore.ErrorIssueStore;
-import org.apache.gobblin.metastore.MysqlErrorIssueStore;
-import org.apache.gobblin.metastore.DefaultErrorIssueStore;
+import org.apache.gobblin.metastore.ErrorPatternStore;
+import org.apache.gobblin.metastore.MysqlErrorPatternStore;
 
 
 public class GobblinServiceGuiceModule implements Module {
@@ -189,16 +188,16 @@ public class GobblinServiceGuiceModule implements Module {
     }
 
     /*
-        // Bind ErrorIssueStore as a singleton, using config if available, else default to DefaultErrorIssueStore
-        binder.bind(ErrorIssueStore.class)
-            .to(getClassByNameOrAlias(ErrorIssueStore.class, serviceConfig.getInnerConfig(),
+        // Bind ErrorPatternStore as a singleton, using config if available, else default to InMemoryErrorPatternStore
+        binder.bind(ErrorPatternStore.class)
+            .to(getClassByNameOrAlias(ErrorPatternStore.class, serviceConfig.getInnerConfig(),
                 ServiceConfigKeys.ERROR_ISSUE_STORE_CLASS,
-                MysqlErrorIssueStore.class.getName())).in(Singleton.class);
-        binder.bind(MysqlErrorIssueStore.class).in(Singleton.class);
+                MysqlErrorPatternStore.class.getName())).in(Singleton.class);
+        binder.bind(MysqlErrorPatternStore.class).in(Singleton.class);
         binder.bind(ErrorClassifier.class).in(Singleton.class);
     */
 
-    binder.bind(ErrorIssueStore.class).to(MysqlErrorIssueStore.class);
+    binder.bind(ErrorPatternStore.class).to(MysqlErrorPatternStore.class);
     binder.bind(ErrorClassifier.class);
 
     if (serviceConfig.isJobStatusMonitorEnabled()) {

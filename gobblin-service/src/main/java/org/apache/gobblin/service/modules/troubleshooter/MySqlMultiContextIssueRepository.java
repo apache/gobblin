@@ -124,6 +124,52 @@ public class MySqlMultiContextIssueRepository extends AbstractIdleService implem
   }
 
   @Override
+  public List<Issue> getAllErrors(String contextId)
+      throws TroubleshooterException {
+    Objects.requireNonNull(contextId, "contextId should not be null");
+
+    String querySql = "select code, time, severity, summary, details, source_class, exception_class, properties "
+        + "from issues where context_id = ? and severity = 'ERROR' order by position desc"; //TBD: get x amount of top errors
+
+    try (Connection connection = databaseProvider.getDatasource().getConnection();
+        PreparedStatement statement = connection.prepareStatement(querySql)) {
+
+      statement.setString(1, contextId);
+
+      ArrayList<Issue> issues = new ArrayList<>();
+
+      try (ResultSet results = statement.executeQuery()) {
+        while (results.next()) {
+          Issue.IssueBuilder issue = Issue.builder();
+          issue.code(results.getString(1));
+          issue.time(ZonedDateTime.ofInstant(Instant.ofEpochMilli(results.getTimestamp(2).getTime()), ZoneOffset.UTC));
+          issue.severity(IssueSeverity.valueOf(results.getString(3)));
+          issue.summary(results.getString(4));
+          issue.details(results.getString(5));
+          issue.sourceClass(results.getString(6));
+          issue.exceptionClass(results.getString(7));
+
+          String serializedProperties = results.getString(8);
+          if (serializedProperties != null) {
+            Type mapType = new TypeToken<HashMap<String, String>>() {
+            }.getType();
+
+            HashMap<String, String> properties =
+                GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(serializedProperties, mapType);
+            issue.properties(properties);
+          }
+
+          issues.add(issue.build());
+        }
+      }
+
+      return issues;
+    } catch (SQLException e) {
+      throw new TroubleshooterException("Cannot read issues from the database", e);
+    }
+  }
+
+  @Override
   public void put(String contextId, Issue issue)
       throws TroubleshooterException {
     Objects.requireNonNull(contextId, "contextId should not be null");

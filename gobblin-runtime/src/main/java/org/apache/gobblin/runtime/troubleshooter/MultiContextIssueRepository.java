@@ -37,6 +37,12 @@ public interface MultiContextIssueRepository extends Service {
   List<Issue> getAll(String contextId)
       throws TroubleshooterException;
 
+  /**
+   * Will return issues with severity as ERROR in the reverse order as they were put into the repository.
+   * */
+  List<Issue> getAllErrors(String contextId) //TBD: new
+      throws TroubleshooterException;
+
   void put(String contextId, Issue issue)
       throws TroubleshooterException;
 

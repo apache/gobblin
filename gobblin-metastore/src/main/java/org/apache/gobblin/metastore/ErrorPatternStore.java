@@ -10,20 +10,20 @@ import java.util.List;
 /**
  * Interface for a store that persists Issues and Categories, similar to StateStore.
  */
-public interface ErrorIssueStore {
-  void addErrorIssue(ErrorIssue issue)
+public interface ErrorPatternStore {
+  void addErrorPattern(ErrorIssue issue)
       throws IOException;
 
-  boolean deleteErrorIssue(String descriptionRegex)
+  boolean deleteErrorPattern(String descriptionRegex)
       throws IOException;
 
-  ErrorIssue getErrorIssue(String descriptionRegex)
+  ErrorIssue getErrorPattern(String descriptionRegex)
       throws IOException;
 
-  List<ErrorIssue> getAllErrorIssues()
+  List<ErrorIssue> getAllErrorPatterns()
       throws IOException;
 
-  List<ErrorIssue> getErrorIssuesByCategory(String categoryName)
+  List<ErrorIssue> getErrorPatternsByCategory(String categoryName)
       throws IOException;
 
   void addErrorCategory(Category category)
@@ -36,6 +36,9 @@ public interface ErrorIssueStore {
       throws IOException;
 
   List<Category> getAllErrorCategories()
+      throws IOException;
+
+  List<ErrorIssue> getAllErrorIssuesOrderedByCategoryPriority()
       throws IOException;
 
   /**

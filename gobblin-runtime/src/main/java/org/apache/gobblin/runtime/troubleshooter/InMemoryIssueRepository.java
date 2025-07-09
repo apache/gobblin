@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.stream.Collectors; //TBD: remove this import if not needed
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -63,6 +64,16 @@ public class InMemoryIssueRepository implements IssueRepository {
 
     return new ArrayList<>(issues.values());
   }
+
+  @Override
+  public synchronized List<Issue> getAllErrors()
+      throws TroubleshooterException{
+
+    return issues.values().stream()
+        .filter(issue -> issue.getSeverity() == IssueSeverity.ERROR)
+        .collect(Collectors.toList());
+  }
+
 
   @Override
   public synchronized void put(Issue issue)

@@ -85,8 +85,9 @@ public class ConfigurationKeys {
 
   public static final String DATASETURN_STATESTORE_NAME_PARSER = "state.store.datasetUrnStateStoreNameParser";
 
+  //TBD: check configs once
   //DB metrics for Error Issue Store
-  public static final String ERROR_ISSUES_DB_TABLE_KEY = "state.store.db.issuesTableName";
+  public static final String ERROR_REGEX_DB_TABLE_KEY = "state.store.db.regexTableName";
   public static final String ERROR_CATEGORIES_DB_TABLE_KEY = "state.store.db.categoriesTableName";
 
   /**
