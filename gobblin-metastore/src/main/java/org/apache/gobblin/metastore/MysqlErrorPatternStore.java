@@ -2,7 +2,7 @@ package org.apache.gobblin.metastore;
 
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.configuration.ErrorIssue;
+import org.apache.gobblin.configuration.ErrorPatternProfile;
 import org.apache.gobblin.configuration.Category;
 
 import com.typesafe.config.Config;
@@ -174,7 +174,7 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   }
 
   @Override
-  public void addErrorPattern(ErrorIssue issue)
+  public void addErrorPattern(ErrorPatternProfile issue)
       throws IOException {
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(String.format(INSERT_ERROR_REGEX_SUMMARY_STATEMENT, errorRegexSummaryStoreTable))) {
       ps.setString(1, issue.getDescriptionRegex());
@@ -200,13 +200,13 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   }
 
   @Override
-  public ErrorIssue getErrorPattern(String descriptionRegex)
+  public ErrorPatternProfile getErrorPattern(String descriptionRegex)
       throws IOException {
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(String.format(GET_ERROR_REGEX_SUMMARY_STATEMENT, errorRegexSummaryStoreTable))) {
       ps.setString(1, descriptionRegex);
       try (ResultSet rs = ps.executeQuery()) {
         if (rs.next()) {
-          return new ErrorIssue(rs.getString(1), rs.getString(2));
+          return new ErrorPatternProfile(rs.getString(1), rs.getString(2));
         }
       }
     } catch (SQLException e) {
@@ -216,13 +216,13 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   }
 
   @Override
-  public List<ErrorIssue> getAllErrorPatterns()
+  public List<ErrorPatternProfile> getAllErrorPatterns()
       throws IOException {
-    List<ErrorIssue> issues = new ArrayList<>();
+    List<ErrorPatternProfile> issues = new ArrayList<>();
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(String.format(GET_ALL_ERROR_REGEX_SUMMARIES_STATEMENT, errorRegexSummaryStoreTable));
         ResultSet rs = ps.executeQuery()) {
       while (rs.next()) {
-        issues.add(new ErrorIssue(rs.getString(1), rs.getString(2)));
+        issues.add(new ErrorPatternProfile(rs.getString(1), rs.getString(2)));
       }
     } catch (SQLException e) {
       throw new IOException("Failed to get all issues", e);
@@ -231,15 +231,15 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   }
 
   @Override
-  public List<ErrorIssue> getErrorPatternsByCategory(String categoryName)
+  public List<ErrorPatternProfile> getErrorPatternsByCategory(String categoryName)
       throws IOException {
     String sql = "SELECT description_regex, error_category_name FROM " + errorRegexSummaryStoreTable + " WHERE error_category_name = ?";
-    List<ErrorIssue> issues = new ArrayList<>();
+    List<ErrorPatternProfile> issues = new ArrayList<>();
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
       ps.setString(1, categoryName);
       try (ResultSet rs = ps.executeQuery()) {
         while (rs.next()) {
-          issues.add(new ErrorIssue(rs.getString(1), rs.getString(2)));
+          issues.add(new ErrorPatternProfile(rs.getString(1), rs.getString(2)));
         }
       }
     } catch (SQLException e) {
@@ -308,14 +308,14 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
    * Returns all ErrorIssues ordered by the priority of their category (ascending), then by description_regex.
    */
   @Override
-  public List<ErrorIssue> getAllErrorIssuesOrderedByCategoryPriority() throws IOException {
-    List<ErrorIssue> issues = new ArrayList<>();
+  public List<ErrorPatternProfile> getAllErrorIssuesOrderedByCategoryPriority() throws IOException {
+    List<ErrorPatternProfile> issues = new ArrayList<>();
     String sql = String.format(GET_ALL_ERROR_ISSUES_ORDERED_BY_CATEGORY_PRIORITY_STATEMENT, errorRegexSummaryStoreTable, errorCategoriesTable);
     log.info("Executing SQL to get all issues ordered by category priority: {}", sql);
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql);
         ResultSet rs = ps.executeQuery()) {
       while (rs.next()) {
-        issues.add(new ErrorIssue(rs.getString(1), rs.getString(2)));
+        issues.add(new ErrorPatternProfile(rs.getString(1), rs.getString(2)));
       }
     } catch (SQLException e) {
       throw new IOException("Failed to get all issues ordered by category priority", e);

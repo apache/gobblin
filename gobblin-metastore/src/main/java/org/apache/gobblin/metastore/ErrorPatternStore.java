@@ -1,6 +1,6 @@
 package org.apache.gobblin.metastore;
 
-import org.apache.gobblin.configuration.ErrorIssue;
+import org.apache.gobblin.configuration.ErrorPatternProfile;
 import org.apache.gobblin.configuration.Category;
 
 import java.io.IOException;
@@ -11,19 +11,19 @@ import java.util.List;
  * Interface for a store that persists Issues and Categories, similar to StateStore.
  */
 public interface ErrorPatternStore {
-  void addErrorPattern(ErrorIssue issue)
+  void addErrorPattern(ErrorPatternProfile issue)
       throws IOException;
 
   boolean deleteErrorPattern(String descriptionRegex)
       throws IOException;
 
-  ErrorIssue getErrorPattern(String descriptionRegex)
+  ErrorPatternProfile getErrorPattern(String descriptionRegex)
       throws IOException;
 
-  List<ErrorIssue> getAllErrorPatterns()
+  List<ErrorPatternProfile> getAllErrorPatterns()
       throws IOException;
 
-  List<ErrorIssue> getErrorPatternsByCategory(String categoryName)
+  List<ErrorPatternProfile> getErrorPatternsByCategory(String categoryName)
       throws IOException;
 
   void addErrorCategory(Category category)
@@ -38,7 +38,7 @@ public interface ErrorPatternStore {
   List<Category> getAllErrorCategories()
       throws IOException;
 
-  List<ErrorIssue> getAllErrorIssuesOrderedByCategoryPriority()
+  List<ErrorPatternProfile> getAllErrorIssuesOrderedByCategoryPriority()
       throws IOException;
 
   /**

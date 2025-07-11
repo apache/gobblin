@@ -599,7 +599,6 @@ public class KafkaAvroJobStatusMonitorTest {
   @Test (dependsOnMethods = "testProcessMessageForCancelledAndKilledEvent")
   public void testProcessProgressingMessageWhenNoPreviousStatus() throws IOException, ReflectiveOperationException {
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic5");
-    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
 
     //Submit GobblinTrackingEvents to Kafka
     ImmutableList.of(
@@ -616,7 +615,7 @@ public class KafkaAvroJobStatusMonitorTest {
     }
 
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-        new NoopGaaSJobObservabilityEventProducer(), mock(DagManagementStateStore.class), errorClassifier);
+        new NoopGaaSJobObservabilityEventProducer(), mock(DagManagementStateStore.class), mock(ErrorClassifier.class));
     jobStatusMonitor.buildMetricsContextAndMetrics();
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
         this.kafkaTestHelper.getIteratorForTopic(TOPIC),

@@ -339,7 +339,6 @@ public class IssueTestDataProvider {
     return issues;
   }
 
-  // Add more static methods for other groups of issues as needed
   public static List<Issue> testOverflowLargeNumberOfErrors() {
     // Returns a list of Issues exceeding the display/processing limit, ordered from lowest to highest priority
     List<Issue> issues = new ArrayList<>();

@@ -4,13 +4,13 @@ import java.io.Serializable;
 
 
 /**
- * POJO representing an ErrorIssue, similar to Spec or State.
+ * POJO representing an ErrorPatternProfile, similar to Spec or State.
  */
-public class ErrorIssue implements Serializable {
+public class ErrorPatternProfile implements Serializable {
   private String descriptionRegex;
   private String categoryName;
 
-  public ErrorIssue(String descriptionRegex, String categoryName) {
+  public ErrorPatternProfile(String descriptionRegex, String categoryName) {
     this.descriptionRegex = descriptionRegex;
     this.categoryName = categoryName;
   }

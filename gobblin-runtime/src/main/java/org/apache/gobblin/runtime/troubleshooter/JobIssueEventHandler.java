@@ -120,8 +120,8 @@ public class JobIssueEventHandler {
   public List<Issue> getErrorListForClassification(String contextId)
       throws TroubleshooterException {
       log.info("Retrieving issues for context: {}", contextId);
-      return IssueTestDataProvider.testUserCategoryIssues();
-    //return issueRepository.getAll(contextId); //TBD: check if being filtered by error anywhere?
+//      return IssueTestDataProvider.testNonFatalAndUnknownMix();
+      return issueRepository.getAllErrors(contextId); //TBD: check if being filtered by error anywhere?
   }
 
   public void LogFinalError(Issue issue, String flowName, String flowGroup, String flowExecutionId, String jobName) {

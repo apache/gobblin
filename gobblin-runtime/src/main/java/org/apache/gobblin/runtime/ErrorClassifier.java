@@ -12,7 +12,7 @@ import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.configuration.Category;
-import org.apache.gobblin.configuration.ErrorIssue;
+import org.apache.gobblin.configuration.ErrorPatternProfile;
 import org.apache.gobblin.metastore.ErrorPatternStore;
 import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
@@ -23,7 +23,7 @@ import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
  */
 @Slf4j
 public class ErrorClassifier {
-  private final List<PatternedErrorIssue> errorIssues;
+  private final List<CompiledErrorPattern> errorIssues;
   private final Map<String, Category> categoryMap;
   private ErrorPatternStore errorStore = null;
 
@@ -48,13 +48,13 @@ public class ErrorClassifier {
     log.info("Error classifier: Completed error category loading");
 
     this.errorIssues = new ArrayList<>();
-    for (ErrorIssue issue : store.getAllErrorIssuesOrderedByCategoryPriority()) {
-      errorIssues.add(new PatternedErrorIssue(issue));
+    for (ErrorPatternProfile issue : store.getAllErrorIssuesOrderedByCategoryPriority()) {
+      errorIssues.add(new CompiledErrorPattern(issue));
     }
     log.info("Error classifier: Completed pattern loading");
     //TBD: delete this
     List<String> regexList = new ArrayList<>();
-    for (PatternedErrorIssue pei : errorIssues) {
+    for (CompiledErrorPattern pei : errorIssues) {
       regexList.add(pei.issue.getDescriptionRegex());
     }
     log.info("All regex if available: {}", regexList);
@@ -74,7 +74,7 @@ public class ErrorClassifier {
     Map<String, List<Issue>> categoryToIssues = new HashMap<>();
     for (Issue issue : issues) {
       Category matchedCategory = null;
-      for (PatternedErrorIssue pei : errorIssues) {
+      for (CompiledErrorPattern pei : errorIssues) {
         if (pei.matches(issue.getSummary())) {
           matchedCategory = categoryMap.get(pei.getCategoryName());
           break;
@@ -125,7 +125,7 @@ public class ErrorClassifier {
     String highestCategoryName = null;
     for (Issue issue : issues) {
       Category matchedCategory = null;
-      for (PatternedErrorIssue pei : errorIssues) {
+      for (CompiledErrorPattern pei : errorIssues) {
         Category cat = categoryMap.get(pei.getCategoryName());
         if (cat == null) continue;
         if (highestPriority != null && cat.getPriority() > highestPriority) {
@@ -167,7 +167,7 @@ public class ErrorClassifier {
       return null;
     }
     Category highest = null;
-    for (PatternedErrorIssue pei : errorIssues) {
+    for (CompiledErrorPattern pei : errorIssues) {
       if (pei.matches(summary)) {
         Category cat = categoryMap.get(pei.getCategoryName());
         if (cat == null) {
@@ -198,7 +198,7 @@ public class ErrorClassifier {
     int defaultPriority = defaultCategory != null ? defaultCategory.getPriority() : Integer.MAX_VALUE;
     for (Issue issue : issues) {
       Category matchedCategory = null;
-      for (PatternedErrorIssue pei : errorIssues) {
+      for (CompiledErrorPattern pei : errorIssues) {
         Category cat = categoryMap.get(pei.getCategoryName());
         if (cat == null) {
           continue;
@@ -258,7 +258,7 @@ public class ErrorClassifier {
     for (Issue issue : issues) {
       log.info("Classifying issue: {}", issue.getSummary());
       Category matchedCategory = null;
-      for (PatternedErrorIssue pei : errorIssues) {
+      for (CompiledErrorPattern pei : errorIssues) {
         Category cat = categoryMap.get(pei.getCategoryName());
         if (cat == null) continue;
         int currentHighest = (highestPriority != null) ? Math.min(highestPriority, defaultPriority) : defaultPriority;
@@ -322,7 +322,7 @@ public class ErrorClassifier {
     for (Issue issue : issues) {
       log.info("Classifying issue: {}", issue.getSummary());
       Category matchedCategory = null;
-      for (PatternedErrorIssue pei : errorIssues) {
+      for (CompiledErrorPattern pei : errorIssues) {
         Category cat = categoryMap.get(pei.getCategoryName());
         if (cat == null) continue;
 //        int currentHighest = (highestPriority != null) ? Math.min(highestPriority, defaultPriority) : defaultPriority;
@@ -394,7 +394,7 @@ public class ErrorClassifier {
     for (Issue issue : issues) {
       log.info("Classifying issue: {}", issue.getSummary());
       Category matchedCategory = null;
-      for (PatternedErrorIssue pei : errorIssues) {
+      for (CompiledErrorPattern pei : errorIssues) {
         Category cat = categoryMap.get(pei.getCategoryName());
         if (cat == null) continue;
         int currentHighest = defaultPriority; // V3: Only use defaultPriority for early stop
@@ -456,11 +456,11 @@ public class ErrorClassifier {
   /**
    * Helper class to store compiled regex for fast matching.
    */
-  private static class PatternedErrorIssue {
-    private final ErrorIssue issue;
+  private static class CompiledErrorPattern {
+    private final ErrorPatternProfile issue;
     private final Pattern pattern;
 
-    PatternedErrorIssue(ErrorIssue issue) {
+    CompiledErrorPattern(ErrorPatternProfile issue) {
       this.issue = issue;
       this.pattern = Pattern.compile(issue.getDescriptionRegex(), Pattern.CASE_INSENSITIVE); // //TBD: catch exception if regex is invalid
     }
