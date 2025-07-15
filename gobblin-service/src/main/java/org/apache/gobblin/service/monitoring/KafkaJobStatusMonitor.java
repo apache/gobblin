@@ -130,7 +130,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final GaaSJobObservabilityEventProducer eventProducer;
   private final DagManagementStateStore dagManagementStateStore;
   private final List<Class<? extends Exception>> nonRetryableExceptions = Collections.singletonList(SQLIntegrityConstraintViolationException.class);
-
+  private final boolean isErrorClassificationEnabled = ConfigUtils.getBoolean(
+      this.config, ServiceConfigKeys.ERROR_CLASSIFICATION_ENABLED_KEY, false);
   private final ErrorClassifier errorClassifier;
 
   //TBD: Add @Inject for Guice constructor injection
@@ -226,20 +227,14 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       persistJobStatusRetryer.call(() -> {
         // re-create `jobStatus` on each attempt, since mutated within `addJobStatusToStateStore`
         log.info("Entered jobStatusRetryer"); //TBD: delete this log
-//        org.apache.gobblin.configuration.State jobStatus = new org.apache.gobblin.configuration.State();
         org.apache.gobblin.configuration.State jobStatus = parseJobStatus(gobblinTrackingEvent);
-        log.info("[DEBUG] Parsed job status: " + jobStatus);
 
         if (jobStatus == null) {
-          log.info("null job status"); //TBD: delete this log
           return null;
         }
-//        log.info("Created job status: {}", jobStatus);
 
         try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
           Pair<org.apache.gobblin.configuration.State, NewState> updatedJobStatus = recalcJobStatus(jobStatus, this.stateStore);
-          log.info("[DEBUG] updatedJobStatus: " + updatedJobStatus);
-          log.info("[DEBUG] updatedJobStatus.getRight(): " + updatedJobStatus.getRight());
 
           jobStatus = updatedJobStatus.getLeft();
 
@@ -248,10 +243,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           long flowExecutionId = jobStatus.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD);
           String jobName = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
           String jobGroup = jobStatus.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD);
-          log.info("[DEBUG] Extracted jobName: " + jobName);
-          log.info("[DEBUG] Extracted flowGroup: " + flowGroup);
-          log.info("[DEBUG] Extracted flowName: " + flowName);
-          log.info("[DEBUG] Extracted flowExecutionId: " + flowExecutionId);
           String storeName = jobStatusStoreName(flowGroup, flowName);
           String tableName = jobStatusTableName(flowExecutionId, jobGroup, jobName);
           String status = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
@@ -264,21 +255,26 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           boolean retryRequired = modifyStateIfRetryRequired(jobStatus);
 
           log.info("Just outside"); //TBD: delete this log
+
           if (updatedJobStatus.getRight() == NewState.FINISHED && !retryRequired) {
-              log.info("jobstatus finished"); //TBD: delete this log
-              List<Issue> issues = jobIssueEventHandler.getErrorListForClassification(TroubleshooterUtils.getContextIdForJob(jobStatus.getProperties()));
-              log.info("Issues for classification received"); //TBD: delete this log
-              // Use ErrorClassifier to get a final categorized Issue
-              try {
-                //TBD Use injected ErrorClassifier instead of new instance
-                Issue finalIssue = errorClassifier.classifyEarlyStopWithDefaultV4(issues);
-                if (finalIssue != null) {
-                  log.info("Final categorized issue: {}", finalIssue);
-                  jobIssueEventHandler.LogFinalError(finalIssue, flowName, flowGroup, String.valueOf(flowExecutionId), jobName);
+            if (isErrorClassificationEnabled) {
+              if (jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())) {
+                List<Issue> issues = jobIssueEventHandler.getErrorListForClassification(
+                    TroubleshooterUtils.getContextIdForJob(jobStatus.getProperties()));
+                // Use ErrorClassifier to get a final categorized Issue
+                try {
+                  //TBD Use injected ErrorClassifier instead of new instance
+                  Issue finalIssue = errorClassifier.classifyEarlyStopWithDefault(issues);
+                  if (finalIssue != null) {
+                    log.info("Final categorized issue: {}", finalIssue);
+                    jobIssueEventHandler.LogFinalError(finalIssue, flowName, flowGroup, String.valueOf(flowExecutionId),
+                        jobName);
+                  }
+                } catch (Exception e) {
+                  log.error("Error classifying issues for job: {}", jobStatus, e);
                 }
-              } catch (Exception e) {
-                log.error("Error classifying issues for job: {}", jobStatus, e);
               }
+            }
               // do not send event if retry is required, because it can alert users to re-submit a job that is already set to be retried by GaaS
 
               this.eventProducer.emitObservabilityEvent(jobStatus);
@@ -286,10 +282,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
           if (DagProcUtils.isJobLevelStatus(jobName)) {
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
-              log.info("[DEBUG] >>> About to REEVALUATE");
-              log.info("[DEBUG] jobName: " + jobName);
-              log.info("[DEBUG] isJobLevelStatus(jobName): " + DagProcUtils.isJobLevelStatus(jobName));
-              log.info("[DEBUG] updatedJobStatus.getRight(): " + updatedJobStatus.getRight());
               try {
                 this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
               } catch (IOException e) {
@@ -343,8 +335,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   @VisibleForTesting
   static Pair<org.apache.gobblin.configuration.State, NewState> recalcJobStatus(org.apache.gobblin.configuration.State jobStatus,
       StateStore<org.apache.gobblin.configuration.State> stateStore) throws IOException {
-    log.info("[DEBUG] recalcJobStatus START");
-    log.info("[DEBUG] Inputs: ...");
     try {
       if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
         jobStatus.setProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, JobStatusRetriever.NA_KEY);
@@ -393,7 +383,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       }
 
       NewState newState = newState(jobStatus, states);
-      log.info("newState: {}", newState); //TBD: delete this log
       String newStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       if (newState == NewState.FINISHED) {
         log.info("Flow/Job {}:{}:{}:{} reached a terminal state {}", flowGroup, flowName, flowExecutionId, jobName, newStatus);

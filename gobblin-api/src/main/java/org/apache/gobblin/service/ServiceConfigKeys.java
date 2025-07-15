@@ -161,6 +161,6 @@ public class ServiceConfigKeys {
   public static final Integer DEFAULT_NUM_DAG_PROC_THREADS = 3;
   public static final long DEFAULT_FLOW_FINISH_DEADLINE_MILLIS = TimeUnit.HOURS.toMillis(24);
 
-  public static final String ERROR_ISSUE_STORE_CLASS = "errorIssueStore.class"; //TBD: new config to be set
-
+  public static final String ERROR_PATTERN_STORE_CLASS = "errorPatternStore.class"; //TBD: new config to be set
+  public static final String ERROR_CLASSIFICATION_ENABLED_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "errorClassification.enabled";
 }

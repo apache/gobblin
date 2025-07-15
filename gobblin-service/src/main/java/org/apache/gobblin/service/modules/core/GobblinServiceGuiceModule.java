@@ -96,6 +96,7 @@ import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.metastore.ErrorPatternStore;
 import org.apache.gobblin.metastore.MysqlErrorPatternStore;
+import org.apache.gobblin.metastore.InMemoryErrorPatternStore;
 
 
 public class GobblinServiceGuiceModule implements Module {
@@ -187,23 +188,18 @@ public class GobblinServiceGuiceModule implements Module {
       binder.bind(FlowCatalog.class);
     }
 
-    /*
-        // Bind ErrorPatternStore as a singleton, using config if available, else default to InMemoryErrorPatternStore
-        binder.bind(ErrorPatternStore.class)
-            .to(getClassByNameOrAlias(ErrorPatternStore.class, serviceConfig.getInnerConfig(),
-                ServiceConfigKeys.ERROR_ISSUE_STORE_CLASS,
-                MysqlErrorPatternStore.class.getName())).in(Singleton.class);
-        binder.bind(MysqlErrorPatternStore.class).in(Singleton.class);
-        binder.bind(ErrorClassifier.class).in(Singleton.class);
-    */
-
-    binder.bind(ErrorPatternStore.class).to(MysqlErrorPatternStore.class);
-    binder.bind(ErrorClassifier.class);
-
     if (serviceConfig.isJobStatusMonitorEnabled()) {
       binder.bind(KafkaJobStatusMonitor.class).toProvider(KafkaJobStatusMonitorFactory.class).in(Singleton.class);
+      binder.bind(ErrorClassifier.class);
+      binder.bind(ErrorPatternStore.class)
+          .to(getClassByNameOrAlias(ErrorPatternStore.class, serviceConfig.getInnerConfig(),
+              ServiceConfigKeys.ERROR_PATTERN_STORE_CLASS,
+              InMemoryErrorPatternStore.class.getName()));
+      binder.bind(ErrorPatternStore.class).to(MysqlErrorPatternStore.class);
     }
 
+    binder.bind(MysqlErrorPatternStore.class);
+    binder.bind(InMemoryErrorPatternStore.class);
     binder.bind(FlowStatusGenerator.class);
 
     if (serviceConfig.isSchedulerEnabled()) {

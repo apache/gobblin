@@ -129,7 +129,7 @@ public class MySqlMultiContextIssueRepository extends AbstractIdleService implem
     Objects.requireNonNull(contextId, "contextId should not be null");
 
     String querySql = "select code, time, severity, summary, details, source_class, exception_class, properties "
-        + "from issues where context_id = ? and severity = 'ERROR' order by position desc"; //TBD: get x amount of top errors
+        + "from issues where context_id = ? and severity = 'ERROR' order by position desc"; //TBD: get x amount of top errors. Do we need to group by summary to avoid getting repeat errors
 
     try (Connection connection = databaseProvider.getDatasource().getConnection();
         PreparedStatement statement = connection.prepareStatement(querySql)) {

@@ -12,9 +12,9 @@ import org.apache.gobblin.configuration.ErrorPatternProfile;
 
 
 /**
- * An in-memory implementation of the ErrorPatternStore interface.
- * This class is used for testing purposes and does not persist data across application restarts.
- */
+* An in-memory implementation of the ErrorPatternStore interface.
+* This class serves as a base class for initialisation and does not persist data across application restarts.
+*/
 public class InMemoryErrorPatternStore implements ErrorPatternStore {
   private List<ErrorPatternProfile> errorPatterns = new ArrayList<>();
   private Map<String, Category> categories = new HashMap<>();
@@ -32,7 +32,7 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   }
 
   @Override
-  public void addErrorPattern(org.apache.gobblin.configuration.ErrorPatternProfile issue)
+  public void addErrorPattern(ErrorPatternProfile issue)
       throws IOException {
     errorPatterns.add(issue);
   }
@@ -43,17 +43,17 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
     if (errorPatterns == null) {
       return false;
     }
-    return errorPatterns.removeIf(issue -> issue.getDescriptionRegex().matches(descriptionRegex));
+    return errorPatterns.removeIf(issue -> issue.getDescriptionRegex().equals(descriptionRegex));
   }
 
   @Override
-  public org.apache.gobblin.configuration.ErrorPatternProfile getErrorPattern(String descriptionRegex)
+  public ErrorPatternProfile getErrorPattern(String descriptionRegex)
       throws IOException {
     if (errorPatterns == null) {
       return null;
     }
-    for (org.apache.gobblin.configuration.ErrorPatternProfile issue : errorPatterns) {
-      if (issue.getDescriptionRegex().matches(descriptionRegex)) {
+    for (ErrorPatternProfile issue : errorPatterns) {
+      if (issue.getDescriptionRegex().equals(descriptionRegex)) {
         return issue;
       }
     }
@@ -61,17 +61,17 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   }
 
   @Override
-  public List<org.apache.gobblin.configuration.ErrorPatternProfile> getAllErrorPatterns()
+  public List<ErrorPatternProfile> getAllErrorPatterns()
       throws IOException {
     return new ArrayList<>(errorPatterns);
   }
 
   @Override
-  public List<org.apache.gobblin.configuration.ErrorPatternProfile> getErrorPatternsByCategory(String categoryName)
+  public List<ErrorPatternProfile> getErrorPatternsByCategory(String categoryName)
       throws IOException {
-    List<org.apache.gobblin.configuration.ErrorPatternProfile> result = new ArrayList<>();
+    List<ErrorPatternProfile> result = new ArrayList<>();
     if (errorPatterns != null) {
-      for (org.apache.gobblin.configuration.ErrorPatternProfile issue : errorPatterns) {
+      for (ErrorPatternProfile issue : errorPatterns) {
         if (issue.getCategoryName() != null && issue.getCategoryName().equals(categoryName)) {
           result.add(issue);
         }
@@ -101,17 +101,13 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
     if (category != null) {
       return category.getPriority();
     }
-    return 0; //TBD: what should return value be if no priority
+    throw new IOException("Category not found: " + categoryName);
   }
 
   @Override
   public List<Category> getAllErrorCategories()
       throws IOException {
-    return Collections.emptyList();
-  }
-
-  public void setDefaultCategory(Category category) {
-    this.defaultCategory = category;
+    return new ArrayList<>(categories.values());
   }
 
   @Override
@@ -124,19 +120,21 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   }
 
   @Override
-  public List<org.apache.gobblin.configuration.ErrorPatternProfile> getAllErrorIssuesOrderedByCategoryPriority()
+  public List<ErrorPatternProfile> getAllErrorIssuesOrderedByCategoryPriority()
       throws IOException {
-      if( errorPatterns == null || errorPatterns.isEmpty()) {
-        getAllErrorPatterns();
-      }
-        errorPatterns.sort((issue1, issue2) -> {
-          Category cat1 = categories.get(issue1.getCategoryName());
-          Category cat2 = categories.get(issue2.getCategoryName());
-          if (cat1 == null || cat2 == null) {
-            return 0;
-          }
-          return Integer.compare(cat1.getPriority(), cat2.getPriority());
-        });
-        return errorPatterns;
+    if (errorPatterns == null) {
+      throw new IOException("Error patterns list is null");
     }
+    errorPatterns.sort((issue1, issue2) -> {
+      Category cat1 = categories.get(issue1.getCategoryName());
+      Category cat2 = categories.get(issue2.getCategoryName());
+      if (cat1 == null && cat2 == null) {
+        return 0;
+      }
+      if (cat1 == null) return -1;
+      if (cat2 == null) return 1;
+      return Integer.compare(cat1.getPriority(), cat2.getPriority());
+    });
+    return errorPatterns;
+  }
 }

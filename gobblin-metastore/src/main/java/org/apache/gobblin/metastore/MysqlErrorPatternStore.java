@@ -24,7 +24,7 @@ import java.util.List;
 
 
 /**
- * MySQL-backed implementation of IssueStore, following Gobblin's MysqlDagActionStore pattern.
+ * MySQL-backed implementation of IssueStore.
  *
  * Expected table schemas:
  *
@@ -34,7 +34,7 @@ import java.util.List;
  *
  * 2. error_categories
  *    - error_category_name: VARCHAR(255) PRIMARY KEY
- *    - priority: INT NOT NULL
+ *    - priority: INT NOT NULL //TBD: should we keep this unique?
  *    - is_default: BOOLEAN (optional, not compulsory; used if present to indicate the default category)
  *
  * This class provides methods to primarily retrieve error regex patterns and error categories.
@@ -46,7 +46,7 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   private final String errorCategoriesTable;
   public static final String CONFIG_PREFIX = "MysqlErrorPatternStore";
 
-  private static final int MAX_CHARACTERS_IN_DESCRIPTION_REGEX = 255; //do we want to configure this?
+  private static final int MAX_CHARACTERS_IN_DESCRIPTION_REGEX = 250; //do we want to configure this?
 
   private static final String CREATE_ERROR_REGEX_SUMMARY_STORE_TABLE_STATEMENT =
       "CREATE TABLE IF NOT EXISTS %s (" +
@@ -64,18 +64,20 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
 
   private static final String GET_ERROR_CATEGORY_STATEMENT = "SELECT error_category_name, priority FROM %s WHERE error_category_name = ?";
 
-  private static final String GET_ALL_ERROR_CATEGORIES_STATEMENT = "SELECT error_category_name, priority FROM %s";
+  private static final String GET_ALL_ERROR_CATEGORIES_STATEMENT = "SELECT error_category_name, priority FROM %s ORDER BY priority ASC";
 
   private static final String INSERT_ERROR_REGEX_SUMMARY_STATEMENT = "INSERT INTO %s (description_regex, error_category_name) "
       + "VALUES (?, ?) ON DUPLICATE KEY UPDATE error_category_name=VALUES(error_category_name)";
 
   private static final String DELETE_ERROR_REGEX_SUMMARY_STATEMENT = "DELETE FROM %s WHERE description_regex = ?";
 
-  private static final String GET_ERROR_REGEX_SUMMARY_STATEMENT = "SELECT description_regex, error_category_name FROM %s WHERE description_regex = ?";
+  private static final String GET_ERROR_REGEX_SUMMARY_STATEMENT = "SELECT description_regex, error_category_name FROM %s WHERE description_regex   = ?";
 
   private static final String GET_ALL_ERROR_REGEX_SUMMARIES_STATEMENT = "SELECT description_regex, error_category_name FROM %s";
 
   private static final String GET_DEFAULT_CATEGORY_STATEMENT = "SELECT error_category_name, priority FROM %s WHERE is_default = TRUE ORDER BY priority DESC";
+
+  private static final String GET_HIGHEST_ERROR_CATEGORY_STATEMENT = "SELECT error_category_name, priority FROM %s ORDER BY priority ASC LIMIT 1";
 
   private static final String GET_ALL_ERROR_ISSUES_ORDERED_BY_CATEGORY_PRIORITY_STATEMENT =
       "SELECT e.description_regex, e.error_category_name FROM %s e " +
@@ -155,7 +157,10 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   public int getErrorCategoryPriority(String categoryName)
       throws IOException {
     Category cat = getErrorCategory(categoryName);
-    return cat != null ? cat.getPriority() : -1; //TBD: should this be exception instead? ot instead of -1, we set MAXINT value?
+    if (cat == null) {
+      throw new IOException("Category not found: " + categoryName);
+    }
+    return cat.getPriority();
   }
 
   @Override
@@ -258,17 +263,24 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
       }
     }
     // Fallback to previous logic: category with the highest priority (lowest priority number)
-    List<Category> categories = getAllErrorCategories();
-    if (categories.isEmpty()) {
-      return null;
-    }
-    Category defaultCat = categories.get(0);
-    for (Category cat : categories) {
-      if (cat.getPriority() > defaultCat.getPriority()) {
-        defaultCat = cat;
+    return getHighestPriorityCategory();
+  }
+
+  /**
+   * Returns the category with the highest priority, i.e. the lowest priority value (ascending order).
+   */
+  private Category getHighestPriorityCategory()
+    throws IOException {
+      try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(String.format(GET_HIGHEST_ERROR_CATEGORY_STATEMENT, errorCategoriesTable))) {
+        try (ResultSet rs = ps.executeQuery()) {
+          if (rs.next()) {
+            return new Category(rs.getString(1), rs.getInt(2));
+          }
+        }
+      } catch (SQLException e) {
+        throw new IOException("Failed to get category", e);
       }
-    }
-    return defaultCat;
+      return null;
   }
 
   /**
