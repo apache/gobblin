@@ -34,7 +34,7 @@ import java.util.List;
  *
  * 2. error_categories
  *    - error_category_name: VARCHAR(255) PRIMARY KEY
- *    - priority: INT NOT NULL //TBD: should we keep this unique?
+ *    - priority: INT UNIQUE NOT NULL
  *    - is_default: BOOLEAN (optional, not compulsory; used if present to indicate the default category)
  *
  * This class provides methods to primarily retrieve error regex patterns and error categories.
@@ -57,7 +57,7 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
           + "  error_category_name VARCHAR(%d) NOT NULL" + ")";
 
   private static final String CREATE_ERROR_CATEGORIES_TABLE_NAME =
-      "CREATE TABLE IF NOT EXISTS %s (" + " error_category_name VARCHAR(%d) PRIMARY KEY, priority INT NOT NULL" + " )";
+      "CREATE TABLE IF NOT EXISTS %s (" + " error_category_name VARCHAR(%d) PRIMARY KEY, priority INT UNIQUE NOT NULL" + " )";
 
   private static final String INSERT_ERROR_CATEGORY_STATEMENT = "INSERT INTO %s (error_category_name, priority) "
       + "VALUES (?, ?) ON DUPLICATE KEY UPDATE priority=VALUES(priority)";
