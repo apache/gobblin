@@ -52,7 +52,7 @@ public class TestCompactionTaskUtils {
         .setConfiguration(MRCompactor.COMPACTION_DEST_DIR, basePath)
         .setConfiguration(MRCompactor.COMPACTION_DEST_SUBDIR, outputSubdirType)
         .setConfiguration(MRCompactor.COMPACTION_TMP_DEST_DIR, "/tmp/compaction/" + name)
-        .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "30000d")
+        .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MAX_TIME_AGO, "3000d")
         .setConfiguration(TimeBasedSubDirDatasetsFinder.COMPACTION_TIMEBASED_MIN_TIME_AGO, "1d")
         .setConfiguration(ConfigurationKeys.MAX_TASK_RETRIES_KEY, "0");
   }
