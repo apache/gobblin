@@ -8,7 +8,7 @@ import java.util.List;
 
 
 /**
- * Interface for a store that persists Issues and Categories, similar to StateStore.
+ * Interface for a store that persists Errors and Categories.
  */
 public interface ErrorPatternStore {
   void addErrorPattern(ErrorPatternProfile issue)
@@ -41,9 +41,6 @@ public interface ErrorPatternStore {
   List<ErrorPatternProfile> getAllErrorIssuesOrderedByCategoryPriority()
       throws IOException;
 
-  /**
-   * Returns the default error category. Implementation should define what is considered default. Should return null if no default is set.
-   */
   Category getDefaultCategory()
       throws IOException;
 }

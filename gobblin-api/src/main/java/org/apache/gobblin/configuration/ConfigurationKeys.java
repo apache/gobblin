@@ -85,10 +85,13 @@ public class ConfigurationKeys {
 
   public static final String DATASETURN_STATESTORE_NAME_PARSER = "state.store.datasetUrnStateStoreNameParser";
 
-  //TBD: check configs once
-  //DB metrics for Error Issue Store
+  /**
+   * Error Pattern Store related to configuration properties.
+   */
   public static final String ERROR_REGEX_DB_TABLE_KEY = "state.store.db.regexTableName";
   public static final String ERROR_CATEGORIES_DB_TABLE_KEY = "state.store.db.categoriesTableName";
+  public static final String ERROR_REGEX_MAX_VARCHAR_SIZE_KEY = "error.regex.max.varchar.size";
+  public static final String ERROR_CATEGORY_MAX_VARCHAR_SIZE_KEY = "error.category.max.varchar.size";
 
   /**
    * Job scheduler configuration properties.

@@ -2,12 +2,163 @@ package org.apache.gobblin.runtime.troubleshooter;
 
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Comparator;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+
 import lombok.extern.slf4j.Slf4j;
+
+import org.apache.gobblin.configuration.Category;
+import org.apache.gobblin.configuration.ErrorPatternProfile;
+
 import static java.util.Collections.singletonMap;
 
 @Slf4j
 public class IssueTestDataProvider {
+
+  // Test categories
+  public static final List<Category> TEST_CATEGORIES = Arrays.asList(
+      new Category("USER", 1),
+      new Category("SYSTEM INFRA", 2),
+      new Category("GAAS", 3),
+      new Category("MISC", 4),
+      new Category("NON FATAL", 5),
+      new Category("UNKNOWN", Integer.MAX_VALUE)
+  );
+
+  public static final Category TEST_DEFAULT_CATEGORY = new Category("UNKNOWN", Integer.MAX_VALUE);
+
+  // Test patterns - you'll need to add all the patterns here
+  public static final List<ErrorPatternProfile> TEST_PATTERNS = Arrays.asList(
+        new ErrorPatternProfile(".*the namespace quota.*", "USER"),
+        new ErrorPatternProfile(".*permission denied.*", "USER"),
+        new ErrorPatternProfile(".*remoteexception.*read only mount point.*", "USER"),
+        new ErrorPatternProfile(".*remoteexception: operation category write is not supported in state observer.*", "USER"),
+        new ErrorPatternProfile(".*invalidoperationexception: alter is not possible.*", "USER"),
+        new ErrorPatternProfile(".*the diskspace quota.*", "USER"),
+        new ErrorPatternProfile(".*filenotfoundexception:.*", "USER"),
+        new ErrorPatternProfile(".*does not exist.*", "USER"),
+        new ErrorPatternProfile("remoteexception: file/directory.*does not exist", "USER"),
+        new ErrorPatternProfile("runtimeexception: directory not found.*", "USER"),
+        new ErrorPatternProfile(".*icebergtable.tablenotfoundexception.*", "USER"),
+        new ErrorPatternProfile("ioexception: topath.*must be an ancestor of frompath.*", "USER"),
+        new ErrorPatternProfile("ioexception: origin path.*does not exist.*", "USER"),
+        new ErrorPatternProfile("illegalargumentexception: missing source iceberg table.*", "USER"),
+        new ErrorPatternProfile("remoteexception:.*already exists \\| failed to send re-scaling directive.*", "USER"),
+        new ErrorPatternProfile("illegalargumentexception: when replacing prefix, all locations must be descendants of the prefix.*", "GAAS"),
+        new ErrorPatternProfile("illegalargumentexception:.*", "MISC"),
+        new ErrorPatternProfile("wrongargumentexception: '�' is not a valid numeric or approximate numeric value \\| failed to commit writer for partition.*", "USER"),
+        new ErrorPatternProfile(".*remoteexception: server too busy.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("jschexception: session is down.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("jschexception: channel request.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile(".*safemodeexception.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("remoteexception: no namenode available to invoke.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("remoteexception: org.apache.hadoop.hdfs.server.federation.router.nonamenodesavailableexception: no namenodes available under nameservice.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile(".*no namenodes available under nameservice.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile(".*sockettimeoutexception.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile(".*socketexception: connection reset.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("timeoutexception: failed to update metadata after 60000 ms.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("networkexception: the server disconnected before a response was received.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("webclientrequestwithmessageexception: handshake timed out after 10000ms.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("timeoutfailure: message='activity heartbeat timeout.*", "GAAS"),
+        new ErrorPatternProfile("timeoutexception: failed to allocate memory within the configured max blocking time.*", "GAAS"),
+        new ErrorPatternProfile("timeoutfailure: message='activity starttoclose timeout'.*", "GAAS"),
+        new ErrorPatternProfile("timeoutexception: topic gobblintrackingevent_sgs not present in metadata after 60000 ms.*", "GAAS"),
+        new ErrorPatternProfile("connectexception: connection refused.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("connectionisclosedexception: no operations allowed after connection closed.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("ioexception: failed to get connection for.*is already stopped.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("ioexception: unable to close file because dfsclient was unable to contact the hdfs servers.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile(".*hikaripool-.*-datasourceprovider - failed to execute connection test query.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile(".*interruptedioexception.*", "MISC"),
+        new ErrorPatternProfile("interruptedexception: sleep interrupted.*", "MISC"),
+        new ErrorPatternProfile("closedbyinterruptexception.*", "MISC"),
+        new ErrorPatternProfile("interruptedexception:  \\| failed to commit writer for partition.*", "MISC"),
+        new ErrorPatternProfile(".*http connection failed for getting token from azuread.*", "USER"),
+        new ErrorPatternProfile("ioexception: invalid token.*", "USER"),
+        new ErrorPatternProfile(".*remoteexception: token.*can't be found in cache.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile(".*applicationfailure:.*token.*can't be found in cache.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile(".*closedchannelexception.*", "MISC"),
+        new ErrorPatternProfile("applicationfailure: message='task failed: org.apache.gobblin.runtime.forkexception.*", "MISC"),
+        new ErrorPatternProfile(".*eofexception.*", "MISC"),
+        new ErrorPatternProfile("canceledfailure: child canceled.*", "MISC"),
+        new ErrorPatternProfile(".*message='unable to create new native thread'.*", "GAAS"),
+        new ErrorPatternProfile("ioexception: failed to register hive spec simplehivespec.*", "USER"),
+        new ErrorPatternProfile("ioexception: error: likely concurrent writing to destination: \\(just prior\\) tablemetadata.*", "MISC"),
+        new ErrorPatternProfile(".*nullpointerexception:.*", "MISC"),
+        new ErrorPatternProfile(".*classnotfoundexception.*", "MISC"),
+        new ErrorPatternProfile(".*noclassdeffounderror: could not initialize class.*", "MISC"),
+        new ErrorPatternProfile(".*failure in getting work units for job.*", "MISC"),
+        new ErrorPatternProfile(".*operation failed: \"the uploaded data is not contiguous or the position query parameter value is not equal to the length of the file after appending the uploaded data.*", "MISC"),
+        new ErrorPatternProfile(".*applicationfailure: message='task failed: operation failed: \"the uploaded data is not contiguous or the position query parameter value is not equal to the length of the file after appending the uploaded data.*", "MISC"),
+        new ErrorPatternProfile(".*could not create work unit to deregister partition.*", "MISC"),
+        new ErrorPatternProfile("runtimeexception: not committing dataset.*", "MISC"),
+        new ErrorPatternProfile("job.*has unfinished commit sequences. will not clean up staging data", "MISC"),
+        new ErrorPatternProfile(".*failed to commit.*dataset.*", "MISC"),
+        new ErrorPatternProfile(".*could not commit file.*", "MISC"),
+        new ErrorPatternProfile("runtimeexception: failed to parse the date.*", "USER"),
+        new ErrorPatternProfile("runtimeexception: clean failed for one or more datasets.*", "MISC"),
+        new ErrorPatternProfile("runtimeexception: not copying.*", "MISC"),
+        new ErrorPatternProfile(".*failed to read from all available datanodes.*", "NON FATAL"),
+        new ErrorPatternProfile(".*failed to prepare extractor: error - failed to get schema for this object.*", "NON FATAL"),
+        new ErrorPatternProfile(".*failed to get primary group for kafkaetl, using user name as primary group name.*", "NON FATAL"),
+        new ErrorPatternProfile(".*failed to delete.*", "NON FATAL"),
+        new ErrorPatternProfile(".*applicationfailure: message='task failed: java.lang.arrayindexoutofboundsexception.*", "NON FATAL"),
+        new ErrorPatternProfile(".*arrayindexoutofboundsexception.*failed to close all open resources", "NON FATAL"),
+        new ErrorPatternProfile("ioexception: failed to clean up all writers. \\| failed to close all open resources.*", "MISC"),
+        new ErrorPatternProfile("applicationfailure:.*failed to clean up all writers.*", "MISC"),
+        new ErrorPatternProfile("applicationfailure: message='task failed: java.io.ioexception: failed to commit all writers..*", "MISC"),
+        new ErrorPatternProfile(".*metaexception.*", "USER"),
+        new ErrorPatternProfile(".*ioexception: filesystem closed.*", "GAAS"),
+        new ErrorPatternProfile(".*source and target table are not compatible.*", "USER"),
+        new ErrorPatternProfile("hivetablelocationnotmatchexception: desired target location.*do not agree.*", "USER"),
+        new ErrorPatternProfile(".*schema mismatch between metadata.*", "USER"),
+        new ErrorPatternProfile(".*could not read all task state files.*", "MISC"),
+        new ErrorPatternProfile("taskstatestore successfully opened, but no task states found under.*", "MISC"),
+        new ErrorPatternProfile(".*setting task state to failed.*", "MISC"),
+        new ErrorPatternProfile("illegalstateexception: expected end_array.*", "GAAS"),
+        new ErrorPatternProfile("illegalstateexception: cannot perform operation after producer has been closed.*", "GAAS"),
+        new ErrorPatternProfile("webclientresponse.*503 service unavailable.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("webclientresponseexception.*504.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("webclientresponsewithmessageexception.*504.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("webclientresponseexception.*400.*", "USER"),
+        new ErrorPatternProfile("webclientresponseexception.*409.*", "USER"),
+        new ErrorPatternProfile("webclientresponsewithmessageexception.*402.*", "USER"),
+        new ErrorPatternProfile(".*fsstatestore.*", "MISC"),
+        new ErrorPatternProfile("sqltransientconnectionexception:.*connection is not available, request timed out after.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("sqlnontransientconnectionexception: got timeout reading communication packets.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("sqlexception: unsupported transaction isolation level '-1'.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile("sqlexception: incorrect string value:.*for.*", "USER"),
+        new ErrorPatternProfile(".*obstateutils.opentaskstatestoreuncached debug.*", "MISC"),
+        new ErrorPatternProfile("[bug] workflow thread.*can't be destroyed in time. this will lead to a workflow cache leak. this problem is usually caused by a workflow implementation swallowing java.lang.error instead of rethrowing it.*", "SYSTEM INFRA"),
+        new ErrorPatternProfile(".*outofmemoryerror.*", "GAAS"),
+        new ErrorPatternProfile("filealreadyexistsexception: rename destination.*", "NON FATAL"),
+        new ErrorPatternProfile("applicationfailure: message='failed to rename.*", "MISC"),
+        new ErrorPatternProfile("potentialdeadlockexception: potential deadlock detected.*", "GAAS"),
+        new ErrorPatternProfile("workflow lock for the run id hasn't been released by one of previous execution attempts, consider increasing workflow task timeout.*", "GAAS"),
+        new ErrorPatternProfile("nosuchelementexception:  \\| failed to commit writer for partition.*", "MISC"),
+        new ErrorPatternProfile("illegalargumentexception: cannot instantiate jdbcpublisher since it does not extend singletaskdatapublisher.*", "MISC"),
+        new ErrorPatternProfile("processing failure:.*retrystate=retry_state.*commit workflow failure", "MISC"),
+        new ErrorPatternProfile(".*recordtoolargeexception.*", "MISC"),
+        new ErrorPatternProfile("ioexception: could not get block locations. source file", "MISC"),
+        new ErrorPatternProfile("ioexception: job status not available  \\| failed to launch and run job.*", "MISC"),
+        new ErrorPatternProfile("enqueuing of event.*timed out. sending of events is probably stuck", "MISC"),
+        new ErrorPatternProfile("applicationfailure: message='task failed: status code: -1 error code.*", "MISC"),
+        new ErrorPatternProfile("applicationfailure: message='failing in submitting at least one task before execution.'.*", "MISC"),
+        new ErrorPatternProfile(".*watermark type simple not recognized.*", "MISC")
+  );
+
+  public static List<ErrorPatternProfile> getSortedPatterns() {
+    Map<String, Integer> categoryPriority = new HashMap<>();
+    for (Category category : TEST_CATEGORIES) {
+      categoryPriority.put(category.getCategoryName(), category.getPriority());
+    }
+
+    List<ErrorPatternProfile> sortedPatterns = new ArrayList<>(TEST_PATTERNS);
+    sortedPatterns.sort(Comparator.comparingInt(e -> categoryPriority.getOrDefault(e.getCategoryName(), Integer.MAX_VALUE)));
+    return sortedPatterns;
+  }
 
   public static List<Issue> testUserCategoryIssues() {
     log.info("Generating test data for USER category issues");
@@ -94,7 +245,6 @@ public class IssueTestDataProvider {
     issues.add(
         new Issue(ZonedDateTime.now(), IssueSeverity.ERROR, "GAAS", testString, "ContextA", "activityTimeoutError",
             "timeoutfailure", singletonMap("keyA", "valueA")));
-    log.info("Generated issue with description: {}", testString); //TBD: DELETE
 
     issues.add(new Issue(ZonedDateTime.now().minusDays(1), IssueSeverity.ERROR, "GAAS",
         "TimeoutException: failed to allocate memory within the configured max blocking time of 5000ms", "ContextB",

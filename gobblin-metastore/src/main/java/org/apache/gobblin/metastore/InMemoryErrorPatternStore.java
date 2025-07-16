@@ -2,7 +2,6 @@ package org.apache.gobblin.metastore;
 
 import java.io.IOException;
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -12,9 +11,9 @@ import org.apache.gobblin.configuration.ErrorPatternProfile;
 
 
 /**
-* An in-memory implementation of the ErrorPatternStore interface.
-* This class serves as a base class for initialisation and does not persist data across application restarts.
-*/
+ * An in-memory implementation of the ErrorPatternStore interface.
+ * This class serves as a (default) base class for initialisation and does not persist data across application restarts.
+ */
 public class InMemoryErrorPatternStore implements ErrorPatternStore {
   private List<ErrorPatternProfile> errorPatterns = new ArrayList<>();
   private Map<String, Category> categories = new HashMap<>();
@@ -27,8 +26,24 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
     Category user = new Category("USER", 1);
     this.categories.put(user.getCategoryName(), user);
 
-    this.errorPatterns.add(new org.apache.gobblin.configuration.ErrorPatternProfile(".*file not found.*", "USER"));
+    this.errorPatterns.add(new ErrorPatternProfile(".*file not found.*", "USER"));
     this.defaultCategory = new Category(DEFAULT_CATEGORY_NAME, DEFAULT_PRIORITY);
+  }
+
+  public void upsertCategory(List<Category> categories) {
+    for (Category category : categories) {
+      this.categories.put(category.getCategoryName(), category);
+    }
+  }
+
+  public void upsertPatterns(List<ErrorPatternProfile> patterns) {
+    // Clear existing patterns and add all new ones
+    this.errorPatterns.clear();
+    this.errorPatterns.addAll(patterns);
+  }
+
+  public void setDefaultCategory(Category category) {
+    this.defaultCategory = category;
   }
 
   @Override
@@ -131,8 +146,12 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
       if (cat1 == null && cat2 == null) {
         return 0;
       }
-      if (cat1 == null) return -1;
-      if (cat2 == null) return 1;
+      if (cat1 == null) {
+        return -1;
+      }
+      if (cat2 == null) {
+        return 1;
+      }
       return Integer.compare(cat1.getPriority(), cat2.getPriority());
     });
     return errorPatterns;

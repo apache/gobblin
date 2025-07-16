@@ -36,6 +36,7 @@ public final class GsonUtils {
     GsonBuilder gsonBuilder = new GsonBuilder();
     // Adding Java 8 date and time converters
     Converters.registerAll(gsonBuilder);
+    gsonBuilder.disableHtmlEscaping(); //TBD: should we disable HTML escaping? Conseqeunces?
     return gsonBuilder.create();
   }
 }

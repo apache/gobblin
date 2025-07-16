@@ -30,6 +30,8 @@ import com.typesafe.config.Config;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.service.ServiceConfigKeys;
+
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.util.GsonUtils;
@@ -41,7 +43,7 @@ import org.apache.gobblin.util.ConfigUtils;
  *
  *  It will additionally log received issues, so that they can be processed by an analytical systems to determine
  *  the overall platform health.
- * */
+ **/
 @Slf4j
 public class JobIssueEventHandler {
 
@@ -54,14 +56,17 @@ public class JobIssueEventHandler {
   private final MultiContextIssueRepository issueRepository;
   private final boolean logReceivedEvents;
 
+  private final Config config;
+
   @Inject
   public JobIssueEventHandler(MultiContextIssueRepository issueRepository, Config config) {
-    this(issueRepository, ConfigUtils.getBoolean(config, LOG_RECEIVED_EVENTS, true));
+    this(issueRepository, ConfigUtils.getBoolean(config, LOG_RECEIVED_EVENTS, true), config);
   }
 
-  public JobIssueEventHandler(MultiContextIssueRepository issueRepository, boolean logReceivedEvents) {
+  public JobIssueEventHandler(MultiContextIssueRepository issueRepository, boolean logReceivedEvents, Config config) {
     this.issueRepository = Objects.requireNonNull(issueRepository);
     this.logReceivedEvents = logReceivedEvents;
+    this.config = config;
   }
 
   public void processEvent(GobblinTrackingEvent event) {
@@ -119,17 +124,14 @@ public class JobIssueEventHandler {
 
   public List<Issue> getErrorListForClassification(String contextId)
       throws TroubleshooterException {
-      log.info("Retrieving issues for context: {}", contextId);
-//      return IssueTestDataProvider.testNonFatalAndUnknownMix();
-      return issueRepository.getAllErrors(contextId); //TBD: check if being filtered by error anywhere?
+          int limit = ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_MAX_ERRORS_TO_PROCESS_KEY,
+        ServiceConfigKeys.DEFAULT_ERROR_CLASSIFICATION_MAX_ERRORS_TO_PROCESS);
+      return issueRepository.getAllTopRecentErrors(contextId, limit);
   }
 
   public void LogFinalError(Issue issue, String flowName, String flowGroup, String flowExecutionId, String jobName) {
     JobIssueLogEntry logEntry = new JobIssueLogEntry();
     logEntry.issue = issue;
-    if (logEntry.issue != null) { //TBD: delete this log
-      log.info("Entry {}",logEntry.issue.getDetails());
-    }
     logEntry.flowName = flowName;
     logEntry.flowGroup = flowGroup;
     logEntry.flowExecutionId = flowExecutionId;

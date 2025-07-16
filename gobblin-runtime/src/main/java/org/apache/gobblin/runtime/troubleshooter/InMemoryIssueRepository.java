@@ -66,11 +66,13 @@ public class InMemoryIssueRepository implements IssueRepository {
   }
 
   @Override
-  public synchronized List<Issue> getAllErrors()
+  public synchronized List<Issue> getAllTopRecentErrors(int limit)
       throws TroubleshooterException{
 
     return issues.values().stream()
         .filter(issue -> issue.getSeverity() == IssueSeverity.ERROR)
+        .sorted((a, b) -> b.getTime().compareTo(a.getTime()))
+        .limit(limit)
         .collect(Collectors.toList());
   }
 

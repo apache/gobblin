@@ -197,7 +197,6 @@ public class GobblinServiceGuiceModule implements Module {
               InMemoryErrorPatternStore.class.getName()));
       binder.bind(ErrorPatternStore.class).to(MysqlErrorPatternStore.class);
     }
-
     binder.bind(MysqlErrorPatternStore.class);
     binder.bind(InMemoryErrorPatternStore.class);
     binder.bind(FlowStatusGenerator.class);

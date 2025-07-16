@@ -131,16 +131,10 @@ public class KafkaAvroJobStatusMonitorTest {
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
   }
 
-  //TBD: delete this and associated errorclassifier test
-  private ErrorClassifier createSpyErrorClassifier() throws IOException {
-    ErrorClassifier realClassifier = new ErrorClassifier(new InMemoryTestErrorPatternStore());
-    return Mockito.spy(realClassifier);
-  }
-
   @Test
   public void testProcessMessageForSuccessfulFlow() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
-    ErrorClassifier errorClassifier = createSpyErrorClassifier();
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic1");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -200,16 +194,12 @@ public class KafkaAvroJobStatusMonitorTest {
     // Check that state didn't get set to running since it was already complete
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
-
-    // TBD: DELETE //Verify no classification methods were called
-    Mockito.verify(errorClassifier, Mockito.never()).classifyEarlyStopWithDefault(any());
-    jobStatusMonitor.shutDown();
   }
 
   @Test (dependsOnMethods = "testProcessMessageForSuccessfulFlow")
   public void testProcessMessageForFailedFlow() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
-    ErrorClassifier errorClassifier = createSpyErrorClassifier();
+    ErrorClassifier errorClassifier =  mock(ErrorClassifier.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic2");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -309,20 +299,13 @@ public class KafkaAvroJobStatusMonitorTest {
         anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
     Mockito.verify(dagManagementStateStore, Mockito.times(2)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
-    //TBD: DELETE //For failed flow, error classification should be invoked
-    List<Issue> issues = IssueTestDataProvider.testUserCategoryIssues();
-    Issue classified = errorClassifier.classifyEarlyStopWithDefault(issues);
-    Assert.assertNotNull(classified);
-    Assert.assertTrue(classified.getSummary().contains("USER"));
-    Mockito.verify(errorClassifier, Mockito.atLeastOnce()).classifyEarlyStopWithDefault(any());
-
     jobStatusMonitor.shutDown();
   }
 
   @Test (dependsOnMethods = "testProcessMessageForFailedFlow")
   public void testProcessMessageForSkippedFlow() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
-    ErrorClassifier errorClassifier = createSpyErrorClassifier();
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic2");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -383,16 +366,13 @@ public class KafkaAvroJobStatusMonitorTest {
         anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
 
-    //TBD: DELETED
-    Mockito.verify(errorClassifier, Mockito.never()).classifyEarlyStopWithDefault(any());
-
     jobStatusMonitor.shutDown();
   }
 
   @Test (dependsOnMethods = "testProcessMessageForSkippedFlow")
   public void testProcessingRetriedForApparentlyTransientErrors() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
-    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic3");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -454,7 +434,7 @@ public class KafkaAvroJobStatusMonitorTest {
   @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
   public void testProcessMessageForCancelledAndKilledEvent() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
-    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
 
     //Submit GobblinTrackingEvents to Kafka
@@ -541,7 +521,7 @@ public class KafkaAvroJobStatusMonitorTest {
   @Test (dependsOnMethods = "testProcessingRetriedForApparentlyTransientErrors")
   public void testProcessMessageForFlowPendingResume() throws IOException, ReflectiveOperationException {
     DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
-    ErrorClassifier errorClassifier = mock(ErrorClassifier.class); //TBD: should we use mock or new like for eventProducer?
+    ErrorClassifier errorClassifier = mock(ErrorClassifier.class);
     KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic4");
 
     //Submit GobblinTrackingEvents to Kafka

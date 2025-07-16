@@ -54,7 +54,7 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
   private final DagManagementStateStore dagManagementStateStore;
   private final ErrorClassifier errorClassifier;
 
-  @Inject //TBD: should we use injection only here? that assumes Kafka only initialised here
+  @Inject
   public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
       GobblinInstanceEnvironment env, DagManagementStateStore dagManagementStateStore, ErrorClassifier errorClassifier) {
     this.config = Objects.requireNonNull(config);

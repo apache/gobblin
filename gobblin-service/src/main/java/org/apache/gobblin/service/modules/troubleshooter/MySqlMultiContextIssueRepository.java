@@ -124,17 +124,18 @@ public class MySqlMultiContextIssueRepository extends AbstractIdleService implem
   }
 
   @Override
-  public List<Issue> getAllErrors(String contextId)
+  public List<Issue> getAllTopRecentErrors(String contextId, int limit)
       throws TroubleshooterException {
     Objects.requireNonNull(contextId, "contextId should not be null");
 
     String querySql = "select code, time, severity, summary, details, source_class, exception_class, properties "
-        + "from issues where context_id = ? and severity = 'ERROR' order by position desc"; //TBD: get x amount of top errors. Do we need to group by summary to avoid getting repeat errors
+        + "from issues where context_id = ? and severity = 'ERROR' order by time desc limit ?";
 
     try (Connection connection = databaseProvider.getDatasource().getConnection();
         PreparedStatement statement = connection.prepareStatement(querySql)) {
 
       statement.setString(1, contextId);
+      statement.setLong(2, limit);
 
       ArrayList<Issue> issues = new ArrayList<>();
 

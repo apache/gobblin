@@ -71,13 +71,13 @@ public class InMemoryMultiContextIssueRepository extends AbstractIdleService imp
   }
 
   @Override
-  public synchronized List<Issue> getAllErrors(String contextId)
+  public synchronized List<Issue> getAllTopRecentErrors(String contextId, int limit)
       throws TroubleshooterException {
 
     InMemoryIssueRepository issueRepository = contextIssues.getOrDefault(contextId, null);
 
     if (issueRepository != null) {
-      return issueRepository.getAllErrors();
+      return issueRepository.getAllTopRecentErrors(limit);
     }
     return Collections.emptyList();
   }
@@ -85,8 +85,8 @@ public class InMemoryMultiContextIssueRepository extends AbstractIdleService imp
   @Override
   public synchronized void put(String contextId, Issue issue)
       throws TroubleshooterException {
-    InMemoryIssueRepository issueRepository = contextIssues
-        .computeIfAbsent(contextId, s -> new InMemoryIssueRepository(configuration.getMaxIssuesPerContext()));
+    InMemoryIssueRepository issueRepository = contextIssues.computeIfAbsent(contextId,
+        s -> new InMemoryIssueRepository(configuration.getMaxIssuesPerContext()));
 
     issueRepository.put(issue);
   }
@@ -95,8 +95,8 @@ public class InMemoryMultiContextIssueRepository extends AbstractIdleService imp
   public synchronized void put(String contextId, List<Issue> issues)
       throws TroubleshooterException {
 
-    InMemoryIssueRepository issueRepository = contextIssues
-        .computeIfAbsent(contextId, s -> new InMemoryIssueRepository(configuration.getMaxIssuesPerContext()));
+    InMemoryIssueRepository issueRepository = contextIssues.computeIfAbsent(contextId,
+        s -> new InMemoryIssueRepository(configuration.getMaxIssuesPerContext()));
 
     issueRepository.put(issues);
   }
