@@ -329,6 +329,8 @@ public class ConfigurationKeys {
   public static final String GLOBAL_WATERMARK_DATASET_URN = "__globalDatasetWatermark";
   public static final String DEFAULT_DATASET_URN = "";
   public static final String DATASET_QUALITY_STATUS_KEY = "dataset.quality.status";
+  public static final String DATA_QUALITY_ENABLED_KEY = "data.quality.enabled";
+  public static final Boolean DEFAULT_DATA_QUALITY_ENABLED = false;
 
   /**
    * Work unit related configuration properties.

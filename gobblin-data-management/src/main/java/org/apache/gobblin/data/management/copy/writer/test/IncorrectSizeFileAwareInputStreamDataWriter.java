@@ -15,11 +15,12 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.copy.writer;
+package org.apache.gobblin.data.management.copy.writer.test;
 
 import java.io.IOException;
 import java.io.InputStream;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
 import org.apache.hadoop.fs.Path;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.data.management.copy.CopyableFile;

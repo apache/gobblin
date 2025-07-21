@@ -15,7 +15,7 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.data.management.copy.writer;
+package org.apache.gobblin.data.management.copy.writer.test;
 
 import java.io.IOException;
 import org.apache.commons.lang.StringUtils;

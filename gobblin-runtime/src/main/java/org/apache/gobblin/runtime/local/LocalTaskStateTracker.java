@@ -90,9 +90,11 @@ public class LocalTaskStateTracker extends AbstractTaskStateTracker {
     try {
       // Check the task state and handle task retry if task failed and
       // it has not reached the maximum number of retries
+
       WorkUnitState.WorkingState state = task.getTaskState().getWorkingState();
+      boolean dataQualityEnabled = jobState.getPropAsBoolean(ConfigurationKeys.DATA_QUALITY_ENABLED_KEY, ConfigurationKeys.DEFAULT_DATA_QUALITY_ENABLED);
       String dataQualityResult = task.getTaskState().getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY);
-      if ((DataQualityStatus.FAILED.name().equals(dataQualityResult) || state == WorkUnitState.WorkingState.FAILED) && task.getRetryCount() < this.maxTaskRetries) {
+      if (((dataQualityEnabled && DataQualityStatus.FAILED.name().equals(dataQualityResult)) || state == WorkUnitState.WorkingState.FAILED) && task.getRetryCount() < this.maxTaskRetries) {
         this.taskExecutor.retry(task);
         return;
       }
