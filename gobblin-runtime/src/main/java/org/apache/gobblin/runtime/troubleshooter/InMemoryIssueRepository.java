@@ -66,16 +66,12 @@ public class InMemoryIssueRepository implements IssueRepository {
   }
 
   @Override
-  public synchronized List<Issue> getAllTopRecentErrors(int limit)
-      throws TroubleshooterException{
+  public synchronized List<Issue> getMostRecentErrors(int limit)
+      throws TroubleshooterException {
 
-    return issues.values().stream()
-        .filter(issue -> issue.getSeverity() == IssueSeverity.ERROR)
-        .sorted((a, b) -> b.getTime().compareTo(a.getTime()))
-        .limit(limit)
-        .collect(Collectors.toList());
+    return issues.values().stream().filter(issue -> issue.getSeverity() == IssueSeverity.ERROR)
+        .sorted((a, b) -> b.getTime().compareTo(a.getTime())).limit(limit).collect(Collectors.toList());
   }
-
 
   @Override
   public synchronized void put(Issue issue)
@@ -85,7 +81,7 @@ public class InMemoryIssueRepository implements IssueRepository {
       if (!reportedOverflow) {
         reportedOverflow = true;
         log.warn("In-memory issue repository has {} elements and is now full. New issues will be ignored.",
-                 issues.size());
+            issues.size());
       }
       return;
     }

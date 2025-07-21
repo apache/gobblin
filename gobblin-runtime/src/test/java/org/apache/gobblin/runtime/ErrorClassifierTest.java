@@ -1,6 +1,6 @@
 package org.apache.gobblin.runtime;
 
-import org.apache.gobblin.configuration.Category;
+import org.apache.gobblin.configuration.ErrorCategory;
 import org.apache.gobblin.configuration.ErrorPatternProfile;
 import org.apache.gobblin.metastore.InMemoryErrorPatternStore;
 import org.apache.gobblin.runtime.troubleshooter.Issue;
@@ -21,8 +21,8 @@ import static org.testng.Assert.*;
 
 public class ErrorClassifierTest {
   private ErrorClassifier classifier;
-  private List<Category> categories;
-  private Category defaultCategory;
+  private List<ErrorCategory> categories;
+  private ErrorCategory _defaultErrorCategory;
   private InMemoryErrorPatternStore store;
 
   @BeforeMethod
@@ -30,16 +30,14 @@ public class ErrorClassifierTest {
       throws IOException {
     // Use the shared test data
     categories = IssueTestDataProvider.TEST_CATEGORIES;
-    defaultCategory = IssueTestDataProvider.TEST_DEFAULT_CATEGORY;
+    _defaultErrorCategory = IssueTestDataProvider.TEST_DEFAULT_ERROR_CATEGORY;
     List<ErrorPatternProfile> errorPatternProfiles = IssueTestDataProvider.getSortedPatterns();
 
-    // Initialize the store with the test data
-    store = new InMemoryErrorPatternStore();
+    Config testConfig = ConfigFactory.empty();
+    store = new InMemoryErrorPatternStore(testConfig);
     store.upsertCategory(categories);
     store.upsertPatterns(errorPatternProfiles);
 
-    // Or simply: store = new InMemoryTestErrorPatternStore();
-    Config testConfig = ConfigFactory.empty();
     classifier = new ErrorClassifier(store, testConfig);
   }
 

@@ -1,7 +1,7 @@
 package org.apache.gobblin.metastore;
 
+import org.apache.gobblin.configuration.ErrorCategory;
 import org.apache.gobblin.configuration.ErrorPatternProfile;
-import org.apache.gobblin.configuration.Category;
 
 import java.io.IOException;
 import java.util.List;
@@ -26,21 +26,21 @@ public interface ErrorPatternStore {
   List<ErrorPatternProfile> getErrorPatternsByCategory(String categoryName)
       throws IOException;
 
-  void addErrorCategory(Category category)
+  void addErrorCategory(ErrorCategory errorCategory)
       throws IOException;
 
-  Category getErrorCategory(String categoryName)
+  ErrorCategory getErrorCategory(String categoryName)
       throws IOException;
 
   int getErrorCategoryPriority(String categoryName)
       throws IOException;
 
-  List<Category> getAllErrorCategories()
+  List<ErrorCategory> getAllErrorCategories()
       throws IOException;
 
-  List<ErrorPatternProfile> getAllErrorIssuesOrderedByCategoryPriority()
+  List<ErrorPatternProfile> getAllErrorPatternsOrderedByCategoryPriority()
       throws IOException;
 
-  Category getDefaultCategory()
+  ErrorCategory getDefaultCategory()
       throws IOException;
 }

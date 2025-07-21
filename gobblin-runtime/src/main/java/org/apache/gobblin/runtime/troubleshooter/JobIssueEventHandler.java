@@ -126,7 +126,7 @@ public class JobIssueEventHandler {
       throws TroubleshooterException {
           int limit = ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_MAX_ERRORS_TO_PROCESS_KEY,
         ServiceConfigKeys.DEFAULT_ERROR_CLASSIFICATION_MAX_ERRORS_TO_PROCESS);
-      return issueRepository.getAllTopRecentErrors(contextId, limit);
+      return issueRepository.getMostRecentErrors(contextId, limit);
   }
 
   public void LogFinalError(Issue issue, String flowName, String flowGroup, String flowExecutionId, String jobName) {

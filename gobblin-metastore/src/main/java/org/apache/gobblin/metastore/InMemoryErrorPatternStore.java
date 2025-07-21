@@ -6,8 +6,12 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-import org.apache.gobblin.configuration.Category;
+import com.typesafe.config.Config;
+
+import org.apache.gobblin.configuration.ErrorCategory;
 import org.apache.gobblin.configuration.ErrorPatternProfile;
+import org.apache.gobblin.service.ServiceConfigKeys;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -16,23 +20,27 @@ import org.apache.gobblin.configuration.ErrorPatternProfile;
  */
 public class InMemoryErrorPatternStore implements ErrorPatternStore {
   private List<ErrorPatternProfile> errorPatterns = new ArrayList<>();
-  private Map<String, Category> categories = new HashMap<>();
-  private Category defaultCategory = null;
+  private Map<String, ErrorCategory> categories = new HashMap<>();
+  private ErrorCategory _defaultErrorCategory = null;
 
-  private static String DEFAULT_CATEGORY_NAME = "UNKNOWN";
-  private static final int DEFAULT_PRIORITY = Integer.MAX_VALUE;
+  private static final String DEFAULT_CATEGORY_NAME = "UNKNOWN";
 
-  public InMemoryErrorPatternStore() {
-    Category user = new Category("USER", 1);
+  private int default_priority;
+
+  public InMemoryErrorPatternStore(Config config) {
+    ErrorCategory user = new ErrorCategory("USER", 1);
     this.categories.put(user.getCategoryName(), user);
 
     this.errorPatterns.add(new ErrorPatternProfile(".*file not found.*", "USER"));
-    this.defaultCategory = new Category(DEFAULT_CATEGORY_NAME, DEFAULT_PRIORITY);
+    default_priority = ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_DEFAULT_PRIORITY_ENABLE_KEY,
+        ServiceConfigKeys.DEFAULT_PRIORITY_VALUE);
+
+    this._defaultErrorCategory = new ErrorCategory(DEFAULT_CATEGORY_NAME, default_priority);
   }
 
-  public void upsertCategory(List<Category> categories) {
-    for (Category category : categories) {
-      this.categories.put(category.getCategoryName(), category);
+  public void upsertCategory(List<ErrorCategory> categories) {
+    for (ErrorCategory errorCategory : categories) {
+      this.categories.put(errorCategory.getCategoryName(), errorCategory);
     }
   }
 
@@ -42,8 +50,8 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
     this.errorPatterns.addAll(patterns);
   }
 
-  public void setDefaultCategory(Category category) {
-    this.defaultCategory = category;
+  public void setDefaultCategory(ErrorCategory errorCategory) {
+    this._defaultErrorCategory = errorCategory;
   }
 
   @Override
@@ -96,15 +104,15 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   }
 
   @Override
-  public void addErrorCategory(Category category)
+  public void addErrorCategory(ErrorCategory errorCategory)
       throws IOException {
-    if (category != null) {
-      categories.put(category.getCategoryName(), category);
+    if (errorCategory != null) {
+      categories.put(errorCategory.getCategoryName(), errorCategory);
     }
   }
 
   @Override
-  public Category getErrorCategory(String categoryName)
+  public ErrorCategory getErrorCategory(String categoryName)
       throws IOException {
     return categories.get(categoryName);
   }
@@ -112,37 +120,37 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   @Override
   public int getErrorCategoryPriority(String categoryName)
       throws IOException {
-    Category category = getErrorCategory(categoryName);
-    if (category != null) {
-      return category.getPriority();
+    ErrorCategory errorCategory = getErrorCategory(categoryName);
+    if (errorCategory != null) {
+      return errorCategory.getPriority();
     }
-    throw new IOException("Category not found: " + categoryName);
+    throw new IOException("ErrorCategory not found: " + categoryName);
   }
 
   @Override
-  public List<Category> getAllErrorCategories()
+  public List<ErrorCategory> getAllErrorCategories()
       throws IOException {
     return new ArrayList<>(categories.values());
   }
 
   @Override
-  public Category getDefaultCategory()
+  public ErrorCategory getDefaultCategory()
       throws IOException {
-    if (defaultCategory == null) {
-      defaultCategory = new Category(DEFAULT_CATEGORY_NAME, DEFAULT_PRIORITY);
+    if (_defaultErrorCategory == null) {
+      _defaultErrorCategory = new ErrorCategory(DEFAULT_CATEGORY_NAME, default_priority);
     }
-    return defaultCategory;
+    return _defaultErrorCategory;
   }
 
   @Override
-  public List<ErrorPatternProfile> getAllErrorIssuesOrderedByCategoryPriority()
+  public List<ErrorPatternProfile> getAllErrorPatternsOrderedByCategoryPriority()
       throws IOException {
     if (errorPatterns == null) {
       throw new IOException("Error patterns list is null");
     }
     errorPatterns.sort((issue1, issue2) -> {
-      Category cat1 = categories.get(issue1.getCategoryName());
-      Category cat2 = categories.get(issue2.getCategoryName());
+      ErrorCategory cat1 = categories.get(issue1.getCategoryName());
+      ErrorCategory cat2 = categories.get(issue2.getCategoryName());
       if (cat1 == null && cat2 == null) {
         return 0;
       }

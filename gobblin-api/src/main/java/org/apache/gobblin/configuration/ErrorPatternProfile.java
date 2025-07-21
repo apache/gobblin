@@ -2,10 +2,14 @@ package org.apache.gobblin.configuration;
 
 import java.io.Serializable;
 
+import lombok.Getter;
+import lombok.Setter;
 
 /**
- * POJO representing an ErrorPatternProfile, similar to Spec or State.
+ * Represents a profile for error patterns, containing a regex to match error descriptions and a category name for classification.
  */
+@Getter
+@Setter
 public class ErrorPatternProfile implements Serializable {
   private String descriptionRegex;
   private String categoryName;
@@ -14,21 +18,4 @@ public class ErrorPatternProfile implements Serializable {
     this.descriptionRegex = descriptionRegex;
     this.categoryName = categoryName;
   }
-
-  public String getDescriptionRegex() {
-    return descriptionRegex;
-  }
-
-  public void setDescriptionRegex(String descriptionRegex) {
-    this.descriptionRegex = descriptionRegex;
-  }
-
-  public String getCategoryName() {
-    return categoryName;
-  }
-
-  public void setCategoryName(String categoryName) {
-    this.categoryName = categoryName;
-  }
-
 }

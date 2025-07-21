@@ -3,7 +3,8 @@ package org.apache.gobblin.metastore;
 import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.ErrorPatternProfile;
-import org.apache.gobblin.configuration.Category;
+import org.apache.gobblin.configuration.ErrorCategory;
+import org.apache.gobblin.service.ServiceConfigKeys;
 
 import com.typesafe.config.Config;
 
@@ -24,7 +25,10 @@ import java.util.List;
 
 
 /**
- * MySQL-backed implementation of IssueStore.
+ * MySQL-backed implementation of ErrorPatternStore.
+ *
+ * This class provides methods to primarily retrieve error regex patterns and error categories.
+ * There are also methods to add and delete, which should be used with caution, and retrieve error patterns and categories.
  *
  * Expected table schemas:
  *
@@ -35,10 +39,13 @@ import java.util.List;
  * 2. error_categories
  *    - error_category_name: VARCHAR(255) PRIMARY KEY
  *    - priority: INT UNIQUE NOT NULL
- *    - is_default: BOOLEAN (optional, not compulsory; used if present to indicate the default category)
  *
- * This class provides methods to primarily retrieve error regex patterns and error categories.
- * There are also methods to add and delete, which should be used with caution, and retrieve error patterns and categories.
+ * Default Category Configuration:
+ * - The default category can be configured via the property: gobblin.service.errorPatternStore.defaultCategory
+ * - The configured value must exactly match an existing error_category_name in the error_categories table
+ * - If no default is configured, the method returns null (no automatic fallback)
+ * - If a configured default category is not found in the database, an IOException will be thrown
+ *
  */
 @Slf4j
 public class MysqlErrorPatternStore implements ErrorPatternStore {
@@ -53,11 +60,12 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   private final int maxCharactersInSqlCategoryName;
 
   private static final String CREATE_ERROR_REGEX_SUMMARY_STORE_TABLE_STATEMENT =
-      "CREATE TABLE IF NOT EXISTS %s (" + "  description_regex VARCHAR(%d) NOT NULL UNIQUE, "
-          + "  error_category_name VARCHAR(%d) NOT NULL" + ")";
+      "CREATE TABLE IF NOT EXISTS %s (description_regex VARCHAR(%d) NOT NULL UNIQUE, error_category_name VARCHAR(%d) NOT NULL)";
 
+  //TBD: do we have to remove all errors
   private static final String CREATE_ERROR_CATEGORIES_TABLE_NAME =
-      "CREATE TABLE IF NOT EXISTS %s (" + " error_category_name VARCHAR(%d) PRIMARY KEY, priority INT UNIQUE NOT NULL" + " )";
+      "CREATE TABLE IF NOT EXISTS %s (" + " error_category_name VARCHAR(%d) PRIMARY KEY, priority INT UNIQUE NOT NULL"
+          + " )";
 
   private static final String INSERT_ERROR_CATEGORY_STATEMENT = "INSERT INTO %s (error_category_name, priority) "
       + "VALUES (?, ?) ON DUPLICATE KEY UPDATE priority=VALUES(priority)";
@@ -80,21 +88,20 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   private static final String GET_ALL_ERROR_REGEX_SUMMARIES_STATEMENT =
       "SELECT description_regex, error_category_name FROM %s";
 
-  private static final String GET_DEFAULT_CATEGORY_STATEMENT =
-      "SELECT error_category_name, priority FROM %s WHERE is_default = TRUE ORDER BY priority DESC";
-
-  private static final String GET_HIGHEST_ERROR_CATEGORY_STATEMENT =
-      "SELECT error_category_name, priority FROM %s ORDER BY priority ASC LIMIT 1";
+  // This SQL statement retrieves the category with the lowest priority (highest priority value).
+  private static final String GET_LOWEST_PRIORITY_ERROR_CATEGORY_STATEMENT =
+      "SELECT error_category_name, priority FROM %s ORDER BY priority DESC LIMIT 1";
 
   private static final String GET_ALL_ERROR_ISSUES_ORDERED_BY_CATEGORY_PRIORITY_STATEMENT =
       "SELECT e.description_regex, e.error_category_name FROM %s e "
           + "JOIN %s c ON e.error_category_name = c.error_category_name "
           + "ORDER BY c.priority ASC, e.description_regex ASC";
 
+  private final String configuredDefaultCategoryName;
+
   @Inject
   public MysqlErrorPatternStore(Config config)
       throws IOException {
-    log.info("Inside MysqlErrorPatternStore constructor");
     if (config.hasPath(CONFIG_PREFIX)) {
       config = config.getConfig(CONFIG_PREFIX).withFallback(config);
     } else {
@@ -106,65 +113,64 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
         ConfigUtils.getString(config, ConfigurationKeys.ERROR_CATEGORIES_DB_TABLE_KEY, "error_categories");
     this.dataSource = MysqlDataSourceFactory.get(config, SharedResourcesBrokerFactory.getImplicitBroker());
 
-    this.maxCharactersInSqlDescriptionRegex =
-        ConfigUtils.getInt(config, ConfigurationKeys.ERROR_REGEX_MAX_VARCHAR_SIZE_KEY,
-            DEFAULT_MAX_CHARACTERS_IN_SQL_DESCRIPTION_REGEX);
+    this.maxCharactersInSqlDescriptionRegex = ConfigUtils.getInt(config, ConfigurationKeys.ERROR_REGEX_VARCHAR_SIZE_KEY,
+        DEFAULT_MAX_CHARACTERS_IN_SQL_DESCRIPTION_REGEX);
 
-    this.maxCharactersInSqlCategoryName =
-        ConfigUtils.getInt(config, ConfigurationKeys.ERROR_CATEGORY_MAX_VARCHAR_SIZE_KEY,
-            DEFAULT_MAX_CHARACTERS_IN_SQL_CATEGORY_NAME);
+    this.maxCharactersInSqlCategoryName = ConfigUtils.getInt(config, ConfigurationKeys.ERROR_CATEGORY_VARCHAR_SIZE_KEY,
+        DEFAULT_MAX_CHARACTERS_IN_SQL_CATEGORY_NAME);
 
-    log.info("MysqlErrorPatternStore almost initialized");
+    // Use ServiceConfigKeys for the default category config key
+    this.configuredDefaultCategoryName =
+        ConfigUtils.getString(config, ServiceConfigKeys.ERROR_PATTERN_STORE_DEFAULT_CATEGORY_KEY, null);
+
     createTablesIfNotExist();
-    log.info("MysqlErrorPatternStore initialized");
   }
 
   private void createTablesIfNotExist()
       throws IOException {
+    try (Connection connection = dataSource.getConnection()) {
+      try (PreparedStatement createRegexTable = connection.prepareStatement(
+          String.format(CREATE_ERROR_REGEX_SUMMARY_STORE_TABLE_STATEMENT, errorRegexSummaryStoreTable,
+              maxCharactersInSqlDescriptionRegex, maxCharactersInSqlCategoryName))) {
+        createRegexTable.executeUpdate();
+      }
 
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement createStatement = connection.prepareStatement(
-            String.format(CREATE_ERROR_REGEX_SUMMARY_STORE_TABLE_STATEMENT, errorRegexSummaryStoreTable,
-                maxCharactersInSqlDescriptionRegex, maxCharactersInSqlCategoryName))) {
-      createStatement.executeUpdate();
+      // Create error_categories table
+      try (PreparedStatement createCategoriesTable = connection.prepareStatement(
+          String.format(CREATE_ERROR_CATEGORIES_TABLE_NAME, errorCategoriesTable, maxCharactersInSqlCategoryName))) {
+        createCategoriesTable.executeUpdate();
+      }
+
+      // Commit both changes together
       connection.commit();
     } catch (SQLException e) {
-      throw new IOException("Failure creation: error_regex_summary.", e);
-    }
-
-    try (Connection connection = dataSource.getConnection();
-        PreparedStatement createStatement = connection.prepareStatement(
-            String.format(CREATE_ERROR_CATEGORIES_TABLE_NAME, errorCategoriesTable, maxCharactersInSqlCategoryName))) {
-      createStatement.executeUpdate();
-      connection.commit();
-    } catch (SQLException e) {
-      throw new IOException("Failure creation: error_categories.", e);
+      throw new IOException("Failed to create tables for storing ErrorPatterns", e);
     }
   }
 
   @Override
-  public void addErrorCategory(Category category)
+  public void addErrorCategory(ErrorCategory errorCategory)
       throws IOException {
     String sql = String.format(INSERT_ERROR_CATEGORY_STATEMENT, errorCategoriesTable);
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
-      ps.setString(1, category.getCategoryName());
-      ps.setInt(2, category.getPriority());
+      ps.setString(1, errorCategory.getCategoryName());
+      ps.setInt(2, errorCategory.getPriority());
       ps.executeUpdate();
       conn.commit();
     } catch (SQLException e) {
-      throw new IOException("Failed to add category", e);
+      throw new IOException("Failed to add errorCategory", e);
     }
   }
 
   @Override
-  public Category getErrorCategory(String categoryName)
+  public ErrorCategory getErrorCategory(String categoryName)
       throws IOException {
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(
         String.format(GET_ERROR_CATEGORY_STATEMENT, errorCategoriesTable))) {
       ps.setString(1, categoryName);
       try (ResultSet rs = ps.executeQuery()) {
         if (rs.next()) {
-          return new Category(rs.getString(1), rs.getInt(2));
+          return new ErrorCategory(rs.getString(1), rs.getInt(2));
         }
       }
     } catch (SQLException e) {
@@ -176,21 +182,21 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   @Override
   public int getErrorCategoryPriority(String categoryName)
       throws IOException {
-    Category cat = getErrorCategory(categoryName);
+    ErrorCategory cat = getErrorCategory(categoryName);
     if (cat == null) {
-      throw new IOException("Category not found: " + categoryName);
+      throw new IOException("ErrorCategory not found: " + categoryName);
     }
     return cat.getPriority();
   }
 
   @Override
-  public List<Category> getAllErrorCategories()
+  public List<ErrorCategory> getAllErrorCategories()
       throws IOException {
-    List<Category> categories = new ArrayList<>();
+    List<ErrorCategory> categories = new ArrayList<>();
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(
         String.format(GET_ALL_ERROR_CATEGORIES_STATEMENT, errorCategoriesTable)); ResultSet rs = ps.executeQuery()) {
       while (rs.next()) {
-        categories.add(new Category(rs.getString(1), rs.getInt(2)));
+        categories.add(new ErrorCategory(rs.getString(1), rs.getInt(2)));
       }
     } catch (SQLException e) {
       throw new IOException("Failed to get all categories", e);
@@ -279,28 +285,42 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   }
 
   @Override
-  public Category getDefaultCategory()
+  public ErrorCategory getDefaultCategory()
       throws IOException {
-    if (hasIsDefaultColumn()) {
-      Category cat = getDefaultCategoryFromIsDefault();
+    // 1. Try to use the configured default category name if set
+    if (configuredDefaultCategoryName != null && !configuredDefaultCategoryName.trim().isEmpty()) {
+      ErrorCategory cat = getErrorCategory(configuredDefaultCategoryName);
       if (cat != null) {
         return cat;
+      } else {
+        // Throw exception if configured category doesn't exist
+        throw new IOException(String.format(
+            "Configured default category '%s' not found in database",
+            configuredDefaultCategoryName));
       }
     }
-    // Fallback to previous logic: category with the highest priority (lowest priority number)
-    return getHighestPriorityCategory();
+
+    // 2. No configuration provided - use lowest priority category as fallback
+    ErrorCategory lowestPriorityCategory = getLowestPriorityCategory();
+    if (lowestPriorityCategory == null) {
+      throw new IOException("No error categories found in database");
+    }
+
+    log.debug("No default category configured, using lowest priority category: {}",
+        lowestPriorityCategory.getCategoryName());
+    return lowestPriorityCategory;
   }
 
   /**
-   * Returns the category with the highest priority, i.e. the lowest priority value (ascending order).
+   * Returns the category with the lowest priority, i.e. the highes priority value (descending order).
    */
-  private Category getHighestPriorityCategory()
+  private ErrorCategory getLowestPriorityCategory()
       throws IOException {
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(
-        String.format(GET_HIGHEST_ERROR_CATEGORY_STATEMENT, errorCategoriesTable))) {
+        String.format(GET_LOWEST_PRIORITY_ERROR_CATEGORY_STATEMENT, errorCategoriesTable))) {
       try (ResultSet rs = ps.executeQuery()) {
         if (rs.next()) {
-          return new Category(rs.getString(1), rs.getInt(2));
+          return new ErrorCategory(rs.getString(1), rs.getInt(2));
         }
       }
     } catch (SQLException e) {
@@ -310,47 +330,14 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   }
 
   /**
-   * Checks if the is_default column exists in the categories table.
-   */
-  private boolean hasIsDefaultColumn()
-      throws IOException {
-    try (Connection conn = dataSource.getConnection()) {
-      try (ResultSet rs = conn.getMetaData().getColumns(null, null, errorCategoriesTable, "is_default")) {
-        return rs.next();
-      }
-    } catch (SQLException e) {
-      throw new IOException("Failed to check for is_default column", e);
-    }
-  }
-
-  /**
-   * Returns the default category using is_default column, or null if not found.
-   */
-  private Category getDefaultCategoryFromIsDefault()
-      throws IOException {
-    try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(
-        String.format(GET_DEFAULT_CATEGORY_STATEMENT, errorCategoriesTable))) {
-      try (ResultSet rs = ps.executeQuery()) {
-        if (rs.next()) {
-          return new Category(rs.getString(1), rs.getInt(2));
-        }
-      }
-    } catch (SQLException e) {
-      throw new IOException("Failed to get default category with is_default", e);
-    }
-    return null;
-  }
-
-  /**
    * Returns all ErrorIssues ordered by the priority of their category (ascending), then by description_regex.
    */
   @Override
-  public List<ErrorPatternProfile> getAllErrorIssuesOrderedByCategoryPriority()
+  public List<ErrorPatternProfile> getAllErrorPatternsOrderedByCategoryPriority()
       throws IOException {
     List<ErrorPatternProfile> issues = new ArrayList<>();
     String sql = String.format(GET_ALL_ERROR_ISSUES_ORDERED_BY_CATEGORY_PRIORITY_STATEMENT, errorRegexSummaryStoreTable,
         errorCategoriesTable);
-    log.info("Executing SQL to get all issues ordered by category priority: {}", sql);
     try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql);
         ResultSet rs = ps.executeQuery()) {
       while (rs.next()) {

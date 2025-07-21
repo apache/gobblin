@@ -2,7 +2,7 @@
 
 # Introduction
 [`QueryBasedSource`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/QueryBasedSource.java)
-represents a category of sources whose data is pulled by sending queries. A dataset of a source is identified as a
+represents a errorCategory of sources whose data is pulled by sending queries. A dataset of a source is identified as a
 [`SourceEntity`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/QueryBasedSource.java#L96).
 Query can be done by sending HTTP requests or SQL commands. A source often, but not always, has a corresponding
 [`QueryBasedExtractor`](https://github.com/apache/gobblin/blob/master/gobblin-core/src/main/java/org/apache/gobblin/source/extractor/extract/QueryBasedExtractor.java),

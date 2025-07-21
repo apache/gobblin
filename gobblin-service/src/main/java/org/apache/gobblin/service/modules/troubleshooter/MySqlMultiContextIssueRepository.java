@@ -124,7 +124,7 @@ public class MySqlMultiContextIssueRepository extends AbstractIdleService implem
   }
 
   @Override
-  public List<Issue> getAllTopRecentErrors(String contextId, int limit)
+  public List<Issue> getMostRecentErrors(String contextId, int limit)
       throws TroubleshooterException {
     Objects.requireNonNull(contextId, "contextId should not be null");
 

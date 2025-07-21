@@ -78,7 +78,6 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExceptionUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
 
-
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TIME_OUT_MS;
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_TYPE;
@@ -95,11 +94,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   public static final String JOB_STATUS_MONITOR_PREFIX = "jobStatusMonitor";
   //We use table suffix that is different from the Gobblin job state store suffix of jst to avoid confusion.
   //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.
-  public static final String GET_AND_SET_JOB_STATUS = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
-      JOB_STATUS_MONITOR_PREFIX,  "getAndSetJobStatus");
+  public static final String GET_AND_SET_JOB_STATUS =
+      MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, JOB_STATUS_MONITOR_PREFIX, "getAndSetJobStatus");
 
-  private static final String PROCESS_JOB_ISSUE = MetricRegistry
-      .name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, JOB_STATUS_MONITOR_PREFIX, "jobIssueProcessingTime");
+  private static final String PROCESS_JOB_ISSUE =
+      MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, JOB_STATUS_MONITOR_PREFIX,
+          "jobIssueProcessingTime");
 
   static final String JOB_STATUS_MONITOR_TOPIC_KEY = "topic";
   static final String JOB_STATUS_MONITOR_NUM_THREADS_KEY = "numThreads";
@@ -117,23 +117,23 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       RETRY_TIME_OUT_MS, TimeUnit.HOURS.toMillis(12L), // after 12 hours, presume non-transient and give up
       RETRY_INTERVAL_MS, TimeUnit.MINUTES.toMillis(1L), // back-off to once/minute
       RETRY_TYPE, RetryType.EXPONENTIAL.name()));
-  private static final Config DEFAULTS = ConfigFactory.parseMap(ImmutableMap.of(
-      KAFKA_AUTO_OFFSET_RESET_KEY, KAFKA_AUTO_OFFSET_RESET_SMALLEST));
+  private static final Config DEFAULTS =
+      ConfigFactory.parseMap(ImmutableMap.of(KAFKA_AUTO_OFFSET_RESET_KEY, KAFKA_AUTO_OFFSET_RESET_SMALLEST));
 
-  private static final List<ExecutionStatus> ORDERED_EXECUTION_STATUSES = ImmutableList
-      .of(ExecutionStatus.COMPILED, ExecutionStatus.PENDING, ExecutionStatus.PENDING_RESUME, ExecutionStatus.PENDING_RETRY,
-          ExecutionStatus.ORCHESTRATED, ExecutionStatus.RUNNING, ExecutionStatus.COMPLETE,
-          ExecutionStatus.FAILED, ExecutionStatus.CANCELLED);
+  private static final List<ExecutionStatus> ORDERED_EXECUTION_STATUSES =
+      ImmutableList.of(ExecutionStatus.COMPILED, ExecutionStatus.PENDING, ExecutionStatus.PENDING_RESUME,
+          ExecutionStatus.PENDING_RETRY, ExecutionStatus.ORCHESTRATED, ExecutionStatus.RUNNING,
+          ExecutionStatus.COMPLETE, ExecutionStatus.FAILED, ExecutionStatus.CANCELLED);
 
   private final JobIssueEventHandler jobIssueEventHandler;
   private final Retryer<Void> persistJobStatusRetryer;
   private final GaaSJobObservabilityEventProducer eventProducer;
   private final DagManagementStateStore dagManagementStateStore;
-  private final List<Class<? extends Exception>> nonRetryableExceptions = Collections.singletonList(SQLIntegrityConstraintViolationException.class);
-  private final boolean isErrorClassificationEnabled = ConfigUtils.getBoolean(
-      this.config, ServiceConfigKeys.ERROR_CLASSIFICATION_ENABLED_KEY, false);
+  private final List<Class<? extends Exception>> nonRetryableExceptions =
+      Collections.singletonList(SQLIntegrityConstraintViolationException.class);
+  private final boolean isErrorClassificationEnabled =
+      ConfigUtils.getBoolean(this.config, ServiceConfigKeys.ERROR_CLASSIFICATION_ENABLED_KEY, false);
   private final ErrorClassifier errorClassifier;
-
 
   @Inject
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
@@ -141,44 +141,46 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       ErrorClassifier errorClassifier)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
-    String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
+    String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY,
+        FileContextBasedFsStateStoreFactory.class.getName());
 
     this.stateStore =
-        ((StateStore.Factory) Class.forName(stateStoreFactoryClass).newInstance()).createStateStore(config, org.apache.gobblin.configuration.State.class);
+        ((StateStore.Factory) Class.forName(stateStoreFactoryClass).newInstance()).createStateStore(config,
+            org.apache.gobblin.configuration.State.class);
     this.scheduledExecutorService = Executors.newScheduledThreadPool(1);
 
     this.jobIssueEventHandler = jobIssueEventHandler;
     this.dagManagementStateStore = dagManagementStateStore;
     this.errorClassifier = errorClassifier;
 
-    Config retryerOverridesConfig = config.hasPath(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
-        ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
-        : ConfigFactory.empty();
+    Config retryerOverridesConfig = config.hasPath(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX) ? config.getConfig(
+        KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX) : ConfigFactory.empty();
     // log exceptions to expose errors we suffer under and/or guide intervention when resolution not readily forthcoming
     this.persistJobStatusRetryer =
-        RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
-          @Override
-          public <V> void onRetry(Attempt<V> attempt) {
-            if (attempt.hasException()) {
-              String msg = String.format("(Likely retryable) failure adding job status to state store [attempt: %d; %s after start]",
-                  attempt.getAttemptNumber(), Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());
-              log.warn(msg, attempt.getExceptionCause());
-            }
-          }
-        }));
-        this.eventProducer = observabilityEventProducer;
+        RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG),
+            Optional.of(new RetryListener() {
+              @Override
+              public <V> void onRetry(Attempt<V> attempt) {
+                if (attempt.hasException()) {
+                  String msg = String.format(
+                      "(Likely retryable) failure adding job status to state store [attempt: %d; %s after start]",
+                      attempt.getAttemptNumber(), Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());
+                  log.warn(msg, attempt.getExceptionCause());
+                }
+              }
+            }));
+    this.eventProducer = observabilityEventProducer;
   }
 
   public enum NewState {
-    FINISHED,
-    RUNNING,
-    SAME_AS_PREVIOUS,
+    FINISHED, RUNNING, SAME_AS_PREVIOUS,
   }
 
   @Override
   protected void startUp() {
     super.startUp();
-    org.apache.gobblin.configuration.State state = new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(this.config));
+    org.apache.gobblin.configuration.State state =
+        new org.apache.gobblin.configuration.State(ConfigUtils.configToProperties(this.config));
     state.setProp(ConfigurationKeys.JOB_ID_KEY, "GobblinServiceJobStatusCleanerJob");
     state.setProp(ConfigurationKeys.TASK_ID_KEY, "GobblinServiceJobStatusCleanerTask");
 
@@ -189,13 +191,13 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   @Override
   public void shutDown() {
-     super.shutDown();
-     this.scheduledExecutorService.shutdown();
-     try {
-       this.scheduledExecutorService.awaitTermination(30, TimeUnit.SECONDS);
-     } catch (InterruptedException e) {
-       log.error("Exception encountered when shutting down state store cleaner", e);
-     }
+    super.shutDown();
+    this.scheduledExecutorService.shutdown();
+    try {
+      this.scheduledExecutorService.awaitTermination(30, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      log.error("Exception encountered when shutting down state store cleaner", e);
+    }
   }
 
   @Override
@@ -204,7 +206,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   @Override
-  protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
+  protected void processMessage(DecodeableKafkaRecord<byte[], byte[]> message) {
     GobblinTrackingEvent gobblinTrackingEvent = deserializeEvent(message);
 
     if (gobblinTrackingEvent == null) {
@@ -227,7 +229,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         }
 
         try (Timer.Context context = getMetricContext().timer(GET_AND_SET_JOB_STATUS).time()) {
-          Pair<org.apache.gobblin.configuration.State, NewState> updatedJobStatus = recalcJobStatus(jobStatus, this.stateStore);
+          Pair<org.apache.gobblin.configuration.State, NewState> updatedJobStatus =
+              recalcJobStatus(jobStatus, this.stateStore);
 
           jobStatus = updatedJobStatus.getLeft();
 
@@ -249,51 +252,58 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
           if (updatedJobStatus.getRight() == NewState.FINISHED && !retryRequired) {
             if (isErrorClassificationEnabled) {
-              long startTime = System.currentTimeMillis();
               if (jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())) {
+                long startTime = System.currentTimeMillis();
                 List<Issue> issues = jobIssueEventHandler.getErrorListForClassification(
                     TroubleshooterUtils.getContextIdForJob(jobStatus.getProperties()));
-                    long process_duration = System.currentTimeMillis() - startTime;
-                    log.info("Processing issues for job: {}, duration: {} ms", jobStatus, flowName, flowExecutionId, jobName, process_duration);
+                long process_duration = System.currentTimeMillis() - startTime;
+                log.info(
+                    "Processing issues for flowName: {}, flowGroup: {}, flowExecutionId: {}, jobName: {}, duration: {} ms",
+                    flowName, flowGroup, flowExecutionId, jobName, process_duration);
                 try {
                   Issue finalIssue = errorClassifier.classifyEarlyStopWithDefault(issues);
                   if (finalIssue != null) {
                     jobIssueEventHandler.LogFinalError(finalIssue, flowName, flowGroup, String.valueOf(flowExecutionId),
                         jobName);
-                    long final_duration = System.currentTimeMillis() - startTime;
-                    log.info("Classified issues for job: {}, duration: {} ms", jobStatus,final_duration);
                   }
                 } catch (Exception e) {
                   log.error("Error classifying issues for job: {}", jobStatus, e);
-                  long final_duration = System.currentTimeMillis() - startTime;
-                  log.info("Error classification for job: {}, duration: {} ms", jobStatus, final_duration);
                 }
+                long final_duration = System.currentTimeMillis() - startTime;
+                log.info(
+                    "Error classification for flowName: {}, flowGroup: {}, flowExecutionId: {}, jobName: {}, total_duration: {}",
+                    flowName, flowGroup, flowExecutionId, jobName, final_duration);
               }
             }
-              // do not send event if retry is required, because it can alert users to re-submit a job that is already set to be retried by GaaS
+            // do not send event if retry is required, because it can alert users to re-submit a job that is already set to be retried by GaaS
 
-              this.eventProducer.emitObservabilityEvent(jobStatus);
+            this.eventProducer.emitObservabilityEvent(jobStatus);
           }
 
           if (DagProcUtils.isJobLevelStatus(jobName)) {
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
               try {
-                this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.REEVALUATE);
+                this.dagManagementStateStore.addJobDagAction(flowGroup, flowName, flowExecutionId, jobName,
+                    DagActionStore.DagActionType.REEVALUATE);
               } catch (IOException e) {
                 if (ExceptionUtils.isExceptionInstanceOf(e, nonRetryableExceptions)) {
                   this.dagManagementStateStore.getDagManagerMetrics().dagActionCreationExceptionsInJobStatusMonitor.mark();
-                  log.error("Could not add REEVALUATE dag action for flow group - {}, flow name - {}, flowExecutionId - {}, "
-                      + "jobName = {} due to {}. Ignoring...", flowGroup, flowName, flowExecutionId, jobName,     e.getMessage());
+                  log.error(
+                      "Could not add REEVALUATE dag action for flow group - {}, flow name - {}, flowExecutionId - {}, "
+                          + "jobName = {} due to {}. Ignoring...", flowGroup, flowName, flowExecutionId, jobName,
+                      e.getMessage());
                 } else {
                   throw e;
                 }
               }
             } else if (updatedJobStatus.getRight() == NewState.RUNNING) {
-              DagProcUtils.removeEnforceJobStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
+              DagProcUtils.removeEnforceJobStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName,
+                  flowExecutionId, jobName);
             }
             // in case, the job is cancelled before it started, we need to clean it's enforceJobStartDeadlineDagAction
             if (status != null && ExecutionStatus.valueOf(status).equals(ExecutionStatus.CANCELLED)) {
-              DagProcUtils.removeEnforceJobStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
+              DagProcUtils.removeEnforceJobStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName,
+                  flowExecutionId, jobName);
             }
           }
 
@@ -311,9 +321,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       String interruptedNote = Thread.currentThread().isInterrupted() ? "... then interrupted" : "";
       String msg = String.format("Failed to add job status to state store for kafka offset %d (retried %d times%s)",
           message.getOffset(), re.getNumberOfFailedAttempts(), interruptedNote);
-      Throwable informativeException = re.getLastFailedAttempt().hasException()
-          ? re.getLastFailedAttempt().getExceptionCause()
-          : re;
+      Throwable informativeException =
+          re.getLastFailedAttempt().hasException() ? re.getLastFailedAttempt().getExceptionCause() : re;
       log.warn(msg, informativeException);
       // Throw RuntimeException to avoid advancing kafka offsets without updating state store
       throw new RuntimeException(msg, informativeException);
@@ -328,8 +337,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
    * @throws IOException
    */
   @VisibleForTesting
-  static Pair<org.apache.gobblin.configuration.State, NewState> recalcJobStatus(org.apache.gobblin.configuration.State jobStatus,
-      StateStore<org.apache.gobblin.configuration.State> stateStore) throws IOException {
+  static Pair<org.apache.gobblin.configuration.State, NewState> recalcJobStatus(
+      org.apache.gobblin.configuration.State jobStatus, StateStore<org.apache.gobblin.configuration.State> stateStore)
+      throws IOException {
     try {
       if (!jobStatus.contains(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)) {
         jobStatus.setProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, JobStatusRetriever.NA_KEY);
@@ -350,12 +360,15 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         org.apache.gobblin.configuration.State previousJobStatus = states.get(states.size() - 1);
         String previousStatus = previousJobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
         String currentStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
-        int previousGeneration = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, 1);
+        int previousGeneration =
+            previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, 1);
         // This is to make the change backward compatible as we may not have this info in cluster events
         // If we does not have those info, we treat the event as coming from the same attempts as previous one
-        int currentGeneration = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, previousGeneration);
+        int currentGeneration =
+            jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, previousGeneration);
         int previousAttempts = previousJobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
-        int currentAttempts = jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, previousAttempts);
+        int currentAttempts =
+            jobStatus.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, previousAttempts);
         // Verify if the current job status is flow status. If yes, we check for its current execution status to be PENDING_RESUME (limiting to just resume flow statuses)
         // When the above two conditions satisfy, we NEED NOT check for the out-of-order events since GaaS would manage the lifecycle of these events
         // Hence, we update the merge state accordingly so that the flow can proceed with its execution to the next state in the DAG
@@ -363,10 +376,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         // We use three things to accurately count and thereby bound retries, even amidst out-of-order events (by skipping late arrivals).
         // The generation is monotonically increasing, while the attempts may re-initialize back to 0. this two-part form prevents the composite value from ever repeating.
         // And job status reflect the execution status in one attempt
-         if (!isFlowStatusAndPendingResume && (previousStatus != null && currentStatus != null && (previousGeneration > currentGeneration || (
-            previousGeneration == currentGeneration && previousAttempts > currentAttempts) || (previousGeneration == currentGeneration && previousAttempts == currentAttempts
-            && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus))
-            < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus)))))) {
+        if (!isFlowStatusAndPendingResume && (previousStatus != null && currentStatus != null && (
+            previousGeneration > currentGeneration || (previousGeneration == currentGeneration
+                && previousAttempts > currentAttempts) || (previousGeneration == currentGeneration
+                && previousAttempts == currentAttempts
+                && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus))
+                < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus)))))) {
           log.warn(String.format(
               "Received status [generation.attempts] = %s [%s.%s] when already %s [%s.%s] for flow (%s, %s, %s), job (%s, %s)",
               currentStatus, currentGeneration, currentAttempts, previousStatus, previousGeneration, previousAttempts,
@@ -380,17 +395,19 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
       NewState newState = newState(jobStatus, states);
       String newStatus = jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD);
       if (newState == NewState.FINISHED) {
-        log.info("Flow/Job {}:{}:{}:{} reached a terminal state {}", flowGroup, flowName, flowExecutionId, jobName, newStatus);
+        log.info("Flow/Job {}:{}:{}:{} reached a terminal state {}", flowGroup, flowName, flowExecutionId, jobName,
+            newStatus);
       }
       return ImmutablePair.of(jobStatus, newState);
     } catch (Exception e) {
-      log.warn("Meet exception when adding jobStatus to state store at "
-          + e.getStackTrace()[0].getClassName() + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
+      log.warn("Meet exception when adding jobStatus to state store at " + e.getStackTrace()[0].getClassName()
+          + "line number: " + e.getStackTrace()[0].getLineNumber(), e);
       throw new IOException(e);
     }
   }
 
-  private static NewState newState(org.apache.gobblin.configuration.State jobStatus, List<org.apache.gobblin.configuration.State> states) {
+  private static NewState newState(org.apache.gobblin.configuration.State jobStatus,
+      List<org.apache.gobblin.configuration.State> states) {
     if (isNewStateTransitionToFinal(jobStatus, states)) {
       return NewState.FINISHED;
     } else if (isNewStateTransitionToRunning(jobStatus, states)) {
@@ -401,8 +418,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   private static boolean isFlowStatusAndPendingResume(String jobName, String jobGroup, String currentStatus) {
-    return jobName != null && jobGroup != null && jobName.equals(JobStatusRetriever.NA_KEY) && jobGroup.equals(JobStatusRetriever.NA_KEY)
-        && currentStatus.equals(ExecutionStatus.PENDING_RESUME.name());
+    return jobName != null && jobGroup != null && jobName.equals(JobStatusRetriever.NA_KEY) && jobGroup.equals(
+        JobStatusRetriever.NA_KEY) && currentStatus.equals(ExecutionStatus.PENDING_RESUME.name());
   }
 
   // if job retry is required, it sets the job status to PENDING_RETRY and returns true
@@ -412,10 +429,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     int currentAttempts = state.getPropAsInt(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, 1);
     boolean retryRequired = false;
     // SHOULD_RETRY_FIELD maybe reset by JOB_COMPLETION_PERCENTAGE event
-    if (state.contains(JobStatusRetriever.EVENT_NAME_FIELD) && (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())
-        || state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.PENDING_RETRY.name())
-        || (state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.CANCELLED.name()) && state.contains(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY))
-    ) && currentAttempts < maxAttempts) {
+    if (state.contains(JobStatusRetriever.EVENT_NAME_FIELD) && (
+        state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name()) || state.getProp(
+            JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.PENDING_RETRY.name()) || (
+            state.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.CANCELLED.name())
+                && state.contains(TimingEvent.FlowEventConstants.DOES_CANCELED_FLOW_MERIT_RETRY)))
+        && currentAttempts < maxAttempts) {
       state.setProp(TimingEvent.FlowEventConstants.SHOULD_RETRY_FIELD, true);
       state.setProp(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.PENDING_RETRY.name());
       state.removeProp(TimingEvent.JOB_END_TIME);
@@ -425,20 +444,24 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
     return retryRequired;
   }
 
-  static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
+  static boolean isNewStateTransitionToFinal(org.apache.gobblin.configuration.State currentState,
+      List<org.apache.gobblin.configuration.State> prevStates) {
     if (prevStates.isEmpty()) {
       return FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
     }
-    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && FlowStatusGenerator.FINISHED_STATUSES.contains(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
-        && !FlowStatusGenerator.FINISHED_STATUSES.contains(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && FlowStatusGenerator.FINISHED_STATUSES.contains(
+        currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)) && !FlowStatusGenerator.FINISHED_STATUSES.contains(
+        prevStates.get(prevStates.size() - 1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
   }
 
-  static boolean isNewStateTransitionToRunning(org.apache.gobblin.configuration.State currentState, List<org.apache.gobblin.configuration.State> prevStates) {
+  static boolean isNewStateTransitionToRunning(org.apache.gobblin.configuration.State currentState,
+      List<org.apache.gobblin.configuration.State> prevStates) {
     if (prevStates.isEmpty()) {
       return ExecutionStatus.RUNNING.name().equals(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD));
     }
-    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && ExecutionStatus.RUNNING.name().equals(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD))
-        && !ExecutionStatus.RUNNING.name().equals(prevStates.get(prevStates.size()-1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
+    return currentState.contains(JobStatusRetriever.EVENT_NAME_FIELD) && ExecutionStatus.RUNNING.name()
+        .equals(currentState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)) && !ExecutionStatus.RUNNING.name()
+        .equals(prevStates.get(prevStates.size() - 1).getProp(JobStatusRetriever.EVENT_NAME_FIELD));
   }
 
   /**
@@ -460,7 +483,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   public static String jobStatusTableName(long flowExecutionId, String jobGroup, String jobName) {
-    return Joiner.on(ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER).join(flowExecutionId, jobGroup, jobName, ServiceConfigKeys.STATE_STORE_TABLE_SUFFIX);
+    return Joiner.on(ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER)
+        .join(flowExecutionId, jobGroup, jobName, ServiceConfigKeys.STATE_STORE_TABLE_SUFFIX);
   }
 
   public static String jobStatusStoreName(String flowGroup, String flowName) {
@@ -468,10 +492,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   }
 
   public static long getExecutionIdFromTableName(String tableName) {
-    return Long.parseLong(Splitter.on(ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(0));
+    return Long.parseLong(
+        Splitter.on(ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER).splitToList(tableName).get(0));
   }
 
-  protected abstract GobblinTrackingEvent deserializeEvent(DecodeableKafkaRecord<byte[],byte[]> message);
+  protected abstract GobblinTrackingEvent deserializeEvent(DecodeableKafkaRecord<byte[], byte[]> message);
 
   protected abstract org.apache.gobblin.configuration.State parseJobStatus(GobblinTrackingEvent event);
 }

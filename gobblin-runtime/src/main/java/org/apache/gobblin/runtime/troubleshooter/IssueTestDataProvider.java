@@ -10,7 +10,7 @@ import java.util.Map;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.Category;
+import org.apache.gobblin.configuration.ErrorCategory;
 import org.apache.gobblin.configuration.ErrorPatternProfile;
 
 import static java.util.Collections.singletonMap;
@@ -19,16 +19,16 @@ import static java.util.Collections.singletonMap;
 public class IssueTestDataProvider {
 
   // Test categories
-  public static final List<Category> TEST_CATEGORIES = Arrays.asList(
-      new Category("USER", 1),
-      new Category("SYSTEM INFRA", 2),
-      new Category("GAAS", 3),
-      new Category("MISC", 4),
-      new Category("NON FATAL", 5),
-      new Category("UNKNOWN", Integer.MAX_VALUE)
+  public static final List<ErrorCategory> TEST_CATEGORIES = Arrays.asList(
+      new ErrorCategory("USER", 1),
+      new ErrorCategory("SYSTEM INFRA", 2),
+      new ErrorCategory("GAAS", 3),
+      new ErrorCategory("MISC", 4),
+      new ErrorCategory("NON FATAL", 5),
+      new ErrorCategory("UNKNOWN", Integer.MAX_VALUE)
   );
 
-  public static final Category TEST_DEFAULT_CATEGORY = new Category("UNKNOWN", Integer.MAX_VALUE);
+  public static final ErrorCategory TEST_DEFAULT_ERROR_CATEGORY = new ErrorCategory("UNKNOWN", Integer.MAX_VALUE);
 
   // Test patterns - you'll need to add all the patterns here
   public static final List<ErrorPatternProfile> TEST_PATTERNS = Arrays.asList(
@@ -151,8 +151,8 @@ public class IssueTestDataProvider {
 
   public static List<ErrorPatternProfile> getSortedPatterns() {
     Map<String, Integer> categoryPriority = new HashMap<>();
-    for (Category category : TEST_CATEGORIES) {
-      categoryPriority.put(category.getCategoryName(), category.getPriority());
+    for (ErrorCategory errorCategory : TEST_CATEGORIES) {
+      categoryPriority.put(errorCategory.getCategoryName(), errorCategory.getPriority());
     }
 
     List<ErrorPatternProfile> sortedPatterns = new ArrayList<>(TEST_PATTERNS);

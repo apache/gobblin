@@ -9,18 +9,18 @@ import java.util.Map;
 import java.util.regex.Pattern;
 import java.util.regex.PatternSyntaxException;
 
+import com.typesafe.config.Config;
+
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.configuration.Category;
+import org.apache.gobblin.configuration.ErrorCategory;
 import org.apache.gobblin.configuration.ErrorPatternProfile;
 import org.apache.gobblin.metastore.ErrorPatternStore;
 import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
-
-import com.typesafe.config.Config;
 
 
 /**
@@ -31,12 +31,12 @@ import com.typesafe.config.Config;
 @Slf4j
 public class ErrorClassifier {
   private final List<CompiledErrorPattern> errorIssues;
-  private final Map<String, Category> categoryMap;
+  private final Map<String, ErrorCategory> categoryMap;
   private ErrorPatternStore errorStore = null;
 
-  private final int maxErrorsInFinalError;
-  private static final String DEFAULT_CODE = "T0000";
-  private Category defaultCategory = null;
+  private final int maxErrorsInFinalIssue;
+  private static final String FINAL_ISSUE_ERROR_CODE = "T0000";
+  private ErrorCategory _defaultErrorCategory = null;
 
   /**
    * Loads all error issues and categories from the store into memory.
@@ -46,40 +46,35 @@ public class ErrorClassifier {
       throws IOException {
     this.errorStore = store;
 
-    this.maxErrorsInFinalError =
+    this.maxErrorsInFinalIssue =
         ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_MAX_ERRORS_IN_FINAL_KEY,
             ServiceConfigKeys.DEFAULT_ERROR_CLASSIFICATION_MAX_ERRORS_IN_FINAL);
 
     //Obtaining Categories must be done before getting ErrorIssues, as it is used in ordering ErrorIssues by category priority.
     this.categoryMap = new HashMap<>();
-    for (Category cat : this.errorStore.getAllErrorCategories()) {
+    for (ErrorCategory cat : this.errorStore.getAllErrorCategories()) {
       categoryMap.put(cat.getCategoryName(), cat);
     }
 
     this.errorIssues = new ArrayList<>();
-    for (ErrorPatternProfile issue : this.errorStore.getAllErrorIssuesOrderedByCategoryPriority()) {
-      errorIssues.add(new CompiledErrorPattern(issue));
+    for (ErrorPatternProfile errorPattern : this.errorStore.getAllErrorPatternsOrderedByCategoryPriority()) {
+      errorIssues.add(new CompiledErrorPattern(errorPattern));
     }
 
-    List<String> regexList = new ArrayList<>();
-    for (CompiledErrorPattern pei : errorIssues) {
-      regexList.add(pei.issue.getDescriptionRegex());
-    }
-
-    this.defaultCategory = this.errorStore.getDefaultCategory();
+    this._defaultErrorCategory = this.errorStore.getDefaultCategory();
   }
 
   /**
-   * Returns the highest priority Category matching the given summary, or defaultCategory if initialised, or null if none match.
+   * Returns the highest priority ErrorCategory matching the given summary, or _defaultErrorCategory if initialised, or null if none match.
    */
-  public Category classify(String summary) {
+  public ErrorCategory classify(String summary) {
     if (summary == null) {
       return null;
     }
-    Category highest = null;
+    ErrorCategory highest = null;
     for (CompiledErrorPattern pei : errorIssues) {
       if (pei.matches(summary)) {
-        Category cat = categoryMap.get(pei.getCategoryName());
+        ErrorCategory cat = categoryMap.get(pei.getCategoryName());
         if (cat == null) {
           continue;
         }
@@ -89,7 +84,7 @@ public class ErrorClassifier {
       }
     }
     if (highest == null) {
-      return defaultCategory != null ? defaultCategory : null;
+      return _defaultErrorCategory != null ? _defaultErrorCategory : null;
     }
     return highest;
   }
@@ -97,7 +92,7 @@ public class ErrorClassifier {
   /**
    * Classifies a list of issues and returns the highest priority category with its matched issues.
    * If no issues match, returns null.
-   * If defaultCategory is set, it will be used for unmatched issues.
+   * If _defaultErrorCategory is set, it will be used for unmatched issues.
    */
   public Issue classifyEarlyStopWithDefault(List<Issue> issues) {
     if (issues == null || issues.isEmpty()) {
@@ -125,18 +120,18 @@ public class ErrorClassifier {
   }
 
   private void classifySingleIssue(Issue issue, ClassificationResult result) {
-    Category matchedCategory = findBestMatchingCategory(issue, result.highestPriority);
+    ErrorCategory matchedErrorCategory = findBestMatchingCategory(issue, result.highestPriority);
 
-    if (matchedCategory != null) {
-      addMatchedIssue(issue, matchedCategory, result);
+    if (matchedErrorCategory != null) {
+      addMatchedIssue(issue, matchedErrorCategory, result);
     } else {
       addUnmatchedIssue(issue, result);
     }
   }
 
-  private Category findBestMatchingCategory(Issue issue, Integer currentHighestPriority) {
+  private ErrorCategory findBestMatchingCategory(Issue issue, Integer currentHighestPriority) {
     for (CompiledErrorPattern pei : errorIssues) {
-      Category cat = categoryMap.get(pei.getCategoryName());
+      ErrorCategory cat = categoryMap.get(pei.getCategoryName());
       if (cat == null) {
         continue;
       }
@@ -153,42 +148,42 @@ public class ErrorClassifier {
     return null;
   }
 
-  private void addMatchedIssue(Issue issue, Category category, ClassificationResult result) {
-    result.categoryToIssues.computeIfAbsent(category.getCategoryName(), k -> new ArrayList<>()).add(issue);
+  private void addMatchedIssue(Issue issue, ErrorCategory errorCategory, ClassificationResult result) {
+    result.categoryToIssues.computeIfAbsent(errorCategory.getCategoryName(), k -> new ArrayList<>()).add(issue);
 
-    updateHighestPriorityIfNeeded(category, result);
+    updateHighestPriorityIfNeeded(errorCategory, result);
   }
 
   private void addUnmatchedIssue(Issue issue, ClassificationResult result) {
     result.unmatched.add(issue);
 
     // Initialize default priority only once when we encounter the first unmatched issue
-    if (result.defaultPriority == null && defaultCategory != null) {
-      result.defaultPriority = defaultCategory.getPriority();
+    if (result.defaultPriority == null && _defaultErrorCategory != null) {
+      result.defaultPriority = _defaultErrorCategory.getPriority();
       // Only update highest priority if no category has been matched yet OR if default category has higher priority (lower number)
-      if (result.highestPriority == null || defaultCategory.getPriority() < result.highestPriority) {
+      if (result.highestPriority == null || _defaultErrorCategory.getPriority() < result.highestPriority) {
         result.highestPriority = result.defaultPriority;
-        result.highestCategoryName = defaultCategory.getCategoryName();
+        result.highestCategoryName = _defaultErrorCategory.getCategoryName();
       }
     }
   }
 
-  private void updateHighestPriorityIfNeeded(Category category, ClassificationResult result) {
-    if (result.highestPriority == null || category.getPriority() < result.highestPriority) {
-      result.highestPriority = category.getPriority();
-      result.highestCategoryName = category.getCategoryName();
+  private void updateHighestPriorityIfNeeded(ErrorCategory errorCategory, ClassificationResult result) {
+    if (result.highestPriority == null || errorCategory.getPriority() < result.highestPriority) {
+      result.highestPriority = errorCategory.getPriority();
+      result.highestCategoryName = errorCategory.getCategoryName();
     }
   }
 
   private void applyDefaultCategoryIfNeeded(ClassificationResult result) {
     boolean shouldUseDefault = result.highestPriority != null && result.highestPriority.equals(result.defaultPriority)
-        && !result.unmatched.isEmpty() && defaultCategory != null;
+        && !result.unmatched.isEmpty() && _defaultErrorCategory != null;
 
     if (shouldUseDefault) {
-      result.highestCategoryName = defaultCategory.getCategoryName();
+      result.highestCategoryName = _defaultErrorCategory.getCategoryName();
 
       for (Issue issue : result.unmatched) {
-        result.categoryToIssues.computeIfAbsent(defaultCategory.getCategoryName(), k -> new ArrayList<>()).add(issue);
+        result.categoryToIssues.computeIfAbsent(_defaultErrorCategory.getCategoryName(), k -> new ArrayList<>()).add(issue);
       }
     }
   }
@@ -197,19 +192,19 @@ public class ErrorClassifier {
     List<Issue> matchedIssues = categoryToIssues.get(categoryName);
     String details = buildDetailsString(matchedIssues);
 
-    return Issue.builder().summary("Category: " + categoryName).details(details).severity(IssueSeverity.ERROR)
-        .time(ZonedDateTime.now()).code(DEFAULT_CODE).sourceClass(null).exceptionClass(null).properties(null).build();
+    return Issue.builder().summary("ErrorCategory: " + categoryName).details(details).severity(IssueSeverity.ERROR)
+        .time(ZonedDateTime.now()).code(FINAL_ISSUE_ERROR_CODE).sourceClass(null).exceptionClass(null).properties(null).build();
   }
 
   private String buildDetailsString(List<Issue> issues) {
     List<String> summaries = new ArrayList<>();
-    int limit = Math.min(maxErrorsInFinalError, issues.size());
+    int limit = Math.min(maxErrorsInFinalIssue, issues.size());
 
     for (int i = 0; i < limit; i++) {
       summaries.add(issues.get(i).getSummary());
     }
 
-    return String.join(" || ", summaries);
+    return String.join(" \n ", summaries);
   }
 
   /**

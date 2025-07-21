@@ -35,7 +35,7 @@ public interface IssueRepository {
   List<Issue> getAll()
       throws TroubleshooterException;
 
-  List<Issue> getAllTopRecentErrors(int limit)
+  List<Issue> getMostRecentErrors(int limit)
       throws TroubleshooterException;
 
   /**

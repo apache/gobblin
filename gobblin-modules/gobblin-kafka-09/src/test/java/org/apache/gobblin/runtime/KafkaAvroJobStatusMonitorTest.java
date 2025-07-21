@@ -194,6 +194,8 @@ public class KafkaAvroJobStatusMonitorTest {
     // Check that state didn't get set to running since it was already complete
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
+
+    jobStatusMonitor.shutDown();
   }
 
   @Test (dependsOnMethods = "testProcessMessageForSuccessfulFlow")
