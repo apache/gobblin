@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.policies.size;
 
+import java.util.Optional;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -39,17 +40,13 @@ public class FileSizePolicy extends TaskLevelPolicy {
 
   @Override
   public Result executePolicy() {
-    TransferBytes bytes = getBytesReadAndWritten(this.state);
-    if (bytes == null) {
+    Optional<TransferBytes> bytes = getBytesReadAndWritten(this.state);
+    if (!bytes.isPresent()) {
       return Result.FAILED;
     }
-    Long bytesRead = bytes.getBytesRead();
-    Long bytesWritten = bytes.getBytesWritten();
+    Long bytesRead = bytes.get().getBytesRead();
+    Long bytesWritten = bytes.get().getBytesWritten();
 
-    if(bytesRead == null || bytesWritten == null) {
-      log.error("Missing value(s): bytesRead={}, bytesWritten={}", bytesRead, bytesWritten);
-      return Result.FAILED;
-    }
     Long sizeDifference = Math.abs(bytesRead - bytesWritten);
 
     if (sizeDifference == 0) {
@@ -63,8 +60,12 @@ public class FileSizePolicy extends TaskLevelPolicy {
 
   @Override
   public String toString() {
-    TransferBytes bytes = getBytesReadAndWritten(this.state);
-    return String.format("FileSizePolicy [bytesRead=%s, bytesWritten=%s]", bytes.getBytesRead(), bytes.getBytesWritten());
+    Optional<TransferBytes> bytes = getBytesReadAndWritten(this.state);
+    if(bytes.isPresent()) {
+      return String.format("FileSizePolicy [bytesRead=%s, bytesWritten=%s]", bytes.get().getBytesRead(), bytes.get().getBytesWritten());
+    } else{
+      return "FileSizePolicy [bytesRead=null, bytesWritten=null]";
+    }
   }
 
   /**
@@ -84,18 +85,20 @@ public class FileSizePolicy extends TaskLevelPolicy {
    * Extracts bytesRead and bytesWritten from the given state.
    * Returns null if parsing fails.
    */
-  private TransferBytes getBytesReadAndWritten(State state) {
+  private Optional<TransferBytes> getBytesReadAndWritten(State state) {
     String bytesReadString = state.getProp(BYTES_READ_KEY);
     String bytesWrittenString = state.getProp(BYTES_WRITTEN_KEY);
-    Long bytesRead = null;
-    Long bytesWritten = null;
+    if (bytesReadString == null || bytesWrittenString == null) {
+      log.error("Missing value(s): bytesReadStr={}, bytesWrittenStr={}", bytesReadString, bytesWrittenString);
+      return Optional.empty();
+    }
     try {
-      bytesRead = bytesReadString == null ? null : Long.parseLong(bytesReadString);
-      bytesWritten = bytesWrittenString == null ? null : Long.parseLong(bytesWrittenString);
+      long bytesRead = Long.parseLong(bytesReadString);
+      long bytesWritten = Long.parseLong(bytesWrittenString);
+      return Optional.of(new TransferBytes(bytesRead, bytesWritten));
     } catch (NumberFormatException e) {
       log.error("Invalid number format for bytesRead or bytesWritten: bytesRead='{}', bytesWritten='{}'", bytesReadString, bytesWrittenString, e);
-      return null;
+      return Optional.empty();
     }
-    return new TransferBytes(bytesRead, bytesWritten);
   }
 }

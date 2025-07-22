@@ -26,6 +26,7 @@ import lombok.extern.slf4j.Slf4j;
  * - PASSED: When all data quality checks pass
  * - FAILED: When any data quality check fails
  * - NOT_EVALUATED: When data quality check evaluation is not performed
+ * - UNKNOWN: when the data quality status is not recognized or invalid
  */
 @Slf4j
 public enum DataQualityStatus {

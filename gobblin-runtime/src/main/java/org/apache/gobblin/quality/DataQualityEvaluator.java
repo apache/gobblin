@@ -22,7 +22,6 @@ import io.opentelemetry.api.metrics.Meter;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.List;
 import java.util.Properties;
-import java.util.concurrent.atomic.AtomicLong;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
@@ -83,7 +82,7 @@ public class DataQualityEvaluator {
         // Store the result in the dataset state
         jobState.setProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, result.getQualityStatus().name());
         // Emit dataset-specific metrics
-        emitMetrics(jobState, result.getQualityStatus() == DataQualityStatus.PASSED? 1 : 0, result.getTotalFiles(),
+        emitMetrics(jobState, result.getQualityStatus(), result.getTotalFiles(),
             result.getPassedFiles(), result.getFailedFiles(), result.nonEvaluatedFiles, datasetState.getDatasetUrn());
 
         return result;
@@ -97,11 +96,11 @@ public class DataQualityEvaluator {
      * @return DataQualityEvaluationResult containing the evaluation results
      */
     public static DataQualityEvaluationResult evaluateDataQuality(List<TaskState> taskStates, JobState jobState) {
-        DataQualityStatus jobDataQuality = DataQualityStatus.PASSED;
+        DataQualityStatus jobDataQualityStatus = DataQualityStatus.PASSED;
         int totalFiles = 0;
-        int failedFilesSize = 0;
-        int passedFilesSize = 0;
-        int nonEvaluatedFilesSize = 0;
+        int failedFilesCount = 0;
+        int passedFilesCount = 0;
+        int nonEvaluatedFilesCount = 0;
 
         for (TaskState taskState : taskStates) {
             totalFiles++;
@@ -109,7 +108,7 @@ public class DataQualityEvaluator {
             // Handle null task states gracefully
             if (taskState == null) {
                 log.warn("Encountered null task state, skipping data quality evaluation for this task");
-                nonEvaluatedFilesSize++;
+                nonEvaluatedFilesCount++;
                 continue;
             }
 
@@ -119,37 +118,36 @@ public class DataQualityEvaluator {
             if (taskDataQuality != DataQualityStatus.NOT_EVALUATED) {
                 log.debug("Data quality status of this task is: " + taskDataQuality);
                 if (DataQualityStatus.PASSED == taskDataQuality) {
-                    passedFilesSize++;
+                    passedFilesCount++;
                 } else if (DataQualityStatus.FAILED == taskDataQuality){
-                    failedFilesSize++;
-                    jobDataQuality = DataQualityStatus.FAILED;
+                    failedFilesCount++;
+                    jobDataQualityStatus = DataQualityStatus.FAILED;
+                } else {
+                    log.warn("Unexpected data quality status: " + taskDataQuality + " for task: " + taskState.getTaskId());
                 }
             } else {
                 // Handle files without data quality evaluation
-                nonEvaluatedFilesSize++;
+                nonEvaluatedFilesCount++;
                 log.warn("No data quality evaluation for task: " + taskState.getTaskId());
             }
         }
 
         // Log summary of evaluation
         log.info("Data quality evaluation summary - Total: {}, Passed: {}, Failed: {}, Not Evaluated: {}",
-            totalFiles, passedFilesSize, failedFilesSize, nonEvaluatedFilesSize);
-        return new DataQualityEvaluationResult(jobDataQuality, totalFiles, passedFilesSize, failedFilesSize, nonEvaluatedFilesSize);
+            totalFiles, passedFilesCount, failedFilesCount, nonEvaluatedFilesCount);
+        return new DataQualityEvaluationResult(jobDataQualityStatus, totalFiles, passedFilesCount, failedFilesCount, nonEvaluatedFilesCount);
     }
 
-    private static void emitMetrics(JobState jobState, int jobDataQuality, int totalFiles,
+    private static void emitMetrics(JobState jobState, DataQualityStatus jobDataQuality, int totalFiles,
             int passedFilesSize, int failedFilesSize, int nonEvaluatedFilesSize, String datasetUrn) {
         OpenTelemetryMetricsBase otelMetrics = OpenTelemetryMetrics.getInstance(jobState);
         if(otelMetrics != null) {
             Meter meter = otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME);
-            AtomicLong jobDataQualityRef = new AtomicLong(jobDataQuality);
-            AtomicLong totalFilesRef = new AtomicLong(totalFiles);
-            AtomicLong passedFilesRef = new AtomicLong(passedFilesSize);
-            AtomicLong failedFilesRef = new AtomicLong(failedFilesSize);
-            AtomicLong nonEvaluatedFilesRef = new AtomicLong(nonEvaluatedFilesSize);
 // Define the observable counters
-            ObservableLongMeasurement dataQualityStatusCounter =
-                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_STATUS_METRIC_NAME).buildObserver();
+            ObservableLongMeasurement dataQualityJobSuccessCounter =
+                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_JOB_SUCCESS_COUNT).buildObserver();
+            ObservableLongMeasurement dataQualityJobFailureCounter =
+                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_JOB_FAILURE_COUNT).buildObserver();
             ObservableLongMeasurement totalCounter =
                 meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_OVERALL_FILE_COUNT).buildObserver();
             ObservableLongMeasurement successCounter =
@@ -161,12 +159,16 @@ public class DataQualityEvaluator {
             Attributes tags = getTagsForDataQualityMetrics(jobState, datasetUrn);
             log.info("About to make batch callback for all data quality metrics with tags: " + tags.toString());
             meter.batchCallback(() -> {
-                dataQualityStatusCounter.record(jobDataQualityRef.get(), tags);
-                totalCounter.record(totalFilesRef.get(), tags);
-                successCounter.record(passedFilesRef.get(), tags);
-                failureCounter.record(failedFilesRef.get(), tags);
-                nonEvaluatedFilesCounter.record(nonEvaluatedFilesRef.get(), tags);
-            }, dataQualityStatusCounter, totalCounter, successCounter, failureCounter, nonEvaluatedFilesCounter);
+                if (jobDataQuality == DataQualityStatus.PASSED) {
+                    dataQualityJobSuccessCounter.record(1, tags);
+                } else {
+                    dataQualityJobFailureCounter.record(1, tags);
+                }
+                totalCounter.record(totalFiles, tags);
+                successCounter.record(passedFilesSize, tags);
+                failureCounter.record(failedFilesSize, tags);
+                nonEvaluatedFilesCounter.record(nonEvaluatedFilesSize, tags);
+            }, dataQualityJobSuccessCounter, dataQualityJobFailureCounter, totalCounter, successCounter, failureCounter, nonEvaluatedFilesCounter);
         }
     }
 
