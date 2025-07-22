@@ -18,6 +18,7 @@
 package org.apache.gobblin.temporal.ddm.work;
 
 import java.net.URI;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
 
@@ -59,11 +60,12 @@ public class WorkUnitClaimCheck implements FileSystemApt, FileSystemJobStateful 
   @NonNull private String workUnitPath;
   @NonNull private WorkUnitSizeInfo workUnitSizeInfo;
   @NonNull private EventSubmitterContext eventSubmitterContext;
+  @NonNull private Properties fileSystemProperties;
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   @Override
   public State getFileSystemConfig() {
-    return new State(); // TODO - figure out how to truly set!
+    return new State(fileSystemProperties);
   }
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')

@@ -90,7 +90,7 @@ public class ProcessWorkUnitsJobLauncher extends GobblinTemporalJobLauncher {
       EventSubmitterContext eventSubmitterContext = new EventSubmitterContext.Builder()
           .withEventSubmitter(eventSubmitter)
           .build();
-      PriorJobStateWUProcessingSpec wuSpec = new PriorJobStateWUProcessingSpec(nameNodeUri, workUnitsDir.toString(), eventSubmitterContext);
+      PriorJobStateWUProcessingSpec wuSpec = new PriorJobStateWUProcessingSpec(nameNodeUri, workUnitsDir.toString(), eventSubmitterContext, this.jobProps);
       if (this.jobProps.containsKey(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE) &&
           this.jobProps.containsKey(GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE)) {
         int maxBranchesPerTree = PropertiesUtils.getRequiredPropAsInt(this.jobProps, GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE);

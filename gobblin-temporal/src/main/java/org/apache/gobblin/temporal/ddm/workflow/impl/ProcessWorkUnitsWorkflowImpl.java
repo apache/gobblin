@@ -29,6 +29,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
@@ -46,6 +47,7 @@ import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
 import org.apache.gobblin.temporal.workflows.metrics.EventSubmitterContext;
 import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
+import org.apache.gobblin.util.PropertiesUtils;
 
 
 @Slf4j
@@ -62,7 +64,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   private CommitStats performWork(WUProcessingSpec workSpec, final Properties props) {
-    Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec);
+    Workload<WorkUnitClaimCheck> workload = createWorkload(workSpec, props);
     Map<String, Object> searchAttributes = TemporalWorkFlowUtils.generateGaasSearchAttributes(props);
     NestingExecWorkflow<WorkUnitClaimCheck> processingWorkflow = createProcessingWorkflow(workSpec, searchAttributes);
 
@@ -121,9 +123,11 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     }
   }
 
-  protected Workload<WorkUnitClaimCheck> createWorkload(WUProcessingSpec workSpec) {
+  protected Workload<WorkUnitClaimCheck> createWorkload(WUProcessingSpec workSpec, Properties props) {
+    Properties fsProps = PropertiesUtils.extractPropertiesWithPrefix(props,
+        com.google.common.base.Optional.of(ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
     return new EagerFsDirBackedWorkUnitClaimCheckWorkload(workSpec.getFileSystemUri(), workSpec.getWorkUnitsDir(),
-        workSpec.getEventSubmitterContext());
+        workSpec.getEventSubmitterContext(), fsProps);
   }
 
   protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow(FileSystemJobStateful f,

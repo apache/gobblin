@@ -18,6 +18,7 @@
 package org.apache.gobblin.temporal.ddm.work;
 
 import java.net.URI;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.Path;
 
@@ -51,6 +52,7 @@ public class WUProcessingSpec implements FileSystemApt, FileSystemJobStateful {
   @NonNull private URI fileSystemUri;
   @NonNull private String workUnitsDir;
   @NonNull private EventSubmitterContext eventSubmitterContext;
+  @NonNull private Properties fileSystemProperties;
   @NonNull @Setter(AccessLevel.PUBLIC) private Tuning tuning = Tuning.DEFAULT;
 
   /** whether to conduct job-level timing (and send results via GTE) */
@@ -62,7 +64,7 @@ public class WUProcessingSpec implements FileSystemApt, FileSystemJobStateful {
   @JsonIgnore // (because no-arg method resembles 'java bean property')
   @Override
   public State getFileSystemConfig() {
-    return new State(); // TODO - figure out how to truly set!
+    return new State(fileSystemProperties);
   }
 
   @JsonIgnore // (because no-arg method resembles 'java bean property')
