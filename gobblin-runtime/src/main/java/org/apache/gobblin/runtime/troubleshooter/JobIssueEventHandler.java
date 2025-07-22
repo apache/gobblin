@@ -129,7 +129,7 @@ public class JobIssueEventHandler {
       return issueRepository.getMostRecentErrors(contextId, limit);
   }
 
-  public void LogFinalError(Issue issue, String flowName, String flowGroup, String flowExecutionId, String jobName) {
+  public void logFinalError(Issue issue, String flowName, String flowGroup, String flowExecutionId, String jobName) {
     JobIssueLogEntry logEntry = new JobIssueLogEntry();
     logEntry.issue = issue;
     logEntry.flowName = flowName;

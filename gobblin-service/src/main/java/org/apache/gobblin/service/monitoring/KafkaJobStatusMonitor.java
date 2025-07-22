@@ -263,7 +263,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
                 try {
                   Issue finalIssue = errorClassifier.classifyEarlyStopWithDefault(issues);
                   if (finalIssue != null) {
-                    jobIssueEventHandler.LogFinalError(finalIssue, flowName, flowGroup, String.valueOf(flowExecutionId),
+                    jobIssueEventHandler.logFinalError(finalIssue, flowName, flowGroup, String.valueOf(flowExecutionId),
                         jobName);
                   }
                 } catch (Exception e) {
