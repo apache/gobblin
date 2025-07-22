@@ -21,6 +21,7 @@ import java.net.URI;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
+import java.util.Properties;
 import java.util.stream.Collectors;
 import java.util.stream.StreamSupport;
 
@@ -53,7 +54,7 @@ public class EagerFsDirBackedWorkUnitClaimCheckWorkloadTest {
     URI fileSystemUri = new URI("hdfs://localhost:9000");
     String hdfsDir = "/test/dir";
     eventSubmitterContext = Mockito.mock(EventSubmitterContext.class);
-    workload = Mockito.spy(new EagerFsDirBackedWorkUnitClaimCheckWorkload(fileSystemUri, hdfsDir, eventSubmitterContext));
+    workload = Mockito.spy(new EagerFsDirBackedWorkUnitClaimCheckWorkload(fileSystemUri, hdfsDir, eventSubmitterContext, new Properties()));
     mockFileSystem = Mockito.mock(FileSystem.class);
 
     MockedStatic<HadoopUtils> mockedHadoopUtils = Mockito.mockStatic(HadoopUtils.class);
