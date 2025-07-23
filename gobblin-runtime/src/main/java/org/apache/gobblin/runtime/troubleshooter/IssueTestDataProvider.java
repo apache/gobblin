@@ -41,11 +41,11 @@ public class IssueTestDataProvider {
       new ErrorCategory("SYSTEM INFRA", 2),
       new ErrorCategory("GAAS", 3),
       new ErrorCategory("MISC", 4),
-      new ErrorCategory("NON FATAL", 5),
-      new ErrorCategory("UNKNOWN", Integer.MAX_VALUE)
+      new ErrorCategory("UNKNOWN", 5),
+      new ErrorCategory("NON FATAL", 6)
   );
 
-  public static final ErrorCategory TEST_DEFAULT_ERROR_CATEGORY = new ErrorCategory("UNKNOWN", Integer.MAX_VALUE);
+  public static final ErrorCategory TEST_DEFAULT_ERROR_CATEGORY = new ErrorCategory("UNKNOWN", 5);
 
   // Test patterns - you'll need to add all the patterns here
   public static final List<ErrorPatternProfile> TEST_PATTERNS = Arrays.asList(
@@ -66,7 +66,6 @@ public class IssueTestDataProvider {
         new ErrorPatternProfile("remoteexception:.*already exists \\| failed to send re-scaling directive.*", "USER"),
         new ErrorPatternProfile("illegalargumentexception: when replacing prefix, all locations must be descendants of the prefix.*", "GAAS"),
         new ErrorPatternProfile("illegalargumentexception:.*", "MISC"),
-        new ErrorPatternProfile("wrongargumentexception: '�' is not a valid numeric or approximate numeric value \\| failed to commit writer for partition.*", "USER"),
         new ErrorPatternProfile(".*remoteexception: server too busy.*", "SYSTEM INFRA"),
         new ErrorPatternProfile("jschexception: session is down.*", "SYSTEM INFRA"),
         new ErrorPatternProfile("jschexception: channel request.*", "SYSTEM INFRA"),
@@ -317,26 +316,25 @@ public class IssueTestDataProvider {
   }
 
   public static List<Issue> testNonFatalCategoryIssues() {
-    log.info("Generating test data for NON_FATAL category issues");
+    log.info("Generating test data for NON FATAL category issues");
     // Returns a list of Issues that should match NON FATAL category regex patterns
     List<Issue> issues = new ArrayList<>();
 
-    // Copy Data Publisher Issues
-    issues.add(new Issue(ZonedDateTime.now(), IssueSeverity.WARN, "NON_FATAL",
-        "CopyDataPublisher warning: srcfs operation completed with minor issues", "ContextA", "copyDataWarning",
+
+    issues.add(new Issue(ZonedDateTime.now(), IssueSeverity.ERROR, "NON FATAL",
+        "filealreadyexistsexception: rename destination ", "ContextA", "copyDataWarning",
         "copydatapublisher", singletonMap("keyA", "valueA")));
 
-    // Failed Operations (Non-Fatal)
-    issues.add(new Issue(ZonedDateTime.now().minusDays(1), IssueSeverity.WARN, "NON_FATAL",
+    issues.add(new Issue(ZonedDateTime.now().minusDays(1), IssueSeverity.ERROR, "NON FATAL",
         "Warning: failed to read from all available datanodes, retrying with backup nodes", "ContextB",
         "datanodeReadWarning", "ioexception", singletonMap("keyB", "valueB")));
-    issues.add(new Issue(ZonedDateTime.now().minusHours(2), IssueSeverity.INFO, "NON_FATAL",
+
+    issues.add(new Issue(ZonedDateTime.now().minusHours(2), IssueSeverity.ERROR, "NON FATAL",
         "Info: failed to delete temporary file - cleanup will retry later", "ContextC", "deleteFailureInfo",
         "ioexception", singletonMap("keyC", "valueC")));
 
-    // General Non-fatal Issues
-    issues.add(new Issue(ZonedDateTime.now().minusHours(3), IssueSeverity.WARN, "NON_FATAL",
-        "Exception thrown from InGraphsReporter#report. Exception was suppressed and processing continued", "ContextD",
+    issues.add(new Issue(ZonedDateTime.now().minusHours(3), IssueSeverity.ERROR, "NON FATAL",
+        "1234: arrayindexoutofboundsexception. Operation failed to close all open resources", "ContextD",
         "reporterException", "reporterexception", singletonMap("keyD", "valueD")));
 
     return issues;
@@ -409,10 +407,11 @@ public class IssueTestDataProvider {
     List<Issue> issues = new ArrayList<>();
 
     // NON FATAL issues
-    issues.add(new Issue(ZonedDateTime.now(), IssueSeverity.WARN, "NON_FATAL",
-        "CopyDataPublisher warning: srcfs operation completed with minor issues", "ContextA", "copyDataWarning",
+    issues.add(new Issue(ZonedDateTime.now(), IssueSeverity.ERROR, "NON FATAL",
+        "applicationfailure: message='task failed: java.lang.arrayindexoutofboundsexception"
+            + "ues", "ContextA", "copyDataWarning",
         "copydatapublisher", singletonMap("keyA", "valueA")));
-    issues.add(new Issue(ZonedDateTime.now().minusHours(1), IssueSeverity.INFO, "NON_FATAL",
+    issues.add(new Issue(ZonedDateTime.now().minusHours(1), IssueSeverity.ERROR, "NON FATAL",
         "Info: failed to delete temporary file - cleanup will retry later", "ContextB", "deleteFailureInfo",
         "ioexception", singletonMap("keyB", "valueB")));
 
@@ -462,7 +461,7 @@ public class IssueTestDataProvider {
 
     // Add 10 NON FATAL errors (lower priority)
     for (int i = 0; i < 10; i++) {
-      issues.add(new Issue(ZonedDateTime.now().minusMinutes(60 + i), IssueSeverity.WARN, "NON_FATAL",
+      issues.add(new Issue(ZonedDateTime.now().minusMinutes(60 + i), IssueSeverity.WARN, "NON FATAL",
           "Warning: failed to delete temporary file " + i + " - cleanup will retry later", "ContextN" + i,
           "deleteFailureWarning" + i, "ioexception", singletonMap("keyN" + i, "valueN" + i)));
     }
@@ -471,11 +470,11 @@ public class IssueTestDataProvider {
   }
 
   public static List<Issue> testMinimumErrorCountBelowThreshold() {
-    // Returns a list of Issues where the number of errors is less than the minimum required for a category
+    // Returns a list of Issues where the number of errors is less than the maximum threshold required for a category
     // This should not trigger category match or should be handled gracefully
     List<Issue> issues = new ArrayList<>();
 
-    // Single error from each category - assuming minimum threshold is > 1
+    // Single error from each category - assuming maximum threshold is > 1
     // These should either not be classified or handled with special logic
 
     // Single USER error
@@ -499,14 +498,14 @@ public class IssueTestDataProvider {
         "nullpointerexception", singletonMap("keyM1", "valueM1")));
 
     // Single NON FATAL error
-    issues.add(new Issue(ZonedDateTime.now().minusMinutes(20), IssueSeverity.WARN, "NON_FATAL",
+    issues.add(new Issue(ZonedDateTime.now().minusMinutes(20), IssueSeverity.ERROR, "NON FATAL",
         "Warning: single failed delete operation - cleanup will retry", "ContextN1", "singleDeleteFailureWarning",
         "ioexception", singletonMap("keyN1", "valueN1")));
 
     return issues;
   }
 
-  public static List<Issue> testOverflowLargeNumberOfErrors() {
+  public static List<Issue> testMixedCategoryIssuesFromLowestToHighestPriority() {
     // Returns a list of Issues exceeding the display/processing limit, ordered from lowest to highest priority
     List<Issue> issues = new ArrayList<>();
 
@@ -522,7 +521,7 @@ public class IssueTestDataProvider {
     String[] nonFatalErrors =
         {"CopyDataPublisher warning: srcfs operation completed with minor issues", "Warning: failed to read from all available datanodes, retrying with backup nodes", "Info: failed to delete temporary file - cleanup will retry later", "Exception thrown from InGraphsReporter#report. Exception was suppressed and processing continued", "ApplicationFailure: message='task failed: java.lang.ArrayIndexOutOfBoundsException at index 5'"};
     for (int i = 0; i < 5; i++) {
-      issues.add(new Issue(ZonedDateTime.now().minusMinutes(50 + i), IssueSeverity.WARN, "NON_FATAL", nonFatalErrors[i],
+      issues.add(new Issue(ZonedDateTime.now().minusMinutes(50 + i), IssueSeverity.WARN, "NON FATAL", nonFatalErrors[i],
           "ContextN" + i, "nonFatalError" + i, "nonfatalexception", singletonMap("keyN" + i, "valueN" + i)));
     }
 

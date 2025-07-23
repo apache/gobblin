@@ -46,7 +46,6 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 public class InMemoryMultiContextIssueRepository extends AbstractIdleService implements MultiContextIssueRepository {
   private final LRUMap<String, InMemoryIssueRepository> contextIssues;
   private final Configuration configuration;
-  private String _contextId;
 
   public InMemoryMultiContextIssueRepository() {
     this(Configuration.builder().build());
@@ -61,7 +60,6 @@ public class InMemoryMultiContextIssueRepository extends AbstractIdleService imp
   @Override
   public synchronized List<Issue> getAll(String contextId)
       throws TroubleshooterException {
-    _contextId = contextId;
 
     InMemoryIssueRepository issueRepository = contextIssues.getOrDefault(contextId, null);
 

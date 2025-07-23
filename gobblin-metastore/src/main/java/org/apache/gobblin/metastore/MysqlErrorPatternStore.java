@@ -25,6 +25,8 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 
 import com.typesafe.config.Config;
 
+import org.apache.commons.lang3.StringUtils;
+
 import org.apache.gobblin.util.ConfigUtils;
 
 import javax.sql.DataSource;
@@ -41,7 +43,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 
-/*
+/**
  * MySQL-backed implementation of ErrorPatternStore.
  *
  * This class provides methods to primarily retrieve error regex patterns and error categories.
@@ -63,7 +65,7 @@ import java.util.List;
  * - If no default is configured, the method returns null (no automatic fallback)
  * - If a configured default category is not found in the database, an IOException will be thrown
  *
- */
+ **/
 @Slf4j
 public class MysqlErrorPatternStore implements ErrorPatternStore {
   private final DataSource dataSource;
@@ -79,10 +81,8 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   private static final String CREATE_ERROR_REGEX_SUMMARY_STORE_TABLE_STATEMENT =
       "CREATE TABLE IF NOT EXISTS %s (description_regex VARCHAR(%d) NOT NULL UNIQUE, error_category_name VARCHAR(%d) NOT NULL)";
 
-  //TBD: do we have to remove all errors
   private static final String CREATE_ERROR_CATEGORIES_TABLE_NAME =
-      "CREATE TABLE IF NOT EXISTS %s (" + " error_category_name VARCHAR(%d) PRIMARY KEY, priority INT UNIQUE NOT NULL"
-          + " )";
+      "CREATE TABLE IF NOT EXISTS %s (error_category_name VARCHAR(%d) PRIMARY KEY, priority INT UNIQUE NOT NULL)";
 
   private static final String INSERT_ERROR_CATEGORY_STATEMENT = "INSERT INTO %s (error_category_name, priority) "
       + "VALUES (?, ?) ON DUPLICATE KEY UPDATE priority=VALUES(priority)";
@@ -112,7 +112,7 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   private static final String GET_ALL_ERROR_ISSUES_ORDERED_BY_CATEGORY_PRIORITY_STATEMENT =
       "SELECT e.description_regex, e.error_category_name FROM %s e "
           + "JOIN %s c ON e.error_category_name = c.error_category_name "
-          + "ORDER BY c.priority ASC, e.description_regex ASC";
+          + "ORDER BY c.priority ASC";
 
   private final String configuredDefaultCategoryName;
 
@@ -305,7 +305,7 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   public ErrorCategory getDefaultCategory()
       throws IOException {
     // 1. Try to use the configured default category name if set
-    if (configuredDefaultCategoryName != null && !configuredDefaultCategoryName.trim().isEmpty()) {
+    if (StringUtils.isNotBlank(configuredDefaultCategoryName) || StringUtils.isNotEmpty(configuredDefaultCategoryName)) {
       ErrorCategory cat = getErrorCategory(configuredDefaultCategoryName);
       if (cat != null) {
         return cat;
@@ -323,13 +323,13 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
       throw new IOException("No error categories found in database");
     }
 
-    log.debug("No default category configured, using lowest priority category: {}",
+    log.info("No default category configured, using lowest priority category: {}",
         lowestPriorityCategory.getCategoryName());
     return lowestPriorityCategory;
   }
 
   /**
-   * Returns the category with the lowest priority, i.e. the highes priority value (descending order).
+   * Returns the category with the lowest priority, i.e. the highest priority value (descending order).
    */
   private ErrorCategory getLowestPriorityCategory()
       throws IOException {

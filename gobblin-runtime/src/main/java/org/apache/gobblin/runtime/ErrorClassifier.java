@@ -67,7 +67,6 @@ public class ErrorClassifier {
         ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_MAX_ERRORS_IN_FINAL_KEY,
             ServiceConfigKeys.DEFAULT_ERROR_CLASSIFICATION_MAX_ERRORS_IN_FINAL);
 
-    //Obtaining Categories must be done before getting ErrorIssues, as it is used in ordering ErrorIssues by category priority.
     this.categoryMap = new HashMap<>();
     for (ErrorCategory cat : this.errorStore.getAllErrorCategories()) {
       categoryMap.put(cat.getCategoryName(), cat);
@@ -81,30 +80,6 @@ public class ErrorClassifier {
     this._defaultErrorCategory = this.errorStore.getDefaultCategory();
   }
 
-  /**
-   * Returns the highest priority ErrorCategory matching the given summary, or _defaultErrorCategory if initialised, or null if none match.
-   */
-  public ErrorCategory classify(String summary) {
-    if (summary == null) {
-      return null;
-    }
-    ErrorCategory highest = null;
-    for (CompiledErrorPattern pei : errorIssues) {
-      if (pei.matches(summary)) {
-        ErrorCategory cat = categoryMap.get(pei.getCategoryName());
-        if (cat == null) {
-          continue;
-        }
-        if (highest == null || cat.getPriority() < highest.getPriority()) {
-          highest = cat;
-        }
-      }
-    }
-    if (highest == null) {
-      return _defaultErrorCategory != null ? _defaultErrorCategory : null;
-    }
-    return highest;
-  }
 
   /**
    * Classifies a list of issues and returns the highest priority category with its matched issues.

@@ -24,6 +24,7 @@ import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.runtime.troubleshooter.IssueTestDataProvider;
 import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 
+import org.omg.CORBA.UNKNOWN;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -54,6 +55,7 @@ public class ErrorClassifierTest {
     store = new InMemoryErrorPatternStore(testConfig);
     store.upsertCategory(categories);
     store.upsertPatterns(errorPatternProfiles);
+    store.setDefaultCategory(_defaultErrorCategory);
 
     classifier = new ErrorClassifier(store, testConfig);
   }
@@ -140,9 +142,12 @@ public class ErrorClassifierTest {
     for (int i = 0; i < categories.size(); i++) {
       if (categories.get(i).getCategoryName().equals("NON FATAL")) {
         nonFatalPriority = categories.get(i).getPriority();
+        assertEquals(nonFatalPriority, 6);
+
       }
       if (categories.get(i).getCategoryName().equals("UNKNOWN")) {
         unknownPriority = categories.get(i).getPriority();
+        assertEquals(unknownPriority, 5);
       }
     }
     if (nonFatalPriority != -1 && (unknownPriority == -1 || nonFatalPriority < unknownPriority)) {
@@ -158,8 +163,14 @@ public class ErrorClassifierTest {
     List<Issue> issues = IssueTestDataProvider.testMaximumErrorCountExceeded();
     Issue result = classifier.classifyEarlyStopWithDefault(issues);
     assertNotNull(result);
-    // Threshold count
     assertTrue(result.getSummary().contains("USER"));
+
+    assertTrue(result.getDetails().contains("/path/to/missing/file1"));
+    assertTrue(result.getDetails().contains("/path/to/missing/file9"));
+
+    assertFalse(result.getDetails().contains("/path/to/missing/file11"));
+    assertFalse(result.getDetails().contains("/path/to/missing/file14"));
+
     assertEquals(result.getSeverity(), IssueSeverity.ERROR);
   }
 
@@ -168,13 +179,18 @@ public class ErrorClassifierTest {
     List<Issue> issues = IssueTestDataProvider.testMinimumErrorCountBelowThreshold();
     Issue result = classifier.classifyEarlyStopWithDefault(issues);
     assertNotNull(result);
+
     assertTrue(result.getSummary().contains("USER"));
+    assertTrue(result.getDetails().contains("FileNotFoundException"));
+
+    assertFalse(result.getDetails().contains("server too busy"));
+
     assertEquals(result.getSeverity(), IssueSeverity.ERROR);
   }
 
   @Test
-  public void testOverflowLargeNumberOfErrors() {
-    List<Issue> issues = IssueTestDataProvider.testOverflowLargeNumberOfErrors();
+  public void testMixedCategoryIssuesFromLowestToHighestPriority() {
+    List<Issue> issues = IssueTestDataProvider.testMixedCategoryIssuesFromLowestToHighestPriority();
     Issue result = classifier.classifyEarlyStopWithDefault(issues);
     assertNotNull(result);
     assertTrue(result.getSummary().contains("USER"));
