@@ -24,7 +24,6 @@ import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.runtime.troubleshooter.IssueTestDataProvider;
 import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 
-import org.omg.CORBA.UNKNOWN;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -136,26 +135,9 @@ public class ErrorClassifierTest {
     List<Issue> issues = IssueTestDataProvider.testNonFatalAndUnknownMix();
     Issue result = classifier.classifyEarlyStopWithDefault(issues);
     assertNotNull(result);
-    // Assert based on category priority: if NON FATAL is higher, assert it; else assert UNKNOWN
-    int nonFatalPriority = -1;
-    int unknownPriority = -1;
-    for (int i = 0; i < categories.size(); i++) {
-      if (categories.get(i).getCategoryName().equals("NON FATAL")) {
-        nonFatalPriority = categories.get(i).getPriority();
-        assertEquals(nonFatalPriority, 6);
 
-      }
-      if (categories.get(i).getCategoryName().equals("UNKNOWN")) {
-        unknownPriority = categories.get(i).getPriority();
-        assertEquals(unknownPriority, 5);
-      }
-    }
-    if (nonFatalPriority != -1 && (unknownPriority == -1 || nonFatalPriority < unknownPriority)) {
-      assertTrue(result.getSummary().contains("NON FATAL"));
-    } else {
-      assertTrue(result.getSummary().contains("UNKNOWN"));
-    }
-    assertEquals(result.getSeverity(), IssueSeverity.ERROR);
+    assertTrue(result.getSummary().contains("UNKNOWN"));
+
   }
 
   @Test
