@@ -167,7 +167,7 @@ public class ServiceConfigKeys {
   public static final int DEFAULT_ERROR_CLASSIFICATION_MAX_ERRORS_IN_FINAL = 10;
   public static final String ERROR_CLASSIFICATION_MAX_ERRORS_TO_PROCESS_KEY = GOBBLIN_SERVICE_PREFIX + "errorClassification.maxErrorsToProcess";
   public static final int DEFAULT_ERROR_CLASSIFICATION_MAX_ERRORS_TO_PROCESS = 1000;
-  public static final String ERROR_CLASSIFICATION_DEFAULT_PRIORITY_ENABLE_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "errorClassification.defaultPriorityValue";
+  public static final String ERROR_CLASSIFICATION_DEFAULT_PRIORITY_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "errorClassification.defaultPriorityValue";
   public static final int DEFAULT_PRIORITY_VALUE = Integer.MAX_VALUE;
   public static final String ERROR_PATTERN_STORE_DEFAULT_CATEGORY_KEY = GOBBLIN_SERVICE_PREFIX + "errorPatternStore.defaultCategory";
 }

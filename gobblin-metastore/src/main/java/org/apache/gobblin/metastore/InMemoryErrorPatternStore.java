@@ -49,7 +49,7 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
     this.categories.put(user.getCategoryName(), user);
 
     this.errorPatterns.add(new ErrorPatternProfile(".*file not found.*", "USER"));
-    default_priority = ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_DEFAULT_PRIORITY_ENABLE_KEY,
+    default_priority = ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_DEFAULT_PRIORITY_KEY,
         ServiceConfigKeys.DEFAULT_PRIORITY_VALUE);
 
     this._defaultErrorCategory = new ErrorCategory(DEFAULT_CATEGORY_NAME, default_priority);
