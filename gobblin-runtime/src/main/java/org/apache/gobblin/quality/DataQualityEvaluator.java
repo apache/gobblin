@@ -18,8 +18,6 @@
 package org.apache.gobblin.quality;
 
 import io.opentelemetry.api.common.Attributes;
-import io.opentelemetry.api.metrics.Meter;
-import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import java.util.List;
 import java.util.Properties;
 import lombok.Getter;
@@ -83,7 +81,7 @@ public class DataQualityEvaluator {
         jobState.setProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, result.getQualityStatus().name());
         // Emit dataset-specific metrics
         emitMetrics(jobState, result.getQualityStatus(), result.getTotalFiles(),
-            result.getPassedFiles(), result.getFailedFiles(), result.nonEvaluatedFiles, datasetState.getDatasetUrn());
+            result.getPassedFiles(), result.getFailedFiles(), result.getNonEvaluatedFiles(), datasetState.getDatasetUrn());
 
         return result;
     }
@@ -138,38 +136,70 @@ public class DataQualityEvaluator {
         return new DataQualityEvaluationResult(jobDataQualityStatus, totalFiles, passedFilesCount, failedFilesCount, nonEvaluatedFilesCount);
     }
 
-    private static void emitMetrics(JobState jobState, DataQualityStatus jobDataQuality, int totalFiles,
-            int passedFilesSize, int failedFilesSize, int nonEvaluatedFilesSize, String datasetUrn) {
-        OpenTelemetryMetricsBase otelMetrics = OpenTelemetryMetrics.getInstance(jobState);
-        if(otelMetrics != null) {
-            Meter meter = otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME);
-// Define the observable counters
-            ObservableLongMeasurement dataQualityJobSuccessCounter =
-                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_JOB_SUCCESS_COUNT).buildObserver();
-            ObservableLongMeasurement dataQualityJobFailureCounter =
-                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_JOB_FAILURE_COUNT).buildObserver();
-            ObservableLongMeasurement totalCounter =
-                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_OVERALL_FILE_COUNT).buildObserver();
-            ObservableLongMeasurement successCounter =
-                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_SUCCESS_FILE_COUNT).buildObserver();
-            ObservableLongMeasurement failureCounter =
-                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_FAILURE_FILE_COUNT).buildObserver();
-            ObservableLongMeasurement nonEvaluatedFilesCounter =
-                meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_NON_EVALUATED_FILE_COUNT).buildObserver();
-            Attributes tags = getTagsForDataQualityMetrics(jobState, datasetUrn);
-            log.info("About to make batch callback for all data quality metrics with tags: " + tags.toString());
-            meter.batchCallback(() -> {
+
+    private static void emitMetrics(JobState jobState, final DataQualityStatus jobDataQuality, final int totalFiles,
+            final int passedFilesCount, final int failedFilesCount, final int nonEvaluatedFilesCount, final String datasetUrn) {
+        try {
+            // Check if OpenTelemetry is enabled
+            boolean otelEnabled = jobState.getPropAsBoolean(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED,
+                ConfigurationKeys.DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED);
+
+            if (!otelEnabled) {
+                log.info("OpenTelemetry metrics disabled, skipping metrics emission");
+                return;
+            }
+
+            OpenTelemetryMetricsBase otelMetrics = OpenTelemetryMetrics.getInstance(jobState);
+            log.info("OpenTelemetry instance obtained: {}", otelMetrics != null);
+
+            if (otelMetrics != null) {
+                Attributes tags = getTagsForDataQualityMetrics(jobState, datasetUrn);
+                log.info("Tags for data quality metrics: " + tags.toString());
+                // Emit data quality status (1 for PASSED, 0 for FAILED)
+                log.info("Data quality evaluation summary detailed - DQ-Status: {}, Total: {}, Passed: {}, Failed: {}, Not Evaluated: {}",
+                    jobDataQuality, totalFiles, passedFilesCount, failedFilesCount, nonEvaluatedFilesCount);
+                log.info("Data quality status for this job is " + jobDataQuality);
                 if (jobDataQuality == DataQualityStatus.PASSED) {
-                    dataQualityJobSuccessCounter.record(1, tags);
+                    log.info("Data quality passed for job: {}", jobState.getJobName());
+                    otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
+                        .counterBuilder(ServiceMetricNames.DATA_QUALITY_JOB_SUCCESS_COUNT)
+                        .setDescription("Number of jobs that passed data quality")
+                        .build()
+                        .add(1, tags);
                 } else {
-                    dataQualityJobFailureCounter.record(1, tags);
+                    log.info("Data quality failed for job: {}", jobState.getJobName());
+                    otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
+                        .counterBuilder(ServiceMetricNames.DATA_QUALITY_JOB_FAILURE_COUNT)
+                        .setDescription("Number of jobs that failed data quality")
+                        .build()
+                        .add(1, tags);
                 }
-                totalCounter.record(totalFiles, tags);
-                successCounter.record(passedFilesSize, tags);
-                failureCounter.record(failedFilesSize, tags);
-                nonEvaluatedFilesCounter.record(nonEvaluatedFilesSize, tags);
-            }, dataQualityJobSuccessCounter, dataQualityJobFailureCounter, totalCounter, successCounter, failureCounter, nonEvaluatedFilesCounter);
+                otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
+                    .counterBuilder(ServiceMetricNames.DATA_QUALITY_OVERALL_FILE_COUNT)
+                    .setDescription("Number of files evaluated for data quality")
+                    .build()
+                    .add(totalFiles, tags);
+                // Emit passed files count
+                otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
+                    .counterBuilder(ServiceMetricNames.DATA_QUALITY_SUCCESS_FILE_COUNT)
+                    .setDescription("Number of files that passed data quality")
+                    .build().add(passedFilesCount, tags);
+                // Emit failed files count
+                otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
+                    .counterBuilder(ServiceMetricNames.DATA_QUALITY_FAILURE_FILE_COUNT)
+                    .setDescription("Number of files that failed data quality")
+                    .build().add(failedFilesCount, tags);
+                // Emit non-evaluated files count
+                otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
+                    .counterBuilder(ServiceMetricNames.DATA_QUALITY_NON_EVALUATED_FILE_COUNT)
+                    .setDescription("Number of files that did not have data quality evaluation")
+                    .build().add(nonEvaluatedFilesCount, tags);
+            }
+
+        } catch (Exception e) {
+            log.error("Error in emitMetrics for job: {}", jobState.getJobName(), e);
         }
+        log.info("Completed emitMetrics for job: {}", jobState.getJobName());
     }
 
     private static Attributes getTagsForDataQualityMetrics(JobState jobState, String datasetUrn) {
