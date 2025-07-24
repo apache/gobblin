@@ -172,10 +172,10 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
         return 0;
       }
       if (cat1 == null) {
-        return -1;
+        return 1;
       }
       if (cat2 == null) {
-        return 1;
+        return -1;
       }
       return Integer.compare(cat1.getPriority(), cat2.getPriority());
     });
