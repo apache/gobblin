@@ -245,7 +245,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor( new AtomicBoolean(false),
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
         config, new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
@@ -300,7 +300,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor( new AtomicBoolean(false),
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
         config, new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
@@ -346,7 +346,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
 
-    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor( new AtomicBoolean(false),
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
         ConfigFactory.empty(), new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
@@ -484,7 +484,6 @@ public class KafkaAvroJobStatusMonitorTest {
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).addJobDagAction(any(), any(),
         anyLong(), any(), eq(DagActionStore.DagActionType.REEVALUATE));
     Mockito.verify(dagManagementStateStore, Mockito.times(1)).deleteDagAction(eq(this.enforceJobStartDeadlineDagAction));
-
     jobStatusMonitor.shutDown();
   }
 

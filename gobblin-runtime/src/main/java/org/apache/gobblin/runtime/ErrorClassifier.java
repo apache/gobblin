@@ -53,7 +53,7 @@ public class ErrorClassifier {
 
   private final int maxErrorsInFinalIssue;
   private static final String FINAL_ISSUE_ERROR_CODE = "T0000";
-  private ErrorCategory _defaultErrorCategory = null;
+  private ErrorCategory defaultErrorCategory = null;
 
   /**
    * Loads all error issues and categories from the store into memory.
@@ -78,11 +78,11 @@ public class ErrorClassifier {
     }
 
     try {
-      this._defaultErrorCategory = this.errorStore.getDefaultCategory();
+      this.defaultErrorCategory = this.errorStore.getDefaultCategory();
     }
     catch (IOException e) {
       log.warn("Failed to load default error category from store, will not use default category for classification", e);
-      this._defaultErrorCategory = null;
+      this.defaultErrorCategory = null;
     }
   }
 
@@ -90,7 +90,7 @@ public class ErrorClassifier {
   /**
    * Classifies a list of issues and returns the highest priority category with its matched issues.
    * If no issues match, returns null.
-   * If _defaultErrorCategory is set, it will be used for unmatched issues.
+   * If defaultErrorCategory is set, it will be used for unmatched issues.
    */
   public Issue classifyEarlyStopWithDefault(List<Issue> issues) {
     if (issues == null || issues.isEmpty()) {
@@ -156,12 +156,12 @@ public class ErrorClassifier {
     result.unmatched.add(issue);
 
     // Initialize default priority only once when we encounter the first unmatched issue
-    if (result.defaultPriority == null && _defaultErrorCategory != null) {
-      result.defaultPriority = _defaultErrorCategory.getPriority();
+    if (result.defaultPriority == null && defaultErrorCategory != null) {
+      result.defaultPriority = defaultErrorCategory.getPriority();
       // Only update highest priority if no category has been matched yet OR if default category has higher priority (lower number)
-      if (result.highestPriority == null || _defaultErrorCategory.getPriority() < result.highestPriority) {
+      if (result.highestPriority == null || defaultErrorCategory.getPriority() < result.highestPriority) {
         result.highestPriority = result.defaultPriority;
-        result.highestCategoryName = _defaultErrorCategory.getCategoryName();
+        result.highestCategoryName = defaultErrorCategory.getCategoryName();
       }
     }
   }
@@ -175,13 +175,13 @@ public class ErrorClassifier {
 
   private void applyDefaultCategoryIfNeeded(ClassificationResult result) {
     boolean shouldUseDefault = result.highestPriority != null && result.highestPriority.equals(result.defaultPriority)
-        && !result.unmatched.isEmpty() && _defaultErrorCategory != null;
+        && !result.unmatched.isEmpty() && defaultErrorCategory != null;
 
     if (shouldUseDefault) {
-      result.highestCategoryName = _defaultErrorCategory.getCategoryName();
+      result.highestCategoryName = defaultErrorCategory.getCategoryName();
 
       for (Issue issue : result.unmatched) {
-        result.categoryToIssues.computeIfAbsent(_defaultErrorCategory.getCategoryName(), k -> new ArrayList<>())
+        result.categoryToIssues.computeIfAbsent(defaultErrorCategory.getCategoryName(), k -> new ArrayList<>())
             .add(issue);
       }
     }
