@@ -42,12 +42,11 @@ import org.apache.gobblin.util.ConfigUtils;
 public class InMemoryErrorPatternStore implements ErrorPatternStore {
   private final List<ErrorPatternProfile> errorPatterns = new ArrayList<>();
   private final Map<String, ErrorCategory> categories = new HashMap<>();
-  private ErrorCategory _defaultErrorCategory = null;
+  private ErrorCategory defaultErrorCategory = null;
 
   private static final String DEFAULT_CATEGORY_NAME = "UNKNOWN";
 
-  private final int default_priority;
-  private final String default_error_category;
+  private final int defaultPriority;
 
   @Inject
   public InMemoryErrorPatternStore(Config config) {
@@ -55,12 +54,12 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
     this.categories.put(user.getCategoryName(), user);
 
     this.errorPatterns.add(new ErrorPatternProfile(".*file not found.*", "USER"));
-    default_priority = ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_DEFAULT_PRIORITY_KEY,
+    defaultPriority = ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_DEFAULT_PRIORITY_KEY,
         ServiceConfigKeys.DEFAULT_PRIORITY_VALUE);
 
-    default_error_category=ConfigUtils.getString(config, ServiceConfigKeys.ERROR_PATTERN_STORE_DEFAULT_CATEGORY_KEY, DEFAULT_CATEGORY_NAME);
+    String defaultErrorCategoryName =ConfigUtils.getString(config, ServiceConfigKeys.ERROR_PATTERN_STORE_DEFAULT_CATEGORY_KEY, DEFAULT_CATEGORY_NAME);
 
-    this._defaultErrorCategory = new ErrorCategory(default_error_category, default_priority);
+    this.defaultErrorCategory = new ErrorCategory(defaultErrorCategoryName, defaultPriority);
   }
 
   public void upsertCategory(List<ErrorCategory> categories) {
@@ -76,7 +75,7 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   }
 
   public void setDefaultCategory(ErrorCategory errorCategory) {
-    this._defaultErrorCategory = errorCategory;
+    this.defaultErrorCategory = errorCategory;
   }
 
   @Override
@@ -153,10 +152,10 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   @Override
   public ErrorCategory getDefaultCategory()
       throws IOException {
-    if (_defaultErrorCategory == null) {
-      _defaultErrorCategory = new ErrorCategory(DEFAULT_CATEGORY_NAME, default_priority);
+    if (defaultErrorCategory == null) {
+      defaultErrorCategory = new ErrorCategory(DEFAULT_CATEGORY_NAME, defaultPriority);
     }
-    return _defaultErrorCategory;
+    return defaultErrorCategory;
   }
 
   @Override

@@ -260,10 +260,10 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
                   catch (Exception e) {
                     log.error("Failed to emit issue event for  flowGroup: {}, flowName: {}, flowExecutionId: {}, jobName: {}", flowGroup, flowName, flowExecutionId, jobName, e);
                   }
-                long process_duration = System.currentTimeMillis() - startTime;
+                long processDuration = System.currentTimeMillis() - startTime;
                 log.info(
                     "Processing issues for flowGroup: {}, flowName: {}, flowExecutionId: {}, jobName: {}, duration: {} ms",
-                    flowGroup, flowName, flowExecutionId, jobName, process_duration);
+                    flowGroup, flowName, flowExecutionId, jobName, processDuration);
                 }
               }
 
