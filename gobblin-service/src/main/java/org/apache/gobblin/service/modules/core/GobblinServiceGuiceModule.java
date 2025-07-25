@@ -95,7 +95,6 @@ import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitorFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.metastore.ErrorPatternStore;
-import org.apache.gobblin.metastore.MysqlErrorPatternStore;
 import org.apache.gobblin.metastore.InMemoryErrorPatternStore;
 
 
@@ -195,7 +194,6 @@ public class GobblinServiceGuiceModule implements Module {
           .to(getClassByNameOrAlias(ErrorPatternStore.class, serviceConfig.getInnerConfig(),
               ServiceConfigKeys.ERROR_PATTERN_STORE_CLASS,
               InMemoryErrorPatternStore.class.getName()));
-      binder.bind(ErrorPatternStore.class).to(MysqlErrorPatternStore.class);
     }
     binder.bind(FlowStatusGenerator.class);
 

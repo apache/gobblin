@@ -73,13 +73,13 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   private final String errorCategoriesTable;
   public static final String CONFIG_PREFIX = "MysqlErrorPatternStore";
 
-  private static final int DEFAULT_MAX_CHARACTERS_IN_SQL_DESCRIPTION_REGEX = 2000;
+  private static final int DEFAULT_MAX_CHARACTERS_IN_SQL_DESCRIPTION_REGEX = 300;
   private static final int DEFAULT_MAX_CHARACTERS_IN_SQL_CATEGORY_NAME = 255;
   private final int maxCharactersInSqlDescriptionRegex;
   private final int maxCharactersInSqlCategoryName;
 
   private static final String CREATE_ERROR_REGEX_SUMMARY_STORE_TABLE_STATEMENT =
-      "CREATE TABLE IF NOT EXISTS %s (description_regex VARCHAR(%d) NOT NULL UNIQUE, error_category_name VARCHAR(%d) NOT NULL)";
+      "CREATE TABLE IF NOT EXISTS %s (description_regex VARCHAR(%d) NOT NULL, error_category_name VARCHAR(%d) NOT NULL)";
 
   private static final String CREATE_ERROR_CATEGORIES_TABLE_NAME =
       "CREATE TABLE IF NOT EXISTS %s (error_category_name VARCHAR(%d) PRIMARY KEY, priority INT UNIQUE NOT NULL)";
@@ -101,6 +101,9 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
 
   private static final String GET_ERROR_REGEX_SUMMARY_STATEMENT =
       "SELECT description_regex, error_category_name FROM %s WHERE description_regex   = ?";
+
+  private static final String GET_ERROR_PATTERN_BY_CATEGORY_STATEMENT = "SELECT description_regex, error_category_name FROM %s "
+      + " WHERE error_category_name = ?";
 
   private static final String GET_ALL_ERROR_REGEX_SUMMARIES_STATEMENT =
       "SELECT description_regex, error_category_name FROM %s";
@@ -285,10 +288,10 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   @Override
   public List<ErrorPatternProfile> getErrorPatternsByCategory(String categoryName)
       throws IOException {
-    String sql = "SELECT description_regex, error_category_name FROM " + errorRegexSummaryStoreTable
-        + " WHERE error_category_name = ?";
     List<ErrorPatternProfile> issues = new ArrayList<>();
-    try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(sql)) {
+    try (Connection conn = dataSource.getConnection(); PreparedStatement ps = conn.prepareStatement(
+        String.format(GET_ERROR_PATTERN_BY_CATEGORY_STATEMENT, errorRegexSummaryStoreTable)
+    )) {
       ps.setString(1, categoryName);
       try (ResultSet rs = ps.executeQuery()) {
         while (rs.next()) {
@@ -305,7 +308,7 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
   public ErrorCategory getDefaultCategory()
       throws IOException {
     // 1. Try to use the configured default category name if set
-    if (StringUtils.isNotBlank(configuredDefaultCategoryName) || StringUtils.isNotEmpty(configuredDefaultCategoryName)) {
+    if (StringUtils.isNotBlank(configuredDefaultCategoryName)) {
       ErrorCategory cat = getErrorCategory(configuredDefaultCategoryName);
       if (cat != null) {
         return cat;

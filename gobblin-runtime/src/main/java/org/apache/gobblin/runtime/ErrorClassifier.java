@@ -77,7 +77,13 @@ public class ErrorClassifier {
       errorIssues.add(new CompiledErrorPattern(errorPattern));
     }
 
-    this._defaultErrorCategory = this.errorStore.getDefaultCategory();
+    try {
+      this._defaultErrorCategory = this.errorStore.getDefaultCategory();
+    }
+    catch (IOException e) {
+      log.warn("Failed to load default error category from store, will not use default category for classification", e);
+      this._defaultErrorCategory = null;
+    }
   }
 
 

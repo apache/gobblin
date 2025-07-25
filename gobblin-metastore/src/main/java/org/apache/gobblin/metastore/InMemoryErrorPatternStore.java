@@ -25,6 +25,9 @@ import java.util.Map;
 
 import com.typesafe.config.Config;
 
+import javax.inject.Inject;
+import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ErrorCategory;
 import org.apache.gobblin.configuration.ErrorPatternProfile;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -35,15 +38,17 @@ import org.apache.gobblin.util.ConfigUtils;
  * An in-memory implementation of the ErrorPatternStore interface.
  * This class serves as a (default) base class for initialisation and does not persist data across application restarts.
  **/
+@Slf4j
 public class InMemoryErrorPatternStore implements ErrorPatternStore {
-  private List<ErrorPatternProfile> errorPatterns = new ArrayList<>();
-  private Map<String, ErrorCategory> categories = new HashMap<>();
+  private final List<ErrorPatternProfile> errorPatterns = new ArrayList<>();
+  private final Map<String, ErrorCategory> categories = new HashMap<>();
   private ErrorCategory _defaultErrorCategory = null;
 
   private static final String DEFAULT_CATEGORY_NAME = "UNKNOWN";
 
-  private int default_priority;
+  private final int default_priority;
 
+  @Inject
   public InMemoryErrorPatternStore(Config config) {
     ErrorCategory user = new ErrorCategory("USER", 1);
     this.categories.put(user.getCategoryName(), user);
@@ -80,18 +85,12 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   @Override
   public boolean deleteErrorPattern(String descriptionRegex)
       throws IOException {
-    if (errorPatterns == null) {
-      return false;
-    }
     return errorPatterns.removeIf(issue -> issue.getDescriptionRegex().equals(descriptionRegex));
   }
 
   @Override
   public ErrorPatternProfile getErrorPattern(String descriptionRegex)
       throws IOException {
-    if (errorPatterns == null) {
-      return null;
-    }
     for (ErrorPatternProfile issue : errorPatterns) {
       if (issue.getDescriptionRegex().equals(descriptionRegex)) {
         return issue;
@@ -110,11 +109,9 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   public List<ErrorPatternProfile> getErrorPatternsByCategory(String categoryName)
       throws IOException {
     List<ErrorPatternProfile> result = new ArrayList<>();
-    if (errorPatterns != null) {
-      for (ErrorPatternProfile issue : errorPatterns) {
-        if (issue.getCategoryName() != null && issue.getCategoryName().equals(categoryName)) {
-          result.add(issue);
-        }
+    for (ErrorPatternProfile issue : errorPatterns) {
+      if (issue.getCategoryName() != null && issue.getCategoryName().equals(categoryName)) {
+        result.add(issue);
       }
     }
     return result;
@@ -162,9 +159,6 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   @Override
   public List<ErrorPatternProfile> getAllErrorPatternsOrderedByCategoryPriority()
       throws IOException {
-    if (errorPatterns == null) {
-      throw new IOException("Error patterns list is null");
-    }
     errorPatterns.sort((issue1, issue2) -> {
       ErrorCategory cat1 = categories.get(issue1.getCategoryName());
       ErrorCategory cat2 = categories.get(issue2.getCategoryName());

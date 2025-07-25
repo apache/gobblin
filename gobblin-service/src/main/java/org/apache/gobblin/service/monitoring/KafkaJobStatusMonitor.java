@@ -128,8 +128,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final GaaSJobObservabilityEventProducer eventProducer;
   private final DagManagementStateStore dagManagementStateStore;
   private final List<Class<? extends Exception>> nonRetryableExceptions = Collections.singletonList(SQLIntegrityConstraintViolationException.class);
-  private final boolean isErrorClassificationEnabled =
-      ConfigUtils.getBoolean(this.config, ServiceConfigKeys.ERROR_CLASSIFICATION_ENABLED_KEY, false);
+  private final boolean isErrorClassificationEnabled;
   private final ErrorClassifier errorClassifier;
 
   @Inject
@@ -151,6 +150,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         : ConfigFactory.empty();
     // log exceptions to expose errors we suffer under and/or guide intervention when resolution not readily forthcoming
+
     this.persistJobStatusRetryer =
         RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
           @Override
@@ -163,6 +163,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           }
         }));
     this.eventProducer = observabilityEventProducer;
+    this.isErrorClassificationEnabled =
+        ConfigUtils.getBoolean(this.config, ServiceConfigKeys.ERROR_CLASSIFICATION_ENABLED_KEY, true);
   }
 
   public enum NewState {
@@ -202,6 +204,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   @Override
   protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
+    log.info("Entered processMessage");
     GobblinTrackingEvent gobblinTrackingEvent = deserializeEvent(message);
 
     if (gobblinTrackingEvent == null) {
