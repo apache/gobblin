@@ -47,6 +47,7 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
   private static final String DEFAULT_CATEGORY_NAME = "UNKNOWN";
 
   private final int default_priority;
+  private final String default_error_category;
 
   @Inject
   public InMemoryErrorPatternStore(Config config) {
@@ -57,7 +58,9 @@ public class InMemoryErrorPatternStore implements ErrorPatternStore {
     default_priority = ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_DEFAULT_PRIORITY_KEY,
         ServiceConfigKeys.DEFAULT_PRIORITY_VALUE);
 
-    this._defaultErrorCategory = new ErrorCategory(DEFAULT_CATEGORY_NAME, default_priority);
+    default_error_category=ConfigUtils.getString(config, ServiceConfigKeys.ERROR_PATTERN_STORE_DEFAULT_CATEGORY_KEY, DEFAULT_CATEGORY_NAME);
+
+    this._defaultErrorCategory = new ErrorCategory(default_error_category, default_priority);
   }
 
   public void upsertCategory(List<ErrorCategory> categories) {

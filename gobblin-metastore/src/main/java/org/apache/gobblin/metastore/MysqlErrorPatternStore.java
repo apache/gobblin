@@ -141,7 +141,7 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
 
     // Use ServiceConfigKeys for the default category config key
     this.configuredDefaultCategoryName =
-        ConfigUtils.getString(config, ServiceConfigKeys.ERROR_PATTERN_STORE_DEFAULT_CATEGORY_KEY, null);
+        ConfigUtils.getString(config, ConfigurationKeys.DEFAULT_DB_ERROR_CATEGORY_KEY, null);
 
     createTablesIfNotExist();
   }
