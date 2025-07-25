@@ -21,7 +21,6 @@ import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.ErrorPatternProfile;
 import org.apache.gobblin.configuration.ErrorCategory;
-import org.apache.gobblin.service.ServiceConfigKeys;
 
 import com.typesafe.config.Config;
 
