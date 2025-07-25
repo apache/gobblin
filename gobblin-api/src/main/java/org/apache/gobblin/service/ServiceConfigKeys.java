@@ -161,8 +161,9 @@ public class ServiceConfigKeys {
   public static final Integer DEFAULT_NUM_DAG_PROC_THREADS = 3;
   public static final long DEFAULT_FLOW_FINISH_DEADLINE_MILLIS = TimeUnit.HOURS.toMillis(24);
 
-  public static final String ERROR_PATTERN_STORE_CLASS = "errorPatternStore.class";
-  public static final String ERROR_CLASSIFICATION_ENABLED_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "errorClassification.enabled";
+  public static final String ERROR_PATTERN_STORE_CLASS = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "errorPatternStore.class";
+  // public static final String ERROR_CLASSIFICATION_ENABLED_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "errorClassification.enabled";
+  public static final String ERROR_CLASSIFICATION_ENABLED_KEY = "errorClassification.enabled";
   public static final String ERROR_CLASSIFICATION_MAX_ERRORS_IN_FINAL_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX +"errorClassification.maxErrorsInFinal";
   public static final int DEFAULT_ERROR_CLASSIFICATION_MAX_ERRORS_IN_FINAL = 10;
   public static final String ERROR_CLASSIFICATION_MAX_ERRORS_TO_PROCESS_KEY = GOBBLIN_SERVICE_PREFIX + "errorClassification.maxErrorsToProcess";
