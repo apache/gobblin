@@ -164,7 +164,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         }));
     this.eventProducer = observabilityEventProducer;
     this.isErrorClassificationEnabled =
-        ConfigUtils.getBoolean(this.config, ServiceConfigKeys.ERROR_CLASSIFICATION_ENABLED_KEY, true);
+        ConfigUtils.getBoolean(this.config, ServiceConfigKeys.ERROR_CLASSIFICATION_ENABLED_KEY, false);
   }
 
   public enum NewState {
@@ -204,7 +204,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   @Override
   protected void processMessage(DecodeableKafkaRecord<byte[],byte[]> message) {
-    log.info("Entered processMessage");
     GobblinTrackingEvent gobblinTrackingEvent = deserializeEvent(message);
 
     if (gobblinTrackingEvent == null) {
