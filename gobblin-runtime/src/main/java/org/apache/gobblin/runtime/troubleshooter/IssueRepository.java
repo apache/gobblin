@@ -35,6 +35,9 @@ public interface IssueRepository {
   List<Issue> getAll()
       throws TroubleshooterException;
 
+  List<Issue> getMostRecentErrors(int limit)
+      throws TroubleshooterException;
+
   /**
    * Saves an issue to the repository, if it is not yet present.
    *

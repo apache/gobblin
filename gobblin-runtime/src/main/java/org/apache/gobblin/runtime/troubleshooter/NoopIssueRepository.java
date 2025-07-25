@@ -30,6 +30,12 @@ public class NoopIssueRepository implements IssueRepository {
   }
 
   @Override
+  public List<Issue> getMostRecentErrors(int limit)
+      throws TroubleshooterException {
+    return Collections.emptyList();
+  }
+
+  @Override
   public void put(Issue issue)
       throws TroubleshooterException {
 

@@ -30,6 +30,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.kafka.schemareg.KafkaSchemaRegistryConfigurationKeys;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
+import org.apache.gobblin.runtime.ErrorClassifier;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
@@ -51,15 +52,17 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
   private final MultiContextIssueRepository issueRepository;
   private final boolean instrumentationEnabled;
   private final DagManagementStateStore dagManagementStateStore;
+  private final ErrorClassifier errorClassifier;
 
   @Inject
   public KafkaJobStatusMonitorFactory(Config config, JobIssueEventHandler jobIssueEventHandler, MultiContextIssueRepository issueRepository,
-      GobblinInstanceEnvironment env, DagManagementStateStore dagManagementStateStore) {
+      GobblinInstanceEnvironment env, DagManagementStateStore dagManagementStateStore, ErrorClassifier errorClassifier) {
     this.config = Objects.requireNonNull(config);
     this.jobIssueEventHandler = Objects.requireNonNull(jobIssueEventHandler);
     this.issueRepository = issueRepository;
     this.instrumentationEnabled = env.isInstrumentationEnabled();
     this.dagManagementStateStore = dagManagementStateStore;
+    this.errorClassifier = errorClassifier;
   }
 
   private KafkaJobStatusMonitor createJobStatusMonitor()
@@ -94,7 +97,7 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
 
     return (KafkaJobStatusMonitor) GobblinConstructorUtils
         .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, observabilityEventProducer,
-            dagManagementStateStore);
+            dagManagementStateStore, errorClassifier);
   }
 
   @Override

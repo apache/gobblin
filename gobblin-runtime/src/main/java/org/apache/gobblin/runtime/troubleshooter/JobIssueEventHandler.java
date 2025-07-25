@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.runtime.troubleshooter;
 
+import java.util.List;
 import java.util.Objects;
 import java.util.Properties;
 
@@ -29,6 +30,8 @@ import com.typesafe.config.Config;
 import javax.inject.Inject;
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.service.ServiceConfigKeys;
+
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.util.GsonUtils;
@@ -40,7 +43,7 @@ import org.apache.gobblin.util.ConfigUtils;
  *
  *  It will additionally log received issues, so that they can be processed by an analytical systems to determine
  *  the overall platform health.
- * */
+ **/
 @Slf4j
 public class JobIssueEventHandler {
 
@@ -53,14 +56,17 @@ public class JobIssueEventHandler {
   private final MultiContextIssueRepository issueRepository;
   private final boolean logReceivedEvents;
 
+  private final Config config;
+
   @Inject
   public JobIssueEventHandler(MultiContextIssueRepository issueRepository, Config config) {
-    this(issueRepository, ConfigUtils.getBoolean(config, LOG_RECEIVED_EVENTS, true));
+    this(issueRepository, ConfigUtils.getBoolean(config, LOG_RECEIVED_EVENTS, true), config);
   }
 
-  public JobIssueEventHandler(MultiContextIssueRepository issueRepository, boolean logReceivedEvents) {
+  public JobIssueEventHandler(MultiContextIssueRepository issueRepository, boolean logReceivedEvents, Config config) {
     this.issueRepository = Objects.requireNonNull(issueRepository);
     this.logReceivedEvents = logReceivedEvents;
+    this.config = config;
   }
 
   public void processEvent(GobblinTrackingEvent event) {
@@ -83,8 +89,9 @@ public class JobIssueEventHandler {
     try {
       issueRepository.put(contextId, issueEvent.getIssue());
     } catch (TroubleshooterException e) {
-      log.warn(String.format("Failed to save issue to repository. Issue time: %s, code: %s",
-                             issueEvent.getIssue().getTime(), issueEvent.getIssue().getCode()), e);
+      log.warn(
+          String.format("Failed to save issue to repository. Issue time: %s, code: %s", issueEvent.getIssue().getTime(),
+              issueEvent.getIssue().getCode()), e);
     }
 
     if (logReceivedEvents) {
@@ -113,5 +120,24 @@ public class JobIssueEventHandler {
     String flowExecutionId;
     String jobName;
     Issue issue;
+  }
+
+  public List<Issue> getErrorListForClassification(String contextId)
+      throws TroubleshooterException {
+          int limit = ConfigUtils.getInt(config, ServiceConfigKeys.ERROR_CLASSIFICATION_MAX_ERRORS_TO_PROCESS_KEY,
+        ServiceConfigKeys.DEFAULT_ERROR_CLASSIFICATION_MAX_ERRORS_TO_PROCESS);
+      return issueRepository.getMostRecentErrors(contextId, limit);
+  }
+
+  public void logFinalError(Issue issue, String flowName, String flowGroup, String flowExecutionId, String jobName) {
+    JobIssueLogEntry logEntry = new JobIssueLogEntry();
+    logEntry.issue = issue;
+    logEntry.flowName = flowName;
+    logEntry.flowGroup = flowGroup;
+    logEntry.flowExecutionId = flowExecutionId;
+    logEntry.jobName = jobName;
+
+    String serializedIssueEvent = GsonUtils.GSON_WITH_DATE_HANDLING.toJson(logEntry);
+    issueLogger.info(serializedIssueEvent);
   }
 }

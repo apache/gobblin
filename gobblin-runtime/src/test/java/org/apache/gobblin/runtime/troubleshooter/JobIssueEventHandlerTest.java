@@ -19,6 +19,8 @@ package org.apache.gobblin.runtime.troubleshooter;
 
 import org.testng.annotations.Test;
 
+import com.typesafe.config.ConfigFactory;
+
 import org.apache.gobblin.metrics.event.TimingEvent;
 
 import static org.mockito.Mockito.any;
@@ -32,7 +34,7 @@ public class JobIssueEventHandlerTest {
   public void canHandleIssue()
       throws Exception {
     MultiContextIssueRepository issueRepository = mock(MultiContextIssueRepository.class);
-    JobIssueEventHandler eventHandler = new JobIssueEventHandler(issueRepository, true);
+    JobIssueEventHandler eventHandler = new JobIssueEventHandler(issueRepository, true, ConfigFactory.empty());
 
     IssueEventBuilder eventBuilder = new IssueEventBuilder("TestJob");
     eventBuilder.setIssue(getTestIssue("test issue", "code1"));

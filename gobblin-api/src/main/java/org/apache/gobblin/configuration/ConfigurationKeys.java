@@ -86,6 +86,14 @@ public class ConfigurationKeys {
   public static final String DATASETURN_STATESTORE_NAME_PARSER = "state.store.datasetUrnStateStoreNameParser";
 
   /**
+   * Error Pattern Store related to configuration properties.
+   */
+  public static final String ERROR_REGEX_DB_TABLE_KEY = "state.store.db.regexTableName";
+  public static final String ERROR_CATEGORIES_DB_TABLE_KEY = "state.store.db.categoriesTableName";
+  public static final String ERROR_REGEX_VARCHAR_SIZE_KEY = "error.regex.max.varchar.size";
+  public static final String ERROR_CATEGORY_VARCHAR_SIZE_KEY = "error.category.max.varchar.size";
+  public static final String DEFAULT_DB_ERROR_CATEGORY_KEY = "error.category.default";
+  /**
    * Job scheduler configuration properties.
    */
   // Job retriggering

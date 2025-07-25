@@ -34,10 +34,12 @@ import org.apache.commons.lang3.tuple.Pair;
 import org.apache.kafka.clients.consumer.ConsumerRecord;
 import org.apache.kafka.clients.producer.ProducerConfig;
 import org.mockito.Mockito;
+import static org.mockito.ArgumentMatchers.any;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
+import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
 import com.google.common.base.Optional;
@@ -55,10 +57,12 @@ import kafka.message.MessageAndMetadata;
 import lombok.Getter;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.configuration.ErrorPatternProfile;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.kafka.KafkaTestBase;
 import org.apache.gobblin.kafka.client.DecodeableKafkaRecord;
 import org.apache.gobblin.kafka.client.Kafka09ConsumerClient;
+import org.apache.gobblin.metastore.InMemoryErrorPatternStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.FlowStatus;
 import org.apache.gobblin.metrics.GaaSFlowObservabilityEvent;
@@ -72,9 +76,12 @@ import org.apache.gobblin.metrics.kafka.KafkaEventReporter;
 import org.apache.gobblin.metrics.kafka.KafkaKeyValueProducerPusher;
 import org.apache.gobblin.metrics.kafka.Pusher;
 import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.IssueTestDataProvider;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.monitoring.GaaSJobObservabilityEventProducer;
@@ -86,7 +93,6 @@ import org.apache.gobblin.service.monitoring.NoopGaaSJobObservabilityEventProduc
 import org.apache.gobblin.util.ConfigUtils;
 
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_MULTIPLIER;
-import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.mock;
@@ -105,6 +111,8 @@ public class KafkaAvroJobStatusMonitorTest {
   private MetricContext context;
   private KafkaAvroEventKeyValueReporter.Builder<?> builder;
   DagActionStore.DagAction enforceJobStartDeadlineDagAction;
+  private JobIssueEventHandler eventHandler;
+  private ErrorClassifier errorClassifier;
 
   @BeforeClass
   public void setUp() throws Exception {
@@ -126,6 +134,12 @@ public class KafkaAvroJobStatusMonitorTest {
 
     this.enforceJobStartDeadlineDagAction = new DagActionStore.DagAction(this.flowGroup, this.flowName, this.flowExecutionId, this.jobName,
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+  }
+
+  @BeforeMethod
+  public void setUpMethod() {
+    eventHandler = Mockito.mock(JobIssueEventHandler.class);
+    errorClassifier = Mockito.mock(ErrorClassifier.class);
   }
 
   @Test
@@ -152,7 +166,7 @@ public class KafkaAvroJobStatusMonitorTest {
       Thread.currentThread().interrupt();
     }
     MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false), ConfigFactory.empty(),
-      new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
+        new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
     jobStatusMonitor.buildMetricsContextAndMetrics();
 
     Iterator<DecodeableKafkaRecord<byte[], byte[]>> recordIterator = Iterators.transform(
@@ -190,6 +204,115 @@ public class KafkaAvroJobStatusMonitorTest {
     // Check that state didn't get set to running since it was already complete
     state = getNextJobStatusState(jobStatusMonitor, recordIterator, this.jobGroup, this.jobName);
     Assert.assertEquals(state.getProp(JobStatusRetriever.EVENT_NAME_FIELD), ExecutionStatus.COMPLETE.name());
+
+    jobStatusMonitor.shutDown();
+  }
+
+  /**
+   * Functional test for ErrorClassifier integration with KafkaJobStatusMonitor:
+   * Tests that when a job fails, the monitor properly invokes ErrorClassifier to classify issues
+   * and logs the final classified error through the JobIssueEventHandler.
+   */
+  @Test (dependsOnMethods = "testObservabilityEventFlowFailed")
+  public void testErrorClassifierFinalIssueSystemInfra()
+      throws IOException, ReflectiveOperationException, TroubleshooterException {
+    DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
+    Config config = ConfigFactory.empty().withValue(ServiceConfigKeys.ERROR_CLASSIFICATION_ENABLED_KEY, ConfigValueFactory.fromAnyRef(Boolean.TRUE));
+    List<ErrorPatternProfile> errorPatternProfiles = IssueTestDataProvider.getSortedPatterns();
+
+    InMemoryErrorPatternStore store = new InMemoryErrorPatternStore(config);
+    store.upsertCategory(IssueTestDataProvider.TEST_CATEGORIES);
+    store.upsertPatterns(errorPatternProfiles);
+    store.setDefaultCategory(IssueTestDataProvider.TEST_DEFAULT_ERROR_CATEGORY);
+
+    this.errorClassifier =  new ErrorClassifier(store, config);
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic2");
+
+    //Submit GobblinTrackingEvents to Kafka
+    ImmutableList.of(
+        createJobFailedEvent()
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
+
+    //Set issues for error classification
+    Mockito.doReturn(IssueTestDataProvider.testSystemInfraCategoryIssues()).when(eventHandler).getErrorListForClassification(Mockito.any());
+
+    try {
+      Thread.sleep(1000L);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
+        config, new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
+    jobStatusMonitor.buildMetricsContextAndMetrics();
+
+    ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
+    MessageAndMetadata<byte[], byte[]> messageAndMetadata = iterator.next();
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+
+    // Verify that the JobIssueEventHandler was called with the final classified error
+    Mockito.verify(eventHandler, Mockito.times(1))
+        .logFinalError(Mockito.argThat(issue ->
+                issue.getSummary().contains("SYSTEM INFRA")),
+            Mockito.eq(this.flowName),
+            Mockito.eq(this.flowGroup),
+            Mockito.eq(String.valueOf(this.flowExecutionId)),
+            Mockito.eq(this.jobName));
+
+    jobStatusMonitor.shutDown();
+  }
+
+  /**
+   * Test for verifying that error classifier module is not called when it is disabled.
+   */
+  @Test (dependsOnMethods = "testErrorClassifierFinalIssueSystemInfra")
+  public void testDisabledErrorClassification()
+      throws IOException, ReflectiveOperationException, TroubleshooterException {
+    DagManagementStateStore dagManagementStateStore = mock(DagManagementStateStore.class);
+    Config config = ConfigFactory.empty().withValue(ServiceConfigKeys.ERROR_CLASSIFICATION_ENABLED_KEY, ConfigValueFactory.fromAnyRef(Boolean.FALSE));
+    List<ErrorPatternProfile> errorPatternProfiles = IssueTestDataProvider.getSortedPatterns();
+
+    InMemoryErrorPatternStore store = new InMemoryErrorPatternStore(config);
+    store.upsertCategory(IssueTestDataProvider.TEST_CATEGORIES);
+    store.upsertPatterns(errorPatternProfiles);
+    store.setDefaultCategory(IssueTestDataProvider.TEST_DEFAULT_ERROR_CATEGORY);
+
+    this.errorClassifier =  new ErrorClassifier(store, config);
+    KafkaEventReporter kafkaReporter = builder.build("localhost:0000", "topic2");
+
+    //Submit GobblinTrackingEvents to Kafka
+    ImmutableList.of(
+        createJobFailedEvent()
+    ).forEach(event -> {
+      context.submitEvent(event);
+      kafkaReporter.report();
+    });
+
+    //Set issues for error classification
+    Mockito.doReturn(IssueTestDataProvider.testSystemInfraCategoryIssues()).when(eventHandler).getErrorListForClassification(Mockito.any());
+
+    try {
+      Thread.sleep(1000L);
+    } catch(InterruptedException ex) {
+      Thread.currentThread().interrupt();
+    }
+
+    MockKafkaAvroJobStatusMonitor jobStatusMonitor = createMockKafkaAvroJobStatusMonitor(new AtomicBoolean(false),
+        config, new NoopGaaSJobObservabilityEventProducer(), dagManagementStateStore);
+    jobStatusMonitor.buildMetricsContextAndMetrics();
+
+    ConsumerIterator<byte[], byte[]> iterator = this.kafkaTestHelper.getIteratorForTopic(TOPIC);
+    MessageAndMetadata<byte[], byte[]> messageAndMetadata = iterator.next();
+    jobStatusMonitor.processMessage(convertMessageAndMetadataToDecodableKafkaRecord(messageAndMetadata));
+
+    // Verify that the JobIssueEventHandler was not called for error classification
+    Mockito.verify(eventHandler, Mockito.times(0))
+        .logFinalError(Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any(), Mockito.any());
+    Mockito.verify(eventHandler, Mockito.times(0))
+        .getErrorListForClassification(Mockito.any());
 
     jobStatusMonitor.shutDown();
   }
@@ -309,7 +432,7 @@ public class KafkaAvroJobStatusMonitorTest {
         createFlowCompiledEvent(),
         createJobOrchestratedEvent(1, 2),
         createJobSkippedEvent()
-        ).forEach(event -> {
+    ).forEach(event -> {
       context.submitEvent(event);
       kafkaReporter.report();
     });
@@ -950,14 +1073,15 @@ public class KafkaAvroJobStatusMonitorTest {
   }
 
   MockKafkaAvroJobStatusMonitor createMockKafkaAvroJobStatusMonitor(AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, Config additionalConfig,
-      GaaSJobObservabilityEventProducer eventProducer, DagManagementStateStore dagManagementStateStore) throws IOException, ReflectiveOperationException {
+      GaaSJobObservabilityEventProducer eventProducer, DagManagementStateStore dagManagementStateStore)
+      throws IOException, ReflectiveOperationException {
     Config config = ConfigFactory.empty().withValue(ConfigurationKeys.KAFKA_BROKERS, ConfigValueFactory.fromAnyRef("localhost:0000"))
         .withValue(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, ConfigValueFactory.fromAnyRef("org.apache.kafka.common.serialization.ByteArrayDeserializer"))
         .withValue(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, ConfigValueFactory.fromAnyRef(stateStoreDir))
         .withValue("zookeeper.connect", ConfigValueFactory.fromAnyRef("localhost:2121"))
         .withFallback(additionalConfig);
     return new MockKafkaAvroJobStatusMonitor("test", config, 1, shouldThrowFakeExceptionInParseJobStatusToggle,
-        eventProducer, dagManagementStateStore);
+        eventProducer, dagManagementStateStore, errorClassifier, eventHandler);
   }
   /**
    *   Create a dummy event to test if it is filtered out by the consumer.
@@ -1013,9 +1137,9 @@ public class KafkaAvroJobStatusMonitorTest {
      */
     public MockKafkaAvroJobStatusMonitor(String topic, Config config, int numThreads,
         AtomicBoolean shouldThrowFakeExceptionInParseJobStatusToggle, GaaSJobObservabilityEventProducer producer,
-        DagManagementStateStore dagManagementStateStore)
+        DagManagementStateStore dagManagementStateStore, ErrorClassifier errorClassifier, JobIssueEventHandler eventHandler)
         throws IOException, ReflectiveOperationException {
-      super(topic, config, numThreads, mock(JobIssueEventHandler.class), producer, dagManagementStateStore);
+      super(topic, config, numThreads, eventHandler, producer, dagManagementStateStore, errorClassifier);
       shouldThrowFakeExceptionInParseJobStatus = shouldThrowFakeExceptionInParseJobStatusToggle;
     }
 

@@ -44,6 +44,7 @@ import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistryFactory;
 import org.apache.gobblin.metrics.reporter.util.FixedSchemaVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaRegistryVersionWriter;
 import org.apache.gobblin.metrics.reporter.util.SchemaVersionWriter;
+import org.apache.gobblin.runtime.ErrorClassifier;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
@@ -66,9 +67,9 @@ public class KafkaAvroJobStatusMonitor extends KafkaJobStatusMonitor {
   private Meter messageParseFailures;
 
   public KafkaAvroJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
-      GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore)
+      GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore, ErrorClassifier errorClassifier)
       throws IOException, ReflectiveOperationException {
-    super(topic, config, numThreads,  jobIssueEventHandler, observabilityEventProducer, dagManagementStateStore);
+    super(topic, config, numThreads,  jobIssueEventHandler, observabilityEventProducer, dagManagementStateStore, errorClassifier);
 
     if (ConfigUtils.getBoolean(config, ConfigurationKeys.METRICS_REPORTING_KAFKA_USE_SCHEMA_REGISTRY, false)) {
       KafkaAvroSchemaRegistry schemaRegistry = (KafkaAvroSchemaRegistry) new KafkaAvroSchemaRegistryFactory().

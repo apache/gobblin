@@ -21,6 +21,7 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import javax.inject.Inject;
 import javax.inject.Singleton;
@@ -65,6 +66,14 @@ public class InMemoryIssueRepository implements IssueRepository {
   }
 
   @Override
+  public synchronized List<Issue> getMostRecentErrors(int limit)
+      throws TroubleshooterException {
+
+    return issues.values().stream().filter(issue -> issue.getSeverity() == IssueSeverity.ERROR)
+        .sorted((a, b) -> b.getTime().compareTo(a.getTime())).limit(limit).collect(Collectors.toList());
+  }
+
+  @Override
   public synchronized void put(Issue issue)
       throws TroubleshooterException {
 
@@ -72,7 +81,7 @@ public class InMemoryIssueRepository implements IssueRepository {
       if (!reportedOverflow) {
         reportedOverflow = true;
         log.warn("In-memory issue repository has {} elements and is now full. New issues will be ignored.",
-                 issues.size());
+            issues.size());
       }
       return;
     }

@@ -46,6 +46,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import javax.inject.Inject;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
 
@@ -58,11 +59,14 @@ import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.ErrorClassifier;
 import org.apache.gobblin.runtime.TaskContext;
 import org.apache.gobblin.runtime.kafka.HighLevelConsumer;
 import org.apache.gobblin.runtime.retention.DatasetCleanerTask;
+import org.apache.gobblin.runtime.troubleshooter.Issue;
 import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
 import org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler;
+import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -89,8 +93,8 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   public static final String JOB_STATUS_MONITOR_PREFIX = "jobStatusMonitor";
   //We use table suffix that is different from the Gobblin job state store suffix of jst to avoid confusion.
   //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.
-  public static final String GET_AND_SET_JOB_STATUS = MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
-      JOB_STATUS_MONITOR_PREFIX,  "getAndSetJobStatus");
+  public static final String GET_AND_SET_JOB_STATUS =
+      MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, JOB_STATUS_MONITOR_PREFIX, "getAndSetJobStatus");
 
   private static final String PROCESS_JOB_ISSUE = MetricRegistry
       .name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, JOB_STATUS_MONITOR_PREFIX, "jobIssueProcessingTime");
@@ -124,9 +128,12 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
   private final GaaSJobObservabilityEventProducer eventProducer;
   private final DagManagementStateStore dagManagementStateStore;
   private final List<Class<? extends Exception>> nonRetryableExceptions = Collections.singletonList(SQLIntegrityConstraintViolationException.class);
+  private final boolean isErrorClassificationEnabled;
+  private final ErrorClassifier errorClassifier;
 
+  @Inject
   public KafkaJobStatusMonitor(String topic, Config config, int numThreads, JobIssueEventHandler jobIssueEventHandler,
-      GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore)
+      GaaSJobObservabilityEventProducer observabilityEventProducer, DagManagementStateStore dagManagementStateStore, ErrorClassifier errorClassifier)
       throws ReflectiveOperationException {
     super(topic, config.withFallback(DEFAULTS), numThreads);
     String stateStoreFactoryClass = ConfigUtils.getString(config, ConfigurationKeys.STATE_STORE_FACTORY_CLASS_KEY, FileContextBasedFsStateStoreFactory.class.getName());
@@ -137,11 +144,13 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
     this.jobIssueEventHandler = jobIssueEventHandler;
     this.dagManagementStateStore = dagManagementStateStore;
+    this.errorClassifier = errorClassifier;
 
     Config retryerOverridesConfig = config.hasPath(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         ? config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX)
         : ConfigFactory.empty();
     // log exceptions to expose errors we suffer under and/or guide intervention when resolution not readily forthcoming
+
     this.persistJobStatusRetryer =
         RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
           @Override
@@ -153,7 +162,9 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             }
           }
         }));
-        this.eventProducer = observabilityEventProducer;
+    this.eventProducer = observabilityEventProducer;
+    this.isErrorClassificationEnabled =
+        ConfigUtils.getBoolean(this.config, ServiceConfigKeys.ERROR_CLASSIFICATION_ENABLED_KEY, false);
   }
 
   public enum NewState {
@@ -177,13 +188,13 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
 
   @Override
   public void shutDown() {
-     super.shutDown();
-     this.scheduledExecutorService.shutdown();
-     try {
-       this.scheduledExecutorService.awaitTermination(30, TimeUnit.SECONDS);
-     } catch (InterruptedException e) {
-       log.error("Exception encountered when shutting down state store cleaner", e);
-     }
+    super.shutDown();
+    this.scheduledExecutorService.shutdown();
+    try {
+      this.scheduledExecutorService.awaitTermination(30, TimeUnit.SECONDS);
+    } catch (InterruptedException e) {
+      log.error("Exception encountered when shutting down state store cleaner", e);
+    }
   }
 
   @Override
@@ -234,6 +245,28 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
           boolean retryRequired = modifyStateIfRetryRequired(jobStatus);
 
           if (updatedJobStatus.getRight() == NewState.FINISHED && !retryRequired) {
+            if (isErrorClassificationEnabled) {
+              if (jobStatus.getProp(JobStatusRetriever.EVENT_NAME_FIELD).equals(ExecutionStatus.FAILED.name())) {
+                long startTime = System.currentTimeMillis();
+                try {
+                    List<Issue> issues = jobIssueEventHandler.getErrorListForClassification(
+                        TroubleshooterUtils.getContextIdForJob(jobStatus.getProperties()));
+                    Issue finalIssue = errorClassifier.classifyEarlyStopWithDefault(issues);
+                    if (finalIssue != null) {
+                      jobIssueEventHandler.logFinalError(finalIssue, flowName, flowGroup, String.valueOf(flowExecutionId),
+                          jobName);
+                    }
+                  }
+                  catch (Exception e) {
+                    log.error("Failed to emit issue event for  flowGroup: {}, flowName: {}, flowExecutionId: {}, jobName: {}", flowGroup, flowName, flowExecutionId, jobName, e);
+                  }
+                long processDuration = System.currentTimeMillis() - startTime;
+                log.info(
+                    "Processing issues for flowGroup: {}, flowName: {}, flowExecutionId: {}, jobName: {}, duration: {} ms",
+                    flowGroup, flowName, flowExecutionId, jobName, processDuration);
+                }
+              }
+
             // do not send event if retry is required, because it can alert users to re-submit a job that is already set to be retried by GaaS
             this.eventProducer.emitObservabilityEvent(jobStatus);
           }
@@ -326,7 +359,7 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
         // We use three things to accurately count and thereby bound retries, even amidst out-of-order events (by skipping late arrivals).
         // The generation is monotonically increasing, while the attempts may re-initialize back to 0. this two-part form prevents the composite value from ever repeating.
         // And job status reflect the execution status in one attempt
-         if (!isFlowStatusAndPendingResume && (previousStatus != null && currentStatus != null && (previousGeneration > currentGeneration || (
+        if (!isFlowStatusAndPendingResume && (previousStatus != null && currentStatus != null && (previousGeneration > currentGeneration || (
             previousGeneration == currentGeneration && previousAttempts > currentAttempts) || (previousGeneration == currentGeneration && previousAttempts == currentAttempts
             && ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(currentStatus))
             < ORDERED_EXECUTION_STATUSES.indexOf(ExecutionStatus.valueOf(previousStatus)))))) {

@@ -35,6 +35,7 @@ import com.typesafe.config.Config;
 import javax.inject.Singleton;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.runtime.ErrorClassifier;
 import org.apache.gobblin.restli.EmbeddedRestliServer;
 import org.apache.gobblin.runtime.api.GobblinInstanceEnvironment;
 import org.apache.gobblin.runtime.instance.StandardGobblinInstanceLauncher;
@@ -93,6 +94,8 @@ import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
 import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitorFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.metastore.ErrorPatternStore;
+import org.apache.gobblin.metastore.InMemoryErrorPatternStore;
 
 
 public class GobblinServiceGuiceModule implements Module {
@@ -186,8 +189,12 @@ public class GobblinServiceGuiceModule implements Module {
 
     if (serviceConfig.isJobStatusMonitorEnabled()) {
       binder.bind(KafkaJobStatusMonitor.class).toProvider(KafkaJobStatusMonitorFactory.class).in(Singleton.class);
+      binder.bind(ErrorClassifier.class);
+      binder.bind(ErrorPatternStore.class)
+          .to(getClassByNameOrAlias(ErrorPatternStore.class, serviceConfig.getInnerConfig(),
+              ServiceConfigKeys.ERROR_PATTERN_STORE_CLASS,
+              InMemoryErrorPatternStore.class.getName()));
     }
-
     binder.bind(FlowStatusGenerator.class);
 
     if (serviceConfig.isSchedulerEnabled()) {
