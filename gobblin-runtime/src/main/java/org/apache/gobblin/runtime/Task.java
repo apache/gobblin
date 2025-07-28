@@ -974,6 +974,8 @@ public class Task implements TaskIFace {
             DataQualityStatus dataQualityStatus = DataQualityStatus.NOT_EVALUATED;
             if(taskDataQualityString != null) {
               dataQualityStatus = DataQualityStatus.valueOf(taskDataQualityString);
+            } else{
+              Log.warn("Task data quality status is not set, defaulting to NOT_EVALUATED for taskId: {}", this.taskId);
             }
             failTask(holder.getAggregatedException(failedForkIds, this.taskId, dataQualityStatus));
           }

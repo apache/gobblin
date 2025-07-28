@@ -70,6 +70,8 @@ public final class SafeDatasetCommit implements Callable<Void> {
 
   private static final String DATASET_STATE = "datasetState";
   private static final String FAILED_DATASET_EVENT = "failedDataset";
+  public static final String COMMIT_SRC_JOB_CONTEXT = "JobContext";
+  public static final String COMMIT_SRC_COMMIT_ACTIVITY_IMPL = "CommitActivityImpl";
 
   private final boolean shouldCommitDataInJob;
   private final boolean isJobCancelled;
@@ -78,6 +80,7 @@ public final class SafeDatasetCommit implements Callable<Void> {
   private final JobState.DatasetState datasetState;
   private final boolean isMultithreaded;
   private final JobContext jobContext;
+  private final String datasetCommitSrc;
 
   private MetricContext metricContext;
 
@@ -91,8 +94,14 @@ public final class SafeDatasetCommit implements Callable<Void> {
     metricContext = Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class);
 
     finalizeDatasetStateBeforeCommit(this.datasetState);
-    // Handle data quality evaluation at the commit level
-    evaluateAndEmitDatasetQuality();
+    // evaluate data quality at the dataset commit level, only when commit source is CommitActivityImpl
+    if(SafeDatasetCommit.COMMIT_SRC_COMMIT_ACTIVITY_IMPL.equals(this.datasetCommitSrc)){
+      log.info("Evaluating data quality for commit activity for dataset {}.", this.datasetUrn);
+       evaluateAndEmitDatasetQuality();
+    } else {
+      log.warn("Skipping data quality evaluation for dataset {} as commit source is {}", this.datasetUrn,
+          this.datasetCommitSrc);
+    }
     Class<? extends DataPublisher> dataPublisherClass;
     try (Closer closer = Closer.create()) {
       dataPublisherClass = JobContext.getJobDataPublisherClass(this.jobContext.getJobState())

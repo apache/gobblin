@@ -156,8 +156,6 @@ public class DataQualityEvaluator {
                 Attributes tags = getTagsForDataQualityMetrics(jobState, datasetUrn);
                 log.info("Tags for data quality metrics: " + tags.toString());
                 // Emit data quality status (1 for PASSED, 0 for FAILED)
-                log.info("Data quality evaluation summary detailed - DQ-Status: {}, Total: {}, Passed: {}, Failed: {}, Not Evaluated: {}",
-                    jobDataQuality, totalFiles, passedFilesCount, failedFilesCount, nonEvaluatedFilesCount);
                 log.info("Data quality status for this job is " + jobDataQuality);
                 if (jobDataQuality == DataQualityStatus.PASSED) {
                     log.info("Data quality passed for job: {}", jobState.getJobName());

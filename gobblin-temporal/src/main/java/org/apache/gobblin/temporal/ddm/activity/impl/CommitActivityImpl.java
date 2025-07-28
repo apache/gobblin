@@ -197,7 +197,7 @@ public class CommitActivityImpl implements CommitActivity {
                 @Override
                 public Callable<Void> apply(final Map.Entry<String, JobState.DatasetState> entry) {
                   return new SafeDatasetCommit(shouldCommitDataInJob, false, deliverySemantics, entry.getKey(),
-                      entry.getValue(), false, jobContext);
+                      entry.getValue(), false, jobContext, SafeDatasetCommit.COMMIT_SRC_COMMIT_ACTIVITY_IMPL);
                 }
               }).iterator(), numCommitThreads,
           // TODO: Rewrite executorUtils to use java util optional
