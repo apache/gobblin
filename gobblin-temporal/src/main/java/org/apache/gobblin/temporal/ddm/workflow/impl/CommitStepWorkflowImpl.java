@@ -17,22 +17,14 @@
 
 package org.apache.gobblin.temporal.ddm.workflow.impl;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Properties;
 
 import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 
 import lombok.extern.slf4j.Slf4j;
-
-import org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetrics;
-import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetrics;
-import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
-import org.apache.gobblin.temporal.ddm.activity.EmitOTelMetrics;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow;
