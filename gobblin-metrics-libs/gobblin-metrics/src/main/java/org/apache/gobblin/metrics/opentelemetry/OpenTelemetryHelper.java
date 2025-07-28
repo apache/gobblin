@@ -53,6 +53,7 @@ public class OpenTelemetryHelper {
    * <p>Any {@code null} or empty ({@link Attributes#isEmpty()}) instances are ignored.
    * The resulting {@link Attributes} contains all key-value pairs from the
    * provided non-null, non-empty inputs in the order they are given.
+   * For duplicate keys, the last occurrence in the array will take precedence.
    *
    * @param attributesArray array of {@link Attributes} to merge; may contain {@code null} or empty entries
    * @return a new {@link Attributes} instance containing all entries from the non-null,

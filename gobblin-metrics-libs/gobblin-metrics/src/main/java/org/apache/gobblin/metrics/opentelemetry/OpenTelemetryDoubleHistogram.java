@@ -44,7 +44,7 @@ public class OpenTelemetryDoubleHistogram implements OpenTelemetryMetric {
    * @param value the double value to record in the histogram
    */
   public void record(double value) {
-    log.info("Emitting double histogram metric: {}, value: {}, attributes: {}", this.name, value, this.baseAttributes);
+    log.debug("Emitting double histogram metric: {}, value: {}, attributes: {}", this.name, value, this.baseAttributes);
     this.doubleHistogram.record(value, this.baseAttributes);
   }
 
@@ -55,7 +55,7 @@ public class OpenTelemetryDoubleHistogram implements OpenTelemetryMetric {
    * @param additionalAttributes the additional attributes to be merged with base attributes
    */
   public void record(double value, Attributes additionalAttributes) {
-    log.info("Emitting double histogram metric: {}, value: {}, base attributes: {}, additional attributes: {}",
+    log.debug("Emitting double histogram metric: {}, value: {}, base attributes: {}, additional attributes: {}",
         this.name, value, this.baseAttributes, additionalAttributes);
     this.doubleHistogram.record(value, OpenTelemetryHelper.mergeAttributes(this.baseAttributes, additionalAttributes));
   }
