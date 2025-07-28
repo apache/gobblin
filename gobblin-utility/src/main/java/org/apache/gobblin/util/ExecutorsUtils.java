@@ -181,7 +181,8 @@ public class ExecutorsUtils {
       } catch (Exception exception) {
         // Catch all exceptions to prevent the thread from dying
         // and log the exception
-        log.error("Caught exception in runnable {}", exception.getMessage());
+        log.warn("Caught exception in runnable {}", exception.getMessage());
+        log.debug("Caught exception in runnable ", exception);
       }
     };
   }
