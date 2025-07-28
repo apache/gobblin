@@ -27,9 +27,4 @@ public enum OpenTelemetryMetricType {
   /** Represents a metric of type DoubleHistogram. */
   DOUBLE_HISTOGRAM;
 
-  @Override
-  public String toString() {
-    return this.name();
-  }
-
 }

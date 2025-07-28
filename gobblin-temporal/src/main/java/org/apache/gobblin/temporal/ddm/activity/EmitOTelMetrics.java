@@ -23,14 +23,14 @@ import java.util.Properties;
 import io.temporal.activity.ActivityInterface;
 import io.temporal.activity.ActivityMethod;
 
-import org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetrics;
+import org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetrics;
 
 @ActivityInterface
 public interface EmitOTelMetrics {
 
   @ActivityMethod
-  void emitLongCounterMetric(GaaSOpenTelemetryMetrics metric, long value, Map<String, String> attributes, Properties jobProps);
+  void emitLongCounterMetric(GobblinOpenTelemetryMetrics metric, long value, Map<String, String> attributes, Properties jobProps);
 
   @ActivityMethod
-  void emitDoubleHistogramMetric(GaaSOpenTelemetryMetrics metric, double value, Map<String, String> attributes, Properties jobProps);
+  void emitDoubleHistogramMetric(GobblinOpenTelemetryMetrics metric, double value, Map<String, String> attributes, Properties jobProps);
 }

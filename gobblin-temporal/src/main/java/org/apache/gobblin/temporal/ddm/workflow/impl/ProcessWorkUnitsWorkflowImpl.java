@@ -30,7 +30,7 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 
-import org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetrics;
+import org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetrics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
@@ -54,8 +54,8 @@ import org.apache.gobblin.temporal.workflows.metrics.EventTimer;
 import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
 import org.apache.gobblin.util.PropertiesUtils;
 
-import static org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetricsConstants.DimensionKeys.*;
-import static org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetricsConstants.DimensionValues.*;
+import static org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetricsConstants.DimensionKeys.*;
+import static org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetricsConstants.DimensionValues.*;
 
 
 @Slf4j
@@ -88,16 +88,16 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
           Optional.empty(), props);
       Map<String, String> attributes = new HashMap<>();
       attributes.put(CURR_STATE, PROCESS_WU_START);
-      this.emitOTelMetricsActivityStub.emitLongCounterMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS, 1L, attributes, props);
+      this.emitOTelMetricsActivityStub.emitLongCounterMetric(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE, 1L, attributes, props);
       long processWUStartTime = Workflow.currentTimeMillis();
       workunitsProcessed = Optional.of(processingWorkflow.performWorkload(performWorkloadInput));
       attributes.put(CURR_STATE, PROCESS_WU_COMPLETE);
-      this.emitOTelMetricsActivityStub.emitLongCounterMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS, 1L, attributes, props);
+      this.emitOTelMetricsActivityStub.emitLongCounterMetric(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE, 1L, attributes, props);
       attributes.remove(CURR_STATE);
       attributes.put(STATE, PROCESS_WU);
       double processWUDuration = (Workflow.currentTimeMillis() - processWUStartTime) / 1000.0;
       this.emitOTelMetricsActivityStub.emitDoubleHistogramMetric(
-          GaaSOpenTelemetryMetrics.GAAS_JOB_STATE_LATENCY, processWUDuration, attributes, props);
+          GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE_LATENCY, processWUDuration, attributes, props);
     } catch (Exception e) {
       log.error("ProcessWorkUnits failure - attempting partial commit before re-throwing exception", e);
 
@@ -139,16 +139,16 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
     CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
     Map<String, String> attributes = new HashMap<>();
     attributes.put(CURR_STATE, COMMIT_STEP_START);
-    this.emitOTelMetricsActivityStub.emitLongCounterMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS, 1L, attributes, props);
+    this.emitOTelMetricsActivityStub.emitLongCounterMetric(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE, 1L, attributes, props);
     long commitStepStartTime = Workflow.currentTimeMillis();
     CommitStats result = commitWorkflow.commit(workSpec, props);
     attributes.put(CURR_STATE, COMMIT_STEP_COMPLETE);
-    this.emitOTelMetricsActivityStub.emitLongCounterMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS, 1L, attributes, props);
+    this.emitOTelMetricsActivityStub.emitLongCounterMetric(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE, 1L, attributes, props);
     attributes.remove(CURR_STATE);
     attributes.put(STATE, COMMIT_STEP);
     double commitStepDuration = (Workflow.currentTimeMillis() - commitStepStartTime) / 1000.0;
     this.emitOTelMetricsActivityStub.emitDoubleHistogramMetric(
-        GaaSOpenTelemetryMetrics.GAAS_JOB_STATE_LATENCY, commitStepDuration, attributes, props);
+        GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE_LATENCY, commitStepDuration, attributes, props);
     if (result.getNumCommittedWorkUnits() == 0) {
       log.warn("No work units committed at the job level. They could have been committed at the task level.");
     }

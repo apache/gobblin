@@ -20,7 +20,7 @@ package org.apache.gobblin.temporal.ddm.activity.impl;
 import java.util.Map;
 import java.util.Properties;
 
-import org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetrics;
+import org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetrics;
 import org.apache.gobblin.metrics.opentelemetry.OpenTelemetryDoubleHistogram;
 import org.apache.gobblin.metrics.opentelemetry.OpenTelemetryHelper;
 import org.apache.gobblin.metrics.opentelemetry.OpenTelemetryInstrumentation;
@@ -31,13 +31,13 @@ import org.apache.gobblin.temporal.ddm.activity.EmitOTelMetrics;
 public class EmitOTelMetricsImpl implements EmitOTelMetrics {
 
   @Override
-  public void emitLongCounterMetric(GaaSOpenTelemetryMetrics metric, long value, Map<String, String> attributes, Properties jobProps) {
+  public void emitLongCounterMetric(GobblinOpenTelemetryMetrics metric, long value, Map<String, String> attributes, Properties jobProps) {
     OpenTelemetryLongCounter longCounter = (OpenTelemetryLongCounter) OpenTelemetryInstrumentation.getInstance(jobProps).getOrCreate(metric);
     longCounter.add(value, OpenTelemetryHelper.toOpenTelemetryAttributes(attributes));
   }
 
   @Override
-  public void emitDoubleHistogramMetric(GaaSOpenTelemetryMetrics metric, double value, Map<String, String> attributes, Properties jobProps) {
+  public void emitDoubleHistogramMetric(GobblinOpenTelemetryMetrics metric, double value, Map<String, String> attributes, Properties jobProps) {
     OpenTelemetryDoubleHistogram doubleHistogram = (OpenTelemetryDoubleHistogram) OpenTelemetryInstrumentation.getInstance(jobProps).getOrCreate(metric);
     doubleHistogram.record(value, OpenTelemetryHelper.toOpenTelemetryAttributes(attributes));
   }

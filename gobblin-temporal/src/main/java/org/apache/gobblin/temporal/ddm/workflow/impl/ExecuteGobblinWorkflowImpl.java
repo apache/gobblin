@@ -48,7 +48,7 @@ import io.temporal.workflow.Workflow;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetrics;
+import org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetrics;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
@@ -79,8 +79,8 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
-import static org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetricsConstants.DimensionKeys.*;
-import static org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetricsConstants.DimensionValues.*;
+import static org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetricsConstants.DimensionKeys.*;
+import static org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetricsConstants.DimensionValues.*;
 
 
 @Slf4j
@@ -110,15 +110,15 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
           ActivityType.GENERATE_WORKUNITS.buildActivityOptions(temporalJobProps, true));
       attributes.put(CURR_STATE, GENERATE_WU_START);
-      emitOTelMetricsActivityStub.emitLongCounterMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS, 1, attributes, temporalJobProps);
+      emitOTelMetricsActivityStub.emitLongCounterMetric(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE, 1, attributes, temporalJobProps);
       long genWUStartTime = Workflow.currentTimeMillis();
       GenerateWorkUnitsResult generateWorkUnitResult = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       attributes.put(CURR_STATE, GENERATE_WU_COMPLETE);
-      emitOTelMetricsActivityStub.emitLongCounterMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS, 1, attributes, temporalJobProps);
+      emitOTelMetricsActivityStub.emitLongCounterMetric(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE, 1, attributes, temporalJobProps);
       double genWUTImeTaken = (Workflow.currentTimeMillis() - genWUStartTime) / 1000.0;
       attributes.remove(CURR_STATE);
       attributes.put(STATE, GENERATE_WU);
-      emitOTelMetricsActivityStub.emitDoubleHistogramMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATE_LATENCY, genWUTImeTaken, attributes, temporalJobProps);
+      emitOTelMetricsActivityStub.emitDoubleHistogramMetric(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE_LATENCY, genWUTImeTaken, attributes, temporalJobProps);
       optGenerateWorkUnitResult = Optional.of(generateWorkUnitResult);
       WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();
       int numWUsGenerated = safelyCastNumConstituentWorkUnitsOrThrow(wuSizeSummary);

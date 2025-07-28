@@ -101,11 +101,11 @@ public class OpenTelemetryInstrumentationTest {
   public void metricsAreCreatedAndCached() {
     instrumentation = OpenTelemetryInstrumentation.getInstance(state);
     Assert.assertEquals(instrumentation.getMetrics().size(), 0, "Metrics map should be empty initially");
-    instrumentation.getOrCreate(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS);
+    instrumentation.getOrCreate(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE);
     Assert.assertEquals(instrumentation.getMetrics().size(), 1, "Metrics map should contain one metric after creation");
-    instrumentation.getOrCreate(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS);
+    instrumentation.getOrCreate(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE);
     Assert.assertEquals(instrumentation.getMetrics().size(), 1, "Metrics map should still contain one metric after duplicate creation");
-    instrumentation.getOrCreate(GaaSOpenTelemetryMetrics.GAAS_JOB_STATE_LATENCY);
+    instrumentation.getOrCreate(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE_LATENCY);
     Assert.assertEquals(instrumentation.getMetrics().size(), 2, "Metrics map should contain two metrics after creating another");
   }
 
