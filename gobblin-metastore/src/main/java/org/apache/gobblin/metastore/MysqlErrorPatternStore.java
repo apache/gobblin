@@ -50,7 +50,7 @@ import java.util.List;
  *
  * Expected table schemas:
  *
- * 1. error_summary_regex_store
+ * 1. error_regex_summary_store
  *    - description_regex: VARCHAR(255) NOT NULL UNIQUE
  *    - error_category_name: VARCHAR(255) NOT NULL
  *
@@ -127,7 +127,7 @@ public class MysqlErrorPatternStore implements ErrorPatternStore {
       throw new IOException("Please specify the config for MysqlErrorPatternStore");
     }
     this.errorRegexSummaryStoreTable =
-        ConfigUtils.getString(config, ConfigurationKeys.ERROR_REGEX_DB_TABLE_KEY, "error_summary_regex_store");
+        ConfigUtils.getString(config, ConfigurationKeys.ERROR_REGEX_DB_TABLE_KEY, "error_regex_summary_store");
     this.errorCategoriesTable =
         ConfigUtils.getString(config, ConfigurationKeys.ERROR_CATEGORIES_DB_TABLE_KEY, "error_categories");
     this.dataSource = MysqlDataSourceFactory.get(config, SharedResourcesBrokerFactory.getImplicitBroker());
