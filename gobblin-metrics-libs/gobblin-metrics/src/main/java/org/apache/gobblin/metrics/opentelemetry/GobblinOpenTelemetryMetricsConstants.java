@@ -17,7 +17,7 @@
 
 package org.apache.gobblin.metrics.opentelemetry;
 
-public class GaaSOpenTelemetryMetricsConstants {
+public class GobblinOpenTelemetryMetricsConstants {
 
   public static class DimensionKeys {
     public static final String STATE = "state";

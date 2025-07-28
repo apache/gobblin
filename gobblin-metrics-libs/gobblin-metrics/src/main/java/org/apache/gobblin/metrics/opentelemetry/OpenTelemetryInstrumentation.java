@@ -41,7 +41,7 @@ import org.apache.gobblin.service.ServiceConfigKeys;
  * Provides OpenTelemetry instrumentation for metrics.
  *
  * <p>Maintains a singleton instance that holds common attributes {@link Attributes} and a Meter {@link Meter}.
- * Exposes methods to retrieve or create metric instruments defined in {@link GaaSOpenTelemetryMetrics}.
+ * Exposes methods to retrieve or create metric instruments defined in {@link GobblinOpenTelemetryMetrics}.
  */
 @Slf4j
 @Getter
@@ -102,14 +102,14 @@ public class OpenTelemetryInstrumentation {
   /**
    * Retrieves an existing metric by its enum definition or creates it if absent.
    *
-   * @param metric the {@link GaaSOpenTelemetryMetrics} enum defining name, description, unit, and type {@link OpenTelemetryMetricType}
+   * @param metric the {@link GobblinOpenTelemetryMetrics} enum defining name, description, unit, and type {@link OpenTelemetryMetricType}
    * @return an {@link OpenTelemetryMetric} instance corresponding to the provided enum
    */
-  public OpenTelemetryMetric getOrCreate(GaaSOpenTelemetryMetrics metric) {
+  public OpenTelemetryMetric getOrCreate(GobblinOpenTelemetryMetrics metric) {
     return this.metrics.computeIfAbsent(metric.getMetricName(), name -> createMetric(metric));
   }
 
-  private OpenTelemetryMetric createMetric(GaaSOpenTelemetryMetrics metric) {
+  private OpenTelemetryMetric createMetric(GobblinOpenTelemetryMetrics metric) {
     String name = metric.getMetricName();
     String description = metric.getMetricDescription();
     String unit = metric.getMetricUnit();
@@ -157,7 +157,7 @@ public class OpenTelemetryInstrumentation {
     return attributesBuilder.build();
   }
 
-  private String getFlowEdgeId(final State state, String fullFlowEdgeId) {
+  private static String getFlowEdgeId(final State state, String fullFlowEdgeId) {
     // Parse the flowEdgeId from fullFlowEdgeId that is stored in format sourceNode_destinationNode_flowEdgeId
     return StringUtils.substringAfter(
         StringUtils.substringAfter(fullFlowEdgeId, state.getProp(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "")),

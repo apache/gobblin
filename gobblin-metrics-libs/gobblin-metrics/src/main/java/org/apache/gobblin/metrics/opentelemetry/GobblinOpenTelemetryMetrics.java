@@ -23,9 +23,18 @@ import lombok.Getter;
 
 @Getter
 @AllArgsConstructor
-public enum GaaSOpenTelemetryMetrics {
-  GAAS_JOB_STATUS("gaas_job_status", "Gaas job status counter", "1", OpenTelemetryMetricType.LONG_COUNTER),
-  GAAS_JOB_STATE_LATENCY("gaas_job_state_latency", "Gaas job state latency", "s", OpenTelemetryMetricType.DOUBLE_HISTOGRAM);
+public enum GobblinOpenTelemetryMetrics {
+  /**
+   * Metric to track the count of Gobblin Jobs for each of its state (GenerateWorkUnit, ProcessWorkUnit, CommitStep).
+   * Metric Unit: 1 represents each increment will add one data point to the counter.
+   * */
+  GOBBLIN_JOB_STATE("gobblin_job_state", "Gobblin job state counter", "1", OpenTelemetryMetricType.LONG_COUNTER),
+
+  /**
+   * Metric to track the latency of each Gobblin Job state (GenerateWorkUnit, ProcessWorkUnit, CommitStep).
+   * Metric Unit: seconds (s) represents the time taken for each state.
+   * */
+  GOBBLIN_JOB_STATE_LATENCY("gobblin_job_state_latency", "Gobblin job state latency", "s", OpenTelemetryMetricType.DOUBLE_HISTOGRAM);
 
   private final String metricName;
   private final String metricDescription;

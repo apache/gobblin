@@ -34,7 +34,7 @@ import io.opentelemetry.api.common.AttributesBuilder;
 @UtilityClass
 public class OpenTelemetryHelper {
 
-  private static final String DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE = "-";
+  private static final String DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE = "UNKNOWN";
 
   /**
    * Returns the provided attribute value when it is non-null and non-empty;
@@ -44,7 +44,7 @@ public class OpenTelemetryHelper {
    * @return the original value if not empty, or DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE otherwise
    */
   public static String getOrDefaultOpenTelemetryAttrValue(String value) {
-    return StringUtils.isNotEmpty(value) ? value : DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE;
+    return StringUtils.defaultIfBlank(value, DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE);
   }
 
   /**

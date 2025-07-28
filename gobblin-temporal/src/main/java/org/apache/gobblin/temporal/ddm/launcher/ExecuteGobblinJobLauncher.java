@@ -35,7 +35,7 @@ import org.apache.gobblin.broker.SharedResourcesBrokerFactory;
 import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
 import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetrics;
+import org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetrics;
 import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobLauncher;
@@ -54,8 +54,8 @@ import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JobLauncherUtils;
 import org.apache.gobblin.util.PropertiesUtils;
 
-import static org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetricsConstants.DimensionKeys.*;
-import static org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetricsConstants.DimensionValues.*;
+import static org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetricsConstants.DimensionKeys.*;
+import static org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetricsConstants.DimensionValues.*;
 
 
 /**
@@ -107,17 +107,17 @@ public class ExecuteGobblinJobLauncher extends GobblinTemporalJobLauncher {
       Map<String, String> attributes = new HashMap<>();
       attributes.put(CURR_STATE, JOB_START);
       EmitOTelMetricsImpl emitOTelMetrics = new EmitOTelMetricsImpl();
-      emitOTelMetrics.emitLongCounterMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS, 1L, attributes, finalProps);
+      emitOTelMetrics.emitLongCounterMetric(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE, 1L, attributes, finalProps);
 
       long startTimeMillis = System.currentTimeMillis();
       ExecGobblinStats execGobblinStats = workflow.execute(finalProps, eventSubmitterContext);
       double timeTaken = (System.currentTimeMillis() - startTimeMillis) / 1000.0;
       log.info("FINISHED - ExecuteGobblinWorkflow.execute = {}", execGobblinStats);
       attributes.put(CURR_STATE, JOB_COMPLETE);
-      emitOTelMetrics.emitLongCounterMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS, 1L, attributes, finalProps);
+      emitOTelMetrics.emitLongCounterMetric(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE, 1L, attributes, finalProps);
       attributes.remove(CURR_STATE);
       attributes.put(STATE, JOB_COMPLETE);
-      emitOTelMetrics.emitDoubleHistogramMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATE_LATENCY, timeTaken, attributes, finalProps);
+      emitOTelMetrics.emitDoubleHistogramMetric(GobblinOpenTelemetryMetrics.GOBBLIN_JOB_STATE_LATENCY, timeTaken, attributes, finalProps);
     } catch (Exception e) {
       throw new RuntimeException(e);
     }

@@ -29,7 +29,7 @@ import io.temporal.workflow.Workflow;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
-import org.apache.gobblin.metrics.opentelemetry.GaaSOpenTelemetryMetrics;
+import org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetrics;
 import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
@@ -47,11 +47,6 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
   @Override
   public CommitStats commit(WUProcessingSpec workSpec, final Properties props) {
     final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, ActivityType.COMMIT.buildActivityOptions(props, true));
-    Map<String, String> attributes = new HashMap<>();
-    attributes.put("currState", "processWUStart");
-    final EmitOTelMetrics emitOTelMetricsActivityStub = Workflow.newActivityStub(EmitOTelMetrics.class,
-        ActivityType.EMIT_OTEL_METRICS.buildActivityOptions(props, false));
-    emitOTelMetricsActivityStub.emitLongCounterMetric(GaaSOpenTelemetryMetrics.GAAS_JOB_STATUS, 1L, attributes, props);
     CommitStats commitGobblinStats = activityStub.commit(workSpec);
     if (!commitGobblinStats.getOptFailure().isPresent() || commitGobblinStats.getNumCommittedWorkUnits() > 0) {
       TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(workSpec.getEventSubmitterContext(), props);
