@@ -19,7 +19,7 @@ package org.apache.gobblin.writer;
 import java.io.IOException;
 import java.util.Collection;
 
-import org.codehaus.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.map.ObjectMapper;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
