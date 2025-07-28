@@ -31,16 +31,6 @@ import org.slf4j.LoggerFactory;
  */
 @Getter
 public class TaskLevelPolicyChecker {
-  /**
-   * An enumeration for possible statuses for Data quality checks,
-   * its values will be PASSED, FAILED, in case if data quality check
-   * evaluation is not performed for Job, it will be NOT_EVALUATED
-   */
-  public enum DataQualityStatus {
-    PASSED,
-    FAILED,
-    NOT_EVALUATED
-  }
   private final List<TaskLevelPolicy> list;
   private static final Logger LOG = LoggerFactory.getLogger(TaskLevelPolicyChecker.class);
 
