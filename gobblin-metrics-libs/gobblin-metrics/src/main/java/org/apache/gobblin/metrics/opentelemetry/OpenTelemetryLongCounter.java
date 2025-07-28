@@ -44,7 +44,7 @@ public class OpenTelemetryLongCounter implements OpenTelemetryMetric {
    * @param value the value to add to the counter
    */
   public void add(long value) {
-    log.info("Emitting long counter metric: {}, value: {}, attributes: {}", this.name, value, this.baseAttributes);
+    log.debug("Emitting long counter metric: {}, value: {}, attributes: {}", this.name, value, this.baseAttributes);
     this.longCounter.add(value, this.baseAttributes);
   }
 
@@ -55,7 +55,7 @@ public class OpenTelemetryLongCounter implements OpenTelemetryMetric {
    * @param additionalAttributes the additional attributes to be merged with base attributes
    */
   public void add(long value, Attributes additionalAttributes) {
-    log.info("Emitting long counter metric: {}, value: {}, base attributes: {}, additional attributes: {}",
+    log.debug("Emitting long counter metric: {}, value: {}, base attributes: {}, additional attributes: {}",
         this.name, value, this.baseAttributes, additionalAttributes);
     this.longCounter.add(value, OpenTelemetryHelper.mergeAttributes(this.baseAttributes, additionalAttributes));
   }
