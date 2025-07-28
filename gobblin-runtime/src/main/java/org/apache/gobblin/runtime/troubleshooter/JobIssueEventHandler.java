@@ -129,7 +129,8 @@ public class JobIssueEventHandler {
       return issueRepository.getMostRecentErrors(contextId, limit);
   }
 
-  public void logFinalError(Issue issue, String flowName, String flowGroup, String flowExecutionId, String jobName) {
+  public void logFinalError(Issue issue, String flowName, String flowGroup, String flowExecutionId, String jobName)
+      throws TroubleshooterException {
     JobIssueLogEntry logEntry = new JobIssueLogEntry();
     logEntry.issue = issue;
     logEntry.flowName = flowName;
@@ -138,6 +139,8 @@ public class JobIssueEventHandler {
     logEntry.jobName = jobName;
 
     String serializedIssueEvent = GsonUtils.GSON_WITH_DATE_HANDLING.toJson(logEntry);
+    String contextId = TroubleshooterUtils.getContextIdForJob(flowGroup, flowName, flowExecutionId, jobName);
+    issueRepository.put(contextId, issue);
     issueLogger.info(serializedIssueEvent);
   }
 }
