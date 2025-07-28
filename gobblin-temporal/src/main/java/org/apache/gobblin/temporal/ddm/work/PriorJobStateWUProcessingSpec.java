@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -51,8 +52,8 @@ public class PriorJobStateWUProcessingSpec extends WUProcessingSpec {
   @NonNull private List<Tag<?>> tags = new ArrayList<>();
   @NonNull private String metricsSuffix = GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_METRICS_SUFFIX;
 
-  public PriorJobStateWUProcessingSpec(URI fileSystemUri, String workUnitsDir, EventSubmitterContext eventSubmitterContext) {
-    super(fileSystemUri, workUnitsDir, eventSubmitterContext);
+  public PriorJobStateWUProcessingSpec(URI fileSystemUri, String workUnitsDir, EventSubmitterContext eventSubmitterContext, Properties fileSystemProperties) {
+    super(fileSystemUri, workUnitsDir, eventSubmitterContext, fileSystemProperties);
   }
 
   @JsonIgnore

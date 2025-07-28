@@ -20,6 +20,7 @@ package org.apache.gobblin.temporal.ddm.work;
 import java.net.URI;
 import java.util.Comparator;
 import java.util.Optional;
+import java.util.Properties;
 
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.Path;
@@ -44,16 +45,19 @@ import org.apache.gobblin.util.WorkUnitSizeInfo;
 public class EagerFsDirBackedWorkUnitClaimCheckWorkload extends AbstractEagerFsDirBackedWorkload<WorkUnitClaimCheck> {
   private EventSubmitterContext eventSubmitterContext;
 
-  public EagerFsDirBackedWorkUnitClaimCheckWorkload(URI fileSystemUri, String hdfsDir, EventSubmitterContext eventSubmitterContext) {
+  private Properties fileSystemProperties;
+
+  public EagerFsDirBackedWorkUnitClaimCheckWorkload(URI fileSystemUri, String hdfsDir, EventSubmitterContext eventSubmitterContext, Properties fileSystemProperties) {
     super(fileSystemUri, hdfsDir);
     this.eventSubmitterContext = eventSubmitterContext;
+    this.fileSystemProperties = fileSystemProperties;
   }
 
   @Override
   protected WorkUnitClaimCheck fromFileStatus(FileStatus fileStatus) {
     // begin by setting all correlators to empty string - later we'll `acknowledgeOrdering()`
     Path filePath = fileStatus.getPath();
-    return new WorkUnitClaimCheck("", this.getFileSystemUri(), filePath.toString(), extractTunneledWorkUnitSizeInfo(filePath), this.eventSubmitterContext);
+    return new WorkUnitClaimCheck("", this.getFileSystemUri(), filePath.toString(), extractTunneledWorkUnitSizeInfo(filePath), this.eventSubmitterContext, fileSystemProperties);
   }
 
   @Override

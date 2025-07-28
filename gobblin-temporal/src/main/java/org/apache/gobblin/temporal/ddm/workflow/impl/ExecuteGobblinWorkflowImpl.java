@@ -85,6 +85,9 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     // Filtering only temporal job properties to pass to child workflows to avoid passing unnecessary properties
     final Properties temporalJobProps = PropertiesUtils.extractPropertiesWithPrefix(jobProps,
         com.google.common.base.Optional.of(GobblinTemporalConfigurationKeys.PREFIX));
+    // Add File system properties to the temporal job properties
+    temporalJobProps.putAll(PropertiesUtils.extractPropertiesWithPrefix(jobProps,
+        com.google.common.base.Optional.of(ConfigurationKeys.DEFAULT_STATE_STORE_TYPE)));
     TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinWorkflowFactory(eventSubmitterContext, temporalJobProps);
     timerFactory.create(TimingEvent.LauncherTimings.JOB_PREPARE).submit(); // update GaaS: `TimingEvent.JOB_START_TIME`
     EventTimer jobSuccessTimer = timerFactory.createJobTimer();
@@ -197,7 +200,9 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     JobState jobState = new JobState(jobProps);
     URI fileSystemUri = JobStateUtils.getFileSystemUri(jobState);
     Path workUnitsDirPath = JobStateUtils.getWorkUnitsPath(jobState);
-    WUProcessingSpec wuSpec = new WUProcessingSpec(fileSystemUri, workUnitsDirPath.toString(), eventSubmitterContext);
+    Properties fsProps = PropertiesUtils.extractPropertiesWithPrefix(jobProps,
+        com.google.common.base.Optional.of(ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
+    WUProcessingSpec wuSpec = new WUProcessingSpec(fileSystemUri, workUnitsDirPath.toString(), eventSubmitterContext, fsProps);
     // TODO: use our own prop names; don't "borrow" from `ProcessWorkUnitsJobLauncher`
     if (jobProps.containsKey(ProcessWorkUnitsJobLauncher.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_BRANCHES_PER_TREE)
         && jobProps.containsKey(ProcessWorkUnitsJobLauncher.GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_WORK_MAX_SUB_TREES_PER_TREE)) {
