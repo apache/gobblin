@@ -591,6 +591,15 @@ public class JobState extends SourceState implements JobProgress {
         .name("completed tasks").value(this.getCompletedTasks());
   }
 
+  /**
+   * Gets the overall data quality status of the job.
+   * @return "PASSED" if all tasks passed their quality checks, "FAILED" otherwise
+   */
+  public DataQualityStatus getDataQualityStatus() {
+    return DataQualityStatus.fromString(super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY));
+  }
+
+
   protected void propsToJson(JsonWriter jsonWriter)
       throws IOException {
     jsonWriter.beginObject();
@@ -790,14 +799,6 @@ public class JobState extends SourceState implements JobProgress {
 
     public int getJobFailures() {
       return Integer.parseInt(super.getProp(ConfigurationKeys.JOB_FAILURES_KEY));
-    }
-
-    /**
-     * Gets the overall data quality status of the dataset.
-     * @return "PASSED" if all tasks passed their quality checks, "FAILED" otherwise
-     */
-    public DataQualityStatus getDataQualityStatus() {
-      return DataQualityStatus.fromString(super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY));
     }
 
     @Override
