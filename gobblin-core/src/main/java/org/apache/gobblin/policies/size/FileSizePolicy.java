@@ -62,7 +62,7 @@ public class FileSizePolicy extends TaskLevelPolicy {
   @Override
   public String toString() {
     TransferBytes transferBytes = getBytesReadAndWritten(this.state).orElse(null);
-    if (transferBytes == null) {
+    if (transferBytes != null) {
       return String.format("FileSizePolicy [bytesRead=%s, bytesWritten=%s]", transferBytes.getBytesRead(),
           transferBytes.getBytesWritten());
     } else {

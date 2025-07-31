@@ -629,11 +629,11 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       TaskLevelPolicyCheckResults taskResults =
           this.taskContext.getTaskLevelPolicyChecker(this.forkTaskState, this.branches > 1 ? this.index : -1)
               .executePolicies();
-      boolean allRequiredPoliciesPassed = taskResults.getPolicyResults().entrySet().stream()
-          .filter(e -> e.getValue() == TaskLevelPolicy.Type.FAIL)
-          .allMatch(e -> e.getKey() == TaskLevelPolicy.Result.PASSED);
+      boolean hasFailureForMandatoryPolicy = taskResults.getPolicyResults()
+          .getOrDefault(TaskLevelPolicy.Result.FAILED, java.util.Collections.emptySet())
+          .contains(TaskLevelPolicy.Type.FAIL);
       forkTaskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY,
-          allRequiredPoliciesPassed ? DataQualityStatus.PASSED.name() : DataQualityStatus.FAILED.name());
+          hasFailureForMandatoryPolicy ? DataQualityStatus.FAILED.name() : DataQualityStatus.PASSED.name());
       TaskPublisher publisher = this.taskContext.getTaskPublisher(this.forkTaskState, taskResults);
       switch (publisher.canPublish()) {
         case SUCCESS:

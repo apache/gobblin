@@ -17,8 +17,8 @@
 
 package org.apache.gobblin.qualitychecker.task;
 
+import java.util.EnumSet;
 import java.util.List;
-
 import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -42,10 +42,12 @@ public class TaskLevelPolicyChecker {
 
   public TaskLevelPolicyCheckResults executePolicies() {
     TaskLevelPolicyCheckResults results = new TaskLevelPolicyCheckResults();
+
     for (TaskLevelPolicy p : this.list) {
       TaskLevelPolicy.Result result = p.executePolicy();
-      results.getPolicyResults().put(result, p.getType());
-      LOG.info("TaskLevelPolicy " + p + " of type " + p.getType() + " executed with result " + result);
+      results.getPolicyResults().computeIfAbsent(result, r -> EnumSet.noneOf(TaskLevelPolicy.Type.class))
+          .add(p.getType());
+      LOG.info("TaskLevelPolicy {} of type {} executed with result {}", p, p.getType(), result);
     }
     return results;
   }

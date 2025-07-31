@@ -15,24 +15,19 @@
  * limitations under the License.
  */
 
-package org.apache.gobblin.qualitychecker.task;
+package org.apache.gobblin.qualitychecker;
 
-import java.util.HashMap;
-import java.util.Map;
-import java.util.Set;
+import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicy;
 
 
-/**
- * Wrapper around a Map of PolicyResults and Policy.Type
- */
-public class TaskLevelPolicyCheckResults {
-  private final Map<TaskLevelPolicy.Result, Set<TaskLevelPolicy.Type>> results;
-
-  public TaskLevelPolicyCheckResults() {
-    this.results = new HashMap<>();
+public class FailingTaskLevelPolicy extends TaskLevelPolicy {
+  public FailingTaskLevelPolicy(State state, Type type) {
+    super(state, type);
   }
 
-  public Map<TaskLevelPolicy.Result, Set<TaskLevelPolicy.Type>> getPolicyResults() {
-    return this.results;
+  @Override
+  public Result executePolicy() {
+    return Result.FAILED;
   }
 }
