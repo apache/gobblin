@@ -95,11 +95,11 @@ public final class SafeDatasetCommit implements Callable<Void> {
 
     finalizeDatasetStateBeforeCommit(this.datasetState);
     // evaluate data quality at the dataset commit level, only when commit source is CommitActivityImpl
-    if(SafeDatasetCommit.COMMIT_SRC_COMMIT_ACTIVITY_IMPL.equals(this.datasetCommitSrc)){
+    if (SafeDatasetCommit.COMMIT_SRC_COMMIT_ACTIVITY_IMPL.equals(this.datasetCommitSrc)) {
       log.info("Evaluating data quality for commit activity for dataset {}.", this.datasetUrn);
        evaluateAndEmitDatasetQuality();
     } else {
-      log.warn("Skipping data quality evaluation for dataset {} as commit source is {}", this.datasetUrn,
+      log.info("Skipping data quality evaluation for dataset {} as commit source is {}", this.datasetUrn,
           this.datasetCommitSrc);
     }
     Class<? extends DataPublisher> dataPublisherClass;

@@ -24,6 +24,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicy;
 
+
 /**
  * A task-level policy that checks if the bytes read matches the bytes written for a file copy operation.
  */
@@ -40,12 +41,12 @@ public class FileSizePolicy extends TaskLevelPolicy {
 
   @Override
   public Result executePolicy() {
-    Optional<TransferBytes> bytes = getBytesReadAndWritten(this.state);
-    if (!bytes.isPresent()) {
+    TransferBytes transferBytes = getBytesReadAndWritten(this.state).orElse(null);
+    if (transferBytes == null) {
       return Result.FAILED;
     }
-    Long bytesRead = bytes.get().getBytesRead();
-    Long bytesWritten = bytes.get().getBytesWritten();
+    Long bytesRead = transferBytes.getBytesRead();
+    Long bytesWritten = transferBytes.getBytesWritten();
 
     Long sizeDifference = Math.abs(bytesRead - bytesWritten);
 
@@ -53,17 +54,18 @@ public class FileSizePolicy extends TaskLevelPolicy {
       return Result.PASSED;
     }
 
-    log.warn("File size check failed - bytes read: {}, bytes written: {}, difference: {}",
-        bytesRead, bytesWritten, sizeDifference);
+    log.warn("File size check failed - bytes read: {}, bytes written: {}, difference: {}", bytesRead, bytesWritten,
+        sizeDifference);
     return Result.FAILED;
   }
 
   @Override
   public String toString() {
-    Optional<TransferBytes> bytes = getBytesReadAndWritten(this.state);
-    if(bytes.isPresent()) {
-      return String.format("FileSizePolicy [bytesRead=%s, bytesWritten=%s]", bytes.get().getBytesRead(), bytes.get().getBytesWritten());
-    } else{
+    TransferBytes transferBytes = getBytesReadAndWritten(this.state).orElse(null);
+    if (transferBytes == null) {
+      return String.format("FileSizePolicy [bytesRead=%s, bytesWritten=%s]", transferBytes.getBytesRead(),
+          transferBytes.getBytesWritten());
+    } else {
       return "FileSizePolicy [bytesRead=null, bytesWritten=null]";
     }
   }
@@ -73,9 +75,10 @@ public class FileSizePolicy extends TaskLevelPolicy {
    */
   @Getter
   private static class TransferBytes {
-    final Long bytesRead;
-    final Long bytesWritten;
-    TransferBytes(Long bytesRead, Long bytesWritten) {
+    final long bytesRead;
+    final long bytesWritten;
+
+    TransferBytes(long bytesRead, long bytesWritten) {
       this.bytesRead = bytesRead;
       this.bytesWritten = bytesWritten;
     }
@@ -83,7 +86,7 @@ public class FileSizePolicy extends TaskLevelPolicy {
 
   /**
    * Extracts bytesRead and bytesWritten from the given state.
-   * Returns null if parsing fails.
+   * Returns Empty Optional if parsing fails.
    */
   private Optional<TransferBytes> getBytesReadAndWritten(State state) {
     String bytesReadString = state.getProp(BYTES_READ_KEY);
@@ -97,7 +100,8 @@ public class FileSizePolicy extends TaskLevelPolicy {
       long bytesWritten = Long.parseLong(bytesWrittenString);
       return Optional.of(new TransferBytes(bytesRead, bytesWritten));
     } catch (NumberFormatException e) {
-      log.error("Invalid number format for bytesRead or bytesWritten: bytesRead='{}', bytesWritten='{}'", bytesReadString, bytesWrittenString, e);
+      log.error("Invalid number format for bytesRead or bytesWritten: bytesRead='{}', bytesWritten='{}'",
+          bytesReadString, bytesWrittenString, e);
       return Optional.empty();
     }
   }
