@@ -516,7 +516,7 @@ public class JobContext implements Closeable {
       DeliverySemantics deliverySemantics, String datasetUrn, JobState.DatasetState datasetState,
       boolean isMultithreaded, JobContext jobContext) {
     return new SafeDatasetCommit(shouldCommitDataInJob, isJobCancelled, deliverySemantics, datasetUrn, datasetState,
-        isMultithreaded, jobContext);
+        isMultithreaded, jobContext, SafeDatasetCommit.COMMIT_SRC_JOB_CONTEXT);
   }
 
   protected Map<String, JobState.DatasetState> computeDatasetStatesByUrns() {

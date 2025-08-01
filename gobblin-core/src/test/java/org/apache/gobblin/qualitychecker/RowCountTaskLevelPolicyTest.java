@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.qualitychecker;
 
+import java.util.Set;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyChecker;
@@ -46,7 +47,7 @@ public class RowCountTaskLevelPolicyTest {
     state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, WRITER_ROWS_WRITTEN);
 
     TaskLevelPolicyCheckResults results = getPolicyResults(state);
-    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : results.getPolicyResults().entrySet()) {
+    for (Map.Entry<TaskLevelPolicy.Result, Set<TaskLevelPolicy.Type>> entry : results.getPolicyResults().entrySet()) {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.PASSED);
     }
   }
@@ -61,7 +62,7 @@ public class RowCountTaskLevelPolicyTest {
     state.setProp(ConfigurationKeys.WRITER_ROWS_WRITTEN, -1);
 
     TaskLevelPolicyCheckResults results = getPolicyResults(state);
-    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : results.getPolicyResults().entrySet()) {
+    for (Map.Entry<TaskLevelPolicy.Result, Set<TaskLevelPolicy.Type>> entry : results.getPolicyResults().entrySet()) {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.FAILED);
     }
   }
@@ -77,7 +78,7 @@ public class RowCountTaskLevelPolicyTest {
     state.setProp(ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
     TaskLevelPolicyCheckResults results = getPolicyResults(state);
-    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : results.getPolicyResults().entrySet()) {
+    for (Map.Entry<TaskLevelPolicy.Result, Set<TaskLevelPolicy.Type>> entry : results.getPolicyResults().entrySet()) {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.PASSED);
     }
   }
@@ -93,7 +94,7 @@ public class RowCountTaskLevelPolicyTest {
     state.setProp(ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
     TaskLevelPolicyCheckResults results = getPolicyResults(state);
-    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : results.getPolicyResults().entrySet()) {
+    for (Map.Entry<TaskLevelPolicy.Result, Set<TaskLevelPolicy.Type>> entry : results.getPolicyResults().entrySet()) {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.PASSED);
     }
   }
@@ -109,7 +110,7 @@ public class RowCountTaskLevelPolicyTest {
     state.setProp(ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
     TaskLevelPolicyCheckResults results = getPolicyResults(state);
-    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : results.getPolicyResults().entrySet()) {
+    for (Map.Entry<TaskLevelPolicy.Result, Set<TaskLevelPolicy.Type>> entry : results.getPolicyResults().entrySet()) {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.FAILED);
     }
   }
@@ -126,7 +127,7 @@ public class RowCountTaskLevelPolicyTest {
     state.setProp(ConfigurationKeys.ROW_COUNT_RANGE, "0.05");
 
     TaskLevelPolicyCheckResults results = getPolicyResults(state);
-    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : results.getPolicyResults().entrySet()) {
+    for (Map.Entry<TaskLevelPolicy.Result, Set<TaskLevelPolicy.Type>> entry : results.getPolicyResults().entrySet()) {
       Assert.assertEquals(entry.getKey(), TaskLevelPolicy.Result.PASSED);
     }
   }

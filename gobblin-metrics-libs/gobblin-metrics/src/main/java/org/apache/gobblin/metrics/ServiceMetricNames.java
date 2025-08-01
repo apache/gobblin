@@ -22,6 +22,12 @@ public class ServiceMetricNames {
   public static final String GOBBLIN_SERVICE_PREFIX = "GobblinService";
   public static final String GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER = GOBBLIN_SERVICE_PREFIX + ".";
   public static final String GOBBLIN_JOB_METRICS_PREFIX = "JobMetrics";
+  public static final String DATA_QUALITY_JOB_SUCCESS_COUNT = "dataQualitySuccessCount";
+  public static final String DATA_QUALITY_JOB_FAILURE_COUNT = "dataQualityFailureCount";
+  public static final String DATA_QUALITY_OVERALL_FILE_COUNT = "dataQualityOverallFileCount";
+  public static final String DATA_QUALITY_SUCCESS_FILE_COUNT = "dataQualitySuccessFileCount";
+  public static final String DATA_QUALITY_FAILURE_FILE_COUNT = "dataQualityFailureFileCount";
+  public static final String DATA_QUALITY_NON_EVALUATED_FILE_COUNT = "dataQualityNonEvaluatedFileCount";
 
   // Flow Compilation Meters and Timer
   public static final String FLOW_COMPILATION_SUCCESSFUL_METER = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowCompilation.successful";

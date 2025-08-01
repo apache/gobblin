@@ -54,6 +54,7 @@ import org.apache.gobblin.runtime.commit.DatasetStateCommitStep;
 import org.apache.gobblin.runtime.task.TaskFactory;
 import org.apache.gobblin.runtime.task.TaskUtils;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
+import org.apache.gobblin.quality.DataQualityEvaluator;
 
 
 /**
@@ -69,6 +70,8 @@ public final class SafeDatasetCommit implements Callable<Void> {
 
   private static final String DATASET_STATE = "datasetState";
   private static final String FAILED_DATASET_EVENT = "failedDataset";
+  public static final String COMMIT_SRC_JOB_CONTEXT = "JobContext";
+  public static final String COMMIT_SRC_COMMIT_ACTIVITY_IMPL = "CommitActivityImpl";
 
   private final boolean shouldCommitDataInJob;
   private final boolean isJobCancelled;
@@ -77,6 +80,7 @@ public final class SafeDatasetCommit implements Callable<Void> {
   private final JobState.DatasetState datasetState;
   private final boolean isMultithreaded;
   private final JobContext jobContext;
+  private final String datasetCommitSrc;
 
   private MetricContext metricContext;
 
@@ -90,6 +94,14 @@ public final class SafeDatasetCommit implements Callable<Void> {
     metricContext = Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class);
 
     finalizeDatasetStateBeforeCommit(this.datasetState);
+    // evaluate data quality at the dataset commit level, only when commit source is CommitActivityImpl
+    if (SafeDatasetCommit.COMMIT_SRC_COMMIT_ACTIVITY_IMPL.equals(this.datasetCommitSrc)) {
+      log.info("Evaluating data quality for commit activity for dataset {}.", this.datasetUrn);
+       evaluateAndEmitDatasetQuality();
+    } else {
+      log.info("Skipping data quality evaluation for dataset {} as commit source is {}", this.datasetUrn,
+          this.datasetCommitSrc);
+    }
     Class<? extends DataPublisher> dataPublisherClass;
     try (Closer closer = Closer.create()) {
       dataPublisherClass = JobContext.getJobDataPublisherClass(this.jobContext.getJobState())
@@ -436,6 +448,16 @@ public final class SafeDatasetCommit implements Callable<Void> {
     log.info("Creating " + DatasetStateCommitStep.class.getSimpleName() + " for dataset " + datasetUrn);
     return Optional.of(new DatasetStateCommitStep.Builder<>().withProps(datasetState).withDatasetUrn(datasetUrn)
         .withDatasetState(datasetState).build());
+  }
+
+  /**
+   * Evaluates and stores the data quality status for the dataset.
+   * This method handles the business logic of data quality evaluation
+   * at the dataset commit level, which is more appropriate than having
+   * it in the JobState data container.
+   */
+  private void evaluateAndEmitDatasetQuality() {
+    DataQualityEvaluator.evaluateAndReportDatasetQuality(this.datasetState, this.jobContext.getJobState());
   }
 
 }

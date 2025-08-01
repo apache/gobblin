@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.publisher;
 
+import java.util.Set;
 import org.apache.gobblin.qualitychecker.task.TaskLevelPolicyCheckResults;
 import java.util.Map;
 
@@ -63,8 +64,8 @@ public class TaskPublisher {
    * Returns true if all tests from the PolicyChecker pass, false otherwise
    */
   public boolean passedAllTests() {
-    for (Map.Entry<TaskLevelPolicy.Result, TaskLevelPolicy.Type> entry : this.results.getPolicyResults().entrySet()) {
-      if (entry.getKey().equals(TaskLevelPolicy.Result.FAILED) && entry.getValue().equals(TaskLevelPolicy.Type.FAIL)) {
+    for (Map.Entry<TaskLevelPolicy.Result, Set<TaskLevelPolicy.Type>> entry : this.results.getPolicyResults().entrySet()) {
+      if (entry.getKey().equals(TaskLevelPolicy.Result.FAILED) && entry.getValue().contains(TaskLevelPolicy.Type.FAIL)) {
         return false;
       }
     }

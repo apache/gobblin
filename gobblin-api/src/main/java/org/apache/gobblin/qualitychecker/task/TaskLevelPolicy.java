@@ -22,7 +22,7 @@ import org.apache.gobblin.configuration.WorkUnitState;
 
 
 public abstract class TaskLevelPolicy {
-  private final State state;
+  protected final State state;
   private final Type type;
 
   public enum Type {
