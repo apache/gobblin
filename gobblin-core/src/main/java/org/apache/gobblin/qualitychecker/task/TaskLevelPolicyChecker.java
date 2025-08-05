@@ -17,8 +17,9 @@
 
 package org.apache.gobblin.qualitychecker.task;
 
+import java.util.EnumSet;
 import java.util.List;
-
+import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -28,19 +29,12 @@ import org.slf4j.LoggerFactory;
  * executes each one, and then stores the output
  * in a PolicyCheckResults object
  */
+@Getter
 public class TaskLevelPolicyChecker {
-  /**
-   * An enumeration for possible statuses for Data quality checks,
-   * its values will be PASSED, FAILED, in case if data quality check
-   * evaluation is not performed for Job, it will be NOT_EVALUATED
-   */
-  public enum DataQualityStatus {
-    PASSED,
-    FAILED,
-    NOT_EVALUATED
-  }
   private final List<TaskLevelPolicy> list;
   private static final Logger LOG = LoggerFactory.getLogger(TaskLevelPolicyChecker.class);
+
+  public static final String TASK_LEVEL_POLICY_RESULT_KEY = "gobblin.task.level.policy.result";
 
   public TaskLevelPolicyChecker(List<TaskLevelPolicy> list) {
     this.list = list;
@@ -48,10 +42,12 @@ public class TaskLevelPolicyChecker {
 
   public TaskLevelPolicyCheckResults executePolicies() {
     TaskLevelPolicyCheckResults results = new TaskLevelPolicyCheckResults();
+
     for (TaskLevelPolicy p : this.list) {
       TaskLevelPolicy.Result result = p.executePolicy();
-      results.getPolicyResults().put(result, p.getType());
-      LOG.info("TaskLevelPolicy " + p + " of type " + p.getType() + " executed with result " + result);
+      results.getPolicyResults().computeIfAbsent(result, r -> EnumSet.noneOf(TaskLevelPolicy.Type.class))
+          .add(p.getType());
+      LOG.info("TaskLevelPolicy {} of type {} executed with result {}", p, p.getType(), result);
     }
     return results;
   }

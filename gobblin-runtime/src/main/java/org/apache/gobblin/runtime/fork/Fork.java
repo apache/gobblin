@@ -21,6 +21,8 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.util.concurrent.atomic.AtomicReference;
 
+import org.apache.gobblin.qualitychecker.DataQualityStatus;
+import org.apache.gobblin.qualitychecker.task.TaskLevelPolicy;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -352,6 +354,20 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
     return parentTaskDone;
   }
 
+
+  /**
+   * Get the {@link TaskState} associated with this {@link Fork}.
+   *
+   * <p>
+   *   The {@link TaskState} contains information about the execution state of the Fork {@link Fork},
+   *   including metrics and other runtime data. This method allows access to the {@link TaskState}
+   *   for monitoring or reporting purposes.
+   * </p>
+   *
+   * @return the {@link TaskState} of the {@link Fork}.
+   */
+  public TaskState getTaskState() { return this.forkTaskState; }
+
   /**
    * Update record-level metrics.
    */
@@ -377,7 +393,8 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
    */
   public boolean commit() {
     try {
-      if (checkDataQuality(this.convertedSchema)) {
+      boolean dataQualityEnforced = this.forkTaskState.getPropAsBoolean(ConfigurationKeys.ENFORCE_DATA_QUALITY_FAILURE_KEY, ConfigurationKeys.DEFAULT_ENFORCE_DATA_QUALITY_FAILURE);
+      if (checkDataQuality(this.convertedSchema) || !dataQualityEnforced) {
         // Commit data if all quality checkers pass. Again, not to catch the exception
         // it may throw so the exception gets propagated to the caller of this method.
         this.logger.info(String.format("Committing data for fork %d of task %s", this.index, this.taskId));
@@ -613,6 +630,11 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       TaskLevelPolicyCheckResults taskResults =
           this.taskContext.getTaskLevelPolicyChecker(this.forkTaskState, this.branches > 1 ? this.index : -1)
               .executePolicies();
+      boolean hasFailureForMandatoryPolicy = taskResults.getPolicyResults()
+          .getOrDefault(TaskLevelPolicy.Result.FAILED, java.util.Collections.emptySet())
+          .contains(TaskLevelPolicy.Type.FAIL);
+      forkTaskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY,
+          hasFailureForMandatoryPolicy ? DataQualityStatus.FAILED.name() : DataQualityStatus.PASSED.name());
       TaskPublisher publisher = this.taskContext.getTaskPublisher(this.forkTaskState, taskResults);
       switch (publisher.canPublish()) {
         case SUCCESS:

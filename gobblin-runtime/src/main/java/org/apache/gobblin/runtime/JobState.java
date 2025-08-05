@@ -30,25 +30,15 @@ import java.util.Properties;
 import lombok.Getter;
 import lombok.Setter;
 
+import lombok.extern.slf4j.Slf4j;
 import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.runtime.job.JobProgress;
+import org.apache.gobblin.runtime.util.MetricGroup;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
+
+import org.apache.gobblin.source.workunit.WorkUnit;
 
 import org.apache.commons.lang3.StringUtils;
-import org.apache.hadoop.io.Text;
-
-import com.codahale.metrics.Counter;
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Meter;
-import com.google.common.base.Enums;
-import com.google.common.base.Optional;
-import com.google.common.base.Strings;
-import com.google.common.base.Throwables;
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import com.google.common.collect.Maps;
-import com.google.gson.stream.JsonWriter;
-import com.linkedin.data.template.StringMap;
-
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
@@ -63,12 +53,23 @@ import org.apache.gobblin.rest.MetricTypeEnum;
 import org.apache.gobblin.rest.TaskExecutionInfoArray;
 import org.apache.gobblin.runtime.api.MonitoredObject;
 import org.apache.gobblin.runtime.util.JobMetrics;
-import org.apache.gobblin.runtime.util.MetricGroup;
-import org.apache.gobblin.source.extractor.JobCommitPolicy;
-import org.apache.gobblin.source.workunit.WorkUnit;
+import org.apache.gobblin.qualitychecker.DataQualityStatus;
+
+import com.codahale.metrics.Counter;
+import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Meter;
+import com.google.common.base.Enums;
+import com.google.common.base.Optional;
+import com.google.common.base.Strings;
+import com.google.common.base.Throwables;
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
+import com.google.common.collect.Maps;
+import com.google.gson.stream.JsonWriter;
+import com.linkedin.data.template.StringMap;
+import org.apache.hadoop.io.Text;
 import org.apache.gobblin.util.ImmutableProperties;
 import org.apache.gobblin.util.JobLauncherUtils;
-
 
 /**
  * A class for tracking job state information.
@@ -94,6 +95,8 @@ public class JobState extends SourceState implements JobProgress {
    *    <li> SUCCESSFUL => CANCELLED  (cancelled before committing)
    * </ul>
    */
+  public static final String GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX = "GaaSJobObservabilityEventProducer.";
+  public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
   public enum RunningState implements MonitoredObject {
     /** Pending creation of {@link WorkUnit}s. */
     PENDING,
@@ -588,6 +591,15 @@ public class JobState extends SourceState implements JobProgress {
         .name("completed tasks").value(this.getCompletedTasks());
   }
 
+  /**
+   * Gets the overall data quality status of the job.
+   * @return "PASSED" if all tasks passed their quality checks, "FAILED" otherwise
+   */
+  public DataQualityStatus getDataQualityStatus() {
+    return DataQualityStatus.fromString(super.getProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY));
+  }
+
+
   protected void propsToJson(JsonWriter jsonWriter)
       throws IOException {
     jsonWriter.beginObject();
@@ -756,6 +768,7 @@ public class JobState extends SourceState implements JobProgress {
    *   and {@link #setProp(String, Object)} are not supported.
    * </p>
    */
+  @Slf4j
   public static class DatasetState extends JobState {
 
     // For serialization/deserialization
@@ -794,6 +807,7 @@ public class JobState extends SourceState implements JobProgress {
       jsonWriter.beginObject();
       jsonWriter.name(ConfigurationKeys.DATASET_URN_KEY).value(getDatasetUrn());
       jsonWriter.name(ConfigurationKeys.JOB_FAILURES_KEY).value(getJobFailures());
+      jsonWriter.name(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY).value(getDataQualityStatus().name());
       jsonWriter.endObject();
     }
 
@@ -831,7 +845,10 @@ public class JobState extends SourceState implements JobProgress {
     protected void writeStateSummary(JsonWriter jsonWriter)
         throws IOException {
       super.writeStateSummary(jsonWriter);
+      jsonWriter.name(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY).value(getDataQualityStatus().name());
       jsonWriter.name("datasetUrn").value(getDatasetUrn());
     }
+
+
   }
 }

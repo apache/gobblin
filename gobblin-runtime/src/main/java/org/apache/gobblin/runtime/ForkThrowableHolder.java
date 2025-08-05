@@ -26,6 +26,7 @@ import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 
 import lombok.extern.slf4j.Slf4j;
+import org.apache.gobblin.qualitychecker.DataQualityStatus;
 
 
 /**
@@ -48,9 +49,12 @@ public class ForkThrowableHolder {
     return throwables.isEmpty();
   }
 
-  public ForkException getAggregatedException (List<Integer> failedForkIds, String taskId) {
+  public ForkException getAggregatedException (List<Integer> failedForkIds, String taskId, DataQualityStatus taskDataQuality) {
     StringBuffer stringBuffer = new StringBuffer();
     stringBuffer.append("Fork branches " + failedForkIds + " failed for task " + taskId + "\n");
+    if(DataQualityStatus.FAILED == taskDataQuality){
+      stringBuffer.append("DataQuality failed for task: " + taskId + "\n");
+    }
     for (Integer idx: failedForkIds) {
       stringBuffer.append("<Fork " + idx + ">\n");
       if (this.throwables.containsKey(idx)) {

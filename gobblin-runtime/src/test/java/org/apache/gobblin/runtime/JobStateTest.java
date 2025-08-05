@@ -194,7 +194,8 @@ public class JobStateTest {
     Assert.assertEquals(jobExecutionInfo.getJobProperties().get("foo"), "bar");
 
     List<String> taskStateIds = Lists.newArrayList();
-    for (TaskExecutionInfo taskExecutionInfo : jobExecutionInfo.getTaskExecutions()) {
+    for (int i = 0; i < jobExecutionInfo.getTaskExecutions().size(); i++) {
+      TaskExecutionInfo taskExecutionInfo = jobExecutionInfo.getTaskExecutions().get(i);
       Assert.assertEquals(taskExecutionInfo.getJobId(), "TestJob-1");
       Assert.assertEquals(taskExecutionInfo.getStartTime().longValue(), this.startTime);
       Assert.assertEquals(taskExecutionInfo.getEndTime().longValue(), this.startTime + 1000);
@@ -207,4 +208,5 @@ public class JobStateTest {
     Collections.sort(taskStateIds);
     Assert.assertEquals(taskStateIds, Lists.newArrayList("TestTask-0", "TestTask-1", "TestTask-2"));
   }
+
 }

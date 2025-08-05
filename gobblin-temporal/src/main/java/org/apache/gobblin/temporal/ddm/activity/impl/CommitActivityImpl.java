@@ -145,7 +145,7 @@ public class CommitActivityImpl implements CommitActivity {
 
       boolean shouldIncludeFailedTasks = PropertiesUtils.getPropAsBoolean(jobState.getProperties(), ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS, "false");
 
-      Map<String, DatasetStats> datasetTaskSummaries = summarizeDatasetOutcomes(datasetStatesByUrns, jobContext.getJobCommitPolicy(), shouldIncludeFailedTasks);
+      Map<String, DatasetStats> datasetTaskSummaries = summarizeDatasetOutcomes(datasetStatesByUrns, jobContext, shouldIncludeFailedTasks);
       return new CommitStats(
           datasetTaskSummaries,
           datasetTaskSummaries.values().stream().mapToInt(DatasetStats::getNumCommittedWorkunits).sum(),
@@ -197,7 +197,7 @@ public class CommitActivityImpl implements CommitActivity {
                 @Override
                 public Callable<Void> apply(final Map.Entry<String, JobState.DatasetState> entry) {
                   return new SafeDatasetCommit(shouldCommitDataInJob, false, deliverySemantics, entry.getKey(),
-                      entry.getValue(), false, jobContext);
+                      entry.getValue(), false, jobContext, SafeDatasetCommit.COMMIT_SRC_COMMIT_ACTIVITY_IMPL);
                 }
               }).iterator(), numCommitThreads,
           // TODO: Rewrite executorUtils to use java util optional
@@ -249,8 +249,10 @@ public class CommitActivityImpl implements CommitActivity {
     });
   }
 
-  private Map<String, DatasetStats> summarizeDatasetOutcomes(Map<String, JobState.DatasetState> datasetStatesByUrns, JobCommitPolicy commitPolicy, boolean shouldIncludeFailedTasks) {
+  private Map<String, DatasetStats> summarizeDatasetOutcomes(Map<String, JobState.DatasetState> datasetStatesByUrns, JobContext jobContext, boolean shouldIncludeFailedTasks) {
     Map<String, DatasetStats> datasetTaskStats = new HashMap<>();
+    JobCommitPolicy commitPolicy = jobContext.getJobCommitPolicy();
+    JobState jobState = jobContext.getJobState();
     // Only process successful datasets unless configuration to process failed datasets is set
     for (JobState.DatasetState datasetState : datasetStatesByUrns.values()) {
       if (datasetState.getState() == JobState.RunningState.COMMITTED || (datasetState.getState() == JobState.RunningState.FAILED
@@ -270,11 +272,11 @@ public class CommitActivityImpl implements CommitActivity {
         }
         log.info(String.format("DatasetMetrics for '%s' - (records: %d; bytes: %d)", datasetState.getDatasetUrn(),
             totalRecordsWritten, totalBytesWritten));
-        datasetTaskStats.put(datasetState.getDatasetUrn(), new DatasetStats(totalRecordsWritten, totalBytesWritten, true, totalCommittedTasks));
+        datasetTaskStats.put(datasetState.getDatasetUrn(), new DatasetStats(totalRecordsWritten, totalBytesWritten, true, totalCommittedTasks, jobState.getDataQualityStatus().name()));
       } else if (datasetState.getState() == JobState.RunningState.FAILED && commitPolicy == JobCommitPolicy.COMMIT_ON_FULL_SUCCESS) {
         // Check if config is turned on for submitting writer metrics on failure due to non-atomic write semantics
         log.info("Due to task failure, will report that no records or bytes were written for " + datasetState.getDatasetUrn());
-        datasetTaskStats.put(datasetState.getDatasetUrn(), new DatasetStats( 0, 0, false, 0));
+        datasetTaskStats.put(datasetState.getDatasetUrn(), new DatasetStats( 0, 0, false, 0, jobState.getDataQualityStatus().name()));
       }
     }
     return datasetTaskStats;

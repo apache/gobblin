@@ -328,6 +328,9 @@ public class ConfigurationKeys {
   public static final String DATASET_URN_KEY = "dataset.urn";
   public static final String GLOBAL_WATERMARK_DATASET_URN = "__globalDatasetWatermark";
   public static final String DEFAULT_DATASET_URN = "";
+  public static final String DATASET_QUALITY_STATUS_KEY = "dataset.quality.status";
+  public static final String ENFORCE_DATA_QUALITY_FAILURE_KEY = "data.quality.enforce.failure";
+  public static final Boolean DEFAULT_ENFORCE_DATA_QUALITY_FAILURE = false;
 
   /**
    * Work unit related configuration properties.
@@ -498,6 +501,7 @@ public class ConfigurationKeys {
    * Configuration properties used by the quality checker.
    */
   public static final String QUALITY_CHECKER_PREFIX = "qualitychecker";
+  public static final String TASK_LEVEL_POLICY_RESULT_KEY = "gobblin.task.level.policy.result";
   public static final String TASK_LEVEL_POLICY_LIST = QUALITY_CHECKER_PREFIX + ".task.policies";
   public static final String TASK_LEVEL_POLICY_LIST_TYPE = QUALITY_CHECKER_PREFIX + ".task.policy.types";
   public static final String ROW_LEVEL_POLICY_LIST = QUALITY_CHECKER_PREFIX + ".row.policies";
@@ -938,7 +942,7 @@ public class ConfigurationKeys {
   public static final Boolean DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED = false;
 
   public static final String METRICS_REPORTING_OPENTELEMETRY_ENDPOINT = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "endpoint";
-
+  public static final String METRICS_REPORTING_OPENTELEMETRY_FABRIC = METRICS_REPORTING_OPENTELEMETRY_CONFIGS_PREFIX + "fabric";
   // Headers to add to the OpenTelemetry HTTP Exporter, formatted as a JSON String with string keys and values
   public static final String METRICS_REPORTING_OPENTELEMETRY_HEADERS = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "headers";
 

@@ -37,4 +37,5 @@ public class DatasetStats {
   @NonNull private long bytesWritten;
   @NonNull private boolean successfullyCommitted;
   @NonNull private int numCommittedWorkunits;
+  @NonNull private String dataQualityCheckStatus;
 }

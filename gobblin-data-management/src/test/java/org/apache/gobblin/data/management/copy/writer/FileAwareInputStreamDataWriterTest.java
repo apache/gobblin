@@ -30,6 +30,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import org.apache.commons.io.FileUtils;
 import org.apache.commons.io.IOUtils;
 import org.apache.commons.lang.RandomStringUtils;
+import org.apache.gobblin.policies.size.FileSizePolicy;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FSDataInputStream;
 import org.apache.hadoop.fs.FileStatus;
@@ -630,6 +631,47 @@ public class FileAwareInputStreamDataWriterTest {
         cf.getDestination());
     Assert.assertEquals(IOUtils.toString(new FileInputStream(writtenFilePath.toString()), StandardCharsets.UTF_8),
         streamString1);
+  }
+
+  @Test
+  public void testStateUpdatesAfterWrite() throws Exception {
+    // Create test data
+    String testContent = "testContentsForStateUpdate";
+    byte[] contentBytes = testContent.getBytes(StandardCharsets.UTF_8);
+    long expectedSourceSize = contentBytes.length;
+
+    FileStatus status = fs.getFileStatus(testTempPath);
+    OwnerAndPermission ownerAndPermission =
+        new OwnerAndPermission(status.getOwner(), status.getGroup(), new FsPermission(FsAction.ALL, FsAction.ALL, FsAction.ALL));
+    CopyableFile cf = CopyableFileUtils.getTestCopyableFile(expectedSourceSize, ownerAndPermission);
+    CopyableDatasetMetadata metadata = new CopyableDatasetMetadata(new TestCopyableDataset(new Path("/source")));
+
+    WorkUnitState state = TestUtils.createTestWorkUnitState();
+    state.setProp(ConfigurationKeys.WRITER_STAGING_DIR, new Path(testTempPath, "staging").toString());
+    state.setProp(ConfigurationKeys.WRITER_OUTPUT_DIR, new Path(testTempPath, "output").toString());
+    state.setProp(ConfigurationKeys.WRITER_FILE_PATH, RandomStringUtils.randomAlphabetic(5));
+    CopySource.serializeCopyEntity(state, cf);
+    CopySource.serializeCopyableDataset(state, metadata);
+
+    FileAwareInputStreamDataWriter dataWriter = new FileAwareInputStreamDataWriter(state, 1, 0);
+    FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder()
+        .file(cf)
+        .inputStream(new ByteArrayInputStream(contentBytes))
+        .build();
+
+    // Write data and verify state updates
+    dataWriter.write(fileAwareInputStream);
+
+    // Verify source file size in state
+    String sourceSizeKey = FileSizePolicy.BYTES_READ_KEY;
+    Assert.assertEquals(state.getPropAsLong(sourceSizeKey), expectedSourceSize,
+        "Source file size should be recorded in state");
+
+    // Verify bytes written in state
+    String destinationSizeKey = FileSizePolicy.BYTES_WRITTEN_KEY;
+    Assert.assertEquals(state.getPropAsLong(destinationSizeKey), expectedSourceSize,
+        "Bytes written should match source file size");
+
   }
 
   @AfterClass
