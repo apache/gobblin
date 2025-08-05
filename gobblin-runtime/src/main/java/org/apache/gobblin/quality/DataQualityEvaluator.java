@@ -19,11 +19,14 @@ package org.apache.gobblin.quality;
 
 import io.opentelemetry.api.common.Attributes;
 import io.opentelemetry.api.metrics.Meter;
+
 import java.util.List;
 import java.util.Properties;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.OpenTelemetryMetrics;
 import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
@@ -170,26 +173,19 @@ public class DataQualityEvaluator {
 
       // Emit overall files count
       meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_OVERALL_FILE_COUNT)
-          .setDescription("Number of files evaluated for data quality")
-          .build()
-          .add(totalFiles, tags);
+          .setDescription("Number of files evaluated for data quality").build().add(totalFiles, tags);
 
       // Emit passed files count
       meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_SUCCESS_FILE_COUNT)
-          .setDescription("Number of files that passed data quality")
-          .build()
-          .add(passedFilesCount, tags);
+          .setDescription("Number of files that passed data quality").build().add(passedFilesCount, tags);
 
       // Emit failed files count
       meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_FAILURE_FILE_COUNT)
-          .setDescription("Number of files that failed data quality")
-          .build()
-          .add(failedFilesCount, tags);
+          .setDescription("Number of files that failed data quality").build().add(failedFilesCount, tags);
 
       // Emit non-evaluated files count
       meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_NON_EVALUATED_FILE_COUNT)
-          .setDescription("Number of files that did not have data quality evaluation")
-          .build()
+          .setDescription("Number of files that did not have data quality evaluation").build()
           .add(nonEvaluatedFilesCount, tags);
     } catch (Exception e) {
       log.error("Error in emitMetrics for job: {}", jobState.getJobName(), e);
@@ -201,8 +197,7 @@ public class DataQualityEvaluator {
     Properties jobProperties = jobState.getProperties();
     log.info("Job properties loaded: " + jobProperties);
 
-    return Attributes.builder()
-        .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobState.getJobName())
+    return Attributes.builder().put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobState.getJobName())
         .put(TimingEvent.DATASET_URN, datasetUrn)
         .put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobProperties.getProperty(ConfigurationKeys.FLOW_NAME_KEY))
         .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD,
@@ -218,7 +213,6 @@ public class DataQualityEvaluator {
         .put(TimingEvent.FlowEventConstants.FLOW_DESTINATION,
             jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ""))
         .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD,
-            jobProperties.getProperty(ConfigurationKeys.FLOW_SPEC_EXECUTOR, ""))
-        .build();
+            jobProperties.getProperty(ConfigurationKeys.FLOW_SPEC_EXECUTOR, "")).build();
   }
 }

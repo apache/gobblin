@@ -393,7 +393,8 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
    */
   public boolean commit() {
     try {
-      if (checkDataQuality(this.convertedSchema) || !this.forkTaskState.getPropAsBoolean(ConfigurationKeys.DATA_QUALITY_ENABLED_KEY, ConfigurationKeys.DEFAULT_DATA_QUALITY_ENABLED)) {
+      boolean dataQualityEnforced = this.forkTaskState.getPropAsBoolean(ConfigurationKeys.ENFORCE_DATA_QUALITY_FAILURE_KEY, ConfigurationKeys.DEFAULT_ENFORCE_DATA_QUALITY_FAILURE);
+      if (checkDataQuality(this.convertedSchema) || !dataQualityEnforced) {
         // Commit data if all quality checkers pass. Again, not to catch the exception
         // it may throw so the exception gets propagated to the caller of this method.
         this.logger.info(String.format("Committing data for fork %d of task %s", this.index, this.taskId));

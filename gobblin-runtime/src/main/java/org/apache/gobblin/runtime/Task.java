@@ -972,9 +972,9 @@ public class Task implements TaskIFace {
           } else {
             String taskDataQualityString = taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY);
             DataQualityStatus dataQualityStatus = DataQualityStatus.NOT_EVALUATED;
-            if(taskDataQualityString != null) {
+            if (taskDataQualityString != null) {
               dataQualityStatus = DataQualityStatus.valueOf(taskDataQualityString);
-            } else{
+            } else {
               Log.warn("Task data quality status is not set, defaulting to NOT_EVALUATED for taskId: {}", this.taskId);
             }
             failTask(holder.getAggregatedException(failedForkIds, this.taskId, dataQualityStatus));
