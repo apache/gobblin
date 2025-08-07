@@ -94,13 +94,17 @@ public final class SafeDatasetCommit implements Callable<Void> {
     metricContext = Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class);
 
     finalizeDatasetStateBeforeCommit(this.datasetState);
-    // evaluate data quality at the dataset commit level, only when commit source is CommitActivityImpl
-    if (SafeDatasetCommit.COMMIT_SRC_COMMIT_ACTIVITY_IMPL.equals(this.datasetCommitSrc)) {
+    // evaluate data quality at the dataset commit level, only when commit source is CommitActivityImpl and policies are applied
+    JobState jobState = this.jobContext.getJobState();
+    String policiesApplied = jobState.getProperties().getProperty(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, StringUtils.EMPTY);
+    log.info("Policies applied: {}", policiesApplied);
+    boolean shouldEvaluateDataQuality = !policiesApplied.isEmpty();
+    if (shouldEvaluateDataQuality && SafeDatasetCommit.COMMIT_SRC_COMMIT_ACTIVITY_IMPL.equals(this.datasetCommitSrc)) {
       log.info("Evaluating data quality for commit activity for dataset {}.", this.datasetUrn);
        evaluateAndEmitDatasetQuality();
     } else {
-      log.info("Skipping data quality evaluation for dataset {} as commit source is {}", this.datasetUrn,
-          this.datasetCommitSrc);
+      log.info("Skipping data quality evaluation for dataset {} as commit source is {} and policies applied are {}", this.datasetUrn,
+          this.datasetCommitSrc, policiesApplied);
     }
     Class<? extends DataPublisher> dataPublisherClass;
     try (Closer closer = Closer.create()) {
