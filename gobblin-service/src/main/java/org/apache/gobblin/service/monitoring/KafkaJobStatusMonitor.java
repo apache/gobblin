@@ -271,6 +271,11 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
             this.eventProducer.emitObservabilityEvent(jobStatus);
           }
 
+          // Update the state store before adding a dag action.
+          // Even if service dies before adding the dag action & after updating the job status, kafka offset will not be advanced
+          // hence, the event will be reprocessed and re-attempt the addition of dag action
+          stateStore.put(storeName, tableName, jobStatus);
+
           if (DagProcUtils.isJobLevelStatus(jobName)) {
             if (updatedJobStatus.getRight() == NewState.FINISHED) {
               try {
@@ -292,9 +297,6 @@ public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], by
               DagProcUtils.removeEnforceJobStartDeadlineDagAction(dagManagementStateStore, flowGroup, flowName, flowExecutionId, jobName);
             }
           }
-
-          // update the state store after adding a dag action to guaranty at-least-once adding of dag action
-          stateStore.put(storeName, tableName, jobStatus);
         }
         return null;
       });
