@@ -28,20 +28,22 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
-import com.google.common.util.concurrent.ListeningScheduledExecutorService;
-import org.apache.gobblin.util.executors.MDCPropagatingCallable;
-import org.apache.gobblin.util.executors.MDCPropagatingRunnable;
-import org.apache.gobblin.util.executors.MDCPropagatingScheduledExecutorService;
 import org.slf4j.Logger;
+import lombok.extern.slf4j.Slf4j;
 
 import com.google.common.base.Function;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.collect.Lists;
 import com.google.common.util.concurrent.ListeningExecutorService;
+import com.google.common.util.concurrent.ListeningScheduledExecutorService;
 import com.google.common.util.concurrent.MoreExecutors;
 import com.google.common.util.concurrent.ThreadFactoryBuilder;
+
+import org.apache.gobblin.util.executors.MDCPropagatingCallable;
 import org.apache.gobblin.util.executors.MDCPropagatingExecutorService;
+import org.apache.gobblin.util.executors.MDCPropagatingRunnable;
+import org.apache.gobblin.util.executors.MDCPropagatingScheduledExecutorService;
 
 
 /**
@@ -49,6 +51,7 @@ import org.apache.gobblin.util.executors.MDCPropagatingExecutorService;
  *
  * @author Yinan Li
  */
+@Slf4j
 public class ExecutorsUtils {
 
   private static final ThreadFactory DEFAULT_THREAD_FACTORY = newThreadFactory(Optional.<Logger>absent());
@@ -160,6 +163,28 @@ public class ExecutorsUtils {
       return runnable;
     }
     return new MDCPropagatingRunnable(runnable);
+  }
+
+
+  /**
+   * Wraps a {@link Runnable} task with exception handling to ensure that
+   * any thrown exception does not terminate the thread or scheduled executor.
+   * This is useful for long-running or recurring tasks where resilience is critical.
+   *
+   * @param runnable the task to wrap
+   * @return a safe {@link Runnable} that logs and suppresses exceptions
+   */
+  public static Runnable safeRunnable(Runnable runnable) {
+    return () -> {
+      try {
+        runnable.run();
+      } catch (Exception exception) {
+        // Catch all exceptions to prevent the thread from dying
+        // and log the exception
+        log.warn("Caught exception in runnable {}", exception.getMessage());
+        log.debug("Caught exception in runnable ", exception);
+      }
+    };
   }
 
   /**
