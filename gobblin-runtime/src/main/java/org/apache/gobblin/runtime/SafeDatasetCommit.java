@@ -94,14 +94,8 @@ public final class SafeDatasetCommit implements Callable<Void> {
     metricContext = Instrumented.getMetricContext(datasetState, SafeDatasetCommit.class);
 
     finalizeDatasetStateBeforeCommit(this.datasetState);
-    // evaluate data quality at the dataset commit level, only when commit source is CommitActivityImpl
-    if (SafeDatasetCommit.COMMIT_SRC_COMMIT_ACTIVITY_IMPL.equals(this.datasetCommitSrc)) {
-      log.info("Evaluating data quality for commit activity for dataset {}.", this.datasetUrn);
-       evaluateAndEmitDatasetQuality();
-    } else {
-      log.info("Skipping data quality evaluation for dataset {} as commit source is {}", this.datasetUrn,
-          this.datasetCommitSrc);
-    }
+    // evaluate data quality at the dataset commit level
+    evaluateAndEmitDatasetQuality();
     Class<? extends DataPublisher> dataPublisherClass;
     try (Closer closer = Closer.create()) {
       dataPublisherClass = JobContext.getJobDataPublisherClass(this.jobContext.getJobState())
@@ -455,9 +449,23 @@ public final class SafeDatasetCommit implements Callable<Void> {
    * This method handles the business logic of data quality evaluation
    * at the dataset commit level, which is more appropriate than having
    * it in the JobState data container.
+   *
+   * Data quality evaluation is only performed when:
+   * 1. Commit source is CommitActivityImpl
+   * 2. Data quality policies are applied to the job
    */
   private void evaluateAndEmitDatasetQuality() {
-    DataQualityEvaluator.evaluateAndReportDatasetQuality(this.datasetState, this.jobContext.getJobState());
+    JobState jobState = this.jobContext.getJobState();
+    String policiesApplied = jobState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_LIST, StringUtils.EMPTY);
+    log.info("Policies applied: {}", policiesApplied);
+    boolean shouldEvaluateDataQuality = !policiesApplied.isEmpty();
+    if (shouldEvaluateDataQuality && SafeDatasetCommit.COMMIT_SRC_COMMIT_ACTIVITY_IMPL.equals(this.datasetCommitSrc)) {
+      log.info("Evaluating data quality for commit activity for dataset {}.", this.datasetUrn);
+      DataQualityEvaluator.evaluateAndReportDatasetQuality(this.datasetState, jobState);
+    } else {
+      log.info("Skipping data quality evaluation for dataset {} as commit source is {} and policies applied are {}",
+          this.datasetUrn, this.datasetCommitSrc, policiesApplied);
+    }
   }
 
 }
