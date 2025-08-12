@@ -79,7 +79,12 @@ public abstract class DagProc<T> {
       throw e;
     }
       logContextualizedInfo("ready to process");
+    try {
       act(dagManagementStateStore, state, dagProcEngineMetrics);
+    } catch (Exception e) {
+      dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
+      throw e;
+    }
       logContextualizedInfo("processed");
   }
 
