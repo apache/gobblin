@@ -318,4 +318,27 @@ public class TrashTest {
     }
   }
 
+  /**
+   * Test Trash.getTrash() method to ensure that the correct Trash implementation is returned based on the properties evaluation
+   */
+  @Test
+  public void testGetTrashEvanluateExpected() throws IOException {
+    Properties properties = new Properties();
+    properties.setProperty(Trash.TRASH_CLASS_KEY, MockTrash.class.getCanonicalName());
+    properties.setProperty(TrashFactory.SIMULATE, "true");
+    properties.setProperty(TrashFactory.SIMULATE_USING_ACTUAL_TRASH, "true");
+    properties.setProperty(Trash.TRASH_LOCATION_KEY, "/trash/dir");
+    FileSystem mockFs = mock(FileSystem.class);
+
+    Trash trash = Trash.getTrash(mockFs, properties, "testUser");
+
+    // Assert if condition is evaluated and the correct trash is returned
+    Assert.assertTrue(trash instanceof MockTrash);
+
+    properties.remove(Trash.TRASH_CLASS_KEY);
+    Trash trash2 = Trash.getTrash(mockFs, properties, "testUser");
+    // Assert if the trash would default to Trash if the condition is not met
+    Assert.assertTrue(trash2 instanceof Trash);
+  }
+
 }
