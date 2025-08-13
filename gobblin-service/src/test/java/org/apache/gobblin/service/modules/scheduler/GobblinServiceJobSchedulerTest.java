@@ -122,7 +122,8 @@ public class GobblinServiceJobSchedulerTest {
    * when getNextFireTime() returns null for a one-time scheduled flow.
    */
   @Test
-  public void testGobblinServiceJobExecuteImplWithNullNextFireTime() throws Exception {
+  public void testGobblinServiceJobExecuteImplWithNullNextFireTime()
+      throws Exception {
     // Create a mock JobExecutionContext
     org.quartz.JobExecutionContext mockContext = mock(org.quartz.JobExecutionContext.class);
     org.quartz.JobDetail mockJobDetail = mock(org.quartz.JobDetail.class);
@@ -142,7 +143,8 @@ public class GobblinServiceJobSchedulerTest {
     jobProps.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY, "0");
 
     org.apache.gobblin.scheduler.JobScheduler mockJobScheduler = mock(org.apache.gobblin.scheduler.JobScheduler.class);
-    org.apache.gobblin.runtime.listeners.JobListener mockJobListener = mock(org.apache.gobblin.runtime.listeners.JobListener.class);
+    org.apache.gobblin.runtime.listeners.JobListener mockJobListener =
+        mock(org.apache.gobblin.runtime.listeners.JobListener.class);
 
     when(mockJobDataMap.get(GobblinServiceJobScheduler.JOB_SCHEDULER_KEY)).thenReturn(mockJobScheduler);
     when(mockJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY)).thenReturn(jobProps);
@@ -156,7 +158,8 @@ public class GobblinServiceJobSchedulerTest {
     GobblinServiceJobScheduler.GobblinServiceJob job = new GobblinServiceJobScheduler.GobblinServiceJob();
 
     // Mock the runJob method to avoid actual execution
-    doNothing().when(mockJobScheduler).runJob(any(Properties.class), any(org.apache.gobblin.runtime.listeners.JobListener.class));
+    doNothing().when(mockJobScheduler)
+        .runJob(any(Properties.class), any(org.apache.gobblin.runtime.listeners.JobListener.class));
 
     try {
       // This should not throw a NullPointerException if the code is properly handling null values
@@ -164,13 +167,13 @@ public class GobblinServiceJobSchedulerTest {
 
       // If we reach here, the method handled null getNextFireTime() gracefully
       // Verify that runJob was called
-      verify(mockJobScheduler, times(1)).runJob(any(Properties.class), any(org.apache.gobblin.runtime.listeners.JobListener.class));
-
+      verify(mockJobScheduler, times(1)).runJob(any(Properties.class),
+          any(org.apache.gobblin.runtime.listeners.JobListener.class));
     } catch (org.quartz.JobExecutionException e) {
       // Check if the cause is a NullPointerException
       if (e.getCause() instanceof NullPointerException) {
-        Assert.fail("GobblinServiceJob.executeImpl threw NullPointerException when getNextFireTime() is null. " +
-            "This indicates the scheduler cannot handle one-time scheduled flows properly.");
+        Assert.fail("GobblinServiceJob.executeImpl threw NullPointerException when getNextFireTime() is null. "
+            + "This indicates the scheduler cannot handle one-time scheduled flows properly.");
       } else {
         // Re-throw if it's a different type of exception
         throw e;

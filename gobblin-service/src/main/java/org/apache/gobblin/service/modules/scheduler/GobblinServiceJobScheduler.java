@@ -698,12 +698,14 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         } else {
           jobProps.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY,
               String.valueOf(triggerTimeMillis));
-          if(trigger.getNextFireTime() == null){
-            _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: NA - Job triggered by "
-                + "scheduler", triggerTimeMillis);
+          if (trigger.getNextFireTime() == null) {
+            _log.info(
+                jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: NA - Job triggered by "
+                    + "scheduler", triggerTimeMillis);
           } else {
-            _log.info(jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
-                + "scheduler", triggerTimeMillis, utcDateAsUTCEpochMillis(trigger.getNextFireTime()));
+            _log.info(
+                jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: {} - Job triggered by "
+                    + "scheduler", triggerTimeMillis, utcDateAsUTCEpochMillis(trigger.getNextFireTime()));
           }
         }
         jobScheduler.runJob(jobProps, jobListener);
