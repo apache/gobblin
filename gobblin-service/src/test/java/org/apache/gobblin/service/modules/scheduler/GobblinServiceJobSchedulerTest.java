@@ -140,7 +140,6 @@ public class GobblinServiceJobSchedulerTest {
     Properties jobProps = new Properties();
     jobProps.setProperty(ConfigurationKeys.FLOW_NAME_KEY, "testFlow");
     jobProps.setProperty(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup");
-    jobProps.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY, "0");
 
     org.apache.gobblin.scheduler.JobScheduler mockJobScheduler = mock(org.apache.gobblin.scheduler.JobScheduler.class);
     org.apache.gobblin.runtime.listeners.JobListener mockJobListener =
