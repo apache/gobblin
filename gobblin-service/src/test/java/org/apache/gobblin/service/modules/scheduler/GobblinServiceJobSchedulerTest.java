@@ -31,6 +31,11 @@ import org.mockito.Mockito;
 import org.mockito.MockitoAnnotations;
 import org.mockito.invocation.Invocation;
 import org.mockito.stubbing.Answer;
+import org.quartz.JobDataMap;
+import org.quartz.JobDetail;
+import org.quartz.JobExecutionContext;
+import org.quartz.JobExecutionException;
+import org.quartz.Trigger;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
@@ -52,10 +57,12 @@ import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecCatalogListener;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.runtime.listeners.JobListener;
 import org.apache.gobblin.runtime.spec_catalog.AddSpecResponse;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalog;
 import org.apache.gobblin.runtime.spec_catalog.FlowCatalogTest;
 import org.apache.gobblin.runtime.spec_executorInstance.InMemorySpecExecutor;
+import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.MockedSpecCompiler;
@@ -125,10 +132,10 @@ public class GobblinServiceJobSchedulerTest {
   public void testGobblinServiceJobExecuteImplWithNullNextFireTime()
       throws Exception {
     // Create a mock JobExecutionContext
-    org.quartz.JobExecutionContext mockContext = mock(org.quartz.JobExecutionContext.class);
-    org.quartz.JobDetail mockJobDetail = mock(org.quartz.JobDetail.class);
-    org.quartz.JobDataMap mockJobDataMap = mock(org.quartz.JobDataMap.class);
-    org.quartz.Trigger mockTrigger = mock(org.quartz.Trigger.class);
+    JobExecutionContext mockContext = mock(JobExecutionContext.class);
+    JobDetail mockJobDetail = mock(JobDetail.class);
+    JobDataMap mockJobDataMap = mock(JobDataMap.class);
+    Trigger mockTrigger = mock(Trigger.class);
 
     // Mock the job detail and data map
     when(mockContext.getJobDetail()).thenReturn(mockJobDetail);
@@ -141,9 +148,9 @@ public class GobblinServiceJobSchedulerTest {
     jobProps.setProperty(ConfigurationKeys.FLOW_NAME_KEY, "testFlow");
     jobProps.setProperty(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup");
 
-    org.apache.gobblin.scheduler.JobScheduler mockJobScheduler = mock(org.apache.gobblin.scheduler.JobScheduler.class);
-    org.apache.gobblin.runtime.listeners.JobListener mockJobListener =
-        mock(org.apache.gobblin.runtime.listeners.JobListener.class);
+    JobScheduler mockJobScheduler = mock(JobScheduler.class);
+    JobListener mockJobListener =
+        mock(JobListener.class);
 
     when(mockJobDataMap.get(GobblinServiceJobScheduler.JOB_SCHEDULER_KEY)).thenReturn(mockJobScheduler);
     when(mockJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY)).thenReturn(jobProps);
@@ -158,7 +165,7 @@ public class GobblinServiceJobSchedulerTest {
 
     // Mock the runJob method to avoid actual execution
     doNothing().when(mockJobScheduler)
-        .runJob(any(Properties.class), any(org.apache.gobblin.runtime.listeners.JobListener.class));
+        .runJob(any(Properties.class), any(JobListener.class));
 
     try {
       // This should not throw a NullPointerException if the code is properly handling null values
@@ -167,8 +174,8 @@ public class GobblinServiceJobSchedulerTest {
       // If we reach here, the method handled null getNextFireTime() gracefully
       // Verify that runJob was called
       verify(mockJobScheduler, times(1)).runJob(any(Properties.class),
-          any(org.apache.gobblin.runtime.listeners.JobListener.class));
-    } catch (org.quartz.JobExecutionException e) {
+          any(JobListener.class));
+    } catch (JobExecutionException e) {
       // Check if the cause is a NullPointerException
       if (e.getCause() instanceof NullPointerException) {
         Assert.fail("GobblinServiceJob.executeImpl threw NullPointerException when getNextFireTime() is null. "
