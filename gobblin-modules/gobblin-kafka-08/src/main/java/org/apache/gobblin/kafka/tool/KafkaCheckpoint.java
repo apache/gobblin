@@ -23,9 +23,9 @@ import java.io.InputStream;
 import java.io.OutputStream;
 import java.util.HashMap;
 
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.map.type.MapType;
-import org.codehaus.jackson.map.type.TypeFactory;
+import org.fasterxml.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.map.type.MapType;
+import org.fasterxml.jackson.map.type.TypeFactory;
 
 
 /**
