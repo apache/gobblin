@@ -86,7 +86,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       log.info("{} - loaded; found {} workUnits", correlator, workUnits.size());
       JobState jobState = Help.loadJobState(wu, fs);
       int heartBeatInterval = JobStateUtils.getHeartBeatInterval(jobState);
-      heartBeatExecutor.scheduleAtFixedRate(() -> activityExecutionContext.heartbeat("Running ProcessWorkUnit Activity"),
+      heartBeatExecutor.scheduleAtFixedRate(ExecutorsUtils.safeRunnable(() -> activityExecutionContext.heartbeat("Running ProcessWorkUnit Activity")),
           heartBeatInterval, heartBeatInterval, TimeUnit.MINUTES);
       troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobState.getProperties());
       troubleshooter.start();
