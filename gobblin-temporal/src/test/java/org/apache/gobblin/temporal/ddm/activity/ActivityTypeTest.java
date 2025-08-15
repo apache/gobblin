@@ -127,4 +127,11 @@ public class ActivityTypeTest {
     Assert.assertEquals(activityOptions.getRetryOptions().getMaximumAttempts(), 21);
   }
 
+  @Test
+  public void testBuildActivityOptionsWithHeartBeatTimeoutDisabled() {
+    props.setProperty(GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_ENABLED, "false");
+    activityTypes.stream().map(activityType -> activityType.buildActivityOptions(props, true))
+        .forEach(options -> Assert.assertNull(options.getHeartbeatTimeout(), "Heartbeat timeout should be null"));
+  }
+
 }

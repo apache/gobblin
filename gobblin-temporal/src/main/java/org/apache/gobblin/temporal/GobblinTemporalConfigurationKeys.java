@@ -102,6 +102,8 @@ public interface GobblinTemporalConfigurationKeys {
   /**
    * Activities timeout configs
    */
+  String TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_ENABLED = PREFIX + "activity.heartbeat.enabled";
+  String DEFAULT_TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_ENABLED = "true";
   String TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_MINUTES = PREFIX + "activity.heartbeat.timeout.minutes";
   int DEFAULT_TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_MINUTES = 5;
   String TEMPORAL_ACTIVITY_HEARTBEAT_INTERVAL_MINUTES = PREFIX + "activity.heartbeat.interval.minutes";
