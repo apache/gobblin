@@ -22,8 +22,7 @@ import java.io.IOException;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
-
-import com.google.common.io.Files;
+import java.nio.file.Files;
 
 import azkaban.jobExecutor.AbstractJob;
 import azkaban.utils.Props;
@@ -62,8 +61,10 @@ public class AzkabanJobRunner {
     runner.run();
   }
 
-  public static String getTempDirectory() {
-    File tmpDirectory = Files.createTempDir();
+  public static String getTempDirectory() throws IOException {
+    File tempDirBase = new File(System.getProperty("java.io.tmpdir"));
+    File tmpDirectory = Files.createTempDirectory(
+         tempDirBase.toPath(), System.currentTimeMillis() + "-").toFile();
     tmpDirectory.deleteOnExit();
     return tmpDirectory.getAbsolutePath();
   }
