@@ -244,6 +244,11 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
 
   private static JobStatus convertExecutionStatusTojobState(State state, ExecutionStatus executionStatus) {
     switch (executionStatus) {
+      // Add more mapping for new events rather than just terminal ones
+      case COMPILED:
+        return JobStatus.COMPILED;
+      case RUNNING:
+        return JobStatus.RUNNING;
       case FAILED:
         // TODO: Separate failure cases to SUBMISSION FAILURE and COMPILATION FAILURE, investigate events to populate these fields
         if (state.contains(TimingEvent.JOB_END_TIME)) {
