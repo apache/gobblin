@@ -30,6 +30,12 @@ public class TextSerializer {
    * Serialize a String using the same logic as a Hadoop Text object
    */
   public static void writeStringAsText(DataOutput stream, String str) throws IOException {
+    // TODO: Use writeChars instead of writeBytes to support unicode
+    for (int i = 0; i < str.length(); i++) {
+      if (str.charAt(i) > 0x7F) {
+        throw new IllegalArgumentException("Non-ASCII character detected.");
+      }
+    }
     writeVLong(stream, str.length());
     stream.writeBytes(str);
   }
