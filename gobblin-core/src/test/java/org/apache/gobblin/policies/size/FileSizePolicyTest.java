@@ -69,4 +69,15 @@ public class FileSizePolicyTest {
     Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.NOT_EVALUATED);
   }
 
+  @Test
+  public void testEmptyDirectoryHandling() {
+    State state = new State();
+    // Test case: Empty directory with 0 bytes read, no bytes written (directory case)
+    state.setProp(FileSizePolicy.BYTES_READ_KEY, 0L);
+    // Don't set BYTES_WRITTEN_KEY to simulate directory copy scenario
+
+    FileSizePolicy policy = new FileSizePolicy(state, TaskLevelPolicy.Type.FAIL);
+    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.NOT_EVALUATED);
+  }
+
 }

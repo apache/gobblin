@@ -67,7 +67,7 @@ public class FileSizePolicy extends TaskLevelPolicy {
       return String.format("FileSizePolicy [bytesRead=%s, bytesWritten=%s]", transferBytes.getBytesRead(),
           transferBytes.getBytesWritten());
     } else {
-      return "FileSizePolicy [bytesRead=null, bytesWritten=null]";
+      return "Transfer bytes information not available";
     }
   }
 
@@ -94,7 +94,7 @@ public class FileSizePolicy extends TaskLevelPolicy {
     String bytesReadString = state.getProp(BYTES_READ_KEY);
     String bytesWrittenString = state.getProp(BYTES_WRITTEN_KEY);
     if (bytesReadString == null) {
-      log.error("Missing value(s): bytesReadStr={}, bytesWrittenStr={}", bytesReadString, bytesWrittenString);
+      log.error("Missing value(s): bytesReadStr=null, bytesWrittenStr={}", bytesWrittenString);
       return Optional.empty();
     }
     try {
@@ -105,7 +105,7 @@ public class FileSizePolicy extends TaskLevelPolicy {
       }
       long bytesWritten = 0;
       if (bytesWrittenString == null) {
-        log.error("Missing bytesWritten value: bytesWrittenStr={}", bytesWrittenString);
+        log.error("Missing bytesWritten value: bytesWrittenStr=null, assuming 0 bytes written.");
       } else {
         bytesWritten = Long.parseLong(bytesWrittenString);
       }

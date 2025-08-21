@@ -334,9 +334,7 @@ public class Task implements TaskIFace {
             Log.warn("Unknown data quality status encountered: " + result);
             forkDataQualityStatus = DataQualityStatus.UNKNOWN;
           }
-          if (DataQualityStatus.FAILED == forkDataQualityStatus) {
-            overallTaskDataQuality = DataQualityStatus.FAILED;
-          }
+          overallTaskDataQuality = forkDataQualityStatus;
         }
       }
     }
