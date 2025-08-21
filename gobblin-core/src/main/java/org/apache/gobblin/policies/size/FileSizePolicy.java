@@ -44,12 +44,12 @@ public class FileSizePolicy extends TaskLevelPolicy {
   public Result executePolicy() {
     TransferBytes transferBytes = getBytesReadAndWritten(this.state).orElse(null);
     if (transferBytes == null) {
-      return Result.FAILED;
+      return Result.NOT_EVALUATED;
     }
-    Long bytesRead = transferBytes.getBytesRead();
-    Long bytesWritten = transferBytes.getBytesWritten();
+    long bytesRead = transferBytes.getBytesRead();
+    long bytesWritten = transferBytes.getBytesWritten();
 
-    Long sizeDifference = Math.abs(bytesRead - bytesWritten);
+    long sizeDifference = Math.abs(bytesRead - bytesWritten);
 
     if (sizeDifference == 0) {
       return Result.PASSED;
@@ -87,18 +87,28 @@ public class FileSizePolicy extends TaskLevelPolicy {
 
   /**
    * Extracts bytesRead and bytesWritten from the given state.
+   * If bytesRead is null/zero, skip data quality check by returning Optional.empty().
    * Returns Empty Optional if parsing fails.
    */
   private Optional<TransferBytes> getBytesReadAndWritten(State state) {
     String bytesReadString = state.getProp(BYTES_READ_KEY);
     String bytesWrittenString = state.getProp(BYTES_WRITTEN_KEY);
-    if (bytesReadString == null || bytesWrittenString == null) {
+    if (bytesReadString == null) {
       log.error("Missing value(s): bytesReadStr={}, bytesWrittenStr={}", bytesReadString, bytesWrittenString);
       return Optional.empty();
     }
     try {
       long bytesRead = Long.parseLong(bytesReadString);
-      long bytesWritten = Long.parseLong(bytesWrittenString);
+      if (bytesRead == 0) {
+        log.warn("Bytes read is zero, skipping file size check.");
+        return Optional.empty();
+      }
+      long bytesWritten = 0;
+      if (bytesWrittenString == null) {
+        log.error("Missing bytesWritten value: bytesWrittenStr={}", bytesWrittenString);
+      } else {
+        bytesWritten = Long.parseLong(bytesWrittenString);
+      }
       return Optional.of(new TransferBytes(bytesRead, bytesWritten));
     } catch (NumberFormatException e) {
       log.error("Invalid number format for bytesRead or bytesWritten: bytesRead='{}', bytesWritten='{}'",
