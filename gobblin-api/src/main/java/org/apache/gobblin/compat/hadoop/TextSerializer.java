@@ -19,7 +19,6 @@ package org.apache.gobblin.compat.hadoop;
 import java.io.DataInput;
 import java.io.DataOutput;
 import java.io.IOException;
-import java.nio.charset.StandardCharsets;
 
 
 /**
@@ -31,20 +30,21 @@ public class TextSerializer {
    * Serialize a String using the same logic as a Hadoop Text object
    */
   public static void writeStringAsText(DataOutput stream, String str) throws IOException {
-    byte[] utf8Encoded = str.getBytes(StandardCharsets.UTF_8);
-    writeVLong(stream, utf8Encoded.length);
-    stream.write(utf8Encoded);
+    writeVLong(stream, str.length());
+    stream.writeBytes(str);
   }
 
   /**
    * Deserialize a Hadoop Text object into a String
    */
   public static String readTextAsString(DataInput in) throws IOException {
-    int bufLen = (int)readVLong(in);
-    byte[] buf = new byte[bufLen];
-    in.readFully(buf);
+    int bufLen = (int) readVLong(in);
+    StringBuilder sb = new StringBuilder();
 
-    return new String(buf, StandardCharsets.UTF_8);
+    for (int i = 0; i < bufLen; i++) {
+      sb.append((char) in.readByte());
+    }
+    return sb.toString();
   }
 
   /**
