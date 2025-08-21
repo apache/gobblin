@@ -24,6 +24,7 @@ import org.apache.gobblin.util.io.GsonInterfaceAdapter;
 import java.io.IOException;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 
 import lombok.AccessLevel;
 import lombok.AllArgsConstructor;
@@ -54,6 +55,8 @@ public class CopyEntity implements HasGuid {
 
   public static final Gson GSON = GsonInterfaceAdapter.getGson(Object.class);
 
+  private final Guid id = new Guid(UUID.randomUUID().toString().getBytes());
+
   /**
    * File set this file belongs to. {@link CopyEntity}s in the same fileSet and originating from the same
    * {@link CopyableDataset} will be treated as a unit: they will be published nearly atomically, and a notification
@@ -66,7 +69,7 @@ public class CopyEntity implements HasGuid {
 
   @Override
   public Guid guid() throws IOException {
-    return Guid.fromStrings(toString());
+    return id;
   }
 
   /**
@@ -118,7 +121,9 @@ public class CopyEntity implements HasGuid {
    */
   public static String getSerializedWithNewPackage(String serialized) {
     serialized = serialized.replace("\"gobblin.data.management.", "\"org.apache.gobblin.data.management.");
-    log.debug("Serialized updated copy entity: " + serialized);
+    if (log.isDebugEnabled()) {
+      log.debug("Serialized updated copy entity: " + serialized);
+    }
     return serialized;
   }
 
