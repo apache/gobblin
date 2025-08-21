@@ -400,7 +400,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyEntity.getFileSet());
           setWorkUnitWeight(workUnit, copyEntity, minWorkUnitWeight);
           setWorkUnitWatermark(workUnit, watermarkGenerator, copyEntity);
-          computeAndSetWorkUnitGuid(workUnit);
+          computeAndSetWorkUnitGuid(workUnit, copyEntity);
           addLineageInfo(copyEntity, workUnit);
           if (copyEntity instanceof CopyableFile) {
             CopyableFile castedCopyEntity = (CopyableFile) copyEntity;
@@ -514,11 +514,11 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     workUnit.setProp(WORK_UNIT_WEIGHT, Long.toString(weight));
   }
 
-  private static void computeAndSetWorkUnitGuid(WorkUnit workUnit)
+  private static void computeAndSetWorkUnitGuid(WorkUnit workUnit, CopyEntity copyEntity)
       throws IOException {
     Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ? workUnit
         .getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) : "");
-    setWorkUnitGuid(workUnit, guid.append(deserializeCopyEntity(workUnit)));
+    setWorkUnitGuid(workUnit, guid.append(copyEntity.guid()));
   }
 
   /**
