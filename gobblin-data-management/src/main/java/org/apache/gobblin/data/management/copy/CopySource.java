@@ -19,10 +19,12 @@ package org.apache.gobblin.data.management.copy;
 
 import java.io.IOException;
 import java.net.URI;
+import java.nio.charset.StandardCharsets;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.UUID;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -54,6 +56,7 @@ import org.apache.gobblin.data.management.copy.extractor.EmptyExtractor;
 import org.apache.gobblin.data.management.copy.extractor.FileAwareInputStreamExtractor;
 import org.apache.gobblin.data.management.copy.prioritization.FileSetComparator;
 import org.apache.gobblin.data.management.copy.publisher.CopyEventSubmitterHelper;
+import org.apache.gobblin.data.management.copy.recovery.RecoveryHelper;
 import org.apache.gobblin.data.management.copy.replication.ConfigBasedDataset;
 import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.data.management.copy.watermark.CopyableFileWatermarkGenerator;
@@ -372,6 +375,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
 
         Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, CopyConfiguration.COPY_PREFIX, extractId);
         List<WorkUnit> workUnitsForPartition = Lists.newArrayList();
+        // use random guid for workunits if recovery is disabled. Getting deterministic guid is expensive as it
+        // serialises entire workunit to generate guid
+        boolean useRandomGuidForWorkUnit = !isRecoveryEnabled(state);
+        log.info("Using " + (useRandomGuidForWorkUnit ? "random" : "deterministic") + " guids for workunits");
 
         long fileSize;
         for (CopyEntity copyEntity : fileSet.getFiles()) {
@@ -400,7 +407,7 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
           workUnit.setProp(SlaEventKeys.PARTITION_KEY, copyEntity.getFileSet());
           setWorkUnitWeight(workUnit, copyEntity, minWorkUnitWeight);
           setWorkUnitWatermark(workUnit, watermarkGenerator, copyEntity);
-          computeAndSetWorkUnitGuid(workUnit);
+          computeAndSetWorkUnitGuid(workUnit, copyEntity, useRandomGuidForWorkUnit);
           addLineageInfo(copyEntity, workUnit);
           if (copyEntity instanceof CopyableFile) {
             CopyableFile castedCopyEntity = (CopyableFile) copyEntity;
@@ -425,6 +432,10 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
         throw new RuntimeException("Failed to generate work units for dataset " + this.copyableDataset.datasetURN(),
             ioe);
       }
+    }
+
+    private static boolean isRecoveryEnabled(State state) {
+      return state.contains(RecoveryHelper.PERSIST_DIR_KEY);
     }
 
     private void setWorkUnitWatermark(WorkUnit workUnit, Optional<CopyableFileWatermarkGenerator> watermarkGenerator,
@@ -514,11 +525,12 @@ public class CopySource extends AbstractSource<String, FileAwareInputStream> {
     workUnit.setProp(WORK_UNIT_WEIGHT, Long.toString(weight));
   }
 
-  private static void computeAndSetWorkUnitGuid(WorkUnit workUnit)
+  private static void computeAndSetWorkUnitGuid(WorkUnit workUnit, CopyEntity copyEntity, boolean useRandomGuidForWorkUnit)
       throws IOException {
     Guid guid = Guid.fromStrings(workUnit.contains(ConfigurationKeys.CONVERTER_CLASSES_KEY) ? workUnit
         .getProp(ConfigurationKeys.CONVERTER_CLASSES_KEY) : "");
-    setWorkUnitGuid(workUnit, guid.append(deserializeCopyEntity(workUnit)));
+    Guid copyEntityGuid = useRandomGuidForWorkUnit ? new Guid(UUID.randomUUID().toString().getBytes(StandardCharsets.UTF_8)) : copyEntity.guid();
+    setWorkUnitGuid(workUnit, guid.append(copyEntityGuid));
   }
 
   /**
