@@ -320,6 +320,8 @@ public class Task implements TaskIFace {
 
   private void computeAndUpdateTaskDataQuality() {
     DataQualityStatus overallTaskDataQuality = DataQualityStatus.PASSED;
+    boolean hasEvaluatedForks = false;
+
     for (Optional<Fork> fork : this.forks.keySet()) {
       if (fork.isPresent()) {
         TaskState forkTaskState = fork.get().getTaskState();
@@ -329,15 +331,37 @@ public class Task implements TaskIFace {
           try {
             if (result != null) {
               forkDataQualityStatus = DataQualityStatus.valueOf(result);
+            } else {
+              forkDataQualityStatus = DataQualityStatus.NOT_EVALUATED;
             }
           } catch (IllegalArgumentException e) {
             Log.warn("Unknown data quality status encountered: " + result);
             forkDataQualityStatus = DataQualityStatus.UNKNOWN;
           }
-          overallTaskDataQuality = forkDataQualityStatus;
+          /*
+           * If any fork fails, overall status should be FAILED
+           * FAILED status cannot be overridden by subsequent successes
+           * Handle NOT_EVALUATED and UNKNOWN appropriately
+           * If forkDataQualityStatus is PASSED and overall is not FAILED/UNKNOWN, keep PASSED
+           */
+          if (forkDataQualityStatus != DataQualityStatus.NOT_EVALUATED) {
+            hasEvaluatedForks = true;
+            if (forkDataQualityStatus == DataQualityStatus.FAILED) {
+              overallTaskDataQuality = DataQualityStatus.FAILED;
+            } else if (forkDataQualityStatus == DataQualityStatus.UNKNOWN &&
+                       overallTaskDataQuality != DataQualityStatus.FAILED) {
+              overallTaskDataQuality = DataQualityStatus.UNKNOWN;
+            }
+          }
         }
       }
     }
+
+    // If no forks were evaluated, set overall task status to NOT_EVALUATED
+    if (!hasEvaluatedForks) {
+      overallTaskDataQuality = DataQualityStatus.NOT_EVALUATED;
+    }
+
     LOG.info("Data quality state of the task is {}", overallTaskDataQuality);
     this.taskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY, overallTaskDataQuality.name());
   }
