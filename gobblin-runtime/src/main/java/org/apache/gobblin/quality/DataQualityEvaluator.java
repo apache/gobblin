@@ -32,6 +32,7 @@ import org.apache.gobblin.metrics.OpenTelemetryMetrics;
 import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
 import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.policies.size.FileSizePolicy;
 import org.apache.gobblin.qualitychecker.DataQualityStatus;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.TaskState;
@@ -66,6 +67,10 @@ public class DataQualityEvaluator {
     private final int failedFiles;
     // Number of files that were not evaluated for data quality for example files not found or not processed
     private final int nonEvaluatedFiles;
+    // total bytes read
+    private  final long bytesRead;
+    // total bytes written
+    private final long bytesWritten;
   }
 
   /**
@@ -85,7 +90,7 @@ public class DataQualityEvaluator {
     jobState.setProp(ConfigurationKeys.DATASET_QUALITY_STATUS_KEY, result.getQualityStatus().name());
     // Emit dataset-specific metrics
     emitMetrics(jobState, result.getQualityStatus(), result.getTotalFiles(), result.getPassedFiles(),
-        result.getFailedFiles(), result.getNonEvaluatedFiles(), datasetState.getDatasetUrn());
+        result.getFailedFiles(), result.getNonEvaluatedFiles(), result.getBytesRead(), result.getBytesWritten(), datasetState.getDatasetUrn());
 
     return result;
   }
@@ -103,17 +108,19 @@ public class DataQualityEvaluator {
     int failedFilesCount = 0;
     int passedFilesCount = 0;
     int nonEvaluatedFilesCount = 0;
+    long bytesRead = 0;
+    long bytesWritten = 0;
 
     for (TaskState taskState : taskStates) {
       totalFiles++;
-
       // Handle null task states gracefully
       if (taskState == null) {
         log.warn("Encountered null task state, skipping data quality evaluation for this task");
         nonEvaluatedFilesCount++;
         continue;
       }
-
+      bytesRead += taskState.getPropAsLong(FileSizePolicy.BYTES_READ_KEY, 0L);
+      bytesWritten += taskState.getPropAsLong(FileSizePolicy.BYTES_WRITTEN_KEY, 0L);
       DataQualityStatus taskDataQuality = null;
       String result = taskState.getProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY);
       taskDataQuality = DataQualityStatus.fromString(result);
@@ -138,11 +145,11 @@ public class DataQualityEvaluator {
     log.info("Data quality evaluation summary - Total: {}, Passed: {}, Failed: {}, Not Evaluated: {}", totalFiles,
         passedFilesCount, failedFilesCount, nonEvaluatedFilesCount);
     return new DataQualityEvaluationResult(jobDataQualityStatus, totalFiles, passedFilesCount, failedFilesCount,
-        nonEvaluatedFilesCount);
+        nonEvaluatedFilesCount, bytesRead, bytesWritten);
   }
 
   private static void emitMetrics(JobState jobState, final DataQualityStatus jobDataQuality, final int totalFiles,
-      final int passedFilesCount, final int failedFilesCount, final int nonEvaluatedFilesCount,
+      final int passedFilesCount, final int failedFilesCount, final int nonEvaluatedFilesCount, final long bytesRead, final long bytesWritten,
       final String datasetUrn) {
     try {
       // Check if OpenTelemetry is enabled
@@ -187,6 +194,17 @@ public class DataQualityEvaluator {
       meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_NON_EVALUATED_FILE_COUNT)
           .setDescription("Number of files that did not have data quality evaluation").build()
           .add(nonEvaluatedFilesCount, tags);
+
+      // Emit bytes read
+      meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_BYTES_READ)
+          .setDescription("Total bytes read").build()
+          .add(bytesRead, tags);
+
+      // Emit bytes written
+      meter.counterBuilder(ServiceMetricNames.DATA_QUALITY_BYTES_WRITTEN)
+          .setDescription("Total bytes written").build()
+          .add(bytesWritten, tags);
+
     } catch (Exception e) {
       log.error("Error in emitMetrics for job: {}", jobState.getJobName(), e);
     }
