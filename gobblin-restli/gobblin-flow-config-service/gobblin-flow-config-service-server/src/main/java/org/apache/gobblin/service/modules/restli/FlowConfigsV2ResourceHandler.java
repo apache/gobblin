@@ -86,6 +86,7 @@ public class FlowConfigsV2ResourceHandler implements FlowConfigsResourceHandlerI
   protected FlowCatalog flowCatalog;
   protected final ContextAwareMeter createFlow;
   protected final ContextAwareMeter deleteFlow;
+  protected  final ContextAwareMeter flowSpecExistsForAdhocFlow;
   protected final ContextAwareMeter runImmediatelyFlow;
 
   @Inject
@@ -100,6 +101,8 @@ public class FlowConfigsV2ResourceHandler implements FlowConfigsResourceHandlerI
         MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, ServiceMetricNames.DELETE_FLOW_METER));
     this.runImmediatelyFlow = metricContext.contextAwareMeter(
         MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, ServiceMetricNames.RUN_IMMEDIATELY_FLOW_METER));
+    this.flowSpecExistsForAdhocFlow = metricContext.contextAwareMeter(
+        MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX, ServiceMetricNames. RUN_IMMEDIATELY_FLOW_METER));
   }
 
   public FlowConfig getFlowConfig(FlowId flowId)
@@ -248,8 +251,22 @@ public class FlowConfigsV2ResourceHandler implements FlowConfigsResourceHandlerI
     // Return conflict and take no action if flowSpec has already been created
     if (this.flowCatalog.exists(flowSpec.getUri())) {
       log.warn("FlowSpec with URI {} already exists, no action will be taken", flowSpec.getUri());
-      return new CreateKVResponse<>(new RestLiServiceException(HttpStatus.S_409_CONFLICT,
-          "FlowSpec with URI " + flowSpec.getUri() + " already exists, no action will be taken"));
+      try {
+        FlowSpec  storedFlowSpec = this.flowCatalog.getSpecs(flowSpec.getUri());
+        if(!storedFlowSpec.isScheduled()){
+          log.error("FlowSpec Already Exists As Adhoc Flow  with URI: " + flowSpec.getUri() +);
+          if(!flowSpec.isScheduled()){
+            flowSpecExistsForAdhocFlow.mark();
+          }
+        }else{
+          log.error("FlowSpec Already Exists As Scheduled Flow with URI: " + flowSpec.getUri() + "");
+        }
+      } catch (SpecNotFoundException e) {
+        log.error("Error Retrieving FLow For Existing Flow With URI: " + flowSpec.getUri());
+      } finally {
+        return new CreateKVResponse<>(new RestLiServiceException(HttpStatus.S_409_CONFLICT,
+            "FlowSpec with URI " + flowSpec.getUri() + " already exists, no action will be taken"));
+      }
     }
 
     Map<String, AddSpecResponse> responseMap;

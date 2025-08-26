@@ -58,6 +58,7 @@ public class ServiceMetricNames {
 
   public static final String CREATE_FLOW_METER = "CreateFlow";
   public static final String DELETE_FLOW_METER = "DeleteFlow";
+  public static final String FLOW_SPEC_EXISTS_FOR_ADHOC_FLOW = "flowSpecExistsForAdhocFlow";
   public static final String RUN_IMMEDIATELY_FLOW_METER = "RunImmediatelyFlow";
   public static final String SUCCESSFUL_FLOW_METER = "SuccessfulFlows";
   public static final String START_SLA_EXCEEDED_FLOWS_METER = "StartSLAExceededFlows";
