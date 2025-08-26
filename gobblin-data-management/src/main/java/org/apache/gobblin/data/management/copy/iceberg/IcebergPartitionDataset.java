@@ -25,6 +25,7 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
@@ -136,7 +137,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
   private Map<Path, DataFile> calcDestDataFileBySrcPath(List<DataFile> srcDataFiles)
       throws IcebergTable.TableNotFoundException {
     String fileSet = this.getFileSetId();
-    Map<Path, DataFile> destDataFileBySrcPath = Maps.newHashMap();
+    Map<Path, DataFile> destDataFileBySrcPath = new ConcurrentHashMap<>(srcDataFiles.size());
     if (srcDataFiles.isEmpty()) {
       log.warn("~{}~ found no data files for partition col : {} with partition value : {} to copy", fileSet,
           this.partitionColumnName, this.partitionColValue);
@@ -188,11 +189,11 @@ public class IcebergPartitionDataset extends IcebergDataset {
   private Map<Path, FileStatus> calcSrcFileStatusByDestFilePath(Map<Path, DataFile> destDataFileBySrcPath)
       throws IOException {
     Function<Path, FileStatus> getFileStatus = CheckedExceptionFunction.wrapToTunneled(this.sourceFs::getFileStatus);
-    Map<Path, FileStatus> srcFileStatusByDestFilePath = Maps.newHashMap();
+    Map<Path, FileStatus> srcFileStatusByDestFilePath = new ConcurrentHashMap<>();
     try {
       srcFileStatusByDestFilePath = destDataFileBySrcPath.entrySet()
-          .stream()
-          .collect(Collectors.toMap(entry -> new Path(entry.getValue().path().toString()),
+          .parallelStream()
+          .collect(Collectors.toConcurrentMap(entry -> new Path(entry.getValue().path().toString()),
               entry -> getFileStatus.apply(entry.getKey())));
     } catch (CheckedExceptionFunction.WrappedIOException wrapper) {
       wrapper.rethrowWrapped();
@@ -201,7 +202,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
   }
 
   private PostPublishStep createOverwritePostPublishStep(List<DataFile> destDataFiles) {
-    byte[] serializedDataFiles = SerializationUtil.serializeToBytes(destDataFiles);
+    List<String> serializedDataFiles = getBase64EncodedDataFiles(destDataFiles);
 
     IcebergOverwritePartitionsStep icebergOverwritePartitionStep = new IcebergOverwritePartitionsStep(
         this.getDestIcebergTable().getTableId().toString(),
@@ -212,6 +213,14 @@ public class IcebergPartitionDataset extends IcebergDataset {
     );
 
     return new PostPublishStep(this.getFileSetId(), Maps.newHashMap(), icebergOverwritePartitionStep, 0);
+  }
+
+  private List<String> getBase64EncodedDataFiles(List<DataFile> destDataFiles) {
+    List<String> base64EncodedDataFiles = new ArrayList<>(destDataFiles.size());
+    for (DataFile dataFile : destDataFiles) {
+      base64EncodedDataFiles.add(SerializationUtil.serializeToBase64(dataFile));
+    }
+    return base64EncodedDataFiles;
   }
 
   private Predicate<StructLike> createPartitionFilterPredicate() throws IOException {
