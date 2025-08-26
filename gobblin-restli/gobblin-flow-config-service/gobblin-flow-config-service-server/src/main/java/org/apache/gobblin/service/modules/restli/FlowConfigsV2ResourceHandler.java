@@ -252,7 +252,7 @@ public class FlowConfigsV2ResourceHandler implements FlowConfigsResourceHandlerI
     if (this.flowCatalog.exists(flowSpec.getUri())) {
       log.warn("FlowSpec with URI {} already exists, no action will be taken", flowSpec.getUri());
       try {
-        FlowSpec  storedFlowSpec = this.flowCatalog.getSpecs(flowSpec.getUri());
+        FlowSpec storedFlowSpec = this.flowCatalog.getSpecs(flowSpec.getUri());
         if (!storedFlowSpec.isScheduled()) {
           log.error("FlowSpec Already Exists As Adhoc Flow  with URI: " + flowSpec.getUri());
           if (!flowSpec.isScheduled()) {
