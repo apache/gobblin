@@ -254,12 +254,12 @@ public class FlowConfigsV2ResourceHandler implements FlowConfigsResourceHandlerI
       try {
         FlowSpec  storedFlowSpec = this.flowCatalog.getSpecs(flowSpec.getUri());
         if(!storedFlowSpec.isScheduled()){
-          log.error("FlowSpec Already Exists As Adhoc Flow  with URI: " + flowSpec.getUri() +);
+          log.error("FlowSpec Already Exists As Adhoc Flow  with URI: " + flowSpec.getUri());
           if(!flowSpec.isScheduled()){
             flowSpecExistsForAdhocFlow.mark();
           }
         }else{
-          log.error("FlowSpec Already Exists As Scheduled Flow with URI: " + flowSpec.getUri() + "");
+          log.error("FlowSpec Already Exists As Scheduled Flow with URI: " + flowSpec.getUri());
         }
       } catch (SpecNotFoundException e) {
         log.error("Error Retrieving FLow For Existing Flow With URI: " + flowSpec.getUri());
