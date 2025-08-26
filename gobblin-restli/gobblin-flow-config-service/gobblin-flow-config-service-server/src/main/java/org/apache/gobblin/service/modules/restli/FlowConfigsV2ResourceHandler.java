@@ -86,7 +86,7 @@ public class FlowConfigsV2ResourceHandler implements FlowConfigsResourceHandlerI
   protected FlowCatalog flowCatalog;
   protected final ContextAwareMeter createFlow;
   protected final ContextAwareMeter deleteFlow;
-  protected  final ContextAwareMeter flowSpecExistsForAdhocFlow;
+  protected final ContextAwareMeter flowSpecExistsForAdhocFlow;
   protected final ContextAwareMeter runImmediatelyFlow;
 
   @Inject

@@ -58,7 +58,7 @@ public class LaunchDagTask extends DagTask {
             //This can throw Runtime, IllegalState and IO Exceptions which are not caught here.
             dagManagementStateStore.removeFlowSpec(flowSpec.getUri(), new Properties(), false);
           } catch (Exception e) {
-            super.dagProcEngineMetrics.markDagActionsConflowFlowSpecRemoval(this.dagAction.getDagActionType(), false);
+            super.dagProcEngineMetrics.markDagActionsConcludeFlowSpecRemoval(this.dagAction.getDagActionType(), false);
             log.error("Failed to Remove The FlowSpec For Adhoc Flow with URI: " + flowSpec.getUri());
             return false;
           }
