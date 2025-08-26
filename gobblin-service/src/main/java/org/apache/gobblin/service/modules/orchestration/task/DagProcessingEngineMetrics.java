@@ -61,7 +61,8 @@ public class DagProcessingEngineMetrics {
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeSucceededMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter>
       dagActionsConcludeFlowSpecRemovalSucceededMeterByDagActionType = new HashMap<>();
-  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeFlowSpecRemovalFailedMetreByDagActionType = new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter>
+      dagActionsConcludeFlowSpecRemovalFailedMeterByDagActionType = new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsDeleteFailedMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsDeleteSucceededMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsAverageProcessingDelayMillisMeterByDagActionType =  new HashMap<>();
@@ -93,7 +94,7 @@ public class DagProcessingEngineMetrics {
     registerMetricForEachDagActionType(this.dagActionsConcludeFailedMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_FAILED);
     registerMetricForEachDagActionType(this.dagActionsConcludeSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_SUCCEEDED);
     registerMetricForEachDagActionType(this.dagActionsConcludeFlowSpecRemovalSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_FLOW_SPEC_REMOVAL_SUCCEEDED);
-    registerMetricForEachDagActionType(this.dagActionsConcludeFlowSpecRemovalFailedMetreByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_FLOW_SPEC_REMOVAL_FAILED);
+    registerMetricForEachDagActionType(this.dagActionsConcludeFlowSpecRemovalFailedMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_FLOW_SPEC_REMOVAL_FAILED);
     registerMetricForEachDagActionType(this.dagActionsDeleteFailedMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_DELETE_FAILED);
     registerMetricForEachDagActionType(this.dagActionsDeleteSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_DELETE_SUCCEEDED);
     registerMetricForEachDagActionType(this.dagActionsAverageProcessingDelayMillisMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_AVERAGE_PROCESSING_DELAY_MILLIS);
@@ -172,7 +173,7 @@ public class DagProcessingEngineMetrics {
     if (succeeded) {
       updateMetricForDagActionType(this.dagActionsConcludeFlowSpecRemovalSucceededMeterByDagActionType, dagActionType);
     } else {
-      updateMetricForDagActionType(this.dagActionsConcludeFlowSpecRemovalFailedMetreByDagActionType, dagActionType);
+      updateMetricForDagActionType(this.dagActionsConcludeFlowSpecRemovalFailedMeterByDagActionType, dagActionType);
     }
   }
 
