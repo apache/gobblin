@@ -59,7 +59,8 @@ public class DagProcessingEngineMetrics {
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsActSucceededMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeFailedMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeSucceededMeterByDagActionType =  new HashMap<>();
-  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeFlowSpecRemovalSucceededMetreByDagActionType = new HashMap<>();
+  private final HashMap<DagActionStore.DagActionType, ContextAwareMeter>
+      dagActionsConcludeFlowSpecRemovalSucceededMeterByDagActionType = new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsConcludeFlowSpecRemovalFailedMetreByDagActionType = new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsDeleteFailedMeterByDagActionType =  new HashMap<>();
   private final HashMap<DagActionStore.DagActionType, ContextAwareMeter> dagActionsDeleteSucceededMeterByDagActionType =  new HashMap<>();
@@ -91,7 +92,7 @@ public class DagProcessingEngineMetrics {
     registerMetricForEachDagActionType(this.dagActionsActSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_ACT_SUCCEEDED);
     registerMetricForEachDagActionType(this.dagActionsConcludeFailedMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_FAILED);
     registerMetricForEachDagActionType(this.dagActionsConcludeSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_SUCCEEDED);
-    registerMetricForEachDagActionType(this.dagActionsConcludeFlowSpecRemovalSucceededMetreByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_FLOW_SPEC_REMOVAL_SUCCEEDED);
+    registerMetricForEachDagActionType(this.dagActionsConcludeFlowSpecRemovalSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_FLOW_SPEC_REMOVAL_SUCCEEDED);
     registerMetricForEachDagActionType(this.dagActionsConcludeFlowSpecRemovalFailedMetreByDagActionType, ServiceMetricNames.DAG_ACTIONS_CONCLUDE_FLOW_SPEC_REMOVAL_FAILED);
     registerMetricForEachDagActionType(this.dagActionsDeleteFailedMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_DELETE_FAILED);
     registerMetricForEachDagActionType(this.dagActionsDeleteSucceededMeterByDagActionType, ServiceMetricNames.DAG_ACTIONS_DELETE_SUCCEEDED);
@@ -169,7 +170,7 @@ public class DagProcessingEngineMetrics {
 
   public void markDagActionsConcludeFlowSpecRemoval(DagActionStore.DagActionType dagActionType, boolean succeeded) {
     if (succeeded) {
-      updateMetricForDagActionType(this.dagActionsConcludeFlowSpecRemovalSucceededMetreByDagActionType, dagActionType);
+      updateMetricForDagActionType(this.dagActionsConcludeFlowSpecRemovalSucceededMeterByDagActionType, dagActionType);
     } else {
       updateMetricForDagActionType(this.dagActionsConcludeFlowSpecRemovalFailedMetreByDagActionType, dagActionType);
     }

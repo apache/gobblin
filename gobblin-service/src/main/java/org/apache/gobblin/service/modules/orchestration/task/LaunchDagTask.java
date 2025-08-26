@@ -62,6 +62,7 @@ public class LaunchDagTask extends DagTask {
             log.error("Failed to Remove The FlowSpec For Adhoc Flow with URI: " + flowSpec.getUri());
             return false;
           }
+          super.dagProcEngineMetrics.markDagActionsConcludeFlowSpecRemoval(this.dagAction.getDagActionType(), true);
         }
         return true;
       }
