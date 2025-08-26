@@ -167,8 +167,8 @@ public class DagProcessingEngineMetrics {
     }
   }
 
-  public void markDagActionsConflowFlowSpecRemoval(DagActionStore.DagActionType dagActionType, boolean succeeded){
-    if(succeeded){
+  public void markDagActionsConflowFlowSpecRemoval(DagActionStore.DagActionType dagActionType, boolean succeeded) {
+    if (succeeded) {
       updateMetricForDagActionType(this.dagActionsConcludeFlowSpecRemovalSucceededMetreByDagActionType, dagActionType);
     } else {
       updateMetricForDagActionType(this.dagActionsConcludeFlowSpecRemovalFailedMetreByDagActionType, dagActionType);
