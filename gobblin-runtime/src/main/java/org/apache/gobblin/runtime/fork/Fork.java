@@ -630,11 +630,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       TaskLevelPolicyCheckResults taskResults =
           this.taskContext.getTaskLevelPolicyChecker(this.forkTaskState, this.branches > 1 ? this.index : -1)
               .executePolicies();
-      boolean hasFailureForMandatoryPolicy = taskResults.getPolicyResults()
-          .getOrDefault(TaskLevelPolicy.Result.FAILED, java.util.Collections.emptySet())
-          .contains(TaskLevelPolicy.Type.FAIL);
-      forkTaskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY,
-          hasFailureForMandatoryPolicy ? DataQualityStatus.FAILED.name() : DataQualityStatus.PASSED.name());
+      this.computeAndUpdateForkDataQuality(taskResults);
       TaskPublisher publisher = this.taskContext.getTaskPublisher(this.forkTaskState, taskResults);
       switch (publisher.canPublish()) {
         case SUCCESS:
@@ -657,6 +653,24 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
       this.logger.error("Failed to check task-level data quality", t);
       return false;
     }
+  }
+
+  private void computeAndUpdateForkDataQuality(TaskLevelPolicyCheckResults taskResults) {
+    boolean hasFailureForMandatoryPolicy =
+        taskResults.getPolicyResults().getOrDefault(TaskLevelPolicy.Result.FAILED, java.util.Collections.emptySet())
+            .contains(TaskLevelPolicy.Type.FAIL);
+    boolean hasNotEvaluatedForMandatoryPolicy = taskResults.getPolicyResults()
+        .getOrDefault(TaskLevelPolicy.Result.NOT_EVALUATED, java.util.Collections.emptySet())
+        .contains(TaskLevelPolicy.Type.FAIL);
+    String forkLevelDataQualityResult;
+    if (hasFailureForMandatoryPolicy) {
+      forkLevelDataQualityResult = DataQualityStatus.FAILED.name();
+    } else if (hasNotEvaluatedForMandatoryPolicy) {
+      forkLevelDataQualityResult = DataQualityStatus.NOT_EVALUATED.name();
+    } else {
+      forkLevelDataQualityResult = DataQualityStatus.PASSED.name();
+    }
+    forkTaskState.setProp(ConfigurationKeys.TASK_LEVEL_POLICY_RESULT_KEY, forkLevelDataQualityResult);
   }
 
   /**

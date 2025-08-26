@@ -32,7 +32,8 @@ public abstract class TaskLevelPolicy {
 
   public enum Result {
     PASSED, // The test passed
-    FAILED // The test failed
+    FAILED, // The test failed
+    NOT_EVALUATED // The test was not evaluated
   }
 
   public TaskLevelPolicy(State state, TaskLevelPolicy.Type type) {

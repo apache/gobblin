@@ -49,7 +49,7 @@ public class FileSizePolicyTest {
     State state = new State();
     // No properties set at all
     FileSizePolicy policy = new FileSizePolicy(state, TaskLevelPolicy.Type.FAIL);
-    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.FAILED);
+    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.NOT_EVALUATED);
   }
 
   @Test
@@ -64,9 +64,20 @@ public class FileSizePolicyTest {
     // Reset state and only set bytes written, not bytes read
     state = new State();
     state.setProp(FileSizePolicy.BYTES_WRITTEN_KEY, 1000L);
-
+    // bytes read is null
     policy = new FileSizePolicy(state, TaskLevelPolicy.Type.FAIL);
-    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.FAILED);
+    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.NOT_EVALUATED);
+  }
+
+  @Test
+  public void testEmptyDirectoryHandling() {
+    State state = new State();
+    // Test case: Empty directory with 0 bytes read, no bytes written (directory case)
+    state.setProp(FileSizePolicy.BYTES_READ_KEY, 0L);
+    // Don't set BYTES_WRITTEN_KEY to simulate directory copy scenario
+
+    FileSizePolicy policy = new FileSizePolicy(state, TaskLevelPolicy.Type.FAIL);
+    Assert.assertEquals(policy.executePolicy(), TaskLevelPolicy.Result.NOT_EVALUATED);
   }
 
 }
