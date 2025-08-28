@@ -70,6 +70,7 @@ public class ActivityTypeTest {
         {ActivityType.PROCESS_WORKUNIT, 555},
         {ActivityType.COMMIT, 444},
         {ActivityType.SUBMIT_GTE, 999},
+        {ActivityType.EMIT_OTEL_METRICS, 888},
         {ActivityType.DEFAULT_ACTIVITY, 1}
     };
   }
