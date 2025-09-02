@@ -33,6 +33,26 @@ import org.apache.gobblin.compat.hadoop.TextSerializer;
 
 public class TextSerializerTest {
   private static final String[] textsToSerialize = new String[]{"abracadabra", Strings.repeat("longString", 128000)};
+  private static final String[] serializationErrorText = new String[]{".ß¸´ˇ", Strings.repeat("ˀ.¸¯.", 128000)};
+
+  @Test
+  public void testSerializeError() throws IOException {
+    // Use our serializer, verify Hadoop deserializer can read it back
+    for (String textToSerialize : serializationErrorText) {
+      ByteArrayOutputStream bOs = new ByteArrayOutputStream();
+      DataOutputStream dataOutputStream = new DataOutputStream(bOs);
+
+      try {
+        TextSerializer.writeStringAsText(dataOutputStream, textToSerialize);
+        Assert.fail("Expected IOException not thrown");
+      } catch (Exception e) {
+        Assert.assertTrue(e instanceof IllegalArgumentException);
+        // Expected exception
+      } finally {
+        dataOutputStream.close();
+      }
+    }
+  }
 
   @Test
   public void testSerialize()
