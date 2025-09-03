@@ -118,7 +118,9 @@ public class CopyEntity implements HasGuid {
    */
   public static String getSerializedWithNewPackage(String serialized) {
     serialized = serialized.replace("\"gobblin.data.management.", "\"org.apache.gobblin.data.management.");
-    log.debug("Serialized updated copy entity: " + serialized);
+    if (log.isDebugEnabled()) {
+      log.debug("Serialized updated copy entity: " + serialized);
+    }
     return serialized;
   }
 
