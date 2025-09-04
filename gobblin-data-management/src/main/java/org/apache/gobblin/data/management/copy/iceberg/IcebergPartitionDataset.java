@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import java.io.DataOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
@@ -51,11 +52,13 @@ import com.google.common.base.Preconditions;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.data.management.copy.CopyConfiguration;
 import org.apache.gobblin.data.management.copy.CopyEntity;
 import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.CopyableDataset;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.util.function.CheckedExceptionFunction;
 import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergMatchesAnyPropNamePartitionFilterPredicate;
 import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartitionFilterPredicateUtil;
@@ -69,6 +72,7 @@ import org.apache.gobblin.data.management.copy.iceberg.predicates.IcebergPartiti
  */
 @Slf4j
 public class IcebergPartitionDataset extends IcebergDataset {
+  private static final String ICEBERG_DATAFILES_PATH = "iceberg_data_files";
   // Currently hardcoded these transforms here but eventually it will depend on filter predicate implementation and can
   // be moved to a common place or inside each filter predicate.
   private static final List<String> supportedTransforms = ImmutableList.of("identity", "truncate");
@@ -127,7 +131,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
     // Adding this check to avoid adding post publish step when there are no files to copy.
     List<DataFile> destDataFiles = new ArrayList<>(destDataFileBySrcPath.values());
     if (CollectionUtils.isNotEmpty(destDataFiles)) {
-      copyEntities.add(createOverwritePostPublishStep(destDataFiles));
+      copyEntities.add(createOverwritePostPublishStep(destDataFiles, targetFs));
     }
 
     log.info("~{}~ generated {} copy entities", fileSet, copyEntities.size());
@@ -201,26 +205,40 @@ public class IcebergPartitionDataset extends IcebergDataset {
     return srcFileStatusByDestFilePath;
   }
 
-  private PostPublishStep createOverwritePostPublishStep(List<DataFile> destDataFiles) {
-    List<String> serializedDataFiles = getBase64EncodedDataFiles(destDataFiles);
+  private PostPublishStep createOverwritePostPublishStep(List<DataFile> destDataFiles, FileSystem targetFs) {
+    Path serializedDataFilesDirectory = getBase64EncodedDataFilesPath(destDataFiles, targetFs);
 
     IcebergOverwritePartitionsStep icebergOverwritePartitionStep = new IcebergOverwritePartitionsStep(
         this.getDestIcebergTable().getTableId().toString(),
         this.partitionColumnName,
         this.partitionColValue,
-        serializedDataFiles,
+        serializedDataFilesDirectory,
         this.properties
     );
 
     return new PostPublishStep(this.getFileSetId(), Maps.newHashMap(), icebergOverwritePartitionStep, 0);
   }
 
-  private List<String> getBase64EncodedDataFiles(List<DataFile> destDataFiles) {
-    List<String> base64EncodedDataFiles = new ArrayList<>(destDataFiles.size());
-    for (DataFile dataFile : destDataFiles) {
-      base64EncodedDataFiles.add(SerializationUtil.serializeToBase64(dataFile));
-    }
-    return base64EncodedDataFiles;
+  public static Path getWorkDirRoot(JobState jobState) {
+    return new Path(
+        new Path(jobState.getProp(ConfigurationKeys.MR_JOB_ROOT_DIR_KEY), jobState.getJobName()),
+        jobState.getJobId());
+  }
+
+  private Path getBase64EncodedDataFilesPath(List<DataFile> destDataFiles, FileSystem targetFs) {
+    JobState jobState = new JobState(this.properties);
+    Path dataFilesDirectory = new Path(getWorkDirRoot(jobState), ICEBERG_DATAFILES_PATH);
+    log.info("Creating data files directory at : {}", dataFilesDirectory);
+    destDataFiles.parallelStream().forEach(dataFile -> {
+      Path dataFilePath = new Path(dataFilesDirectory, UUID.randomUUID().toString());
+      String encodedDataFile = SerializationUtil.serializeToBase64(dataFile);
+      try (DataOutputStream out = targetFs.create(dataFilePath)) {
+        out.writeUTF(encodedDataFile);
+      } catch (IOException e) {
+        throw new RuntimeException("Failed to serialize data file : " + dataFile.path(), e);
+      }
+    });
+    return dataFilesDirectory;
   }
 
   private Predicate<StructLike> createPartitionFilterPredicate() throws IOException {

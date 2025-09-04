@@ -17,15 +17,21 @@
 
 package org.apache.gobblin.data.management.copy.iceberg;
 
+import java.io.DataInputStream;
 import java.io.IOException;
 import java.time.Duration;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutionException;
 
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.LocatedFileStatus;
+import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.fs.RemoteIterator;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.util.SerializationUtil;
@@ -41,6 +47,8 @@ import com.typesafe.config.ConfigFactory;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.commit.CommitStep;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.retry.RetryerFactory;
 
 import static org.apache.gobblin.util.retry.RetryerFactory.RETRY_INTERVAL_MS;
@@ -60,7 +68,7 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
   private final String destTableIdStr;
   private final Properties properties;
   // Data files are kept as a list of base64 encoded strings for optimised de-serialization.
-  private final List<String> base64EncodedDataFiles;
+  private final Path base64EncodedDataFilesPath;
   private final String partitionColName;
   private final String partitionValue;
   public static final String OVERWRITE_PARTITIONS_RETRYER_CONFIG_PREFIX = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX +
@@ -73,15 +81,15 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
   /**
    * Constructs an {@code IcebergReplacePartitionsStep} with the specified parameters.
    *
-   * @param destTableIdStr the identifier of the destination table as a string
-   * @param base64EncodedDataFiles [from List<DataFiles>] the serialized data files to be used for replacing partitions
-   * @param properties the properties containing configuration
+   * @param destTableIdStr             the identifier of the destination table as a string
+   * @param base64EncodedDataFilesPath base path where all data files are written
+   * @param properties                 the properties containing configuration
    */
-  public IcebergOverwritePartitionsStep(String destTableIdStr, String partitionColName, String partitionValue, List<String> base64EncodedDataFiles, Properties properties) {
+  public IcebergOverwritePartitionsStep(String destTableIdStr, String partitionColName, String partitionValue, Path base64EncodedDataFilesPath, Properties properties) {
     this.destTableIdStr = destTableIdStr;
     this.partitionColName = partitionColName;
     this.partitionValue = partitionValue;
-    this.base64EncodedDataFiles = base64EncodedDataFiles;
+    this.base64EncodedDataFilesPath = base64EncodedDataFilesPath;
     this.properties = properties;
   }
 
@@ -140,11 +148,29 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
     }
   }
 
-  private List<DataFile> getDataFiles() {
-    List<DataFile> dataFiles = new ArrayList<>(base64EncodedDataFiles.size());
-    for (String base64EncodedDataFile : base64EncodedDataFiles) {
-      dataFiles.add(SerializationUtil.deserializeFromBase64(base64EncodedDataFile));
+  List<DataFile> getDataFiles() throws IOException {
+    JobState jobState = new JobState(this.properties);
+    FileSystem fs = HadoopUtils.getWriterFileSystem(jobState, 1, 0);
+
+    List<DataFile> dataFiles = Collections.synchronizedList(new ArrayList<>());
+    log.info("Reading base64 encoded DataFiles from HDFS path: {}", base64EncodedDataFilesPath);
+    RemoteIterator<LocatedFileStatus> fileIterator = fs.listFiles(base64EncodedDataFilesPath, false);
+
+    List<Path> filePaths = new ArrayList<>();
+    while (fileIterator.hasNext()) {
+      filePaths.add(fileIterator.next().getPath());
     }
+    log.info("Read {} data files path", filePaths.size());
+    filePaths.parallelStream().forEach(filePath -> {
+      try (DataInputStream in = fs.open(filePath)) {
+        String encodedContent = in.readUTF();
+        DataFile dataFile = SerializationUtil.deserializeFromBase64(encodedContent);
+        dataFiles.add(dataFile);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
+    });
+    log.info("Total Data files read: {}", dataFiles.size());
     return dataFiles;
   }
 
