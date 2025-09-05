@@ -19,6 +19,7 @@ package org.apache.gobblin.data.management.copy.publisher;
 
 import java.io.IOException;
 import java.net.URI;
+import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Comparator;
 import java.util.List;
@@ -28,6 +29,7 @@ import java.util.stream.Collectors;
 import org.apache.hadoop.fs.FileStatus;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.iceberg.DataFile;
 
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
@@ -58,6 +60,8 @@ import org.apache.gobblin.data.management.copy.PreserveAttributes;
 import org.apache.gobblin.data.management.copy.entities.CommitStepCopyEntity;
 import org.apache.gobblin.data.management.copy.entities.PostPublishStep;
 import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.data.management.copy.iceberg.IcebergPartitionCopyableFile;
+import org.apache.gobblin.data.management.copy.iceberg.IcebergOverwritePartitionsStep;
 import org.apache.gobblin.data.management.copy.recovery.RecoveryHelper;
 import org.apache.gobblin.data.management.copy.splitter.DistcpFileSplitter;
 import org.apache.gobblin.data.management.copy.writer.FileAwareInputStreamDataWriter;
@@ -333,7 +337,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     log.info("[{}] Found {} pre-publish steps and {} post-publish steps.", datasetAndPartition.identifier(),
         prePublishSteps.size(), postPublishSteps.size());
 
-    executeCommitSequence(prePublishSteps);
+    executeCommitSequence(prePublishSteps, new ArrayList<>(0));
 
     if (statesHelper.hasAnyCopyableFile()) {
       // Targets are always absolute, so we start moving from root (will skip any existing directories).
@@ -351,12 +355,19 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     // ensure every successful state is committed
     // WARNING: this MUST NOT run before the WU is actually executed--hence NOT YET for post-publish steps!
     // (that's because `WorkUnitState::getWorkingState()` returns `WorkingState.SUCCESSFUL` merely when the overall job succeeded--even for WUs yet to execute)
+
+    // maintain a list of iceberg partition data files to be used in IcebergOverwritePartitionsStep if applicable.
+    // This is required for the final commit step where all the data files are overwritten to partition.
+    List<DataFile> icebergDataFiles = new ArrayList<>();
     for (WorkUnitState wus : statesHelper.getNonPostPublishStates()) {
       if (wus.getWorkingState() == WorkingState.SUCCESSFUL) {
         wus.setWorkingState(WorkUnitState.WorkingState.COMMITTED);
       }
       CopyEntity copyEntity = CopySource.deserializeCopyEntity(wus);
       if (copyEntity instanceof CopyableFile) {
+        if (copyEntity instanceof IcebergPartitionCopyableFile) {
+          icebergDataFiles.add(((IcebergPartitionCopyableFile) copyEntity).getDataFile());
+        }
         CopyableFile copyableFile = (CopyableFile) copyEntity;
         if (wus.getWorkingState() == WorkingState.COMMITTED) {
           // Committed files should exist in destination otherwise FNFE will be thrown
@@ -384,7 +395,7 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
     }
 
     // execute `postPublishSteps` after preserving file attributes, as some, like `SetPermissionCommitStep`, will themselves set permissions
-    executeCommitSequence(postPublishSteps);
+    executeCommitSequence(postPublishSteps, icebergDataFiles);
 
     // since `postPublishSteps` have now executed, finally ready to ensure every successful WU state of those gets committed
     for (WorkUnitState wus : statesHelper.getPostPublishStates()) {
@@ -410,8 +421,16 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
         Long.toString(datasetOriginTimestamp), Long.toString(datasetUpstreamTimestamp), additionalMetadata);
   }
 
-  private static void executeCommitSequence(List<CommitStep> steps) throws IOException {
+  private static void executeCommitSequence(List<CommitStep> steps, List<DataFile> icebergDataFiles) throws IOException {
     for (CommitStep step : steps) {
+      // if commit step is IcebergOverwritePartitionsStep, set the data files to be used for overwriting partitions
+      // Every copy entity in the work unit state has one data file associated with it. All data files are collected &
+      // passed to the commit step here.
+      if (step instanceof IcebergOverwritePartitionsStep) {
+        IcebergOverwritePartitionsStep overwriteStep = (IcebergOverwritePartitionsStep) step;
+        log.info("Adding {} iceberg data files to IcebergOverwritePartitionsStep", icebergDataFiles.size());
+        overwriteStep.setDataFiles(icebergDataFiles);
+      }
       step.execute();
     }
   }

@@ -19,7 +19,6 @@ package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
 import java.time.Duration;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.Properties;
@@ -28,7 +27,6 @@ import java.util.concurrent.ExecutionException;
 
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.catalog.TableIdentifier;
-import org.apache.iceberg.util.SerializationUtil;
 
 import com.github.rholder.retry.Attempt;
 import com.github.rholder.retry.RetryException;
@@ -38,6 +36,7 @@ import com.google.common.collect.ImmutableMap;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
+import lombok.Setter;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.commit.CommitStep;
@@ -59,8 +58,8 @@ import static org.apache.gobblin.util.retry.RetryerFactory.RetryType;
 public class IcebergOverwritePartitionsStep implements CommitStep {
   private final String destTableIdStr;
   private final Properties properties;
-  // Data files are kept as a list of base64 encoded strings for optimised de-serialization.
-  private final List<String> base64EncodedDataFiles;
+  // data files are populated once all the copy tasks are done. Each IcebergPartitionCopyableFile has a serialized data file
+  @Setter private List<DataFile> dataFiles;
   private final String partitionColName;
   private final String partitionValue;
   public static final String OVERWRITE_PARTITIONS_RETRYER_CONFIG_PREFIX = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX +
@@ -74,14 +73,12 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
    * Constructs an {@code IcebergReplacePartitionsStep} with the specified parameters.
    *
    * @param destTableIdStr the identifier of the destination table as a string
-   * @param base64EncodedDataFiles [from List<DataFiles>] the serialized data files to be used for replacing partitions
    * @param properties the properties containing configuration
    */
-  public IcebergOverwritePartitionsStep(String destTableIdStr, String partitionColName, String partitionValue, List<String> base64EncodedDataFiles, Properties properties) {
+  public IcebergOverwritePartitionsStep(String destTableIdStr, String partitionColName, String partitionValue, Properties properties) {
     this.destTableIdStr = destTableIdStr;
     this.partitionColName = partitionColName;
     this.partitionValue = partitionValue;
-    this.base64EncodedDataFiles = base64EncodedDataFiles;
     this.properties = properties;
   }
 
@@ -103,7 +100,6 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
     // our copying. any new data written in the meanwhile to THE SAME partitions we are about to overwrite will be
     // clobbered and replaced by the copy entities from our execution.
     IcebergTable destTable = createDestinationCatalog().openTable(TableIdentifier.parse(this.destTableIdStr));
-    List<DataFile> dataFiles = getDataFiles();
     try {
       log.info("~{}~ Starting partition overwrite - partition: {}; value: {}; numDataFiles: {}; path[0]: {}",
           this.destTableIdStr,
@@ -138,14 +134,6 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
       log.error(msg, informativeException);
       throw new RuntimeException(msg, informativeException);
     }
-  }
-
-  private List<DataFile> getDataFiles() {
-    List<DataFile> dataFiles = new ArrayList<>(base64EncodedDataFiles.size());
-    for (String base64EncodedDataFile : base64EncodedDataFiles) {
-      dataFiles.add(SerializationUtil.deserializeFromBase64(base64EncodedDataFile));
-    }
-    return dataFiles;
   }
 
   protected IcebergCatalog createDestinationCatalog() throws IOException {

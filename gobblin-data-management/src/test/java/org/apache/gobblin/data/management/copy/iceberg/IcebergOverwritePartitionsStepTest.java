@@ -44,7 +44,6 @@ public class IcebergOverwritePartitionsStepTest {
   private IcebergTable mockIcebergTable;
   private IcebergCatalog mockIcebergCatalog;
   private Properties mockProperties;
-  private List<String> base64EncodedDataFiles;
   private IcebergOverwritePartitionsStep spyIcebergOverwritePartitionsStep;
 
   @BeforeMethod
@@ -53,22 +52,13 @@ public class IcebergOverwritePartitionsStepTest {
     mockIcebergCatalog = Mockito.mock(IcebergCatalog.class);
     mockProperties = new Properties();
 
-    base64EncodedDataFiles = getEncodedDummyDataFiles();
-
     spyIcebergOverwritePartitionsStep = Mockito.spy(new IcebergOverwritePartitionsStep(destTableIdStr,
-        testPartitionColName, testPartitionColValue, base64EncodedDataFiles, mockProperties));
+        testPartitionColName, testPartitionColValue, mockProperties));
+
+    spyIcebergOverwritePartitionsStep.setDataFiles(getDummyDataFiles());
 
     Mockito.when(mockIcebergCatalog.openTable(Mockito.any(TableIdentifier.class))).thenReturn(mockIcebergTable);
     Mockito.doReturn(mockIcebergCatalog).when(spyIcebergOverwritePartitionsStep).createDestinationCatalog();
-  }
-
-  private List<String> getEncodedDummyDataFiles() {
-    List<DataFile> dummyDataFiles = createDummyDataFiles();
-    List<String> base64EncodedDataFiles = new ArrayList<>(dummyDataFiles.size());
-    for (DataFile dataFile : dummyDataFiles) {
-      base64EncodedDataFiles.add(SerializationUtil.serializeToBase64(dataFile));
-    }
-    return base64EncodedDataFiles;
   }
 
   @Test
@@ -125,7 +115,10 @@ public class IcebergOverwritePartitionsStepTest {
     mockProperties.setProperty(IcebergOverwritePartitionsStep.OVERWRITE_PARTITIONS_RETRYER_CONFIG_PREFIX + "." + RETRY_TIMES,
         Integer.toString(retryCount));
     spyIcebergOverwritePartitionsStep = Mockito.spy(new IcebergOverwritePartitionsStep(destTableIdStr,
-        testPartitionColName, testPartitionColValue, base64EncodedDataFiles, mockProperties));
+        testPartitionColName, testPartitionColValue, mockProperties));
+
+    spyIcebergOverwritePartitionsStep.setDataFiles(getDummyDataFiles());
+
     Mockito.when(mockIcebergCatalog.openTable(Mockito.any(TableIdentifier.class))).thenReturn(mockIcebergTable);
     Mockito.doReturn(mockIcebergCatalog).when(spyIcebergOverwritePartitionsStep).createDestinationCatalog();
     try {
@@ -142,7 +135,7 @@ public class IcebergOverwritePartitionsStepTest {
     }
   }
 
-  private List<DataFile> createDummyDataFiles() {
+  private List<DataFile> getDummyDataFiles() {
     DataFile dataFile1 = DataFiles.builder(PartitionSpec.unpartitioned())
         .withPath("/path/to/db/foo/data/datafile1.orc")
         .withFileSizeInBytes(1234)
