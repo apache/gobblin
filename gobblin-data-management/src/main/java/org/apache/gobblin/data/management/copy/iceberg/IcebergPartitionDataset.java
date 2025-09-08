@@ -20,15 +20,13 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collection;
+import java.util.Collections;
 import java.util.List;
-import java.util.Map;
 import java.util.Optional;
 import java.util.Properties;
 import java.util.UUID;
-import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.function.Predicate;
-import java.util.stream.Collectors;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -42,9 +40,7 @@ import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableProperties;
-import org.apache.iceberg.util.SerializationUtil;
 
-import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
 import com.google.common.collect.ImmutableList;
 import com.google.common.base.Preconditions;
@@ -101,48 +97,16 @@ public class IcebergPartitionDataset extends IcebergDataset {
     // TODO: Refactor the IcebergDataset::generateCopyEntities to avoid code duplication
     //  Differences are getting data files, copying ancestor permission and adding post publish steps
     String fileSet = this.getFileSetId();
-    List<CopyEntity> copyEntities = Lists.newArrayList();
     IcebergTable srcIcebergTable = getSrcIcebergTable();
     List<DataFile> srcDataFiles = srcIcebergTable.getPartitionSpecificDataFiles(this.partitionFilterPredicate);
-    Map<Path, DataFile> destDataFileBySrcPath = calcDestDataFileBySrcPath(srcDataFiles);
-    Configuration defaultHadoopConfiguration = new Configuration();
 
-    for (Map.Entry<Path, FileStatus> entry : calcSrcFileStatusByDestFilePath(destDataFileBySrcPath).entrySet()) {
-      Path destPath = entry.getKey();
-      FileStatus srcFileStatus = entry.getValue();
-      // TODO: should be the same FS each time; try creating once, reusing thereafter, to not recreate wastefully
-      FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
-
-      CopyableFile fileEntity = CopyableFile.fromOriginAndDestination(
-              actualSourceFs, srcFileStatus, targetFs.makeQualified(destPath), copyConfig)
-          .fileSet(fileSet)
-          .datasetOutputPath(targetFs.getUri().getPath())
-          .build();
-
-      fileEntity.setSourceData(getSourceDataset(this.sourceFs));
-      fileEntity.setDestinationData(getDestinationDataset(targetFs));
-      copyEntities.add(fileEntity);
-    }
-
-    // Adding this check to avoid adding post publish step when there are no files to copy.
-    List<DataFile> destDataFiles = new ArrayList<>(destDataFileBySrcPath.values());
-    if (CollectionUtils.isNotEmpty(destDataFiles)) {
-      copyEntities.add(createOverwritePostPublishStep(destDataFiles));
-    }
-
-    log.info("~{}~ generated {} copy entities", fileSet, copyEntities.size());
-    return copyEntities;
-  }
-
-  private Map<Path, DataFile> calcDestDataFileBySrcPath(List<DataFile> srcDataFiles)
-      throws IcebergTable.TableNotFoundException {
-    String fileSet = this.getFileSetId();
-    Map<Path, DataFile> destDataFileBySrcPath = new ConcurrentHashMap<>(srcDataFiles.size());
     if (srcDataFiles.isEmpty()) {
       log.warn("~{}~ found no data files for partition col : {} with partition value : {} to copy", fileSet,
           this.partitionColumnName, this.partitionColValue);
-      return destDataFileBySrcPath;
+      return new ArrayList<>(0);
     }
+
+    // get source & destination write data locations to update data file paths
     TableMetadata srcTableMetadata = getSrcIcebergTable().accessTableMetadata();
     TableMetadata destTableMetadata = getDestIcebergTable().accessTableMetadata();
     PartitionSpec partitionSpec = destTableMetadata.spec();
@@ -160,17 +124,58 @@ public class IcebergPartitionDataset extends IcebergDataset {
           destWriteDataLocation
       );
     }
-    srcDataFiles.forEach(dataFile -> {
+
+    List<CopyEntity> copyEntities = getIcebergParitionCopyEntities(targetFs, srcDataFiles, srcWriteDataLocation, destWriteDataLocation, partitionSpec, copyConfig);
+    // Adding this check to avoid adding post publish step when there are no files to copy.
+    if (CollectionUtils.isNotEmpty(copyEntities)) {
+      copyEntities.add(createOverwritePostPublishStep());
+    }
+
+    log.info("~{}~ generated {} copy entities", fileSet, copyEntities.size());
+    return copyEntities;
+  }
+
+  private List<CopyEntity> getIcebergParitionCopyEntities(
+      FileSystem targetFs,
+      List<DataFile> srcDataFiles,
+      String srcWriteDataLocation,
+      String destWriteDataLocation,
+      PartitionSpec partitionSpec,
+      CopyConfiguration copyConfig) {
+    String fileSet = this.getFileSetId();
+    Configuration defaultHadoopConfiguration = new Configuration();
+    List<CopyEntity> copyEntities = Collections.synchronizedList(new ArrayList<>(srcDataFiles.size()));
+    Function<Path, FileStatus> getFileStatus = CheckedExceptionFunction.wrapToTunneled(this.sourceFs::getFileStatus);
+
+    srcDataFiles.parallelStream().forEach(dataFile -> {
+      // create destination data file from source data file by replacing the source path with destination path
       String srcFilePath = dataFile.path().toString();
       Path updatedDestFilePath = relocateDestPath(srcFilePath, srcWriteDataLocation, destWriteDataLocation);
       log.debug("~{}~ Path changed from Src : {} to Dest : {}", fileSet, srcFilePath, updatedDestFilePath);
-      destDataFileBySrcPath.put(new Path(srcFilePath), DataFiles.builder(partitionSpec)
+      DataFile destDataFile = DataFiles.builder(partitionSpec)
           .copy(dataFile)
           .withPath(updatedDestFilePath.toString())
-          .build());
+          .build();
+
+      // get file status of source file
+      FileStatus srcFileStatus = getFileStatus.apply(new Path(srcFilePath));
+      try {
+        // TODO: should be the same FS each time; try creating once, reusing thereafter, to not recreate wastefully
+        FileSystem actualSourceFs = getSourceFileSystemFromFileStatus(srcFileStatus, defaultHadoopConfiguration);
+        // create copyable file entity
+        CopyableFile fileEntity = CopyableFile.fromOriginAndDestination(actualSourceFs, srcFileStatus,
+                targetFs.makeQualified(updatedDestFilePath), copyConfig).fileSet(fileSet)
+            .datasetOutputPath(targetFs.getUri().getPath()).build();
+        fileEntity.setSourceData(getSourceDataset(this.sourceFs));
+        fileEntity.setDestinationData(getDestinationDataset(targetFs));
+        // add corresponding data file to each copyable iceberg partition file
+        IcebergPartitionCopyableFile icebergPartitionCopyableFile = new IcebergPartitionCopyableFile(fileEntity, destDataFile);
+        copyEntities.add(icebergPartitionCopyableFile);
+      } catch (IOException e) {
+        throw new RuntimeException(e);
+      }
     });
-    log.info("~{}~ created {} destination data files", fileSet, destDataFileBySrcPath.size());
-    return destDataFileBySrcPath;
+    return copyEntities;
   }
 
   private Path relocateDestPath(String curPathStr, String prefixToBeReplaced, String prefixToReplaceWith) {
@@ -186,41 +191,15 @@ public class IcebergPartitionDataset extends IcebergDataset {
     return new Path(fileDir, newFileName);
   }
 
-  private Map<Path, FileStatus> calcSrcFileStatusByDestFilePath(Map<Path, DataFile> destDataFileBySrcPath)
-      throws IOException {
-    Function<Path, FileStatus> getFileStatus = CheckedExceptionFunction.wrapToTunneled(this.sourceFs::getFileStatus);
-    Map<Path, FileStatus> srcFileStatusByDestFilePath = new ConcurrentHashMap<>();
-    try {
-      srcFileStatusByDestFilePath = destDataFileBySrcPath.entrySet()
-          .parallelStream()
-          .collect(Collectors.toConcurrentMap(entry -> new Path(entry.getValue().path().toString()),
-              entry -> getFileStatus.apply(entry.getKey())));
-    } catch (CheckedExceptionFunction.WrappedIOException wrapper) {
-      wrapper.rethrowWrapped();
-    }
-    return srcFileStatusByDestFilePath;
-  }
-
-  private PostPublishStep createOverwritePostPublishStep(List<DataFile> destDataFiles) {
-    List<String> serializedDataFiles = getBase64EncodedDataFiles(destDataFiles);
-
+  private PostPublishStep createOverwritePostPublishStep() {
     IcebergOverwritePartitionsStep icebergOverwritePartitionStep = new IcebergOverwritePartitionsStep(
         this.getDestIcebergTable().getTableId().toString(),
         this.partitionColumnName,
         this.partitionColValue,
-        serializedDataFiles,
         this.properties
     );
 
     return new PostPublishStep(this.getFileSetId(), Maps.newHashMap(), icebergOverwritePartitionStep, 0);
-  }
-
-  private List<String> getBase64EncodedDataFiles(List<DataFile> destDataFiles) {
-    List<String> base64EncodedDataFiles = new ArrayList<>(destDataFiles.size());
-    for (DataFile dataFile : destDataFiles) {
-      base64EncodedDataFiles.add(SerializationUtil.serializeToBase64(dataFile));
-    }
-    return base64EncodedDataFiles;
   }
 
   private Predicate<StructLike> createPartitionFilterPredicate() throws IOException {

@@ -447,7 +447,7 @@ public class IcebergDatasetTest {
     String objectType = new Gson().fromJson(json, JsonObject.class)
         .getAsJsonPrimitive("object-type")
         .getAsString();
-    return objectType.equals("org.apache.gobblin.data.management.copy.CopyableFile");
+    return objectType.equals("org.apache.gobblin.data.management.copy.CopyableFile") || objectType.equals("org.apache.gobblin.data.management.copy.iceberg.IcebergPartitionCopyableFile");
   }
 
   private static void verifyFsOwnershipAndPermissionPreservation(Collection<CopyEntity> copyEntities, Map<Path, FileStatus> expectedPathsAndFileStatuses) {
