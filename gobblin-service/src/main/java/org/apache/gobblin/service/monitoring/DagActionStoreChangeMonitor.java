@@ -59,7 +59,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
  * connector between the API and execution layers of GaaS.
  */
 @Slf4j
-public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagActionStoreChangeEvent> {
+public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagActionStoreChangeEvent> implements DagActionChangeMonitor {
   public static final String DAG_ACTION_CHANGE_MONITOR_PREFIX = "dagActionChangeStore";
 
   // Metrics

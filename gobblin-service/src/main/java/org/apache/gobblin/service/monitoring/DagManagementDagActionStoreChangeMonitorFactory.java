@@ -30,13 +30,16 @@ import org.apache.gobblin.service.modules.orchestration.DagManagement;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
 /**
- * A factory implementation that returns a {@link DagManagementDagActionStoreChangeMonitor} instance.
+ * A factory implementation that returns a {@link DagActionChangeMonitor} instance.
  */
 @Slf4j
-public class DagManagementDagActionStoreChangeMonitorFactory implements Provider<DagManagementDagActionStoreChangeMonitor> {
+public class DagManagementDagActionStoreChangeMonitorFactory implements Provider<DagActionChangeMonitor> {
+  static final String DAG_ACTION_STORE_CHANGE_MONITOR_CLASS_KEY = "class";
+  static final String DEFAULT_DAG_ACTION_STORE_CHANGE_MONITOR_CLASS = DagManagementDagActionStoreChangeMonitor.class.getName();
   static final String DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
@@ -55,18 +58,25 @@ public class DagManagementDagActionStoreChangeMonitorFactory implements Provider
     this.dagProcEngineMetrics = dagProcEngineMetrics;
   }
 
-  private DagManagementDagActionStoreChangeMonitor createDagActionStoreMonitor() {
+  private DagActionChangeMonitor createDagActionStoreMonitor() throws ReflectiveOperationException {
     Config dagActionStoreChangeConfig = this.config.getConfig(DagActionStoreChangeMonitor.DAG_ACTION_CHANGE_MONITOR_PREFIX);
-    log.info("DagActionStore will be initialized with config {}", dagActionStoreChangeConfig);
+    Class<?> dagActionStoreChangeMonitorClass = Class.forName(
+        ConfigUtils.getString(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_CLASS_KEY, DEFAULT_DAG_ACTION_STORE_CHANGE_MONITOR_CLASS));
+    log.info("DagActionStore `{}` will be initialized with config {}", dagActionStoreChangeMonitorClass, dagActionStoreChangeConfig);
 
     int numThreads = ConfigUtils.getInt(dagActionStoreChangeConfig, DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY, 5);
 
-    return new DagManagementDagActionStoreChangeMonitor(dagActionStoreChangeConfig, numThreads, dagManagementStateStore,
-        this.dagManagement, this.dagActionReminderScheduler, dagProcEngineMetrics);
+    return (DagActionChangeMonitor) GobblinConstructorUtils.invokeLongestConstructor(dagActionStoreChangeMonitorClass,
+        dagActionStoreChangeConfig, numThreads, dagManagementStateStore, this.dagManagement,
+        this.dagActionReminderScheduler, dagProcEngineMetrics);
   }
 
   @Override
-  public DagManagementDagActionStoreChangeMonitor get() {
-    return createDagActionStoreMonitor();
+  public DagActionChangeMonitor get() {
+    try {
+      return createDagActionStoreMonitor();
+    } catch (ReflectiveOperationException e) {
+      throw new RuntimeException("Failed to initialize DagActionStoreChangeMonitor due to ", e);
+    }
   }
 }

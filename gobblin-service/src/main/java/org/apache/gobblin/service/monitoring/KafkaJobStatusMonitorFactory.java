@@ -43,7 +43,7 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  * A factory implementation that returns a {@link KafkaJobStatusMonitor} instance.
  */
 @Slf4j
-public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMonitor> {
+public class KafkaJobStatusMonitorFactory implements Provider<JobStatusMonitor> {
   private static final String KAFKA_SSL_CONFIG_PREFIX_KEY = "jobStatusMonitor.kafka.config";
   private static final String DEFAULT_KAFKA_SSL_CONFIG_PREFIX = "metrics.reporting.kafka.config";
 
@@ -65,7 +65,7 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
     this.errorClassifier = errorClassifier;
   }
 
-  private KafkaJobStatusMonitor createJobStatusMonitor()
+  private JobStatusMonitor createJobStatusMonitor()
       throws ReflectiveOperationException {
     Config jobStatusConfig = config.getConfig(KafkaJobStatusMonitor.JOB_STATUS_MONITOR_PREFIX);
 
@@ -94,18 +94,19 @@ public class KafkaJobStatusMonitorFactory implements Provider<KafkaJobStatusMoni
         GaaSJobObservabilityEventProducer.DEFAULT_GAAS_OBSERVABILITY_EVENT_PRODUCER_CLASS));
     GaaSJobObservabilityEventProducer observabilityEventProducer = (GaaSJobObservabilityEventProducer) GobblinConstructorUtils.invokeLongestConstructor(
         observabilityEventProducerClassName, ConfigUtils.configToState(config), this.issueRepository, this.instrumentationEnabled);
+    log.info("JobStatusMonitor class `{}` will be initialized with config {}", jobStatusMonitorClass, jobStatusConfig);
 
-    return (KafkaJobStatusMonitor) GobblinConstructorUtils
+    return (JobStatusMonitor) GobblinConstructorUtils
         .invokeLongestConstructor(jobStatusMonitorClass, topic, jobStatusConfig, numThreads, jobIssueEventHandler, observabilityEventProducer,
             dagManagementStateStore, errorClassifier);
   }
 
   @Override
-  public KafkaJobStatusMonitor get() {
+  public JobStatusMonitor get() {
     try {
       return createJobStatusMonitor();
     } catch (ReflectiveOperationException e) {
-      throw new RuntimeException(e);
+      throw new RuntimeException("Failed to initialize JobStatusMonitor due to ", e);
     }
   }
 }

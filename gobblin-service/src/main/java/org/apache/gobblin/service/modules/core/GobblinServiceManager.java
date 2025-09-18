@@ -77,11 +77,11 @@ import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
 import org.apache.gobblin.service.modules.restli.FlowExecutionResourceHandler;
 import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
 import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
-import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.DagActionChangeMonitor;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.GitConfigMonitor;
-import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
-import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.JobStatusMonitor;
+import org.apache.gobblin.service.monitoring.SpecChangeMonitor;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -150,7 +150,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
   protected GitConfigMonitor gitConfigMonitor;
 
   @Inject(optional = true)
-  protected KafkaJobStatusMonitor jobStatusMonitor;
+  protected JobStatusMonitor jobStatusMonitor;
 
   @Inject
   protected MultiContextIssueRepository issueRepository;
@@ -166,10 +166,10 @@ public class GobblinServiceManager implements ApplicationLauncher {
   protected D2Announcer d2Announcer;
 
   @Inject(optional = true)
-  protected SpecStoreChangeMonitor specStoreChangeMonitor;
+  protected SpecChangeMonitor specStoreChangeMonitor;
 
   @Inject(optional = true)
-  protected DagManagementDagActionStoreChangeMonitor dagManagementDagActionStoreChangeMonitor;
+  protected DagActionChangeMonitor dagManagementDagActionStoreChangeMonitor;
 
   @Inject(optional = true)
   protected DagProcessingEngine dagProcessingEngine;

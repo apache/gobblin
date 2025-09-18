@@ -51,7 +51,7 @@ import org.apache.gobblin.service.modules.scheduler.GobblinServiceJobScheduler;
  * a connector between the API and execution layers of GaaS.
  */
 @Slf4j
-public class SpecStoreChangeMonitor extends HighLevelConsumer<String, GenericStoreChangeEvent> {
+public class SpecStoreChangeMonitor extends HighLevelConsumer<String, GenericStoreChangeEvent> implements SpecChangeMonitor{
   public static final String SPEC_STORE_CHANGE_MONITOR_PREFIX = "specStoreChangeMonitor";
 
   // Metrics
