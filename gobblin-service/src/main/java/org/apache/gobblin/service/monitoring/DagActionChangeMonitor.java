@@ -24,5 +24,10 @@ import com.google.common.util.concurrent.Service;
  * A marker interface for dag action change monitors to generalize initialization in {@link org.apache.gobblin.service.modules.core.GobblinServiceManager#dagManagementDagActionStoreChangeMonitor}
  */
 public interface DagActionChangeMonitor extends Service {
+
+  /**
+   * Set the monitor to active state where it can start processing events.
+   * Should be called from {@link org.apache.gobblin.service.modules.core.GobblinServiceManager} after the service is started.
+   */
   void setActive();
 }

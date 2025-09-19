@@ -166,6 +166,7 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
    This method should be called once by the {@link GobblinServiceManager} only after the FlowGraph and
    SpecCompiler are initialized and running.
    */
+  @Override
   public synchronized void setActive() {
     if (this.isActive) {
       return;

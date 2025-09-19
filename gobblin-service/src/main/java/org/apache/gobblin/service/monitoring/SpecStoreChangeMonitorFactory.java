@@ -36,9 +36,9 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 public class SpecStoreChangeMonitorFactory implements Provider<SpecChangeMonitor> {
-  static final String SPEC_STORE_CHANGE_MONITOR_CLASS_KEY = "class";
-  static final String DEFAULT_SPEC_STORE_CHANGE_MONITOR_CLASS = SpecStoreChangeMonitor.class.getName();
-  static final String SPEC_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
+  private static final String SPEC_STORE_CHANGE_MONITOR_CLASS_KEY = "class";
+  private static final String DEFAULT_SPEC_STORE_CHANGE_MONITOR_CLASS = SpecStoreChangeMonitor.class.getName();
+  private static final String SPEC_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
   private FlowCatalog flowCatalog;

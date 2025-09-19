@@ -38,9 +38,9 @@ import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
  */
 @Slf4j
 public class DagManagementDagActionStoreChangeMonitorFactory implements Provider<DagActionChangeMonitor> {
-  static final String DAG_ACTION_STORE_CHANGE_MONITOR_CLASS_KEY = "class";
-  static final String DEFAULT_DAG_ACTION_STORE_CHANGE_MONITOR_CLASS = DagManagementDagActionStoreChangeMonitor.class.getName();
-  static final String DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
+  private static final String DAG_ACTION_STORE_CHANGE_MONITOR_CLASS_KEY = "class";
+  private static final String DEFAULT_DAG_ACTION_STORE_CHANGE_MONITOR_CLASS = DagManagementDagActionStoreChangeMonitor.class.getName();
+  private static final String DAG_ACTION_STORE_CHANGE_MONITOR_NUM_THREADS_KEY = "numThreads";
 
   private final Config config;
   private final DagManagementStateStore dagManagementStateStore;
