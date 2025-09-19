@@ -82,15 +82,15 @@ import org.apache.gobblin.service.modules.topology.TopologySpecFactory;
 import org.apache.gobblin.service.modules.troubleshooter.MySqlMultiContextIssueRepository;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.modules.utils.SharedFlowMetricsSingleton;
-import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.DagActionChangeMonitor;
 import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMonitorFactory;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.FsJobStatusRetriever;
 import org.apache.gobblin.service.monitoring.GitConfigMonitor;
+import org.apache.gobblin.service.monitoring.JobStatusMonitor;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
-import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitor;
 import org.apache.gobblin.service.monitoring.KafkaJobStatusMonitorFactory;
-import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitor;
+import org.apache.gobblin.service.monitoring.SpecChangeMonitor;
 import org.apache.gobblin.service.monitoring.SpecStoreChangeMonitorFactory;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
@@ -159,7 +159,7 @@ public class GobblinServiceGuiceModule implements Module {
 
     binder.bind(DagActionReminderScheduler.class);
     binder.bind(DagActionStore.class).to(MysqlDagActionStore.class);
-    binder.bind(DagManagementDagActionStoreChangeMonitor.class).toProvider(
+    binder.bind(DagActionChangeMonitor.class).toProvider(
         DagManagementDagActionStoreChangeMonitorFactory.class).in(Singleton.class);
     binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
     binder.bind(DagManagementStateStore.class).to(MySqlDagManagementStateStore.class);
@@ -169,7 +169,7 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bind(DagProcessingEngineMetrics.class);
     binder.bind(FlowLaunchHandler.class);
     binder.bind(MultiActiveLeaseArbiter.class).toProvider(DagActionProcessingMultiActiveLeaseArbiterFactory.class);
-    binder.bind(SpecStoreChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
+    binder.bind(SpecChangeMonitor.class).toProvider(SpecStoreChangeMonitorFactory.class).in(Singleton.class);
 
     binder.bind(RequesterService.class).to(NoopRequesterService.class);
     binder.bind(SharedFlowMetricsSingleton.class);
@@ -188,7 +188,7 @@ public class GobblinServiceGuiceModule implements Module {
     }
 
     if (serviceConfig.isJobStatusMonitorEnabled()) {
-      binder.bind(KafkaJobStatusMonitor.class).toProvider(KafkaJobStatusMonitorFactory.class).in(Singleton.class);
+      binder.bind(JobStatusMonitor.class).toProvider(KafkaJobStatusMonitorFactory.class).in(Singleton.class);
       binder.bind(ErrorClassifier.class);
       binder.bind(ErrorPatternStore.class)
           .to(getClassByNameOrAlias(ErrorPatternStore.class, serviceConfig.getInnerConfig(),

@@ -89,7 +89,7 @@ import static org.apache.gobblin.util.retry.RetryerFactory.RetryType;
  * a {@link FileContextBasedFsStateStore}.
  */
 @Slf4j
-public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], byte[]> {
+public abstract class KafkaJobStatusMonitor extends HighLevelConsumer<byte[], byte[]> implements JobStatusMonitor {
   public static final String JOB_STATUS_MONITOR_PREFIX = "jobStatusMonitor";
   //We use table suffix that is different from the Gobblin job state store suffix of jst to avoid confusion.
   //gst refers to the state store suffix for GaaS-orchestrated Gobblin jobs.

@@ -59,7 +59,7 @@ import org.apache.gobblin.util.ExecutorsUtils;
  * connector between the API and execution layers of GaaS.
  */
 @Slf4j
-public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagActionStoreChangeEvent> {
+public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<String, DagActionStoreChangeEvent> implements DagActionChangeMonitor {
   public static final String DAG_ACTION_CHANGE_MONITOR_PREFIX = "dagActionChangeStore";
 
   // Metrics
@@ -166,6 +166,7 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
    This method should be called once by the {@link GobblinServiceManager} only after the FlowGraph and
    SpecCompiler are initialized and running.
    */
+  @Override
   public synchronized void setActive() {
     if (this.isActive) {
       return;
