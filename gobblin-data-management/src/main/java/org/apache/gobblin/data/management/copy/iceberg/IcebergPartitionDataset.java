@@ -37,6 +37,7 @@ import org.apache.hadoop.fs.Path;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableProperties;
@@ -98,6 +99,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
     //  Differences are getting data files, copying ancestor permission and adding post publish steps
     String fileSet = this.getFileSetId();
     IcebergTable srcIcebergTable = getSrcIcebergTable();
+    Schema srcTableSchema = srcIcebergTable.accessTableMetadata().schema();
     List<DataFile> srcDataFiles = srcIcebergTable.getPartitionSpecificDataFiles(this.partitionFilterPredicate);
 
     if (srcDataFiles.isEmpty()) {
@@ -128,7 +130,7 @@ public class IcebergPartitionDataset extends IcebergDataset {
     List<CopyEntity> copyEntities = getIcebergParitionCopyEntities(targetFs, srcDataFiles, srcWriteDataLocation, destWriteDataLocation, partitionSpec, copyConfig);
     // Adding this check to avoid adding post publish step when there are no files to copy.
     if (CollectionUtils.isNotEmpty(copyEntities)) {
-      copyEntities.add(createOverwritePostPublishStep());
+      copyEntities.add(createOverwritePostPublishStep(srcTableSchema));
     }
 
     log.info("~{}~ generated {} copy entities", fileSet, copyEntities.size());
@@ -191,9 +193,16 @@ public class IcebergPartitionDataset extends IcebergDataset {
     return new Path(fileDir, newFileName);
   }
 
-  private PostPublishStep createOverwritePostPublishStep() {
+  /**
+   * Creates a {@link PostPublishStep} for overwriting partitions in the destination Iceberg table.
+   * @param srcTableSchema Schema of the source Iceberg table which needs to be passed to the
+   *                       overwrite step for updating destination table schema.
+   * @return a {@link PostPublishStep} that performs the partition overwrite operation.
+   */
+  private PostPublishStep createOverwritePostPublishStep(Schema srcTableSchema) {
     IcebergOverwritePartitionsStep icebergOverwritePartitionStep = new IcebergOverwritePartitionsStep(
         this.getDestIcebergTable().getTableId().toString(),
+        srcTableSchema,
         this.partitionColumnName,
         this.partitionColValue,
         this.properties
