@@ -92,6 +92,7 @@ public class TimingEvent extends GobblinEventBuilder implements Closeable {
     public static final String JOB_TAG_FIELD = "jobTag";
     public static final String JOB_EXECUTION_ID_FIELD = "jobExecutionId";
     public static final String SPEC_EXECUTOR_FIELD = "specExecutor";
+    public static final String RM_HOST_FIELD = "rmHost";
     public static final String LOW_WATERMARK_FIELD = "lowWatermark";
     public static final String HIGH_WATERMARK_FIELD = "highWatermark";
     public static final String PROCESSED_COUNT_FIELD = "processedCount";
