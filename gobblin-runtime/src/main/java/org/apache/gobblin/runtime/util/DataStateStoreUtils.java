@@ -73,7 +73,7 @@ public class DataStateStoreUtils {
    * @throws RuntimeException if there's a runtime error during state store initialization,
    *         which will be logged and re-thrown
    */
-  public static DatasetStateStore<? extends State> createStateStore(Config jobConfig)
+  public static DatasetStateStore createStateStore(Config jobConfig)
       throws IOException {
     boolean stateStoreEnabled = !jobConfig.hasPath(ConfigurationKeys.STATE_STORE_ENABLED) || jobConfig
         .getBoolean(ConfigurationKeys.STATE_STORE_ENABLED);
