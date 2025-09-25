@@ -52,12 +52,6 @@ public class DummyJobContext extends JobContext {
   }
 
   @Override
-  protected FsDatasetStateStore createStateStore(Config config)
-      throws IOException {
-    return new NoopDatasetStateStore(FileSystem.getLocal(new Configuration()), "");
-  }
-
-  @Override
   protected Optional<JobHistoryStore> createJobHistoryStore(Properties jobProps) {
     return Optional.absent();
   }
