@@ -65,6 +65,7 @@ import org.apache.gobblin.publisher.DataPublisher;
 import org.apache.gobblin.runtime.JobState.DatasetState;
 import org.apache.gobblin.runtime.commit.FsCommitSequenceStore;
 import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
+import org.apache.gobblin.runtime.util.DataStateStoreUtils;
 import org.apache.gobblin.runtime.util.JobMetrics;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
@@ -153,7 +154,7 @@ public class JobContext implements Closeable {
     this.jobCommitPolicy = JobCommitPolicy.getCommitPolicy(jobProps);
     this.partialFailTaskFailsJobCommit = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.PARTIAL_FAIL_TASK_FAILS_JOB_COMMIT, "false"));
 
-    this.datasetStateStore = createStateStore(ConfigUtils.propertiesToConfig(jobProps));
+    this.datasetStateStore = DataStateStoreUtils.createStateStore(ConfigUtils.propertiesToConfig(jobProps));
     this.jobHistoryStoreOptional = createJobHistoryStore(jobProps);
 
     this.issueRepository = issueRepository;
@@ -188,32 +189,6 @@ public class JobContext implements Closeable {
         ConfigurationKeys.DEFAULT_PARALLELIZE_DATASET_COMMIT);
     this.parallelCommits = this.parallelizeCommit ? this.jobState
         .getPropAsInt(ConfigurationKeys.DATASET_COMMIT_THREADS, ConfigurationKeys.DEFAULT_DATASET_COMMIT_THREADS) : 1;
-  }
-
-  protected DatasetStateStore createStateStore(Config jobConfig)
-      throws IOException {
-    boolean stateStoreEnabled = !jobConfig.hasPath(ConfigurationKeys.STATE_STORE_ENABLED) || jobConfig
-        .getBoolean(ConfigurationKeys.STATE_STORE_ENABLED);
-
-    String stateStoreType;
-
-    if (!stateStoreEnabled) {
-      stateStoreType = ConfigurationKeys.STATE_STORE_TYPE_NOOP;
-    } else {
-      stateStoreType = ConfigUtils.getString(jobConfig, ConfigurationKeys.DATASET_STATE_STORE_TYPE_KEY, ConfigUtils
-          .getString(jobConfig, ConfigurationKeys.STATE_STORE_TYPE_KEY, ConfigurationKeys.DEFAULT_STATE_STORE_TYPE));
-    }
-
-    ClassAliasResolver<DatasetStateStore.Factory> resolver = new ClassAliasResolver<>(DatasetStateStore.Factory.class);
-
-    try {
-      DatasetStateStore.Factory stateStoreFactory = resolver.resolveClass(stateStoreType).newInstance();
-      return stateStoreFactory.createStateStore(jobConfig);
-    } catch (RuntimeException e) {
-      throw e;
-    } catch (Exception e) {
-      throw new IOException(e);
-    }
   }
 
   protected Optional<JobHistoryStore> createJobHistoryStore(Properties jobProps) {

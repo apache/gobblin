@@ -17,6 +17,15 @@
 
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
+import com.google.api.client.util.Lists;
+import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
+import com.google.common.io.Closer;
+import com.tdunning.math.stats.TDigest;
+import com.typesafe.config.ConfigFactory;
+import io.temporal.activity.Activity;
+import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.failure.ApplicationFailure;
 import java.io.IOException;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -28,34 +37,24 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicLong;
-
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
-
-import com.google.api.client.util.Lists;
-import com.google.common.annotations.VisibleForTesting;
-import com.google.common.base.Preconditions;
-import com.google.common.io.Closer;
-import com.tdunning.math.stats.TDigest;
-import io.temporal.failure.ApplicationFailure;
-import io.temporal.activity.Activity;
-import io.temporal.activity.ActivityExecutionContext;
-
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.converter.initializer.ConverterInitializer;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
-import org.apache.gobblin.initializer.Initializer;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
+import org.apache.gobblin.initializer.Initializer;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
+import org.apache.gobblin.runtime.CombinedWorkUnitAndDatasetStateGenerator;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
+import org.apache.gobblin.runtime.util.DataStateStoreUtils;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.Source;
 import org.apache.gobblin.source.WorkUnitStreamSource;
@@ -74,6 +73,8 @@ import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.writer.initializer.WriterInitializer;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
 
 
 @Slf4j
@@ -144,10 +145,16 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     Path workDirRoot = JobStateUtils.getWorkDirRoot(jobState);
     log.info("Using work dir root path for job '{}' - '{}'", jobState.getJobId(), workDirRoot);
 
-    // TODO: determine whether these are actually necessary to do (as MR/AbstractJobLauncher did)!
-    // SharedResourcesBroker<GobblinScopeTypes> jobBroker = JobStateUtils.getSharedResourcesBroker(jobState);
-    // jobState.setBroker(jobBroker);
-    // jobState.setWorkUnitAndDatasetStateFunctional(new CombinedWorkUnitAndDatasetStateGenerator(this.datasetStateStore, this.jobName));
+    /* Set up dataset state functional and shared resource broker on JobState to enable
+     work units to access previous dataset states and watermarks during work discovery, following MR launcher pattern*/
+    try {
+      addDatasetSataeFunctionalAndSharedResourceBrokerToJobState(jobProps, jobState);
+    }
+    catch (IOException e){
+      String errMsg = "Failed to addDatasetStateFunctionalAndSharedResourceBrokerToJobState for job " + jobState.getJobId();
+      log.error(errMsg, e);
+      throw ApplicationFailure.newFailureWithCause(errMsg, "Failure: creating SharedResourcesBroker", e);
+    }
 
     AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobProps);
     troubleshooter.start();
@@ -193,6 +200,13 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
       Help.finalizeTroubleshooting(troubleshooter, eventSubmitter, log, jobState.getJobId());
       ExecutorsUtils.shutdownExecutorService(heartBeatExecutor, com.google.common.base.Optional.of(log));
     }
+  }
+
+  private static void addDatasetSataeFunctionalAndSharedResourceBrokerToJobState(Properties jobProps, JobState jobState) throws IOException {
+    SharedResourcesBroker<GobblinScopeTypes> jobBroker = JobStateUtils.getSharedResourcesBroker(jobState);
+    jobState.setBroker(jobBroker);
+    jobState.setWorkUnitAndDatasetStateFunctional(new CombinedWorkUnitAndDatasetStateGenerator(
+        DataStateStoreUtils.createStateStore(ConfigFactory.parseProperties(jobProps)), jobState.getJobName()));
   }
 
   protected WorkUnitsWithInsights generateWorkUnitsForJobStateAndCollectCleanupPaths(JobState jobState, EventSubmitterContext eventSubmitterContext, Closer closer)
