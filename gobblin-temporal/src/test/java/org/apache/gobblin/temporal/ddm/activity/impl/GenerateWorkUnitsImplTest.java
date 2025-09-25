@@ -47,10 +47,7 @@ import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
 
 
 public class GenerateWorkUnitsImplTest {
@@ -245,10 +242,10 @@ public class GenerateWorkUnitsImplTest {
           .thenReturn(mockBroker);
       mockedDataStateStoreUtils.when(() -> DataStateStoreUtils.createStateStore(any()))
           .thenReturn(mockDatasetStateStore);
-      
+
       // Act - invoke on the instance instead of null
       privateMethod.invoke(generateWorkUnitsImpl, jobProps, jobState);
-      
+
       // Assert
       Assert.assertEquals(jobState.getBroker(), mockBroker, "SharedResourcesBroker should be set on JobState");
       Assert.assertNotNull(jobState.getWorkUnitAndDatasetStateFunctional(), "WorkUnitAndDatasetStateFunctional should be set");
