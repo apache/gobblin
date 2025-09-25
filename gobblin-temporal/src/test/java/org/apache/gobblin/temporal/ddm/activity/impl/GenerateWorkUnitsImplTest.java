@@ -36,7 +36,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.DatasetStateStore;
 import org.apache.gobblin.runtime.CombinedWorkUnitAndDatasetStateGenerator;
 import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.util.DataStateStoreUtils;
+import org.apache.gobblin.runtime.util.DatasetStateStoreUtils;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
@@ -236,11 +236,11 @@ public class GenerateWorkUnitsImplTest {
 
     // Mock static method calls
     try (MockedStatic<JobStateUtils> mockedJobStateUtils = Mockito.mockStatic(JobStateUtils.class);
-         MockedStatic<DataStateStoreUtils> mockedDataStateStoreUtils = Mockito.mockStatic(DataStateStoreUtils.class)) {
+         MockedStatic<DatasetStateStoreUtils> mockedDataStateStoreUtils = Mockito.mockStatic(DatasetStateStoreUtils.class)) {
 
       mockedJobStateUtils.when(() -> JobStateUtils.getSharedResourcesBroker(jobState))
           .thenReturn(mockBroker);
-      mockedDataStateStoreUtils.when(() -> DataStateStoreUtils.createStateStore(any()))
+      mockedDataStateStoreUtils.when(() -> DatasetStateStoreUtils.createStateStore(any()))
           .thenReturn(mockDatasetStateStore);
 
       // Act - invoke on the instance instead of null
@@ -254,7 +254,7 @@ public class GenerateWorkUnitsImplTest {
 
       // Verify interactions
       mockedJobStateUtils.verify(() -> JobStateUtils.getSharedResourcesBroker(jobState), times(1));
-      mockedDataStateStoreUtils.verify(() -> DataStateStoreUtils.createStateStore(any()), times(1));
+      mockedDataStateStoreUtils.verify(() -> DatasetStateStoreUtils.createStateStore(any()), times(1));
     }
   }
 
@@ -275,9 +275,9 @@ public class GenerateWorkUnitsImplTest {
 
     // Mock static method calls to throw IOException
     try (MockedStatic<JobStateUtils> mockedJobStateUtils = Mockito.mockStatic(JobStateUtils.class);
-         MockedStatic<DataStateStoreUtils> mockedDataStateStoreUtils = Mockito.mockStatic(DataStateStoreUtils.class)) {
+         MockedStatic<DatasetStateStoreUtils> mockedDataStateStoreUtils = Mockito.mockStatic(DatasetStateStoreUtils.class)) {
 
-      mockedDataStateStoreUtils.when(() -> DataStateStoreUtils.createStateStore(any()))
+      mockedDataStateStoreUtils.when(() -> DatasetStateStoreUtils.createStateStore(any()))
           .thenThrow(new IOException("Failed to create state store"));
 
       // Act & Assert
@@ -313,11 +313,11 @@ public class GenerateWorkUnitsImplTest {
 
     // Mock static method calls - return null broker to test null handling
     try (MockedStatic<JobStateUtils> mockedJobStateUtils = Mockito.mockStatic(JobStateUtils.class);
-         MockedStatic<DataStateStoreUtils> mockedDataStateStoreUtils = Mockito.mockStatic(DataStateStoreUtils.class)) {
+         MockedStatic<DatasetStateStoreUtils> mockedDataStateStoreUtils = Mockito.mockStatic(DatasetStateStoreUtils.class)) {
 
       mockedJobStateUtils.when(() -> JobStateUtils.getSharedResourcesBroker(jobState))
           .thenReturn(null);
-      mockedDataStateStoreUtils.when(() -> DataStateStoreUtils.createStateStore(any()))
+      mockedDataStateStoreUtils.when(() -> DatasetStateStoreUtils.createStateStore(any()))
           .thenReturn(mockDatasetStateStore);
 
       // Act

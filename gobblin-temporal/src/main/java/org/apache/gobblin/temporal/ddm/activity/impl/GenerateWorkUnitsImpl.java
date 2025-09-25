@@ -58,7 +58,7 @@ import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
 import org.apache.gobblin.runtime.CombinedWorkUnitAndDatasetStateGenerator;
 import org.apache.gobblin.runtime.JobState;
-import org.apache.gobblin.runtime.util.DataStateStoreUtils;
+import org.apache.gobblin.runtime.util.DatasetStateStoreUtils;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooter;
 import org.apache.gobblin.runtime.troubleshooter.AutomaticTroubleshooterFactory;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -211,7 +211,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     SharedResourcesBroker<GobblinScopeTypes> jobBroker = JobStateUtils.getSharedResourcesBroker(jobState);
     jobState.setBroker(jobBroker);
     jobState.setWorkUnitAndDatasetStateFunctional(new CombinedWorkUnitAndDatasetStateGenerator(
-        DataStateStoreUtils.createStateStore(ConfigFactory.parseProperties(jobProps)), jobState.getJobName()));
+        DatasetStateStoreUtils.createStateStore(ConfigFactory.parseProperties(jobProps)), jobState.getJobName()));
   }
 
   protected WorkUnitsWithInsights generateWorkUnitsForJobStateAndCollectCleanupPaths(JobState jobState, EventSubmitterContext eventSubmitterContext, Closer closer)

@@ -32,12 +32,12 @@ import org.apache.gobblin.util.ConfigUtils;
  * Utilities for creating and managing {@link DatasetStateStore} instances based on job configuration.
  */
 @Slf4j
-public class DataStateStoreUtils {
+public class DatasetStateStoreUtils {
 
   /**
    * Private constructor to prevent instantiation of this utility class.
    */
-  private DataStateStoreUtils() {
+  private DatasetStateStoreUtils() {
     // Utility class should not be instantiated
   }
 
