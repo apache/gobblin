@@ -27,6 +27,9 @@ import java.util.Set;
 
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -44,10 +47,6 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
-
-import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 
 
 public class GenerateWorkUnitsImplTest {
