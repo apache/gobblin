@@ -17,18 +17,35 @@
 
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
+import java.io.IOException;
+import java.lang.reflect.InvocationTargetException;
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Properties;
 import java.util.Set;
 
+import org.mockito.MockedStatic;
+import org.mockito.Mockito;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.broker.gobblin_scopes.GobblinScopeTypes;
+import org.apache.gobblin.broker.iface.SharedResourcesBroker;
+import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.metastore.DatasetStateStore;
+import org.apache.gobblin.runtime.CombinedWorkUnitAndDatasetStateGenerator;
+import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.runtime.util.DatasetStateStoreUtils;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.source.workunit.BasicWorkUnitStream;
 import org.apache.gobblin.source.workunit.MultiWorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.source.workunit.WorkUnitStream;
+import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
 
 
@@ -197,6 +214,119 @@ public class GenerateWorkUnitsImplTest {
     Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsMeanSize(), 0.0);
     Assert.assertEquals(wuSizeInfo.getTopLevelWorkUnitsMedianSize(), 0.0);
     Assert.assertEquals(wuSizeInfo.getConstituentWorkUnitsMedianSize(), 0.0);
+  }
+
+  @Test
+  public void testAddDatasetStateFunctionalAndSharedResourceBrokerToJobState() throws Exception {
+    // Arrange
+    Properties jobProps = new Properties();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "test-job");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "test-job-id");
+
+    JobState jobState = new JobState(jobProps);
+    SharedResourcesBroker<GobblinScopeTypes> mockBroker = mock(SharedResourcesBroker.class);
+    DatasetStateStore mockDatasetStateStore = mock(DatasetStateStore.class);
+
+    // Create instance and get access to the private method
+    GenerateWorkUnitsImpl generateWorkUnitsImpl = new GenerateWorkUnitsImpl();
+    Method privateMethod = GenerateWorkUnitsImpl.class.getDeclaredMethod(
+        "addDatasetStateFunctionalAndSharedResourceBrokerToJobState", Properties.class, JobState.class);
+    privateMethod.setAccessible(true);
+
+    // Mock static method calls
+    try (MockedStatic<JobStateUtils> mockedJobStateUtils = Mockito.mockStatic(JobStateUtils.class);
+         MockedStatic<DatasetStateStoreUtils> mockedDataStateStoreUtils = Mockito.mockStatic(DatasetStateStoreUtils.class)) {
+
+      mockedJobStateUtils.when(() -> JobStateUtils.getSharedResourcesBroker(jobState))
+          .thenReturn(mockBroker);
+      mockedDataStateStoreUtils.when(() -> DatasetStateStoreUtils.createStateStore(any()))
+          .thenReturn(mockDatasetStateStore);
+
+      // Act - invoke on the instance instead of null
+      privateMethod.invoke(generateWorkUnitsImpl, jobProps, jobState);
+
+      // Assert
+      Assert.assertEquals(jobState.getBroker(), mockBroker, "SharedResourcesBroker should be set on JobState");
+      Assert.assertNotNull(jobState.getWorkUnitAndDatasetStateFunctional(), "WorkUnitAndDatasetStateFunctional should be set");
+      Assert.assertTrue(jobState.getWorkUnitAndDatasetStateFunctional() instanceof CombinedWorkUnitAndDatasetStateGenerator,
+          "WorkUnitAndDatasetStateFunctional should be instance of CombinedWorkUnitAndDatasetStateGenerator");
+
+      // Verify interactions
+      mockedJobStateUtils.verify(() -> JobStateUtils.getSharedResourcesBroker(jobState), times(1));
+      mockedDataStateStoreUtils.verify(() -> DatasetStateStoreUtils.createStateStore(any()), times(1));
+    }
+  }
+
+  @Test
+  public void testAddDatasetStateFunctionalAndSharedResourceBrokerToJobStateWithIOException() throws Exception {
+    // Arrange
+    Properties jobProps = new Properties();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "test-job");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "test-job-id");
+
+    JobState jobState = new JobState(jobProps);
+
+    // Create instance and get access to the private method
+    GenerateWorkUnitsImpl generateWorkUnitsImpl = new GenerateWorkUnitsImpl();
+    Method privateMethod = GenerateWorkUnitsImpl.class.getDeclaredMethod(
+        "addDatasetStateFunctionalAndSharedResourceBrokerToJobState", Properties.class, JobState.class);
+    privateMethod.setAccessible(true);
+
+    // Mock static method calls to throw IOException
+    try (MockedStatic<JobStateUtils> mockedJobStateUtils = Mockito.mockStatic(JobStateUtils.class);
+         MockedStatic<DatasetStateStoreUtils> mockedDataStateStoreUtils = Mockito.mockStatic(DatasetStateStoreUtils.class)) {
+
+      mockedDataStateStoreUtils.when(() -> DatasetStateStoreUtils.createStateStore(any()))
+          .thenThrow(new IOException("Failed to create state store"));
+
+      // Act & Assert
+      try {
+        privateMethod.invoke(generateWorkUnitsImpl, jobProps, jobState);
+        Assert.fail("Expected IOException to be thrown");
+      } catch (InvocationTargetException e) {
+        Assert.assertTrue(e.getCause() instanceof IOException, "Root cause should be IOException");
+        Assert.assertEquals(e.getCause().getMessage(), "Failed to create state store");
+        // Verify broker was never set due to exception
+        Assert.assertNull(jobState.getBroker(), "Broker should not be set when exception occurs");
+        Assert.assertNull(jobState.getWorkUnitAndDatasetStateFunctional(),
+            "WorkUnitAndDatasetStateFunctional should not be set when exception occurs");
+      }
+    }
+  }
+
+  @Test
+  public void testAddDatasetStateFunctionalAndSharedResourceBrokerToJobStateWithNullBroker() throws Exception {
+    // Arrange
+    Properties jobProps = new Properties();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "test-job");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "test-job-id");
+
+    JobState jobState = new JobState(jobProps);
+    DatasetStateStore mockDatasetStateStore = mock(DatasetStateStore.class);
+
+    // Create instance and get access to the private method
+    GenerateWorkUnitsImpl generateWorkUnitsImpl = new GenerateWorkUnitsImpl();
+    Method privateMethod = GenerateWorkUnitsImpl.class.getDeclaredMethod(
+        "addDatasetStateFunctionalAndSharedResourceBrokerToJobState", Properties.class, JobState.class);
+    privateMethod.setAccessible(true);
+
+    // Mock static method calls - return null broker to test null handling
+    try (MockedStatic<JobStateUtils> mockedJobStateUtils = Mockito.mockStatic(JobStateUtils.class);
+         MockedStatic<DatasetStateStoreUtils> mockedDataStateStoreUtils = Mockito.mockStatic(DatasetStateStoreUtils.class)) {
+
+      mockedJobStateUtils.when(() -> JobStateUtils.getSharedResourcesBroker(jobState))
+          .thenReturn(null);
+      mockedDataStateStoreUtils.when(() -> DatasetStateStoreUtils.createStateStore(any()))
+          .thenReturn(mockDatasetStateStore);
+
+      // Act
+      privateMethod.invoke(generateWorkUnitsImpl, jobProps, jobState);
+
+      // Assert
+      Assert.assertNull(jobState.getBroker(), "Broker should be null when null broker is returned");
+      Assert.assertNotNull(jobState.getWorkUnitAndDatasetStateFunctional(),
+          "WorkUnitAndDatasetStateFunctional should still be set even with null broker");
+    }
   }
 
   public static WorkUnit createWorkUnitOfSize(long size) {
