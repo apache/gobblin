@@ -32,6 +32,8 @@ import java.util.concurrent.atomic.AtomicLong;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
+import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.metrics.Meter;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -53,6 +55,9 @@ import org.apache.gobblin.converter.initializer.ConverterInitializer;
 import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
 import org.apache.gobblin.initializer.Initializer;
 import org.apache.gobblin.destination.DestinationDatasetHandlerService;
+import org.apache.gobblin.metrics.OpenTelemetryMetrics;
+import org.apache.gobblin.metrics.OpenTelemetryMetricsBase;
+import org.apache.gobblin.metrics.ServiceMetricNames;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.AbstractJobLauncher;
@@ -79,6 +84,8 @@ import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.writer.initializer.WriterInitializer;
 import org.apache.gobblin.writer.initializer.WriterInitializerFactory;
+
+import static org.apache.gobblin.runtime.JobState.GAAS_OBSERVABILITY_METRICS_GROUPNAME;
 
 
 
@@ -142,6 +149,8 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     // TODO: provide for job cancellation (unless handling at the temporal-level of parent workflows)!
     JobState jobState = new JobState(jobProps);
     log.info("Created jobState: {}", jobState.toJsonString(true));
+    // emit jobs observed at RM level
+    emitMetrics(jobState);
 
     int heartBeatInterval = JobStateUtils.getHeartBeatInterval(jobState);
     heartBeatExecutor.scheduleAtFixedRate(() -> activityExecutionContext.heartbeat("Running GenerateWorkUnits"),
@@ -353,5 +362,38 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
 
   public static int getConfiguredNumSizeSummaryQuantiles(State state) {
     return state.getPropAsInt(GenerateWorkUnits.NUM_WORK_UNITS_SIZE_SUMMARY_QUANTILES, GenerateWorkUnits.DEFAULT_NUM_WORK_UNITS_SIZE_SUMMARY_QUANTILES);
+  }
+
+  /**
+   * Emit metrics to indicate jobs observed at RM level
+   * @param jobState job state
+   */
+  private void emitMetrics(JobState jobState) {
+    try {
+      OpenTelemetryMetricsBase otelMetrics = OpenTelemetryMetrics.getInstance(jobState);
+      if (otelMetrics == null) {
+        log.warn("OpenTelemetry metrics instance is null, skipping metrics emission");
+        return;
+      }
+
+      Meter meter = otelMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME);
+      Attributes tags = getEventAttributes(jobState);
+      log.info("Emitting metrics for job: {}", jobState.getJobName());
+      String jobMetricDescription = "Number of Jobs observed on RM";
+      String jobMetricName = ServiceMetricNames.RM_JOB_OBSERVED_COUNT;
+      meter.counterBuilder(jobMetricName).setDescription(jobMetricDescription).build().add(1, tags);
+    } catch (Exception e) {
+      log.error("Error in emitMetrics for job: {}", jobState.getJobName(), e);
+    }
+  }
+
+  private Attributes getEventAttributes(JobState jobState) {
+    return Attributes.builder()
+        .put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, jobState.getProp(ConfigurationKeys.FLOW_NAME_KEY, "NA"))
+        .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, jobState.getProp(ConfigurationKeys.FLOW_GROUP_KEY, "NA"))
+        .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, jobState.getProp(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, "NA"))
+        .put(TimingEvent.FlowEventConstants.FLOW_FABRIC, jobState.getProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_FABRIC, "NA"))
+        .put(TimingEvent.FlowEventConstants.RM_HOST_FIELD, jobState.getProp(ConfigurationKeys.RM_HOST_KEY, "NA"))
+        .build();
   }
 }

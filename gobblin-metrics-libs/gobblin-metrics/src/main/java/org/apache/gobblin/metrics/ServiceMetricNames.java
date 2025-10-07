@@ -30,6 +30,8 @@ public class ServiceMetricNames {
   public static final String DATA_QUALITY_NON_EVALUATED_FILE_COUNT = "dataQualityNonEvaluatedFileCount";
   public static final String DATA_QUALITY_BYTES_READ = "dataQualityBytesRead";
   public static final String DATA_QUALITY_BYTES_WRITTEN = "dataQualityBytesWritten";
+  // RM metric names
+  public static final String RM_JOB_OBSERVED_COUNT = "rmJobObservedCount";
 
   // Flow Compilation Meters and Timer
   public static final String FLOW_COMPILATION_SUCCESSFUL_METER = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowCompilation.successful";
