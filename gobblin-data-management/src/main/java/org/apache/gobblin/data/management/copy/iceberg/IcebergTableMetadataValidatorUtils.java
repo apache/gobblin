@@ -52,27 +52,6 @@ public class IcebergTableMetadataValidatorUtils {
         tableMetadataA.metadataFileLocation(),
         tableMetadataB.metadataFileLocation());
 
-    Schema schemaA = tableMetadataA.schema();
-    Schema schemaB = tableMetadataB.schema();
-    // TODO: Need to add support for schema evolution
-    //  This check needs to be broken down into multiple checks to support schema evolution
-    //  Possible cases - schemaA == schemaB,
-    //  - schemaA is subset of schemaB [ schemaB Evolved ],
-    //  - schemaA is superset of schemaB [ schemaA Evolved ],
-    //  - Other cases?
-    //  Also consider using Strategy or any other design pattern for this to make it a better solution
-    if (!schemaA.sameSchema(schemaB)) {
-      String errMsg = String.format(
-          "Schema Mismatch between Metadata{%s} - SchemaId{%d} and Metadata{%s} - SchemaId{%d}",
-          tableMetadataA.metadataFileLocation(),
-          schemaA.schemaId(),
-          tableMetadataB.metadataFileLocation(),
-          schemaB.schemaId()
-      );
-      log.error(errMsg);
-      throw new IOException(errMsg);
-    }
-
     PartitionSpec partitionSpecA = tableMetadataA.spec();
     PartitionSpec partitionSpecB = tableMetadataB.spec();
     // .compatibleWith() doesn't match for specId of partition spec and fieldId of partition fields while .equals() does

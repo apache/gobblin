@@ -53,6 +53,8 @@ public class IcebergPartitionDatasetFinder extends IcebergDatasetFinder {
     boolean validateStrictPartitionEquality = Boolean.parseBoolean(properties.getProperty(ICEBERG_DATASET_PARTITION_VALIDATE_STRICT_EQUALITY,
         DEFAULT_ICEBERG_DATASET_PARTITION_VALIDATE_STRICT_EQUALITY));
 
+    destIcebergTable.updateSchema(srcIcebergTable.accessTableMetadata().schema());
+
     IcebergTableMetadataValidatorUtils.failUnlessCompatibleStructure(
         srcIcebergTable.accessTableMetadata(), destIcebergTable.accessTableMetadata(), validateStrictPartitionEquality);
 
