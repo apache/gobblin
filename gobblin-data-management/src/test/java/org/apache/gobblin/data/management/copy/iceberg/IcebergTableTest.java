@@ -46,6 +46,7 @@ import org.apache.iceberg.Schema;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
+import org.apache.iceberg.TableOperations;
 import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
@@ -60,6 +61,8 @@ import org.apache.iceberg.encryption.EncryptionManager;
 import org.apache.iceberg.hive.HiveMetastoreTest;
 import org.apache.iceberg.io.FileIO;
 import org.apache.iceberg.shaded.org.apache.avro.SchemaBuilder;
+import org.apache.iceberg.types.Types;
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeClass;
@@ -105,6 +108,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
   private final String tableName = "justtesting";
   private final String destTableName = "destTable";
   private TableIdentifier tableId;
+  private TableIdentifier sourceTableId;
+  private TableIdentifier destTableId;
   private Table table;
   private String catalogUri;
   private String metadataBasePath;
@@ -126,6 +131,8 @@ public class IcebergTableTest extends HiveMetastoreTest {
   @AfterMethod
   public void cleanUpEachTest() {
     catalog.dropTable(tableId);
+    catalog.dropTable(sourceTableId);
+    catalog.dropTable(destTableId);
   }
 
   /** Test to verify getCurrentSnapshotInfo, getAllSnapshotInfosIterator, getIncrementalSnapshotInfosIterator for iceberg table containing only data files.*/
@@ -152,6 +159,164 @@ public class IcebergTableTest extends HiveMetastoreTest {
       System.err.println("verifying snapshotInfo[" + i + "]");
       verifySnapshotInfo(incrementalSnapshotInfos.get(i), perSnapshotDataFilesets.subList(i, i + 1), incrementalSnapshotInfos.size());
     }
+  }
+
+  @Test
+  public void schemaUpdateSuccessTest() throws IcebergTable.TableNotFoundException {
+    // create source iceberg table with this schema
+    Schema sourceIcebergSchema = new Schema(Types.NestedField.required(1, "id", Types.LongType.get()),
+        Types.NestedField.required(2, "product_name", Types.StringType.get()),
+        Types.NestedField.required(3, "details",
+            Types.StructType.of(Types.NestedField.required(4, "description", Types.StringType.get()),
+                Types.NestedField.required(6, "category", Types.StringType.get()),
+                Types.NestedField.required(7, "remarks", Types.StringType.get()))),
+        Types.NestedField.required(5, "price", Types.DecimalType.of(10, 2)));
+
+    PartitionSpec sourceIcebergPartitionSpec = PartitionSpec.builderFor(sourceIcebergSchema)
+        .identity("id")
+        .build();
+
+    sourceTableId = TableIdentifier.of(dbName, tableName + "_source");
+    catalog.createTable(sourceTableId, sourceIcebergSchema, sourceIcebergPartitionSpec, Collections.singletonMap("format-version", "2"));
+
+    // create destination iceberg table with this schema
+    Schema destIcebergSchema = new Schema(Types.NestedField.required(1, "id", Types.LongType.get()));
+
+    PartitionSpec destIcebergPartitionSpec = PartitionSpec.builderFor(destIcebergSchema)
+        .identity("id")
+        .build();
+
+    destTableId = TableIdentifier.of(dbName, tableName + "_dest");
+    catalog.createTable(destTableId, destIcebergSchema, destIcebergPartitionSpec, Collections.singletonMap("format-version", "2"));
+
+    TableOperations destTableOps = Mockito.spy(catalog.newTableOps(destTableId));
+    TableOperations sourceTableOps = catalog.newTableOps(sourceTableId);
+
+    IcebergTable destIcebergTable = new IcebergTable(destTableId, destTableOps, catalogUri, catalog.loadTable(tableId));
+
+    TableMetadata srcTableMetadata = sourceTableOps.current();
+    Schema srcTableSchema = srcTableMetadata.schema();
+
+    // update schema to verify is schema update succeeds
+    destIcebergTable.updateSchema(srcTableSchema, false);
+    Mockito.verify(destTableOps, Mockito.times(1)).commit(Mockito.any(), Mockito.any());
+  }
+
+  @Test
+  public void schemaUpdateTest_divergentSchema() throws IcebergTable.TableNotFoundException {
+    // create source iceberg table with this schema
+    Schema sourceIcebergSchema = new Schema(Types.NestedField.required(1, "id", Types.LongType.get()),
+        Types.NestedField.required(2, "product_name", Types.StringType.get()),
+        Types.NestedField.required(3, "details",
+            Types.StructType.of(Types.NestedField.required(4, "description", Types.StringType.get()),
+                Types.NestedField.required(6, "category", Types.StringType.get()),
+                Types.NestedField.required(7, "remarks", Types.StringType.get()))),
+        Types.NestedField.required(5, "price", Types.DecimalType.of(10, 2)));
+
+    PartitionSpec sourceIcebergPartitionSpec = PartitionSpec.builderFor(sourceIcebergSchema)
+        .identity("id")
+        .build();
+
+    TableIdentifier sourceTableId = TableIdentifier.of(dbName, tableName + "_source");
+    catalog.createTable(sourceTableId, sourceIcebergSchema, sourceIcebergPartitionSpec, Collections.singletonMap("format-version", "2"));
+
+    // create destination iceberg table with this schema
+    Schema destIcebergSchema = new Schema(Types.NestedField.required(1, "randomField", Types.LongType.get()));
+
+    PartitionSpec destIcebergPartitionSpec = PartitionSpec.builderFor(destIcebergSchema)
+        .identity("randomField")
+        .build();
+
+    TableIdentifier destTableId = TableIdentifier.of(dbName, tableName + "_dest");
+    catalog.createTable(destTableId, destIcebergSchema, destIcebergPartitionSpec, Collections.singletonMap("format-version", "2"));
+
+    TableOperations destTableOps = Mockito.spy(catalog.newTableOps(destTableId));
+    TableOperations sourceTableOps = catalog.newTableOps(sourceTableId);
+
+    IcebergTable destIcebergTable = new IcebergTable(destTableId, destTableOps, catalogUri, catalog.loadTable(destTableId));
+
+    TableMetadata srcTableMetadata = sourceTableOps.current();
+    Schema srcTableSchema = srcTableMetadata.schema();
+
+    // update schema to verify is schema update succeeds
+    destIcebergTable.updateSchema(srcTableSchema, false);
+    Mockito.verify(destTableOps, Mockito.times(1)).commit(Mockito.any(), Mockito.any());
+  }
+
+  @Test
+  public void schemaUpdateTest_sameSchema_noOpTest() throws IcebergTable.TableNotFoundException {
+    // create source iceberg table with this schema
+    Schema sourceIcebergSchema = new Schema(Types.NestedField.required(1, "randomField", Types.LongType.get()));
+
+    PartitionSpec sourceIcebergPartitionSpec = PartitionSpec.builderFor(sourceIcebergSchema)
+        .identity("randomField")
+        .build();
+
+    TableIdentifier sourceTableId = TableIdentifier.of(dbName, tableName + "_source");
+    catalog.createTable(sourceTableId, sourceIcebergSchema, sourceIcebergPartitionSpec, Collections.singletonMap("format-version", "2"));
+
+    // create destination iceberg table with this schema
+    Schema destIcebergSchema = new Schema(Types.NestedField.required(1, "randomField", Types.LongType.get()));
+
+    PartitionSpec destIcebergPartitionSpec = PartitionSpec.builderFor(destIcebergSchema)
+        .identity("randomField")
+        .build();
+
+    TableIdentifier destTableId = TableIdentifier.of(dbName, tableName + "_dest");
+    catalog.createTable(destTableId, destIcebergSchema, destIcebergPartitionSpec, Collections.singletonMap("format-version", "2"));
+
+    TableOperations destTableOps = Mockito.spy(catalog.newTableOps(destTableId));
+    TableOperations sourceTableOps = catalog.newTableOps(sourceTableId);
+
+    IcebergTable destIcebergTable = new IcebergTable(destTableId, destTableOps, catalogUri, catalog.loadTable(destTableId));
+
+    TableMetadata srcTableMetadata = sourceTableOps.current();
+    Schema srcTableSchema = srcTableMetadata.schema();
+
+    // update schema to verify is schema update succeeds
+    destIcebergTable.updateSchema(srcTableSchema, false);
+    Mockito.verify(destTableOps, Mockito.times(0)).commit(Mockito.any(), Mockito.any());
+  }
+
+  @Test
+  public void schemaUpdate_onlyValidationTest() throws IcebergTable.TableNotFoundException {
+    // create source iceberg table with this schema
+    Schema sourceIcebergSchema = new Schema(Types.NestedField.required(1, "id", Types.LongType.get()),
+        Types.NestedField.required(2, "product_name", Types.StringType.get()),
+        Types.NestedField.required(3, "details",
+            Types.StructType.of(Types.NestedField.required(4, "description", Types.StringType.get()),
+                Types.NestedField.required(6, "category", Types.StringType.get()),
+                Types.NestedField.required(7, "remarks", Types.StringType.get()))),
+        Types.NestedField.required(5, "price", Types.DecimalType.of(10, 2)));
+
+    PartitionSpec sourceIcebergPartitionSpec = PartitionSpec.builderFor(sourceIcebergSchema)
+        .identity("id")
+        .build();
+
+    sourceTableId = TableIdentifier.of(dbName, tableName + "_source");
+    catalog.createTable(sourceTableId, sourceIcebergSchema, sourceIcebergPartitionSpec, Collections.singletonMap("format-version", "2"));
+
+    // create destination iceberg table with this schema
+    Schema destIcebergSchema = new Schema(Types.NestedField.required(1, "id", Types.LongType.get()));
+
+    PartitionSpec destIcebergPartitionSpec = PartitionSpec.builderFor(destIcebergSchema)
+        .identity("id")
+        .build();
+
+    destTableId = TableIdentifier.of(dbName, tableName + "_dest");
+    catalog.createTable(destTableId, destIcebergSchema, destIcebergPartitionSpec, Collections.singletonMap("format-version", "2"));
+
+    TableOperations destTableOps = Mockito.spy(catalog.newTableOps(destTableId));
+    TableOperations sourceTableOps = catalog.newTableOps(sourceTableId);
+
+    IcebergTable destIcebergTable = new IcebergTable(destTableId, destTableOps, catalogUri, catalog.loadTable(tableId));
+
+    TableMetadata srcTableMetadata = sourceTableOps.current();
+    Schema srcTableSchema = srcTableMetadata.schema();
+
+    // update schema to verify is schema update succeeds
+    destIcebergTable.updateSchema(srcTableSchema, true);
+    Mockito.verify(destTableOps, Mockito.times(0)).commit(Mockito.any(), Mockito.any());
   }
 
   @DataProvider(name = "isPosDeleteProvider")

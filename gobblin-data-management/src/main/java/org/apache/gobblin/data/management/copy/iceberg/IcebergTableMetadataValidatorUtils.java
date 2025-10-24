@@ -20,7 +20,6 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.io.IOException;
 
 import org.apache.iceberg.PartitionSpec;
-import org.apache.iceberg.Schema;
 import org.apache.iceberg.TableMetadata;
 
 import lombok.extern.slf4j.Slf4j;
@@ -36,11 +35,7 @@ public class IcebergTableMetadataValidatorUtils {
   }
 
   /**
-   * Compares the metadata of the given two iceberg tables.
-   * <ul>
-   *   <li>First compares the schema of the metadata.</li>
-   *   <li>Then compares the partition spec of the metadata.</li>
-   * </ul>
+   * Compares the partition spec of the metadata.
    * @param tableMetadataA  the metadata of the first table
    * @param tableMetadataB the metadata of the second table
    * @param validateStrictPartitionEquality boolean value to control strictness of partition spec comparison
@@ -51,27 +46,6 @@ public class IcebergTableMetadataValidatorUtils {
     log.info("Starting comparison between iceberg tables with metadata file location : {} and {}",
         tableMetadataA.metadataFileLocation(),
         tableMetadataB.metadataFileLocation());
-
-    Schema schemaA = tableMetadataA.schema();
-    Schema schemaB = tableMetadataB.schema();
-    // TODO: Need to add support for schema evolution
-    //  This check needs to be broken down into multiple checks to support schema evolution
-    //  Possible cases - schemaA == schemaB,
-    //  - schemaA is subset of schemaB [ schemaB Evolved ],
-    //  - schemaA is superset of schemaB [ schemaA Evolved ],
-    //  - Other cases?
-    //  Also consider using Strategy or any other design pattern for this to make it a better solution
-    if (!schemaA.sameSchema(schemaB)) {
-      String errMsg = String.format(
-          "Schema Mismatch between Metadata{%s} - SchemaId{%d} and Metadata{%s} - SchemaId{%d}",
-          tableMetadataA.metadataFileLocation(),
-          schemaA.schemaId(),
-          tableMetadataB.metadataFileLocation(),
-          schemaB.schemaId()
-      );
-      log.error(errMsg);
-      throw new IOException(errMsg);
-    }
 
     PartitionSpec partitionSpecA = tableMetadataA.spec();
     PartitionSpec partitionSpecB = tableMetadataB.spec();

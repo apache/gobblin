@@ -35,23 +35,6 @@ public class IcebergTableMetadataValidatorUtilsTest {
       .requiredString("field1")
       .requiredString("field2")
       .endRecord());
-  private static final Schema schema2IsNotSchema1Compat = AvroSchemaUtil.toIceberg(SchemaBuilder.record("schema2")
-      .fields()
-      .requiredString("field2")
-      .requiredString("field1")
-      .endRecord());
-  private static final Schema schema3 = AvroSchemaUtil.toIceberg(SchemaBuilder.record("schema3")
-      .fields()
-      .requiredString("field1")
-      .requiredString("field2")
-      .requiredInt("field3")
-      .endRecord());
-  private static final Schema schema4IsNotSchema3Compat = AvroSchemaUtil.toIceberg(SchemaBuilder.record("schema4")
-      .fields()
-      .requiredInt("field1")
-      .requiredString("field2")
-      .requiredInt("field3")
-      .endRecord());
   private static final PartitionSpec partitionSpec1 = PartitionSpec.builderFor(schema1)
       .identity("field1")
       .build();
@@ -59,9 +42,6 @@ public class IcebergTableMetadataValidatorUtilsTest {
       schema1, unpartitionedPartitionSpec, "tableLocationForSchema1WithUnpartitionedSpec", new HashMap<>());
   private static final TableMetadata tableMetadataWithSchema1AndPartitionSpec1 = TableMetadata.newTableMetadata(
       schema1, partitionSpec1, "tableLocationForSchema1WithPartitionSpec1", new HashMap<>());
-  private static final TableMetadata tableMetadataWithSchema3AndUnpartitionedSpec = TableMetadata.newTableMetadata(
-      schema3, unpartitionedPartitionSpec, "tableLocationForSchema3WithUnpartitionedSpec", new HashMap<>());
-  private static final String SCHEMA_MISMATCH_EXCEPTION = "Schema Mismatch between Metadata";
   private static final String PARTITION_SPEC_MISMATCH_EXCEPTION = "Partition Spec Mismatch between Metadata";
   private static final boolean VALIDATE_STRICT_PARTITION_EQUALITY_TRUE = true;
   private static final boolean VALIDATE_STRICT_PARTITION_EQUALITY_FALSE = false;
@@ -72,64 +52,6 @@ public class IcebergTableMetadataValidatorUtilsTest {
         VALIDATE_STRICT_PARTITION_EQUALITY_TRUE
     );
     Assert.assertTrue(true);
-  }
-
-  @Test
-  public void testValidateDifferentSchemaFails() {
-    // Schema 1 and Schema 2 have different field order
-
-    TableMetadata tableMetadataWithSchema2AndUnpartitionedSpec = TableMetadata.newTableMetadata(schema2IsNotSchema1Compat,
-        unpartitionedPartitionSpec, "tableLocationForSchema2WithUnpartitionedSpec", new HashMap<>());
-
-    verifyStrictFailUnlessCompatibleStructureThrows(tableMetadataWithSchema1AndUnpartitionedSpec,
-        tableMetadataWithSchema2AndUnpartitionedSpec, SCHEMA_MISMATCH_EXCEPTION);
-  }
-
-  @Test
-  public void testValidateSchemaWithDifferentTypesFails() {
-    // schema 3 and schema 4 have different field types for field1
-
-    TableMetadata tableMetadataWithSchema4AndUnpartitionedSpec = TableMetadata.newTableMetadata(schema4IsNotSchema3Compat,
-        unpartitionedPartitionSpec, "tableLocationForSchema4WithUnpartitionedSpec", new HashMap<>());
-
-    verifyStrictFailUnlessCompatibleStructureThrows(tableMetadataWithSchema3AndUnpartitionedSpec,
-        tableMetadataWithSchema4AndUnpartitionedSpec, SCHEMA_MISMATCH_EXCEPTION);
-  }
-
-  @Test
-  public void testValidateSchemaWithEvolvedSchemaIFails() {
-    // Schema 3 has one more extra field as compared to Schema 1
-    verifyStrictFailUnlessCompatibleStructureThrows(tableMetadataWithSchema1AndUnpartitionedSpec,
-        tableMetadataWithSchema3AndUnpartitionedSpec, SCHEMA_MISMATCH_EXCEPTION);
-  }
-
-  @Test
-  public void testValidateSchemaWithEvolvedSchemaIIFails() {
-    // TODO: This test should pass in the future when we support schema evolution
-    // Schema 3 has one more extra field as compared to Schema 1
-    verifyStrictFailUnlessCompatibleStructureThrows(tableMetadataWithSchema3AndUnpartitionedSpec,
-        tableMetadataWithSchema1AndUnpartitionedSpec, SCHEMA_MISMATCH_EXCEPTION);
-  }
-
-  @Test
-  public void testValidateOneSchemaEvolvedFromIntToLongTypeFails() {
-    // Adding this test as to verify that partition copy doesn't proceed further for this case
-    // as while doing poc and testing had seen final commit gets fail if there is mismatch in field type
-    // specially from int to long
-    Schema schema5EvolvedFromSchema4 = AvroSchemaUtil.toIceberg(SchemaBuilder.record("schema5")
-        .fields()
-        .requiredLong("field1")
-        .requiredString("field2")
-        .requiredInt("field3")
-        .endRecord());
-    PartitionSpec partitionSpec = PartitionSpec.builderFor(schema5EvolvedFromSchema4)
-        .identity("field1")
-        .build();
-    TableMetadata tableMetadataWithSchema5AndPartitionSpec = TableMetadata.newTableMetadata(schema5EvolvedFromSchema4,
-        partitionSpec, "tableLocationForSchema5WithPartitionSpec", new HashMap<>());
-
-    verifyStrictFailUnlessCompatibleStructureThrows(tableMetadataWithSchema1AndUnpartitionedSpec,
-        tableMetadataWithSchema5AndPartitionSpec, SCHEMA_MISMATCH_EXCEPTION);
   }
 
   @Test

@@ -36,6 +36,7 @@ import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
 import org.apache.iceberg.OverwriteFiles;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
@@ -48,6 +49,7 @@ import org.apache.iceberg.io.CloseableIterator;
 import org.apache.iceberg.io.FileIO;
 
 import com.google.common.annotations.VisibleForTesting;
+import com.google.common.base.Preconditions;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
 import com.google.common.collect.Sets;
@@ -313,6 +315,33 @@ public class IcebergTable {
     // snapshot is necessarily the one from the commit just before. another writer could have just raced to commit
     // in between.
     log.info("~{}~ SnapshotId after overwrite: {}", tableId, accessTableMetadata().currentSnapshot().snapshotId());
+  }
+
+  /**
+   * update table's schema to the provided {@link Schema}
+   * @param updatedSchema the updated schema to be set on the table.
+   * @param onlyValidate if true, only validates if the schema is can be updated without committing.
+   * @throws TableNotFoundException if the table does not exist.
+   */
+  protected void updateSchema(Schema updatedSchema, boolean onlyValidate) throws TableNotFoundException {
+    TableMetadata currentTableMetadata = accessTableMetadata();
+    Schema currentSchema = currentTableMetadata.schema();
+
+    if (currentSchema.sameSchema(updatedSchema)) {
+      log.info("~{}~ schema is already up-to-date", tableId);
+      return;
+    }
+
+    log.info("~{}~ updating schema from {} to {}, commit: {}", tableId, currentSchema, updatedSchema, !onlyValidate);
+
+    TableMetadata updatedTableMetadata = currentTableMetadata.updateSchema(updatedSchema, updatedSchema.highestFieldId());
+    Preconditions.checkArgument(updatedTableMetadata.schema().sameSchema(updatedSchema), "Schema mismatch after update, please check destination table");
+
+    if (!onlyValidate) {
+      tableOps.commit(currentTableMetadata, updatedTableMetadata);
+      tableOps.refresh();
+      log.info("~{}~ schema updated successfully", tableId);
+    }
   }
 
 }
