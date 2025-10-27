@@ -116,6 +116,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     // map of paths and permissions sorted by depth of path, so that permissions can be set in order
     Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissions = new HashMap<>();
     Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissionsForSetPermissionStep = new HashMap<>();
+    Map<String, OwnerAndPermission> existingDirectoryPermissionsForSetPermissionStep = new HashMap<>();
     TreeMap<String, OwnerAndPermission> flattenedAncestorPermissions = new TreeMap<>(
         Comparator.comparingInt((String o) -> o.split("/").length).thenComparing(o -> o));
     try {
@@ -151,13 +152,18 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             // FileAwareInputStreamDataWriter::setOwnerExecuteBitIfDirectory -> HadoopUtils::addExecutePermissionToOwner
             // We need to revert this extra permission change in setPermissionStep
             if (srcFile.isDirectory() && !srcFile.getPermission().getUserAction().implies(FsAction.EXECUTE)
-                && !ancestorOwnerAndPermissionsForSetPermissionStep.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fileToCopy).toString())
-                && !targetFs.exists(fileToCopy)) {
-              List<OwnerAndPermission> ancestorsOwnerAndPermissionUpdated = new ArrayList<>();
+                && !ancestorOwnerAndPermissionsForSetPermissionStep.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fileToCopy).toString())) {
               OwnerAndPermission srcFileOwnerPermissionReplicatedForDest = new OwnerAndPermission(copyableFile.getDestinationOwnerAndPermission());
-              ancestorsOwnerAndPermissionUpdated.add(srcFileOwnerPermissionReplicatedForDest);
-              copyableFile.getAncestorsOwnerAndPermission().forEach(ancestorOwnPerm -> ancestorsOwnerAndPermissionUpdated.add(new OwnerAndPermission(ancestorOwnPerm)));
-              ancestorOwnerAndPermissionsForSetPermissionStep.put(fileToCopy.toString(), ancestorsOwnerAndPermissionUpdated);
+              if(!targetFs.exists(fileToCopy)) {
+                List<OwnerAndPermission> ancestorsOwnerAndPermissionUpdated = new ArrayList<>();
+                ancestorsOwnerAndPermissionUpdated.add(srcFileOwnerPermissionReplicatedForDest);
+                copyableFile.getAncestorsOwnerAndPermission().forEach(ancestorOwnPerm -> ancestorsOwnerAndPermissionUpdated.add(new OwnerAndPermission(ancestorOwnPerm)));
+                ancestorOwnerAndPermissionsForSetPermissionStep.put(fileToCopy.toString(), ancestorsOwnerAndPermissionUpdated);
+              }
+              else {
+                // If the path exists, update only current directory permission in post publish step and not entire hierarchy.
+                existingDirectoryPermissionsForSetPermissionStep.put(fileToCopy.toString(), srcFileOwnerPermissionReplicatedForDest);
+              }
             }
 
             // Always grab the parent since the above permission setting should be setting the permission for a folder itself
@@ -197,6 +203,10 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
             }
             currentPath = currentPath.getParent();
           }
+        }
+        for (Map.Entry<String, OwnerAndPermission> existingDirectoryPermissions : existingDirectoryPermissionsForSetPermissionStep.entrySet()) {
+          Path currentPath = new Path(existingDirectoryPermissions.getKey());
+          flattenedAncestorPermissions.put(currentPath.toString(), existingDirectoryPermissions.getValue());
         }
         CommitStep setPermissionCommitStep = new SetPermissionCommitStep(targetFs, flattenedAncestorPermissions, this.properties);
         copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
