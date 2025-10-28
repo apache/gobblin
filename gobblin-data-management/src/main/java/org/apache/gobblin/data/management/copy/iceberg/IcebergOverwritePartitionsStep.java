@@ -26,6 +26,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.concurrent.ExecutionException;
 
 import org.apache.iceberg.DataFile;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.catalog.TableIdentifier;
 
 import com.github.rholder.retry.Attempt;
@@ -57,6 +58,14 @@ import static org.apache.gobblin.util.retry.RetryerFactory.RetryType;
 @Slf4j
 public class IcebergOverwritePartitionsStep implements CommitStep {
   private final String destTableIdStr;
+  /**
+   * Updated schema must be enforced to be backwards compatible by the catalog in
+   * the partition overwrite step otherwise previous partitions may become unreadable.
+   * This schema is determined at the start of the copy job before data files discovery and the same is
+   * committed before overwriting partitions. It is the responsibility of the catalog to ensure that
+   * no conflicting commits happen in between the copy job.
+   */
+  private final Schema updatedSchema;
   private final Properties properties;
   // data files are populated once all the copy tasks are done. Each IcebergPartitionCopyableFile has a serialized data file
   @Setter private List<DataFile> dataFiles;
@@ -64,6 +73,8 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
   private final String partitionValue;
   public static final String OVERWRITE_PARTITIONS_RETRYER_CONFIG_PREFIX = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX +
       ".catalog.overwrite.partitions.retries";
+  public static final String SCHEMA_UPDATE_RETRYER_CONFIG_PREFIX = IcebergDatasetFinder.ICEBERG_DATASET_PREFIX +
+      ".schema.update.retries";
   private static final Config RETRYER_FALLBACK_CONFIG = ConfigFactory.parseMap(ImmutableMap.of(
       RETRY_INTERVAL_MS, TimeUnit.SECONDS.toMillis(3L),
       RETRY_TIMES, 3,
@@ -75,8 +86,9 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
    * @param destTableIdStr the identifier of the destination table as a string
    * @param properties the properties containing configuration
    */
-  public IcebergOverwritePartitionsStep(String destTableIdStr, String partitionColName, String partitionValue, Properties properties) {
+  public IcebergOverwritePartitionsStep(String destTableIdStr, Schema updatedSchema, String partitionColName, String partitionValue, Properties properties) {
     this.destTableIdStr = destTableIdStr;
+    this.updatedSchema = updatedSchema;
     this.partitionColName = partitionColName;
     this.partitionValue = partitionValue;
     this.properties = properties;
@@ -108,6 +120,13 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
           dataFiles.size(),
           dataFiles.get(0).path()
       );
+      // update schema
+      Retryer<Void> schemaUpdateRetryer = createSchemaUpdateRetryer();
+      schemaUpdateRetryer.call(() -> {
+        destTable.updateSchema(this.updatedSchema, false);
+        return null;
+      });
+      // overwrite partitions
       Retryer<Void> overwritePartitionsRetryer = createOverwritePartitionsRetryer();
       overwritePartitionsRetryer.call(() -> {
         destTable.overwritePartition(dataFiles, this.partitionColName, this.partitionValue);
@@ -146,17 +165,30 @@ public class IcebergOverwritePartitionsStep implements CommitStep {
         ? config.getConfig(IcebergOverwritePartitionsStep.OVERWRITE_PARTITIONS_RETRYER_CONFIG_PREFIX)
         : ConfigFactory.empty();
 
+    return getRetryer(retryerOverridesConfig);
+  }
+
+  private Retryer<Void> createSchemaUpdateRetryer() {
+    Config config = ConfigFactory.parseProperties(this.properties);
+    Config retryerOverridesConfig = config.hasPath(IcebergOverwritePartitionsStep.SCHEMA_UPDATE_RETRYER_CONFIG_PREFIX)
+        ? config.getConfig(IcebergOverwritePartitionsStep.SCHEMA_UPDATE_RETRYER_CONFIG_PREFIX)
+        : ConfigFactory.empty();
+
+    return getRetryer(retryerOverridesConfig);
+  }
+
+  private Retryer<Void> getRetryer(Config retryerOverridesConfig) {
     return RetryerFactory.newInstance(retryerOverridesConfig.withFallback(RETRYER_FALLBACK_CONFIG), Optional.of(new RetryListener() {
-      @Override
-      public <V> void onRetry(Attempt<V> attempt) {
-        if (attempt.hasException()) {
-          String msg = String.format("~%s~ Exception while overwriting partitions [attempt: %d; elapsed: %s]",
-              destTableIdStr,
-              attempt.getAttemptNumber(),
-              Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());
-          log.warn(msg, attempt.getExceptionCause());
-        }
-      }
-    }));
+          @Override
+          public <V> void onRetry(Attempt<V> attempt) {
+            if (attempt.hasException()) {
+              String msg = String.format("~%s~ Exception occurred [attempt: %d; elapsed: %s]",
+                  destTableIdStr,
+                  attempt.getAttemptNumber(),
+                  Duration.ofMillis(attempt.getDelaySinceFirstAttempt()).toString());
+              log.warn(msg, attempt.getExceptionCause());
+            }
+          }
+        }));
   }
 }

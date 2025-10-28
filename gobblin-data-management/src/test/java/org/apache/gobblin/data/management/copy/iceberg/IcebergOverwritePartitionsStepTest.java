@@ -24,6 +24,7 @@ import java.util.Properties;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DataFiles;
 import org.apache.iceberg.PartitionSpec;
+import org.apache.iceberg.Schema;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -40,6 +41,7 @@ public class IcebergOverwritePartitionsStepTest {
   private final String testPartitionColName = "testPartition";
   private final String testPartitionColValue = "testValue";
   private IcebergTable mockIcebergTable;
+  private Schema mockSchema;
   private IcebergCatalog mockIcebergCatalog;
   private Properties mockProperties;
   private IcebergOverwritePartitionsStep spyIcebergOverwritePartitionsStep;
@@ -47,10 +49,11 @@ public class IcebergOverwritePartitionsStepTest {
   @BeforeMethod
   public void setUp() throws IOException {
     mockIcebergTable = Mockito.mock(IcebergTable.class);
+    mockSchema = Mockito.mock(Schema.class);
     mockIcebergCatalog = Mockito.mock(IcebergCatalog.class);
     mockProperties = new Properties();
 
-    spyIcebergOverwritePartitionsStep = Mockito.spy(new IcebergOverwritePartitionsStep(destTableIdStr,
+    spyIcebergOverwritePartitionsStep = Mockito.spy(new IcebergOverwritePartitionsStep(destTableIdStr, mockSchema,
         testPartitionColName, testPartitionColValue, mockProperties));
 
     spyIcebergOverwritePartitionsStep.setDataFiles(getDummyDataFiles());
@@ -112,7 +115,7 @@ public class IcebergOverwritePartitionsStepTest {
     int retryCount = 7;
     mockProperties.setProperty(IcebergOverwritePartitionsStep.OVERWRITE_PARTITIONS_RETRYER_CONFIG_PREFIX + "." + RETRY_TIMES,
         Integer.toString(retryCount));
-    spyIcebergOverwritePartitionsStep = Mockito.spy(new IcebergOverwritePartitionsStep(destTableIdStr,
+    spyIcebergOverwritePartitionsStep = Mockito.spy(new IcebergOverwritePartitionsStep(destTableIdStr, mockSchema,
         testPartitionColName, testPartitionColValue, mockProperties));
 
     spyIcebergOverwritePartitionsStep.setDataFiles(getDummyDataFiles());
