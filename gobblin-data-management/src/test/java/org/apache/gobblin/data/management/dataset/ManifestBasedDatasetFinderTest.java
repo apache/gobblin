@@ -159,7 +159,7 @@ public class ManifestBasedDatasetFinderTest {
       CommitStep setPermissionStep = ((PostPublishStep) fileSet.getFiles().get(3)).getStep();
       Assert.assertTrue(setPermissionStep instanceof SetPermissionCommitStep);
       Map<String, OwnerAndPermission> ownerAndPermissionMap = ((SetPermissionCommitStep) setPermissionStep).getPathAndPermissions();
-      // Ignore /tmp as it already exists on destination
+      // Ignore /tmp as it is not part of manifest and already present in destination
       Assert.assertEquals(ownerAndPermissionMap.size(), 1);
       Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset"));
     }
@@ -412,6 +412,161 @@ public class ManifestBasedDatasetFinderTest {
         Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getOwner(), "owner1");
         Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getGroup(), "group1");
       }
+    }
+  }
+
+  /**
+   * Test correct permissions are set for existing directories.
+   */
+  @Test
+  public void testCorrectPermissionForExistingDirectoriesWithoutExecute() throws IOException, URISyntaxException {
+    Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/sampleManifestWithOnlyDirectory.json").getPath());
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    props.setProperty("gobblin.copy.preserved.attributes", "rbugpvta");
+
+    try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class)) {
+
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, false);
+
+      // Key difference: directory already exists on target
+      Mockito.when(destFs.exists(new Path("/tmp/dataset"))).thenReturn(true);
+      Mockito.when(destFs.exists(new Path("/tmp"))).thenReturn(true);
+
+      Mockito.when(destFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
+
+      // Source directory has 000 permission (no execute bit)
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset", "d---------", "owner1", "group1", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp", "dr--r--r--", "owner2", "group2", true);
+
+      Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props)
+          .getFileSetIterator(destFs, CopyConfiguration.builder(destFs, props).build());
+
+      Assert.assertTrue(fileSets.hasNext());
+      FileSet<CopyEntity> fileSet = fileSets.next();
+      Assert.assertEquals(fileSet.getFiles().size(), 3); // 1 dir to copy + 1 pre publish step + 1 post publish step
+
+      // Verify SetPermissionCommitStep includes the directory even though it exists on target
+      CommitStep setPermissionStep = ((PostPublishStep) fileSet.getFiles().get(2)).getStep();
+      Assert.assertTrue(setPermissionStep instanceof SetPermissionCommitStep);
+      Map<String, OwnerAndPermission> ownerAndPermissionMap = ((SetPermissionCommitStep) setPermissionStep).getPathAndPermissions();
+
+      // Should include only /tmp/dataset and not /tmp since it is not part of manifest for permission correction
+      Assert.assertEquals(ownerAndPermissionMap.size(), 1);
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getFsPermission(), FsPermission.valueOf("d---------"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getOwner(), "owner1");
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset").getGroup(), "group1");
+
+      Assert.assertFalse(ownerAndPermissionMap.containsKey("/tmp"));
+    }
+  }
+
+  /**
+   * Test correct permissions are set in post-publish step.
+   */
+  @Test
+  public void testCorrectPermissionForMixedExistingAndNewDirectories() throws IOException, URISyntaxException {
+    Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/nestedDirectories.json").getPath());
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    props.setProperty("gobblin.copy.preserved.attributes", "rbugpvta");
+
+    try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class)) {
+
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, false);
+
+      // Mix of existing and non-existing directories
+      Mockito.when(destFs.exists(new Path("/tmp"))).thenReturn(true);
+      Mockito.when(destFs.exists(new Path("/tmp/dataset"))).thenReturn(true);
+      Mockito.when(destFs.exists(new Path("/tmp/dataset/hourly"))).thenReturn(false);
+      Mockito.when(destFs.exists(new Path("/tmp/dataset/hourly/metadata"))).thenReturn(false);
+      Mockito.when(destFs.exists(new Path("/tmp/dataset2"))).thenReturn(true);
+      Mockito.when(destFs.exists(new Path("/tmp/dataset2/hourly"))).thenReturn(true);
+      Mockito.when(destFs.exists(new Path("/tmp/dataset2/hourly/metadata"))).thenReturn(true);
+      Mockito.when(destFs.exists(new Path("/tmp/dataset2/hourly/metadata2"))).thenReturn(true);
+
+      Mockito.when(destFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
+
+      // Set up directories with various permissions, some without execute bit
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset/hourly/metadata", "drw-rw-rw-", "owner1", "group1", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset2/hourly/metadata", "dr-xr--r--", "owner2", "group2", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset2/hourly/metadata2", "dr--r--r--", "owner2", "group2", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset/hourly", "drw-rw-rw-", "owner1", "group1", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset2/hourly", "dr--r--r--", "owner2", "group2", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset", "drw-r-----", "owner1", "group1", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset2", "dr--r--r--", "owner2", "group2", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp", "dr--r--r--", "owner3", "group3", true);
+
+      AclStatus aclStatusDest = buildAclStatusWithPermissions("user::r--,group::---,other::---", "group3", "owner3");
+      Mockito.when(destFs.getAclStatus(any(Path.class))).thenReturn(aclStatusDest);
+
+      Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props)
+          .getFileSetIterator(destFs, CopyConfiguration.builder(destFs, props).build());
+
+      Assert.assertTrue(fileSets.hasNext());
+      FileSet<CopyEntity> fileSet = fileSets.next();
+
+      CommitStep setPermissionStep = ((PostPublishStep) fileSet.getFiles().get(4)).getStep();
+      Assert.assertTrue(setPermissionStep instanceof SetPermissionCommitStep);
+      Map<String, OwnerAndPermission> ownerAndPermissionMap = ((SetPermissionCommitStep) setPermissionStep).getPathAndPermissions();
+
+      // Not part of manifest and already exists in destination
+      Assert.assertFalse(ownerAndPermissionMap.containsKey("/tmp/dataset"));
+      Assert.assertFalse(ownerAndPermissionMap.containsKey("/tmp/dataset2"));
+
+      Assert.assertFalse(ownerAndPermissionMap.containsKey("/tmp/dataset2/hourly/metadata")); // Owner execute is set
+
+      // Path not present in target
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset/hourly/metadata"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset/hourly/metadata").getFsPermission(), FsPermission.valueOf("drw-rw-rw-"));
+      Assert.assertTrue(ownerAndPermissionMap.containsKey("/tmp/dataset2/hourly/metadata2"));
+      Assert.assertEquals(ownerAndPermissionMap.get("/tmp/dataset2/hourly/metadata2").getFsPermission(), FsPermission.valueOf("dr--r--r--"));
+    }
+  }
+
+  /**
+   * Test that directories with execute permission are NOT added to SetPermissionCommitStep
+   * when they already exist on target.
+   */
+  @Test
+  public void testNoPermissionFixForExistingDirectoriesWithExecute() throws IOException, URISyntaxException {
+    Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/sampleManifestWithOnlyDirectory.json").getPath());
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    props.setProperty("gobblin.copy.preserved.attributes", "rbugpvta");
+
+    try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class)) {
+
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, false);
+
+      // Directory already exists on target
+      Mockito.when(destFs.exists(new Path("/tmp/dataset"))).thenReturn(true);
+      Mockito.when(destFs.exists(new Path("/tmp"))).thenReturn(true);
+
+      Mockito.when(destFs.getFileStatus(any(Path.class))).thenReturn(localFs.getFileStatus(new Path(tmpDir.toString())));
+
+      // Source directory has execute permission (should NOT need permission fix)
+      setFsMockPathWithPermissions(sourceFs, "/tmp/dataset", "drwxrwxrwx", "owner1", "group1", true);
+      setFsMockPathWithPermissions(sourceFs, "/tmp", "dr-xr-xr-x", "owner2", "group2", true);
+
+      Iterator<FileSet<CopyEntity>> fileSets = new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props)
+          .getFileSetIterator(destFs, CopyConfiguration.builder(destFs, props).build());
+
+      Assert.assertTrue(fileSets.hasNext());
+      FileSet<CopyEntity> fileSet = fileSets.next();
+
+      CommitStep setPermissionStep = ((PostPublishStep) fileSet.getFiles().get(2)).getStep();
+      Assert.assertTrue(setPermissionStep instanceof SetPermissionCommitStep);
+      Map<String, OwnerAndPermission> ownerAndPermissionMap = ((SetPermissionCommitStep) setPermissionStep).getPathAndPermissions();
+
+      Assert.assertEquals(ownerAndPermissionMap.size(), 0);
     }
   }
 

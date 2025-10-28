@@ -1,0 +1,20 @@
+[
+  {
+    "id":"1",
+    "fileName":"/tmp/dataset/hourly/metadata",
+    "fileGroup":"/tmp/dataset",
+    "fileSizeInBytes":"1024"
+  },
+  {
+    "id":"2",
+    "fileName":"/tmp/dataset2/hourly/metadata",
+    "fileGroup":"/tmp/dataset2",
+    "fileSizeInBytes":"1028"
+  },
+  {
+    "id":"3",
+    "fileName":"/tmp/dataset2/hourly/metadata2",
+    "fileGroup":"/tmp/dataset2",
+    "fileSizeInBytes":"1028"
+  }
+]
