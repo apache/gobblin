@@ -36,7 +36,7 @@ import org.apache.gobblin.source.extractor.filebased.TimestampAwareFileBasedHelp
 
 /**
  * File-based helper for Iceberg file streaming operations.
- * 
+ *
  * This helper supports file streaming mode where OpenHouse table files
  * are streamed as binary data without record-level processing.
  */
@@ -50,7 +50,7 @@ public class IcebergFileStreamHelper implements TimestampAwareFileBasedHelper {
     public IcebergFileStreamHelper(State state) {
         this.state = state;
         this.configuration = new Configuration();
-        
+
         // Add any Hadoop configuration from job properties
         for (String key : state.getPropertyNames()) {
             if (key.startsWith("fs.") || key.startsWith("hadoop.")) {
@@ -117,7 +117,7 @@ public class IcebergFileStreamHelper implements TimestampAwareFileBasedHelper {
 
     private FileSystem getFileSystemForPath(Path path) throws IOException {
         // If path has a different scheme than the default FileSystem, get scheme-specific FS
-        if (path.toUri().getScheme() != null && 
+        if (path.toUri().getScheme() != null &&
             !path.toUri().getScheme().equals(fileSystem.getUri().getScheme())) {
             return path.getFileSystem(configuration);
         }

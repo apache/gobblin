@@ -138,7 +138,7 @@ public class IcebergSourceTest {
             .collect(Collectors.toList());
 
         // Convert to FilePathWithPartition (no partition info for snapshot-based discovery)
-        List<FilePathWithPartition> filesWithPartitions = 
+        List<FilePathWithPartition> filesWithPartitions =
             dataFilePaths.stream()
                 .map(path -> new FilePathWithPartition(
                     path, new java.util.HashMap<>()))
@@ -201,7 +201,7 @@ public class IcebergSourceTest {
         // Use reflection to call private validateConfiguration method
         Method m = IcebergSource.class.getDeclaredMethod("validateConfiguration", SourceState.class);
         m.setAccessible(true);
-        
+
         try {
             m.invoke(icebergSource, sourceState);
             Assert.fail("Should throw exception for missing database name");
@@ -224,7 +224,7 @@ public class IcebergSourceTest {
         );
 
         // Convert to FilePathWithPartition
-        List<FilePathWithPartition> filesWithPartitions = 
+        List<FilePathWithPartition> filesWithPartitions =
             dataFilePaths.stream()
                 .map(path -> new FilePathWithPartition(
                     path, new java.util.HashMap<>()))
@@ -285,7 +285,7 @@ public class IcebergSourceTest {
         properties.setProperty(IcebergSource.ICEBERG_FILTER_EXPR, "datepartition=2025-04-03");
         properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "3");
         sourceState = new SourceState(new State(properties));
-        
+
         // Mock 3 days of partitions
         List<FilePathWithPartition> filesFor3Days = Arrays.asList(
             new FilePathWithPartition(
@@ -295,22 +295,22 @@ public class IcebergSourceTest {
             new FilePathWithPartition(
                 "/data/file3.parquet", createPartitionMap("datepartition", "2025-04-01"), 1000L)
         );
-        
+
         TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
         when(mockTable.getTableId()).thenReturn(tableId);
         when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class)))
             .thenReturn(filesFor3Days);
-        
+
         // Test discovery
-        Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", 
+        Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
             SourceState.class, IcebergTable.class);
         m.setAccessible(true);
-        List<FilePathWithPartition> discovered = 
+        List<FilePathWithPartition> discovered =
             (List<FilePathWithPartition>) m.invoke(icebergSource, sourceState, mockTable);
-        
+
         // Verify all 3 days discovered
         Assert.assertEquals(discovered.size(), 3, "Should discover 3 days with lookback=3");
-        
+
         // Verify partition values are set correctly
         String partitionValues = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES);
         Assert.assertNotNull(partitionValues, "Partition values should be set");
@@ -325,11 +325,11 @@ public class IcebergSourceTest {
         properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
         properties.setProperty(IcebergSource.ICEBERG_FILTER_EXPR, "region=US"); // Non-date partition
         sourceState = new SourceState(new State(properties));
-        
-        Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", 
+
+        Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
             SourceState.class, IcebergTable.class);
         m.setAccessible(true);
-        
+
         try {
             m.invoke(icebergSource, sourceState, mockTable);
             Assert.fail("Should throw exception for non-date partition key");
@@ -371,7 +371,7 @@ public class IcebergSourceTest {
         // Use reflection to test discoverPartitionFilePaths
         Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", SourceState.class, IcebergTable.class);
         m.setAccessible(true);
-        List<FilePathWithPartition> discoveredFiles = 
+        List<FilePathWithPartition> discoveredFiles =
             (List<FilePathWithPartition>) m.invoke(icebergSource, sourceState, mockTable);
 
         // Verify partition filter was applied
@@ -409,9 +409,9 @@ public class IcebergSourceTest {
         WorkUnit wu = workUnits.get(0);
         Assert.assertEquals(wu.getProp(IcebergSource.ICEBERG_PARTITION_KEY), "datepartition");
         Assert.assertEquals(wu.getProp(IcebergSource.ICEBERG_PARTITION_VALUES), "2025-04-01");
-        
+
         // Verify partition path mapping is stored
-        Assert.assertNotNull(wu.getProp(IcebergSource.ICEBERG_FILE_PARTITION_PATH), 
+        Assert.assertNotNull(wu.getProp(IcebergSource.ICEBERG_FILE_PARTITION_PATH),
             "Partition path mapping should be stored in work unit");
     }
 
@@ -467,7 +467,7 @@ public class IcebergSourceTest {
             new FilePathWithPartition(
                 "file3.parquet", new java.util.HashMap<>())
         );
-        
+
         TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
         when(mockTable.getTableId()).thenReturn(tableId);
 
@@ -477,7 +477,7 @@ public class IcebergSourceTest {
 
         // Should create 3 work units, one per file
         Assert.assertEquals(workUnits.size(), 3, "Should create one work unit per file");
-        
+
         for (WorkUnit wu : workUnits) {
             String filesToPull = wu.getProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL);
             Assert.assertEquals(filesToPull.split(",").length, 1, "Each work unit should have exactly 1 file");
@@ -493,7 +493,7 @@ public class IcebergSourceTest {
 
         Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", SourceState.class, IcebergTable.class);
         m.setAccessible(true);
-        
+
         try {
             m.invoke(icebergSource, sourceState, mockTable);
             Assert.fail("Expected IllegalArgumentException for missing filter expression");
@@ -513,7 +513,7 @@ public class IcebergSourceTest {
 
         Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", SourceState.class, IcebergTable.class);
         m.setAccessible(true);
-        
+
         try {
             m.invoke(icebergSource, sourceState, mockTable);
             Assert.fail("Expected IllegalArgumentException for invalid filter expression");
@@ -542,9 +542,9 @@ public class IcebergSourceTest {
                 .name("id").type().longType().noDefault()
                 .name("datepartition").type().stringType().noDefault()
                 .endRecord();
-        private static final Schema partitionedIcebergSchema = 
+        private static final Schema partitionedIcebergSchema =
             AvroSchemaUtil.toIceberg(partitionedAvroSchema);
-        private static final PartitionSpec partitionSpec = 
+        private static final PartitionSpec partitionSpec =
             PartitionSpec.builderFor(partitionedIcebergSchema)
                 .identity("datepartition")
                 .build();
@@ -596,15 +596,15 @@ public class IcebergSourceTest {
         @Test
         public void testGetDataFilePathsForSinglePartition() throws Exception {
             // Test fetching data files for a single partition
-            List<String> dt20250402Files = icebergTable.getDataFilePathsForPartitionValues("datepartition", 
+            List<String> dt20250402Files = icebergTable.getDataFilePathsForPartitionValues("datepartition",
                 java.util.Collections.singletonList("2025-04-02"));
 
             // Should return exactly 1 file for datepartition=2025-04-02
-            Assert.assertEquals(dt20250402Files.size(), 1, 
+            Assert.assertEquals(dt20250402Files.size(), 1,
                 "Should return exactly 1 file for partition datepartition=2025-04-02");
-            Assert.assertTrue(dt20250402Files.get(0).contains("datepartition=2025-04-02"), 
+            Assert.assertTrue(dt20250402Files.get(0).contains("datepartition=2025-04-02"),
                 "File path should contain partition value");
-            Assert.assertTrue(dt20250402Files.get(0).contains("file3.parquet"), 
+            Assert.assertTrue(dt20250402Files.get(0).contains("file3.parquet"),
                 "File path should be file3.parquet");
         }
 
@@ -615,7 +615,7 @@ public class IcebergSourceTest {
                 java.util.Arrays.asList("2025-04-01", "2025-04-03"));
 
             // Should return 2 files from datepartition=2025-04-01 and 3 files from datepartition=2025-04-03
-            Assert.assertEquals(multiPartitionFiles.size(), 5, 
+            Assert.assertEquals(multiPartitionFiles.size(), 5,
                 "Should return 5 files (2 from datepartition=2025-04-01 + 3 from datepartition=2025-04-03)");
 
             // Verify files from both partitions are present
@@ -632,7 +632,7 @@ public class IcebergSourceTest {
             // Verify no files from datepartition=2025-04-02
             boolean hasFilesFromExcludedPartition = multiPartitionFiles.stream()
                 .anyMatch(path -> path.contains("datepartition=2025-04-02"));
-            Assert.assertFalse(hasFilesFromExcludedPartition, 
+            Assert.assertFalse(hasFilesFromExcludedPartition,
                 "Should not include files from datepartition=2025-04-02");
         }
 
@@ -643,7 +643,7 @@ public class IcebergSourceTest {
                 java.util.Arrays.asList("2025-04-01", "2025-04-02", "2025-04-03"));
 
             // Should return all 6 files (2 + 1 + 3)
-            Assert.assertEquals(allFiles.size(), 6, 
+            Assert.assertEquals(allFiles.size(), 6,
                 "Should return all 6 files across all partitions");
 
             // Verify distribution across partitions
@@ -663,7 +663,7 @@ public class IcebergSourceTest {
                 java.util.Collections.singletonList("2025-12-31"));
 
             // Should return empty list
-            Assert.assertTrue(noFiles.isEmpty(), 
+            Assert.assertTrue(noFiles.isEmpty(),
                 "Should return empty list for non-existent partition");
         }
 
@@ -671,7 +671,7 @@ public class IcebergSourceTest {
          * Helper method to add data files for a specific partition
          */
         private void addDataFilesForPartition(String partitionValue, List<String> filePaths) {
-            PartitionData partitionData = 
+            PartitionData partitionData =
                 new PartitionData(partitionSpec.partitionType());
             partitionData.set(0, partitionValue);
 
@@ -689,7 +689,7 @@ public class IcebergSourceTest {
             append.commit();
         }
     }
-    
+
     /**
      * Helper method to create partition map for testing
      */
@@ -779,7 +779,7 @@ public class IcebergSourceTest {
         List<? extends WorkUnit> packedWorkUnits = (List<? extends WorkUnit>) binPackMethod.invoke(icebergSource, initialWorkUnits, sourceState);
 
         // Should return same number of work units (no packing applied)
-        Assert.assertEquals(packedWorkUnits.size(), initialWorkUnits.size(), 
+        Assert.assertEquals(packedWorkUnits.size(), initialWorkUnits.size(),
             "Bin packing should be disabled, returning original work units");
         Assert.assertEquals(packedWorkUnits.size(), 3, "Should have 3 unpacked work units");
     }
@@ -830,15 +830,15 @@ public class IcebergSourceTest {
         List<? extends WorkUnit> packedWorkUnits = (List<? extends WorkUnit>) binPackMethod.invoke(icebergSource, initialWorkUnits, sourceState);
 
         // Verify bin packing reduced work unit count
-        Assert.assertTrue(packedWorkUnits.size() < initialWorkUnits.size(), 
+        Assert.assertTrue(packedWorkUnits.size() < initialWorkUnits.size(),
             "Bin packing should reduce work unit count from 6 to 3");
-        
+
         // Verify exact bin count (WorstFitDecreasing packs optimally)
-        Assert.assertEquals(packedWorkUnits.size(), 3, 
+        Assert.assertEquals(packedWorkUnits.size(), 3,
             "WorstFitDecreasing should pack 6 files (1KB,1KB,2KB,2KB,3KB,3KB) into exactly 3 bins with 5KB limit");
-        
+
         // Note: Individual bin sizes are not directly accessible on MultiWorkUnit returned by bin packing
-        // Size validation is covered by testWorkUnitSizeTracking() which validates WORK_UNIT_SIZE 
+        // Size validation is covered by testWorkUnitSizeTracking() which validates WORK_UNIT_SIZE
         // is set correctly on individual work units before bin packing
     }
 
@@ -866,56 +866,56 @@ public class IcebergSourceTest {
         // Test 1: Verify simulate mode is enabled in configuration
         Assert.assertTrue(sourceState.contains(IcebergSource.ICEBERG_SIMULATE),
             "Simulate mode configuration should be present");
-        Assert.assertTrue(sourceState.getPropAsBoolean(IcebergSource.ICEBERG_SIMULATE), 
+        Assert.assertTrue(sourceState.getPropAsBoolean(IcebergSource.ICEBERG_SIMULATE),
             "Simulate mode should be enabled");
-        
+
         // Test 2: File discovery should work normally in simulate mode (discovery happens before simulate check)
-        Method discoverMethod = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", 
+        Method discoverMethod = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
             SourceState.class, IcebergTable.class);
         discoverMethod.setAccessible(true);
-        List<FilePathWithPartition> discovered = 
-            (List<FilePathWithPartition>) 
+        List<FilePathWithPartition> discovered =
+            (List<FilePathWithPartition>)
             discoverMethod.invoke(icebergSource, sourceState, mockTable);
-        
-        Assert.assertEquals(discovered.size(), 2, 
+
+        Assert.assertEquals(discovered.size(), 2,
             "In simulate mode, file discovery should work normally (happens before simulate check)");
-        
+
         // Test 3: Work units should be created normally (happens before simulate check)
-        Method createMethod = IcebergSource.class.getDeclaredMethod("createWorkUnitsFromFiles", 
+        Method createMethod = IcebergSource.class.getDeclaredMethod("createWorkUnitsFromFiles",
             List.class, SourceState.class, IcebergTable.class);
         createMethod.setAccessible(true);
         List<WorkUnit> workUnitsBeforeSimulateCheck = (List<WorkUnit>) createMethod.invoke(
             icebergSource, discovered, sourceState, mockTable);
-        
-        Assert.assertFalse(workUnitsBeforeSimulateCheck.isEmpty(), 
+
+        Assert.assertFalse(workUnitsBeforeSimulateCheck.isEmpty(),
             "Work units should be created before simulate mode check");
-        Assert.assertEquals(workUnitsBeforeSimulateCheck.size(), 1, 
+        Assert.assertEquals(workUnitsBeforeSimulateCheck.size(), 1,
             "Should create 1 work unit from 2 files before simulate check");
-        
+
         // Test 4: Verify logSimulateMode can be called successfully (logs the plan)
-        Method logMethod = IcebergSource.class.getDeclaredMethod("logSimulateMode", 
+        Method logMethod = IcebergSource.class.getDeclaredMethod("logSimulateMode",
             List.class, List.class, SourceState.class);
         logMethod.setAccessible(true);
         // Should not throw - just logs the simulate mode plan
         logMethod.invoke(icebergSource, workUnitsBeforeSimulateCheck, discovered, sourceState);
-        
+
         // Test 5: Verify the critical behavior - after simulate check, work units should NOT be returned
         // Simulate the conditional logic from getWorkunits()
         List<WorkUnit> actualReturnedWorkUnits;
-        if (sourceState.contains(IcebergSource.ICEBERG_SIMULATE) 
+        if (sourceState.contains(IcebergSource.ICEBERG_SIMULATE)
             && sourceState.getPropAsBoolean(IcebergSource.ICEBERG_SIMULATE)) {
             // This is what getWorkunits() does in simulate mode
             actualReturnedWorkUnits = Lists.newArrayList(); // Empty list
         } else {
             actualReturnedWorkUnits = workUnitsBeforeSimulateCheck;
         }
-        
+
         // Assert: In simulate mode, the returned work units should be EMPTY
-        Assert.assertTrue(actualReturnedWorkUnits.isEmpty(), 
+        Assert.assertTrue(actualReturnedWorkUnits.isEmpty(),
             "Simulate mode: getWorkunits() should return empty list (no execution)");
-        Assert.assertEquals(actualReturnedWorkUnits.size(), 0, 
+        Assert.assertEquals(actualReturnedWorkUnits.size(), 0,
             "Simulate mode: zero work units should be returned for execution");
-        
+
         // Verify the work units were created but NOT returned
         Assert.assertEquals(workUnitsBeforeSimulateCheck.size(), 1,
             "Work units were created internally but not returned due to simulate mode");
@@ -951,7 +951,7 @@ public class IcebergSourceTest {
         // Discover files
         Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", SourceState.class, IcebergTable.class);
         m.setAccessible(true);
-        List<FilePathWithPartition> discoveredFiles = 
+        List<FilePathWithPartition> discoveredFiles =
             (List<FilePathWithPartition>) m.invoke(icebergSource, sourceState, mockTable);
 
         // Verify file sizes are preserved
@@ -985,11 +985,11 @@ public class IcebergSourceTest {
         // Verify weight is set correctly
         Assert.assertEquals(workUnits.size(), 1);
         WorkUnit wu = workUnits.get(0);
-        
+
         long expectedWeight = 3000000L; // 1MB + 2MB
         String weightStr = wu.getProp("iceberg.workUnitWeight");
         Assert.assertNotNull(weightStr, "Work unit weight should be set");
-        
+
         long actualWeight = Long.parseLong(weightStr);
         Assert.assertEquals(actualWeight, expectedWeight, "Weight should equal sum of file sizes");
     }
@@ -1020,10 +1020,10 @@ public class IcebergSourceTest {
         // Should handle gracefully
         Assert.assertEquals(workUnits.size(), 1);
         WorkUnit wu = workUnits.get(0);
-        
+
         long totalSize = wu.getPropAsLong(ServiceConfigKeys.WORK_UNIT_SIZE);
         Assert.assertEquals(totalSize, 101L, "Total size should be 0 + 1 + 100 = 101");
-        
+
         // Weight should be at least 1 (minimum weight)
         String weightStr = wu.getProp("iceberg.workUnitWeight");
         long weight = Long.parseLong(weightStr);
