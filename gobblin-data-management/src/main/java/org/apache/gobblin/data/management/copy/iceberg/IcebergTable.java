@@ -23,6 +23,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 import java.util.function.Predicate;
@@ -31,17 +32,22 @@ import java.util.stream.Collectors;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.iceberg.DataFile;
 import org.apache.iceberg.DeleteFile;
+import org.apache.iceberg.FileScanTask;
 import org.apache.iceberg.ManifestContent;
 import org.apache.iceberg.ManifestFile;
 import org.apache.iceberg.ManifestFiles;
 import org.apache.iceberg.ManifestReader;
 import org.apache.iceberg.OverwriteFiles;
+import org.apache.iceberg.PartitionField;
+import org.apache.iceberg.PartitionSpec;
 import org.apache.iceberg.Snapshot;
 import org.apache.iceberg.StructLike;
 import org.apache.iceberg.Table;
 import org.apache.iceberg.TableMetadata;
 import org.apache.iceberg.TableOperations;
+import org.apache.iceberg.TableScan;
 import org.apache.iceberg.catalog.TableIdentifier;
+import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
 import org.apache.iceberg.io.CloseableIterable;
 import org.apache.iceberg.io.CloseableIterator;
@@ -50,6 +56,7 @@ import org.apache.iceberg.io.FileIO;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.collect.Iterators;
 import com.google.common.collect.Lists;
+import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
 
 import lombok.AllArgsConstructor;
@@ -313,6 +320,121 @@ public class IcebergTable {
     // snapshot is necessarily the one from the commit just before. another writer could have just raced to commit
     // in between.
     log.info("~{}~ SnapshotId after overwrite: {}", tableId, accessTableMetadata().currentSnapshot().snapshotId());
+  }
+
+  /**
+   * Container for file path, partition information, and file size.
+   */
+  public static class FilePathWithPartition {
+    private final String filePath;
+    private final Map<String, String> partitionData;
+    private final long fileSize;
+    
+    public FilePathWithPartition(String filePath, Map<String, String> partitionData) {
+      this(filePath, partitionData, 0L);
+    }
+    
+    public FilePathWithPartition(String filePath, Map<String, String> partitionData, long fileSize) {
+      this.filePath = filePath;
+      this.partitionData = partitionData;
+      this.fileSize = fileSize;
+    }
+    
+    public String getFilePath() {
+      return filePath;
+    }
+    
+    public Map<String, String> getPartitionData() {
+      return partitionData;
+    }
+    
+    public long getFileSize() {
+      return fileSize;
+    }
+    
+    public String getPartitionPath() {
+      if (partitionData == null || partitionData.isEmpty()) {
+        return "";
+      }
+      StringBuilder sb = new StringBuilder();
+      for (Map.Entry<String, String> entry : partitionData.entrySet()) {
+        if (sb.length() > 0) {
+          sb.append("/");
+        }
+        sb.append(entry.getKey()).append("=").append(entry.getValue());
+      }
+      return sb.toString();
+    }
+  }
+
+  /**
+   * Return absolute data file paths for files that match the provided Iceberg filter expression using TableScan.
+   */
+  public List<String> getDataFilePathsForFilter(org.apache.iceberg.expressions.Expression filterExpression) {
+    List<String> result = Lists.newArrayList();
+    org.apache.iceberg.TableScan scan = this.table.newScan().filter(filterExpression);
+    try (CloseableIterable<org.apache.iceberg.FileScanTask> tasks = scan.planFiles()) {
+      for (org.apache.iceberg.FileScanTask task : tasks) {
+        result.add(task.file().path().toString());
+      }
+    } catch (IOException ioe) {
+      throw new RuntimeException("Failed to plan files for filter: " + filterExpression, ioe);
+    }
+    return result;
+  }
+  
+  /**
+   * Return file paths with partition information and file size for files matching the filter expression.
+   * This method extracts partition values and file size from Iceberg metadata and associates them with file paths.
+   */
+  public List<FilePathWithPartition> getFilePathsWithPartitionsForFilter(
+      Expression filterExpression) {
+    List<FilePathWithPartition> result = Lists.newArrayList();
+    TableScan scan = this.table.newScan().filter(filterExpression);
+    PartitionSpec spec = this.table.spec();
+    
+    try (CloseableIterable<FileScanTask> tasks = scan.planFiles()) {
+      for (FileScanTask task : tasks) {
+        String filePath = task.file().path().toString();
+        long fileSize = task.file().fileSizeInBytes();
+        
+        // Extract partition data from the file's partition information
+        Map<String, String> partitionData = Maps.newLinkedHashMap();
+        if (task.file().partition() != null && !spec.isUnpartitioned()) {
+          StructLike partition = task.file().partition();
+          List<PartitionField> fields = spec.fields();
+          
+          for (int i = 0; i < fields.size(); i++) {
+            PartitionField field = fields.get(i);
+            String partitionName = field.name();
+            Object partitionValue = partition.get(i, Object.class);
+            if (partitionValue != null) {
+              partitionData.put(partitionName, partitionValue.toString());
+            }
+          }
+        }
+        
+        result.add(new FilePathWithPartition(filePath, partitionData, fileSize));
+      }
+    } catch (IOException ioe) {
+      throw new RuntimeException("Failed to plan files for filter: " + filterExpression, ioe);
+    }
+    return result;
+  }
+
+  /**
+   * Return data file paths for files that match any of the specified partition values for a given partition field.
+   */
+  public List<String> getDataFilePathsForPartitionValues(String partitionField, List<String> partitionValues) {
+    if (partitionValues == null || partitionValues.isEmpty()) {
+      return Lists.newArrayList();
+    }
+    org.apache.iceberg.expressions.Expression expr = null;
+    for (String val : partitionValues) {
+      org.apache.iceberg.expressions.Expression e = org.apache.iceberg.expressions.Expressions.equal(partitionField, val);
+      expr = (expr == null) ? e : org.apache.iceberg.expressions.Expressions.or(expr, e);
+    }
+    return getDataFilePathsForFilter(expr);
   }
 
 }
