@@ -203,7 +203,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
       FileStatus dstFile = this.fs.getFileStatus(copyableFile.getDestination());
       // User specifically try to copy dir metadata, so we change the group and permissions on destination even when the dir already existed
       log.info("Setting destination directory {} owner and permission to {}", dstFile.getPath(), copyableFile.getDestinationOwnerAndPermission().getFsPermission());
-      FileAwareInputStreamDataWriter.setPathPermission(this.fs, dstFile, copyableFile.getDestinationOwnerAndPermission(), this.shouldFailWhenPermissionsFail);
+      // Remove existing ACLs to ensure target matches source exactly (avoid ACL accumulation)
+      FileAwareInputStreamDataWriter.setPathPermission(this.fs, dstFile, copyableFile.getDestinationOwnerAndPermission(), this.shouldFailWhenPermissionsFail, true);
     }
     if (preserveDirModTime || copyableFile.getFileStatus().isFile()) {
       // Preserving File ModTime, and set the access time to an initializing value when ModTime is declared to be preserved.

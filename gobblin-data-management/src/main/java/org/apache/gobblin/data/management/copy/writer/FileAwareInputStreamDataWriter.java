@@ -381,10 +381,32 @@ public class FileAwareInputStreamDataWriter extends InstrumentedDataWriter<FileA
    */
   public static void setPathPermission(FileSystem fs, FileStatus file, OwnerAndPermission ownerAndPermission,
       boolean requirePermissionSetForSuccess) throws IOException {
+    setPathPermission(fs, file, ownerAndPermission, requirePermissionSetForSuccess, false);
+  }
+
+  /**
+   * Sets the {@link FsPermission}, owner, group for the path passed. It uses `requirePermissionSetForSuccess` param
+   * to determine whether an exception will be thrown or only error log printed in the case of failure.
+   * @param requirePermissionSetForSuccess if true then throw exception, otherwise log error message and continue when
+   *                                       operations cannot be executed.
+   * @param removeExistingAcls if true, removes existing ACLs before setting new ones to avoid accumulation.
+   *                           This should be true when setting permissions on existing target files/directories
+   *                           to ensure ACLs match the source exactly.
+   */
+  public static void setPathPermission(FileSystem fs, FileStatus file, OwnerAndPermission ownerAndPermission,
+      boolean requirePermissionSetForSuccess, boolean removeExistingAcls) throws IOException {
 
     Path path = file.getPath();
     OwnerAndPermission targetOwnerAndPermission = setOwnerExecuteBitIfDirectory(file, ownerAndPermission);
     try {
+      // Handle ACLs
+      // Remove existing ACLs first if requested, even if source has no ACLs
+      // This ensures destination matches source exactly (no ACLs if source has none)
+      if (removeExistingAcls) {
+        fs.removeAcl(path);
+      }
+
+      // Set new ACLs if source has any
       if (!targetOwnerAndPermission.getAclEntries().isEmpty()) {
         // use modify acls instead of setAcl since latter requires all three acl entry types: user, group and others
         // while overwriting the acls for a given path. If anyone is absent it fails acl transformation validation.
