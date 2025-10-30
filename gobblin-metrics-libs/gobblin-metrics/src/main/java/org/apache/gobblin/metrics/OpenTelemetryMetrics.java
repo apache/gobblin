@@ -32,6 +32,11 @@ import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporter;
 import io.opentelemetry.exporter.otlp.http.metrics.OtlpHttpMetricExporterBuilder;
 import io.opentelemetry.sdk.OpenTelemetrySdk;
+import io.opentelemetry.sdk.metrics.Aggregation;
+import io.opentelemetry.sdk.metrics.InstrumentSelector;
+import io.opentelemetry.sdk.metrics.InstrumentType;
+import io.opentelemetry.sdk.metrics.View;
+import io.opentelemetry.sdk.metrics.internal.view.Base2ExponentialHistogramAggregation;
 import io.opentelemetry.sdk.metrics.SdkMeterProvider;
 import io.opentelemetry.sdk.metrics.export.AggregationTemporalitySelector;
 import io.opentelemetry.sdk.metrics.export.MetricExporter;
@@ -52,8 +57,10 @@ import org.apache.gobblin.util.PropertiesUtils;
 @Slf4j
 public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
 
-  private static OpenTelemetryMetrics GLOBAL_INSTANCE;
+  private static volatile OpenTelemetryMetrics GLOBAL_INSTANCE;
   private static final Long DEFAULT_OPENTELEMETRY_REPORTING_INTERVAL_MILLIS = 10000L;
+  private static final int DEFAULT_OPENTELEMETRY_HISTOGRAM_MAX_BUCKETS = 256;
+  private static final int DEFAULT_OPENTELEMETRY_HISTOGRAM_MAX_SCALE = 3;
 
   private OpenTelemetryMetrics(State state) {
     super(state);
@@ -94,7 +101,12 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
   public static OpenTelemetryMetrics getInstance(State state) {
     if (state.getPropAsBoolean(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED,
         ConfigurationKeys.DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED) && GLOBAL_INSTANCE == null) {
-      GLOBAL_INSTANCE = new OpenTelemetryMetrics(state);
+      synchronized (OpenTelemetryMetrics.class) {
+        if (GLOBAL_INSTANCE == null) {
+          log.info("Creating OpenTelemetryMetrics instance");
+          GLOBAL_INSTANCE = new OpenTelemetryMetrics(state);
+        }
+      }
     }
     return GLOBAL_INSTANCE;
   }
@@ -115,6 +127,13 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
       }
       metricsResource = Resource.getDefault().merge(Resource.create(attributesBuilder.build()));
     }
+
+    Aggregation histogramAggregation = Base2ExponentialHistogramAggregation.create(
+        state.getPropAsInt(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HISTOGRAM_MAX_BUCKETS,
+            DEFAULT_OPENTELEMETRY_HISTOGRAM_MAX_BUCKETS),
+        state.getPropAsInt(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_HISTOGRAM_MAX_SCALE,
+            DEFAULT_OPENTELEMETRY_HISTOGRAM_MAX_SCALE));
+
     SdkMeterProvider meterProvider = SdkMeterProvider.builder()
         .setResource(metricsResource)
         .registerMetricReader(
@@ -123,6 +142,9 @@ public class OpenTelemetryMetrics extends OpenTelemetryMetricsBase {
                     state.getPropAsLong(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS,
                         DEFAULT_OPENTELEMETRY_REPORTING_INTERVAL_MILLIS)))
                 .build())
+        .registerView(
+            InstrumentSelector.builder().setType(InstrumentType.HISTOGRAM).build(),
+            View.builder().setAggregation(histogramAggregation).build())
         .build();
 
     this.openTelemetry = OpenTelemetrySdk.builder().setMeterProvider(meterProvider).build();
