@@ -102,6 +102,8 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();
       int numWUsGenerated = safelyCastNumConstituentWorkUnitsOrThrow(wuSizeSummary);
       int numWUsCommitted = 0;
+      long recordsWritten = 0;
+      long bytesWritten = 0;
       CommitStats commitStats = CommitStats.createEmpty();
       if (numWUsGenerated > 0) {
         TimeBudget timeBudget = calcWUProcTimeBudget(jobSuccessTimer.getStartTime(), wuSizeSummary, jobProps);
@@ -124,11 +126,13 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         ProcessWorkUnitsWorkflow processWUsWorkflow = createProcessWorkUnitsWorkflow(jobProps);
         commitStats = processWUsWorkflow.process(wuSpec, temporalJobProps);
         numWUsCommitted = commitStats.getNumCommittedWorkUnits();
+        recordsWritten = commitStats.getRecordsWritten();
+        bytesWritten = commitStats.getBytesWritten();
       }
       jobSuccessTimer.stop();
       isSuccessful = true;
-      return new ExecGobblinStats(numWUsGenerated, numWUsCommitted, jobProps.getProperty(Help.USER_TO_PROXY_KEY),
-          commitStats.getDatasetStats());
+      return new ExecGobblinStats(numWUsGenerated, numWUsCommitted, recordsWritten, bytesWritten,
+          jobProps.getProperty(Help.USER_TO_PROXY_KEY));
     } catch (Exception e) {
       // Emit a failed GobblinTrackingEvent to record job failures
       timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).submit(); // update GaaS: `ExecutionStatus.FAILED`; `TimingEvent.JOB_END_TIME`

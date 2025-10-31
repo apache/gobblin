@@ -58,6 +58,8 @@ import org.apache.gobblin.converter.initializer.ConverterInitializerFactory;
 import org.apache.gobblin.initializer.Initializer;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.DatasetTaskSummary;
 import org.apache.gobblin.runtime.JobContext;
 import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.SafeDatasetCommit;
@@ -75,6 +77,7 @@ import org.apache.gobblin.temporal.ddm.work.DatasetStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.temporal.exception.FailedDatasetUrnsException;
+import org.apache.gobblin.temporal.workflows.metrics.TemporalEventTimer;
 import org.apache.gobblin.util.Either;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.PropertiesUtils;
@@ -146,9 +149,19 @@ public class CommitActivityImpl implements CommitActivity {
       boolean shouldIncludeFailedTasks = PropertiesUtils.getPropAsBoolean(jobState.getProperties(), ConfigurationKeys.WRITER_COUNT_METRICS_FROM_FAILED_TASKS, "false");
 
       Map<String, DatasetStats> datasetTaskSummaries = summarizeDatasetOutcomes(datasetStatesByUrns, jobContext, shouldIncludeFailedTasks);
+
+      // Emit Job Summary event
+      if (!optFailure.isPresent() || !datasetTaskSummaries.isEmpty()) {
+        TemporalEventTimer.Factory timerFactory = new TemporalEventTimer.WithinActivityFactory(workSpec.getEventSubmitterContext());
+        timerFactory.create(TimingEvent.LauncherTimings.JOB_SUMMARY)
+            .withMetadataAsJson(TimingEvent.DATASET_TASK_SUMMARIES, convertDatasetStatsToTaskSummaries(datasetTaskSummaries))
+            .submit();// emit job summary info on both full and partial commit (ultimately for `GaaSJobObservabilityEvent.datasetsMetrics`)
+      }
+
       return new CommitStats(
-          datasetTaskSummaries,
           datasetTaskSummaries.values().stream().mapToInt(DatasetStats::getNumCommittedWorkunits).sum(),
+          datasetTaskSummaries.values().stream().mapToLong(DatasetStats::getRecordsWritten).sum(),
+          datasetTaskSummaries.values().stream().mapToLong(DatasetStats::getBytesWritten).sum(),
           optFailure
       );
     } catch (Exception e) {
@@ -289,5 +302,14 @@ public class CommitActivityImpl implements CommitActivity {
 
   private static WorkUnitStream createEmptyWorkUnitStream() {
     return new BasicWorkUnitStream.Builder(Lists.newArrayList()).build();
+  }
+
+  private List<DatasetTaskSummary> convertDatasetStatsToTaskSummaries(Map<String, DatasetStats> datasetStats) {
+    List<DatasetTaskSummary> datasetTaskSummaries = Lists.newArrayList();
+    for (Map.Entry<String, DatasetStats> entry : datasetStats.entrySet()) {
+      datasetTaskSummaries.add(new DatasetTaskSummary(entry.getKey(), entry.getValue().getRecordsWritten(), entry.getValue().getBytesWritten(), entry.getValue().isSuccessfullyCommitted(), entry.getValue().getDataQualityCheckStatus()));
+    }
+    log.info("Converted dataset stats to task summaries: {}", datasetTaskSummaries);
+    return datasetTaskSummaries;
   }
 }
