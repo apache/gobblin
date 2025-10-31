@@ -699,7 +699,7 @@ public class FileAwareInputStreamDataWriterTest {
         AclEntry.parseAclEntry("user:anotheruser:r-x", true)
     );
     fs.modifyAclEntries(testPath, existingAcls);
-    Assert.assertEquals(fs.getAclEntries(testPath), existingAcls);
+    Assert.assertEquals(existingAcls, fs.getAclEntries(testPath));
 
     // Set new ACLs with removeExistingAcls=true
     List<AclEntry> newAcls = Lists.newArrayList(
@@ -712,8 +712,8 @@ public class FileAwareInputStreamDataWriterTest {
 
     // Verify old ACLs were removed and only new ACLs exist
     List<AclEntry> resultAcls = fs.getAclEntries(testPath);
-    Assert.assertEquals(resultAcls.size(), 1);
-    Assert.assertEquals(resultAcls, newAcls);
+    Assert.assertEquals(1, resultAcls.size());
+    Assert.assertEquals(newAcls, resultAcls);
     Assert.assertTrue(fs.wasRemoveAclCalled(testPath));
   }
 
@@ -750,7 +750,7 @@ public class FileAwareInputStreamDataWriterTest {
     Assert.assertNotNull(resultAcls);
     // Should have old as well as new acls
     initialAcls.addAll(newAcls);
-    Assert.assertEquals(resultAcls, initialAcls);
+    Assert.assertEquals(initialAcls, resultAcls);
   }
 
   /**
@@ -777,7 +777,7 @@ public class FileAwareInputStreamDataWriterTest {
     // Verify ACLs were set (if filesystem supports it)
     List<AclEntry> resultAcls = fs.getAclEntries(testPath);
     if (resultAcls != null) {
-      Assert.assertEquals(resultAcls, acls);
+      Assert.assertEquals(acls, resultAcls);
     }
   }
 
@@ -810,7 +810,7 @@ public class FileAwareInputStreamDataWriterTest {
     Assert.assertTrue(fs.wasRemoveAclCalled(testPath));
     List<AclEntry> resultAcls = fs.getAclEntries(testPath);
     Assert.assertNotNull(resultAcls);
-    Assert.assertEquals(resultAcls, newAcls);
+    Assert.assertEquals(newAcls, resultAcls);
   }
 
   /**
@@ -839,8 +839,8 @@ public class FileAwareInputStreamDataWriterTest {
     Assert.assertTrue(fs.wasRemoveAclCalled(testPath));
     List<AclEntry> resultAcls = fs.getAclEntries(testPath);
     Assert.assertNotNull(resultAcls);
-    Assert.assertEquals(resultAcls.size(), 4);
-    Assert.assertEquals(resultAcls, multipleAcls);
+    Assert.assertEquals(4, resultAcls.size());
+    Assert.assertEquals(multipleAcls, resultAcls);
   }
 
   /**
@@ -867,7 +867,7 @@ public class FileAwareInputStreamDataWriterTest {
     Assert.assertTrue(fs.wasRemoveAclCalled(testPath));
     List<AclEntry> resultAcls = fs.getAclEntries(testPath);
     Assert.assertNotNull(resultAcls);
-    Assert.assertEquals(resultAcls, acls);
+    Assert.assertEquals(acls, resultAcls);
   }
 
   /**
@@ -902,8 +902,8 @@ public class FileAwareInputStreamDataWriterTest {
     Assert.assertTrue(fs.wasRemoveAclCalled(testPath));
     List<AclEntry> resultAcls = fs.getAclEntries(testPath);
     Assert.assertNotNull(resultAcls);
-    Assert.assertEquals(resultAcls.size(), 1);
-    Assert.assertEquals(resultAcls, newAcls);
+    Assert.assertEquals(1, resultAcls.size());
+    Assert.assertEquals(newAcls, resultAcls);
     // Verify none of the old ACLs exist
     for (AclEntry oldAcl : existingAcls) {
       Assert.assertFalse(resultAcls.contains(oldAcl));
@@ -956,7 +956,7 @@ public class FileAwareInputStreamDataWriterTest {
         AclEntry.parseAclEntry("group:group1:rw-", true)
     );
     fs.modifyAclEntries(testPath, existingAcls);
-    Assert.assertEquals(fs.getAclEntries(testPath), existingAcls);
+    Assert.assertEquals(existingAcls, fs.getAclEntries(testPath));
 
     // Source has no ACLs (empty list)
     List<AclEntry> emptyAcls = Lists.newArrayList();
