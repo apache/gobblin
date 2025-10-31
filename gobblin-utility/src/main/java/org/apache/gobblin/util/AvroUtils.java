@@ -306,9 +306,9 @@ public class AvroUtils {
       if (data instanceof Map) {
         val = getObjectFromMap((Map)data, pathList.get(field));
       } else if (data instanceof List) {
-        val = getObjectFromArray((List)data, Integer.parseInt(pathList.get(field)));
-      } else {
-        val = ((GenericRecord)data).get(pathList.get(field));
+        val = getObjectFromArray((List) data, Integer.parseInt(pathList.get(field)));
+      } else if (data instanceof GenericRecord) {
+        val = getSafeField((GenericRecord) data, pathList.get(field));
       }
 
       if (val != null) {
@@ -340,8 +340,21 @@ public class AvroUtils {
       return;
     }
 
-    AvroUtils.getFieldHelper(retVal, ((GenericRecord) data).get(pathList.get(field)), pathList, ++field);
-    return;
+    if (data instanceof GenericRecord) {
+      Object next = getSafeField((GenericRecord) data, pathList.get(field));
+      getFieldHelper(retVal, next, pathList, field + 1);
+    }
+  }
+
+  private static Object getSafeField(GenericRecord record, String fieldName) {
+    if (record == null || fieldName == null) return null;
+    Schema.Field schemaField = record.getSchema().getField(fieldName);
+    if (schemaField == null) return null;
+    try {
+      return record.get(fieldName);
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   /**
