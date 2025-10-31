@@ -351,11 +351,9 @@ public class AvroUtils {
 
   private static Object getSafeField(GenericRecord record, String fieldName) {
     if (record == null || fieldName == null) return null;
-    Schema.Field schemaField = record.getSchema().getField(fieldName);
-    if (schemaField == null) return null;
-    try {
+    try{
       return record.get(fieldName);
-    } catch (Exception e) {
+    } catch (AvroRuntimeException e) {
       log.warn("Unable to get field {} from record {}", fieldName, record, e);
       return null;
     }
