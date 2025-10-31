@@ -309,6 +309,9 @@ public class AvroUtils {
         val = getObjectFromArray((List) data, Integer.parseInt(pathList.get(field)));
       } else if (data instanceof GenericRecord) {
         val = getSafeField((GenericRecord) data, pathList.get(field));
+      } else {
+        log.warn("Unexpected data type '{}' encountered while traversing field '{}'. Value: {}", data.getClass().getName(),
+            field, data);
       }
 
       if (val != null) {
@@ -353,6 +356,7 @@ public class AvroUtils {
     try {
       return record.get(fieldName);
     } catch (Exception e) {
+      log.warn("Unable to get field {} from record {}", fieldName, record, e);
       return null;
     }
   }
