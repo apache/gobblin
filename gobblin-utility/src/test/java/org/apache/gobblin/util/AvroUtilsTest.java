@@ -247,7 +247,7 @@ public class AvroUtilsTest {
         AvroCompatibilityHelper.createSchemaField("key", Schema.create(Schema.Type.LONG), "", 0L);
     field1.addProp("primaryKey", "true");
     fieldList.add(field1);
-    Schema.Field field2 = 
+    Schema.Field field2 =
         AvroCompatibilityHelper.createSchemaField("double", Schema.create(Schema.Type.DOUBLE), "", 0.0);
     fieldList.add(field2);
 
@@ -655,5 +655,39 @@ public class AvroUtilsTest {
           "Found recursive fields differ from answers listed in the schema for scenario " + scenario);
 
     }
+  }
+  @Test
+  public void testGetFieldValue_existingField() {
+    String schemaStr = "{\"type\":\"record\",\"name\":\"TestRecord\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}";
+    Schema schema = new Schema.Parser().parse(schemaStr);
+    GenericRecord record = new GenericData.Record(schema);
+    record.put("id", "123");
+
+    Map<String, Object> result = AvroUtils.getMultiFieldValue(record, "id");
+    Assert.assertEquals("123", result.get("id"));
+  }
+
+  @Test
+  public void testGetFieldValue_missingField_returnsNull() {
+    String schemaStr = "{\"type\":\"record\",\"name\":\"TestRecord\",\"fields\":[{\"name\":\"id\",\"type\":\"string\"}]}";
+    Schema schema = new Schema.Parser().parse(schemaStr);
+    GenericRecord record = new GenericData.Record(schema);
+    record.put("id", "123");
+
+    Map<String, Object> result = AvroUtils.getMultiFieldValue(record, "nonexistent");
+    Assert.assertTrue(result.isEmpty());
+  }
+
+  @Test
+  public void testNestedFieldAccess() {
+    String schemaStr = "{\"type\":\"record\",\"name\":\"Outer\",\"fields\":[{\"name\":\"inner\",\"type\":{\"type\":\"record\",\"name\":\"Inner\",\"fields\":[{\"name\":\"value\",\"type\":\"int\"}]}}]}";
+    Schema schema = new Schema.Parser().parse(schemaStr);
+    GenericRecord inner = new GenericData.Record(schema.getField("inner").schema());
+    inner.put("value", 42);
+    GenericRecord outer = new GenericData.Record(schema);
+    outer.put("inner", inner);
+
+    Map<String, Object> result = AvroUtils.getMultiFieldValue(outer, "inner.value");
+    Assert.assertEquals(42, result.get("inner.value"));
   }
 }
