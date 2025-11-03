@@ -17,7 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.Map;
 import lombok.AccessLevel;
 import lombok.Data;
 import lombok.NoArgsConstructor;
@@ -34,7 +33,8 @@ import lombok.Setter;
 public class ExecGobblinStats {
   @NonNull private int numWorkUnits;
   @NonNull private int numCommitted;
+  @NonNull private long recordsWritten;
+  @NonNull private long bytesWritten;
   @NonNull private String user;
-  @NonNull private Map<String, DatasetStats> stats;
 }
 

@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import lombok.AccessLevel;
@@ -41,11 +39,12 @@ import org.apache.gobblin.temporal.exception.FailedDatasetUrnsException;
 @NoArgsConstructor // IMPORTANT: for jackson (de)serialization
 @RequiredArgsConstructor
 public class CommitStats {
-  @NonNull private Map<String, DatasetStats> datasetStats;
   @NonNull private int numCommittedWorkUnits;
+  @NonNull private long recordsWritten;
+  @NonNull private long bytesWritten;
   @NonNull private Optional<FailedDatasetUrnsException> optFailure;
 
   public static CommitStats createEmpty() {
-    return new CommitStats(new HashMap<>(), 0, Optional.empty());
+    return new CommitStats(0, 0, 0, Optional.empty());
   }
 }
