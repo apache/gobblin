@@ -354,7 +354,7 @@ public class AvroUtils {
     try{
       return record.get(fieldName);
     } catch (AvroRuntimeException e) {
-      log.warn("Unable to get field {} from record {}", fieldName, record, e);
+      log.debug("Unable to get field {} from record {}", fieldName, record, e);
       return null;
     }
   }
