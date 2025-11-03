@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.work;
 
-import java.util.HashMap;
-import java.util.Map;
 import java.util.Optional;
 
 import lombok.AccessLevel;
