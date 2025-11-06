@@ -66,6 +66,7 @@ public class TemporalWorkflowClientFactory {
                 Arrays.asList("TLSv1.2"));
         List<String> SSL_CONFIG_DEFAULT_CIPHER_SUITES = Collections.unmodifiableList(Arrays.asList(
                 // The following list is from https://github.com/netty/netty/blob/4.1/codec-http2/src/main/java/io/netty/handler/codec/http2/Http2SecurityUtil.java#L50
+               // Supported ciphers for for java 8 https://docs.oracle.com/javase/8/docs/technotes/guides/security/SunProviders.html#SupportedCipherSuites
                 "TLS_ECDHE_ECDSA_WITH_AES_128_GCM_SHA256",
 
                 /* REQUIRED BY HTTP/2 SPEC */
