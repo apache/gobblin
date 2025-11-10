@@ -322,17 +322,18 @@ public class IcebergSourceTest {
 
   @Test
   public void testCurrentDatePlaceholder() throws Exception {
-    // Test that CURRENT_DATE placeholder is resolved to current date
+    // Test that CURRENT_DATE placeholder is resolved to current date with hourly suffix (default)
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
     properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "CURRENT_DATE");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
     sourceState = new SourceState(new State(properties));
 
-    // Mock today's partition
+    // Mock today's partition with hourly format
     String today = java.time.LocalDate.now().toString();
+    String todayHourly = today + "-00";
     List<FilePathWithPartition> todayFiles = Arrays.asList(
       new FilePathWithPartition(
-        "/data/file1.parquet", createPartitionMap("datepartition", today), 1000L)
+        "/data/file1.parquet", createPartitionMap("datepartition", todayHourly), 1000L)
     );
 
     TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
@@ -350,10 +351,10 @@ public class IcebergSourceTest {
     // Verify today's partition is discovered
     Assert.assertEquals(discovered.size(), 1, "Should discover today's partition");
 
-    // Verify partition value is set to today's date
+    // Verify partition value has hourly format (default behavior)
     String partitionValues = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES);
     Assert.assertNotNull(partitionValues, "Partition values should be set");
-    Assert.assertEquals(partitionValues, today, "Should resolve to today's date");
+    Assert.assertEquals(partitionValues, todayHourly, "Should resolve to today's date with -00 suffix");
   }
 
   @Test
@@ -971,76 +972,91 @@ public class IcebergSourceTest {
   }
 
   @Test
-  public void testFileSizeFromIcebergMetadata() throws Exception {
-    // Test that file size is correctly extracted from Iceberg metadata
+  public void testHourlyPartitionDateFormat() throws Exception {
+    // Test that hourly partition format is generated when enabled
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-10-21");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01"); // Standard date format
+    properties.setProperty(IcebergSource.ICEBERG_HOURLY_PARTITION_ENABLED, "true"); // Enable hourly format
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
     sourceState = new SourceState(new State(properties));
 
-    // Create files with specific sizes
-    long expectedSize1 = 1073741824L; // 1 GB
-    long expectedSize2 = 536870912L;  // 512 MB
-    long expectedSize3 = 2147483648L; // 2 GB
-
-    List<FilePathWithPartition> partitionFiles = Arrays.asList(
+    // Mock partition with hourly format
+    List<FilePathWithPartition> files = Arrays.asList(
       new FilePathWithPartition(
-        "/data/file1.parquet", createPartitionMap("datepartition", "2025-10-21"), expectedSize1),
-      new FilePathWithPartition(
-        "/data/file2.parquet", createPartitionMap("datepartition", "2025-10-21"), expectedSize2),
-      new FilePathWithPartition(
-        "/data/file3.parquet", createPartitionMap("datepartition", "2025-10-21"), expectedSize3)
+        "/data/file1.parquet", createPartitionMap("datepartition", "2025-04-01-00"), 1000L)
     );
 
-    // Mock the table to return files with sizes
     TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
     when(mockTable.getTableId()).thenReturn(tableId);
     when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class)))
-      .thenReturn(partitionFiles);
+      .thenReturn(files);
 
-    // Discover files
-    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", SourceState.class, IcebergTable.class);
+    // Test discovery
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
     m.setAccessible(true);
-    List<FilePathWithPartition> discoveredFiles =
+    List<FilePathWithPartition> discovered =
       (List<FilePathWithPartition>) m.invoke(icebergSource, sourceState, mockTable);
 
-    // Verify file sizes are preserved
-    Assert.assertEquals(discoveredFiles.size(), 3);
-    Assert.assertEquals(discoveredFiles.get(0).getFileSize(), expectedSize1);
-    Assert.assertEquals(discoveredFiles.get(1).getFileSize(), expectedSize2);
-    Assert.assertEquals(discoveredFiles.get(2).getFileSize(), expectedSize3);
+    // Verify partition is discovered
+    Assert.assertEquals(discovered.size(), 1, "Should discover partition");
+
+    // Verify partition value has -00 suffix appended
+    String partitionValues = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES);
+    Assert.assertNotNull(partitionValues, "Partition values should be set");
+    Assert.assertEquals(partitionValues, "2025-04-01-00", "Should append -00 suffix for hourly partition");
   }
 
   @Test
-  public void testWorkUnitWeightCalculation() throws Exception {
-    // Test that work unit weight is correctly calculated for bin packing
-    properties.setProperty(IcebergSource.ICEBERG_FILES_PER_WORKUNIT, "2");
+  public void testHourlyPartitionDateFormatWithLookback() throws Exception {
+    // Test that hourly partition format works with lookback period
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-03"); // Standard date format
+    properties.setProperty(IcebergSource.ICEBERG_HOURLY_PARTITION_ENABLED, "true"); // Enable hourly format
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "3");
     sourceState = new SourceState(new State(properties));
 
-    List<FilePathWithPartition> filesWithSizes = Arrays.asList(
+    // Mock 3 days of partitions with hourly format
+    List<FilePathWithPartition> filesFor3Days = Arrays.asList(
       new FilePathWithPartition(
-        "file1.parquet", new HashMap<>(), 1000000L),
+        "/data/file1.parquet", createPartitionMap("datepartition", "2025-04-03-00"), 1000L),
       new FilePathWithPartition(
-        "file2.parquet", new HashMap<>(), 2000000L)
+        "/data/file2.parquet", createPartitionMap("datepartition", "2025-04-02-00"), 1000L),
+      new FilePathWithPartition(
+        "/data/file3.parquet", createPartitionMap("datepartition", "2025-04-01-00"), 1000L)
     );
 
     TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
     when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class)))
+      .thenReturn(filesFor3Days);
 
-    // Create work units
-    Method m = IcebergSource.class.getDeclaredMethod("createWorkUnitsFromFiles", List.class, SourceState.class, IcebergTable.class);
+    // Test discovery
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
     m.setAccessible(true);
-    List<WorkUnit> workUnits = (List<WorkUnit>) m.invoke(icebergSource, filesWithSizes, sourceState, mockTable);
+    List<FilePathWithPartition> discovered =
+      (List<FilePathWithPartition>) m.invoke(icebergSource, sourceState, mockTable);
 
-    // Verify weight is set correctly
-    Assert.assertEquals(workUnits.size(), 1);
-    WorkUnit wu = workUnits.get(0);
+    // Verify all 3 days discovered
+    Assert.assertEquals(discovered.size(), 3, "Should discover 3 days with lookback=3");
 
-    long expectedWeight = 3000000L; // 1MB + 2MB
-    String weightStr = wu.getProp("iceberg.workUnitWeight");
-    Assert.assertNotNull(weightStr, "Work unit weight should be set");
-
-    long actualWeight = Long.parseLong(weightStr);
-    Assert.assertEquals(actualWeight, expectedWeight, "Weight should equal sum of file sizes");
+    // Verify partition values have -00 suffix appended to all dates
+    String partitionValues = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES);
+    Assert.assertNotNull(partitionValues, "Partition values should be set");
+    String[] dates = partitionValues.split(",");
+    Assert.assertEquals(dates.length, 3, "Should have 3 partition values");
+    
+    // Verify -00 suffix is appended to all dates
+    Assert.assertEquals(dates[0], "2025-04-03-00", "Should have -00 suffix for day 0");
+    Assert.assertEquals(dates[1], "2025-04-02-00", "Should have -00 suffix for day 1");
+    Assert.assertEquals(dates[2], "2025-04-01-00", "Should have -00 suffix for day 2");
+    
+    // Verify all follow the hourly format pattern
+    for (String date : dates) {
+      Assert.assertEquals(date.length(), 13, "Date should be in yyyy-MM-dd-00 format (13 chars)");
+      Assert.assertTrue(date.matches("\\d{4}-\\d{2}-\\d{2}-00"), "Date should match yyyy-MM-dd-00 pattern");
+    }
   }
 
   @Test

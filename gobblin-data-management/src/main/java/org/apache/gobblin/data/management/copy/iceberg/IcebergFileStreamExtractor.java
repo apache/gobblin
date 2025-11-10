@@ -18,28 +18,15 @@
 package org.apache.gobblin.data.management.copy.iceberg;
 
 import java.io.IOException;
-import java.io.InputStream;
-import java.net.URI;
-import java.util.Collections;
 import java.util.Iterator;
 
-import com.google.common.base.Optional;
+import org.apache.commons.lang3.NotImplementedException;
+
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.commons.lang3.NotImplementedException;
-import org.apache.hadoop.conf.Configuration;
-import org.apache.hadoop.fs.FileStatus;
-import org.apache.hadoop.fs.FileSystem;
-import org.apache.hadoop.fs.Path;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.WorkUnitState;
-import org.apache.gobblin.data.management.copy.CopyConfiguration;
-import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.source.extractor.filebased.FileBasedExtractor;
-import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
-import org.apache.gobblin.util.WriterUtils;
 
 /**
  * Extractor for file streaming mode that creates FileAwareInputStream for each file.

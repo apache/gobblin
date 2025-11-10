@@ -70,15 +70,22 @@ import org.apache.iceberg.expressions.Expressions;
  * iceberg.table.name=table1
  * iceberg.catalog.uri=ICEBERG_CATALOG_URI
  *
- * # Partition filtering with lookback - Static date
+ * # Partition filtering with lookback - Static date (hourly partitions by default)
  * iceberg.filter.enabled=true
  * iceberg.partition.column=datepartition  # Optional, defaults to "datepartition"
- * iceberg.filter.date=2025-04-01         # Date value
+ * iceberg.filter.date=2025-04-01         # Date value (yyyy-MM-dd format)
  * iceberg.lookback.days=3
+ * # iceberg.hourly.partition.enabled=true  # Optional, defaults to true; generates yyyy-MM-dd-00 format
  *
  * # Partition filtering with lookback - Scheduled flows (dynamic date)
  * iceberg.filter.enabled=true
  * iceberg.filter.date=CURRENT_DATE       # Uses current date at runtime
+ * iceberg.lookback.days=3
+ *
+ * # Standard daily partitions (disable hourly suffix if table uses yyyy-MM-dd format)
+ * iceberg.filter.enabled=true
+ * iceberg.filter.date=2025-04-01         # Date in yyyy-MM-dd format
+ * iceberg.hourly.partition.enabled=false # Set false for non-hourly partitions
  * iceberg.lookback.days=3
  *
  * # Copy all data (no filtering)
@@ -111,6 +118,9 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
   public static final String ICEBERG_PARTITION_KEY = "iceberg.partition.key";
   public static final String ICEBERG_PARTITION_VALUES = "iceberg.partition.values";
   public static final String ICEBERG_FILE_PARTITION_PATH = "iceberg.file.partition.path";
+  public static final String ICEBERG_HOURLY_PARTITION_ENABLED = "iceberg.hourly.partition.enabled";
+  public static final boolean DEFAULT_HOURLY_PARTITION_ENABLED = true;
+  private static final String HOURLY_PARTITION_SUFFIX = "-00";
   private static final String WORK_UNIT_WEIGHT = "iceberg.workUnitWeight";
 
   private Optional<LineageInfo> lineageInfo;
@@ -219,7 +229,12 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
    *
    * <p>The partition column name is configurable via {@code iceberg.partition.column}
    * (defaults to {@value #DEFAULT_DATE_PARTITION_COLUMN}). The date value is specified separately via
-   * {@code iceberg.filter.date}, eliminating redundancy and reducing configuration errors.
+   * {@code iceberg.filter.date} in standard format ({@code yyyy-MM-dd}).
+   *
+   * <p><b>Hourly Partition Support:</b> By default, the {@code -00} suffix is appended to all partition values
+   * for tables using hourly partition format ({@code yyyy-MM-dd-HH}). For tables using standard daily partition
+   * format ({@code yyyy-MM-dd}), set {@code iceberg.hourly.partition.enabled=false}. Users should always provide
+   * dates in standard {@code yyyy-MM-dd} format; the hour suffix is automatically managed.
    *
    * <p><b>Configuration Examples:</b>
    * <ul>
@@ -266,9 +281,17 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
 
     if (lookbackDays >= 1) {
       log.info("Applying lookback period of {} days for date partition column '{}': {}", lookbackDays, datePartitionColumn, dateValue);
+      
+      // Check if hourly partitioning is enabled
+      boolean isHourlyPartition = state.getPropAsBoolean(ICEBERG_HOURLY_PARTITION_ENABLED, DEFAULT_HOURLY_PARTITION_ENABLED);
+      
+      // Parse the date in standard yyyy-MM-dd format
       LocalDate start = LocalDate.parse(dateValue);
+      
       for (int i = 0; i < lookbackDays; i++) {
-        String partitionValue = start.minusDays(i).toString();
+        String dateOnly = start.minusDays(i).toString();
+        // Append hour suffix if hourly partitioning is enabled
+        String partitionValue = isHourlyPartition ? dateOnly + HOURLY_PARTITION_SUFFIX : dateOnly;
         values.add(partitionValue);
         log.info("Including partition: {}={}", datePartitionColumn, partitionValue);
       }
