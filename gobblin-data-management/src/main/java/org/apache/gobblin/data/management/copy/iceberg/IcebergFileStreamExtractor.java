@@ -45,27 +45,27 @@ import org.apache.gobblin.util.WriterUtils;
  * Extractor for file streaming mode that creates FileAwareInputStream for each file.
  * 
  * This extractor is used when {@code iceberg.record.processing.enabled=false} to stream
- * OpenHouse table files as binary data to destinations like Azure, HDFS</p>
+ * Iceberg table files as binary data to destinations like Azure, HDFS
  * 
  * Each "record" is a {@link FileAwareInputStream} representing one file from
- * the OpenHouse table. The downstream writer handles streaming the file content.
+ * the Iceberg table. The downstream writer handles streaming the file content.
  */
 @Slf4j
 public class IcebergFileStreamExtractor extends FileBasedExtractor<String, FileAwareInputStream> {
 
-    public IcebergFileStreamExtractor(WorkUnitState workUnitState) throws IOException {
-        super(workUnitState, new IcebergFileStreamHelper(workUnitState));
-    }
+  public IcebergFileStreamExtractor(WorkUnitState workUnitState) throws IOException {
+    super(workUnitState, new IcebergFileStreamHelper(workUnitState));
+  }
 
-    @Override
-    public String getSchema() {
-        // For file streaming, schema is not used by IdentityConverter; returning a constant
-        return "FileAwareInputStream";
-    }
+  @Override
+  public String getSchema() {
+    // For file streaming, schema is not used by IdentityConverter; returning a constant
+    return "FileAwareInputStream";
+  }
 
-    @Override
-    public Iterator<FileAwareInputStream> downloadFile(String filePath) throws IOException {
-        throw new NotImplementedException("Not yet implemented");
-    }
+  @Override
+  public Iterator<FileAwareInputStream> downloadFile(String filePath) throws IOException {
+    throw new NotImplementedException("Not yet implemented");
+  }
 
 }

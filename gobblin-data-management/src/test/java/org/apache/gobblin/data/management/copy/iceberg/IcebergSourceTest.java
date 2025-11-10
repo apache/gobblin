@@ -32,6 +32,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.data.management.copy.iceberg.IcebergTable.FilePathWithPartition;
 import org.apache.gobblin.service.ServiceConfigKeys;
@@ -96,8 +97,8 @@ public class IcebergSourceTest {
         this.properties = new Properties();
         properties.setProperty(IcebergSource.ICEBERG_DATABASE_NAME, "test_db");
         properties.setProperty(IcebergSource.ICEBERG_TABLE_NAME, "test_table");
-        properties.setProperty(IcebergSource.ICEBERG_CATALOG_URI, "https://openhouse.test.com/api/v1");
-        properties.setProperty(IcebergSource.ICEBERG_CATALOG_CLASS, "org.apache.gobblin.data.management.copy.iceberg.OpenHouseCatalog");
+        properties.setProperty(IcebergSource.ICEBERG_CATALOG_URI, "https://<test>.com/api/v1");
+        properties.setProperty(IcebergSource.ICEBERG_CATALOG_CLASS, "org.apache.gobblin.data.management.copy.iceberg.TestCatalog");
 
         // Create SourceState
         this.sourceState = new SourceState(new State(properties));
@@ -141,7 +142,7 @@ public class IcebergSourceTest {
         List<FilePathWithPartition> filesWithPartitions =
             dataFilePaths.stream()
                 .map(path -> new FilePathWithPartition(
-                    path, new java.util.HashMap<>()))
+                    path, new java.util.HashMap<>(), 0L))
                 .collect(Collectors.toList());
 
         // Invoke private createWorkUnitsFromFiles via reflection
@@ -227,7 +228,7 @@ public class IcebergSourceTest {
         List<FilePathWithPartition> filesWithPartitions =
             dataFilePaths.stream()
                 .map(path -> new FilePathWithPartition(
-                    path, new java.util.HashMap<>()))
+                    path, new java.util.HashMap<>(), 0L))
                 .collect(Collectors.toList());
 
         // Setup table mock
@@ -282,7 +283,7 @@ public class IcebergSourceTest {
     public void testLookbackPeriodLogic() throws Exception {
         // Test that lookback period correctly discovers multiple days of partitions
         properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-        properties.setProperty(IcebergSource.ICEBERG_FILTER_EXPR, "datepartition=2025-04-03");
+        properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-03");
         properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "3");
         sourceState = new SourceState(new State(properties));
 
@@ -320,10 +321,46 @@ public class IcebergSourceTest {
     }
 
     @Test
-    public void testNonDatePartitionKeyFails() throws Exception {
-        // Test that non-date partition keys throw proper exception
+    public void testCurrentDatePlaceholder() throws Exception {
+        // Test that CURRENT_DATE placeholder is resolved to current date
         properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-        properties.setProperty(IcebergSource.ICEBERG_FILTER_EXPR, "region=US"); // Non-date partition
+        properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "CURRENT_DATE");
+        properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
+        sourceState = new SourceState(new State(properties));
+
+        // Mock today's partition
+        String today = java.time.LocalDate.now().toString();
+        List<FilePathWithPartition> todayFiles = Arrays.asList(
+            new FilePathWithPartition(
+                "/data/file1.parquet", createPartitionMap("datepartition", today), 1000L)
+        );
+
+        TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+        when(mockTable.getTableId()).thenReturn(tableId);
+        when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class)))
+            .thenReturn(todayFiles);
+
+        // Test discovery
+        Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+            SourceState.class, IcebergTable.class);
+        m.setAccessible(true);
+        List<FilePathWithPartition> discovered =
+            (List<FilePathWithPartition>) m.invoke(icebergSource, sourceState, mockTable);
+
+        // Verify today's partition is discovered
+        Assert.assertEquals(discovered.size(), 1, "Should discover today's partition");
+
+        // Verify partition value is set to today's date
+        String partitionValues = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES);
+        Assert.assertNotNull(partitionValues, "Partition values should be set");
+        Assert.assertEquals(partitionValues, today, "Should resolve to today's date");
+    }
+
+    @Test
+    public void testInvalidDateFormatFails() throws Exception {
+        // Test that invalid date format throws proper exception
+        properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+        properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "invalid-date"); // Invalid date format
         sourceState = new SourceState(new State(properties));
 
         Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
@@ -332,13 +369,13 @@ public class IcebergSourceTest {
 
         try {
             m.invoke(icebergSource, sourceState, mockTable);
-            Assert.fail("Should throw exception for non-date partition key");
+            Assert.fail("Should throw exception for invalid date format");
         } catch (java.lang.reflect.InvocationTargetException e) {
             // Unwrap the exception from reflection
-            Assert.assertTrue(e.getCause() instanceof IllegalArgumentException,
-                "Should throw IllegalArgumentException for non-date partition");
-            Assert.assertTrue(e.getCause().getMessage().contains("datepartition"),
-                "Error message should mention expected partition key 'datepartition'");
+            // Should get DateTimeParseException when trying to parse "invalid-date"
+            Assert.assertTrue(e.getCause() instanceof java.time.format.DateTimeParseException
+                    || e.getCause().getCause() instanceof java.time.format.DateTimeParseException,
+                "Should throw DateTimeParseException for invalid date format");
         }
     }
 
@@ -346,20 +383,20 @@ public class IcebergSourceTest {
     public void testPartitionFilterConfiguration() throws Exception {
         // Test with partition filtering enabled
         properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-        properties.setProperty(IcebergSource.ICEBERG_FILTER_EXPR, "datepartition=2025-04-01");
+        properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
         properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "3");
         sourceState = new SourceState(new State(properties));
 
         // Mock partition-aware file discovery with FilePathWithPartition
         List<FilePathWithPartition> partitionFiles = Arrays.asList(
             new FilePathWithPartition(
-                "/data/uuid1.parquet", createPartitionMap("datepartition", "2025-04-01")),
+                "/data/uuid1.parquet", createPartitionMap("datepartition", "2025-04-01"), 0L),
             new FilePathWithPartition(
-                "/data/uuid2.parquet", createPartitionMap("datepartition", "2025-04-01")),
+                "/data/uuid2.parquet", createPartitionMap("datepartition", "2025-04-01"), 0L),
             new FilePathWithPartition(
-                "/data/uuid3.parquet", createPartitionMap("datepartition", "2025-03-31")),
+                "/data/uuid3.parquet", createPartitionMap("datepartition", "2025-03-31"), 0L),
             new FilePathWithPartition(
-                "/data/uuid4.parquet", createPartitionMap("datepartition", "2025-03-30"))
+                "/data/uuid4.parquet", createPartitionMap("datepartition", "2025-03-30"), 0L)
         );
 
         // Mock the table to return partition-specific files with metadata
@@ -382,14 +419,14 @@ public class IcebergSourceTest {
     public void testPartitionInfoPropagation() throws Exception {
         // Test that partition info is propagated to work units
         properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-        properties.setProperty(IcebergSource.ICEBERG_FILTER_EXPR, "datepartition=2025-04-01");
+        properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
         sourceState = new SourceState(new State(properties));
 
         List<FilePathWithPartition> filesWithPartitions = Arrays.asList(
             new FilePathWithPartition(
-                "/data/uuid1.parquet", createPartitionMap("datepartition", "2025-04-01")),
+                "/data/uuid1.parquet", createPartitionMap("datepartition", "2025-04-01"), 0L),
             new FilePathWithPartition(
-                "/data/uuid2.parquet", createPartitionMap("datepartition", "2025-04-01"))
+                "/data/uuid2.parquet", createPartitionMap("datepartition", "2025-04-01"), 0L)
         );
 
         TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
@@ -416,26 +453,58 @@ public class IcebergSourceTest {
     }
 
     @Test
-    public void testNoFilterFallbackToSnapshot() throws Exception {
-        // Test that when filter is disabled, it falls back to snapshot-based discovery
+    public void testNoFilterPreservesPartitionMetadata() throws Exception {
+        // Test that when filter is disabled, partition metadata is still preserved for partitioned tables
         properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "false");
         sourceState = new SourceState(new State(properties));
 
-        List<String> snapshotFiles = Arrays.asList(
-            "/data/file1.parquet",
-            "/data/file2.parquet",
-            "/data/file3.parquet"
+        // Mock all files from a partitioned table with partition metadata
+        List<FilePathWithPartition> allFilesWithPartitions = Arrays.asList(
+            new FilePathWithPartition(
+                "/warehouse/db/table/datepartition=2025-04-01/file1.parquet",
+                createPartitionMap("datepartition", "2025-04-01"), 1000L),
+            new FilePathWithPartition(
+                "/warehouse/db/table/datepartition=2025-04-01/file2.parquet",
+                createPartitionMap("datepartition", "2025-04-01"), 1500L),
+            new FilePathWithPartition(
+                "/warehouse/db/table/datepartition=2025-04-02/file3.parquet",
+                createPartitionMap("datepartition", "2025-04-02"), 2000L),
+            new FilePathWithPartition(
+                "/warehouse/db/table/datepartition=2025-04-03/file4.parquet",
+                createPartitionMap("datepartition", "2025-04-03"), 2500L)
         );
 
-        setupMockFileDiscovery(snapshotFiles);
+        TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+        when(mockTable.getTableId()).thenReturn(tableId);
+        // Mock TableScan with alwaysTrue() filter to return all files with partition metadata
+        when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class)))
+            .thenReturn(allFilesWithPartitions);
 
         // Use reflection to test discoverPartitionFilePaths
         Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", SourceState.class, IcebergTable.class);
         m.setAccessible(true);
-        List<String> discoveredFiles = (List<String>) m.invoke(icebergSource, sourceState, mockTable);
+        List<FilePathWithPartition> discoveredFiles = (List<FilePathWithPartition>) m.invoke(icebergSource, sourceState, mockTable);
 
-        // Should return only data files from snapshot
-        Assert.assertEquals(discoveredFiles.size(), 3, "Should discover all data files from snapshot");
+        // Verify all files discovered with partition metadata preserved
+        Assert.assertEquals(discoveredFiles.size(), 4, "Should discover all data files");
+        
+        // Verify partition metadata is preserved for each file
+        for (FilePathWithPartition file : discoveredFiles) {
+            Assert.assertNotNull(file.getPartitionData(), "Partition data should be present");
+            Assert.assertFalse(file.getPartitionData().isEmpty(), "Partition data should not be empty");
+            Assert.assertTrue(file.getPartitionData().containsKey("datepartition"),
+                "Should have datepartition key");
+            Assert.assertFalse(file.getPartitionPath().isEmpty(),
+                "Partition path should not be empty");
+            Assert.assertTrue(file.getPartitionPath().startsWith("datepartition="),
+                "Partition path should be in format: datepartition=<date>");
+        }
+        
+        // Verify files are from different partitions
+        java.util.Set<String> uniquePartitions = discoveredFiles.stream()
+            .map(f -> f.getPartitionData().get("datepartition"))
+            .collect(java.util.stream.Collectors.toSet());
+        Assert.assertEquals(uniquePartitions.size(), 3, "Should have files from 3 different partitions");
     }
 
     @Test
@@ -461,11 +530,11 @@ public class IcebergSourceTest {
 
         List<FilePathWithPartition> filesWithPartitions = Arrays.asList(
             new FilePathWithPartition(
-                "file1.parquet", new java.util.HashMap<>()),
+                "file1.parquet", new java.util.HashMap<>(), 0L),
             new FilePathWithPartition(
-                "file2.parquet", new java.util.HashMap<>()),
+                "file2.parquet", new java.util.HashMap<>(), 0L),
             new FilePathWithPartition(
-                "file3.parquet", new java.util.HashMap<>())
+                "file3.parquet", new java.util.HashMap<>(), 0L)
         );
 
         TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
@@ -485,10 +554,10 @@ public class IcebergSourceTest {
     }
 
     @Test
-    public void testFilterEnabledWithoutExpression() throws Exception {
-        // Test that enabling filter without expression throws exception
+    public void testFilterEnabledWithoutDate() throws Exception {
+        // Test that enabling filter without date value throws exception
         properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-        properties.remove(IcebergSource.ICEBERG_FILTER_EXPR);
+        properties.remove(IcebergSource.ICEBERG_FILTER_DATE);
         sourceState = new SourceState(new State(properties));
 
         Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", SourceState.class, IcebergTable.class);
@@ -496,31 +565,11 @@ public class IcebergSourceTest {
 
         try {
             m.invoke(icebergSource, sourceState, mockTable);
-            Assert.fail("Expected IllegalArgumentException for missing filter expression");
+            Assert.fail("Expected IllegalArgumentException for missing filter date");
         } catch (java.lang.reflect.InvocationTargetException e) {
             // Unwrap the exception from reflection
             Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
-            Assert.assertTrue(e.getCause().getMessage().contains("iceberg.filter.expr is required"));
-        }
-    }
-
-    @Test
-    public void testInvalidFilterExpression() throws Exception {
-        // Test invalid filter expression format
-        properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-        properties.setProperty(IcebergSource.ICEBERG_FILTER_EXPR, "invalid_format");
-        sourceState = new SourceState(new State(properties));
-
-        Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths", SourceState.class, IcebergTable.class);
-        m.setAccessible(true);
-
-        try {
-            m.invoke(icebergSource, sourceState, mockTable);
-            Assert.fail("Expected IllegalArgumentException for invalid filter expression");
-        } catch (java.lang.reflect.InvocationTargetException e) {
-            // Unwrap the exception from reflection
-            Assert.assertTrue(e.getCause() instanceof IllegalArgumentException);
-            Assert.assertTrue(e.getCause().getMessage().contains("Invalid iceberg.filter.expr"));
+            Assert.assertTrue(e.getCause().getMessage().contains("iceberg.filter.date is required"));
         }
     }
 
@@ -788,8 +837,8 @@ public class IcebergSourceTest {
     public void testBinPackingEnabled() throws Exception {
         // Test that bin packing groups work units by size using WorstFitDecreasing algorithm
         properties.setProperty(IcebergSource.ICEBERG_FILES_PER_WORKUNIT, "1");
-        properties.setProperty(IcebergSource.ICEBERG_MAX_SIZE_MULTI_WORKUNITS, "5000"); // 5KB max per bin
-        properties.setProperty(IcebergSource.ICEBERG_MAX_WORK_UNITS_PER_BIN, "10");
+        // Use CopySource bin packing configuration key for consistency
+        properties.setProperty(CopySource.MAX_SIZE_MULTI_WORKUNITS, "5000"); // 5KB max per bin
         sourceState = new SourceState(new State(properties));
 
         // Create 6 work units with sizes: 1KB, 1KB, 2KB, 2KB, 3KB, 3KB (total 12KB)
@@ -845,9 +894,9 @@ public class IcebergSourceTest {
     @Test
     public void testSimulateModeReturnsEmptyList() throws Exception {
         // Test that simulate mode configuration is respected and would return empty list
-        properties.setProperty(IcebergSource.ICEBERG_SIMULATE, "true");
+        properties.setProperty(CopySource.SIMULATE, "true");
         properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-        properties.setProperty(IcebergSource.ICEBERG_FILTER_EXPR, "datepartition=2025-10-21");
+        properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-10-21");
         sourceState = new SourceState(new State(properties));
 
         // Mock files that would be discovered
@@ -864,9 +913,9 @@ public class IcebergSourceTest {
             .thenReturn(mockFiles);
 
         // Test 1: Verify simulate mode is enabled in configuration
-        Assert.assertTrue(sourceState.contains(IcebergSource.ICEBERG_SIMULATE),
+        Assert.assertTrue(sourceState.contains(CopySource.SIMULATE),
             "Simulate mode configuration should be present");
-        Assert.assertTrue(sourceState.getPropAsBoolean(IcebergSource.ICEBERG_SIMULATE),
+        Assert.assertTrue(sourceState.getPropAsBoolean(CopySource.SIMULATE),
             "Simulate mode should be enabled");
 
         // Test 2: File discovery should work normally in simulate mode (discovery happens before simulate check)
@@ -902,8 +951,8 @@ public class IcebergSourceTest {
         // Test 5: Verify the critical behavior - after simulate check, work units should NOT be returned
         // Simulate the conditional logic from getWorkunits()
         List<WorkUnit> actualReturnedWorkUnits;
-        if (sourceState.contains(IcebergSource.ICEBERG_SIMULATE)
-            && sourceState.getPropAsBoolean(IcebergSource.ICEBERG_SIMULATE)) {
+        if (sourceState.contains(CopySource.SIMULATE)
+            && sourceState.getPropAsBoolean(CopySource.SIMULATE)) {
             // This is what getWorkunits() does in simulate mode
             actualReturnedWorkUnits = Lists.newArrayList(); // Empty list
         } else {
@@ -925,7 +974,7 @@ public class IcebergSourceTest {
     public void testFileSizeFromIcebergMetadata() throws Exception {
         // Test that file size is correctly extracted from Iceberg metadata
         properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-        properties.setProperty(IcebergSource.ICEBERG_FILTER_EXPR, "datepartition=2025-10-21");
+        properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-10-21");
         sourceState = new SourceState(new State(properties));
 
         // Create files with specific sizes

@@ -37,7 +37,7 @@ import org.apache.gobblin.source.extractor.filebased.TimestampAwareFileBasedHelp
 /**
  * File-based helper for Iceberg file streaming operations.
  *
- * This helper supports file streaming mode where OpenHouse table files
+ * This helper supports file streaming mode where Iceberg table files
  * are streamed as binary data without record-level processing.
  */
 @Slf4j

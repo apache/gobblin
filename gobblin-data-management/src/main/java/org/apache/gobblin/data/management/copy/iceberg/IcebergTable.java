@@ -359,10 +359,13 @@ public class IcebergTable {
     private final Map<String, String> partitionData;
     private final long fileSize;
     
-    public FilePathWithPartition(String filePath, Map<String, String> partitionData) {
-      this(filePath, partitionData, 0L);
-    }
-    
+    /**
+     * Creates a file path with partition and size information.
+     * 
+     * @param filePath the absolute path to the data file
+     * @param partitionData map of partition key-value pairs (e.g., "datepartition" -> "2025-04-01")
+     * @param fileSize the size of the file in bytes
+     */
     public FilePathWithPartition(String filePath, Map<String, String> partitionData, long fileSize) {
       this.filePath = filePath;
       this.partitionData = partitionData;

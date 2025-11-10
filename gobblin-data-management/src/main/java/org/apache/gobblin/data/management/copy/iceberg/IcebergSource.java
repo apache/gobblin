@@ -38,6 +38,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.SourceState;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.data.management.copy.CopySource;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.dataset.DatasetConstants;
 import org.apache.gobblin.dataset.DatasetDescriptor;
@@ -67,12 +68,25 @@ import org.apache.iceberg.expressions.Expressions;
  * source.class=org.apache.gobblin.data.management.copy.iceberg.IcebergSource
  * iceberg.database.name=db1
  * iceberg.table.name=table1
- * iceberg.catalog.uri=https://openhouse.com/catalog
+ * iceberg.catalog.uri=ICEBERG_CATALOG_URI
  *
- * # Partition filtering with lookback
+ * # Partition filtering with lookback - Static date
  * iceberg.filter.enabled=true
- * iceberg.filter.expr=datepartition=2025-04-01
+ * iceberg.partition.column=datepartition  # Optional, defaults to "datepartition"
+ * iceberg.filter.date=2025-04-01         # Date value
  * iceberg.lookback.days=3
+ *
+ * # Partition filtering with lookback - Scheduled flows (dynamic date)
+ * iceberg.filter.enabled=true
+ * iceberg.filter.date=CURRENT_DATE       # Uses current date at runtime
+ * iceberg.lookback.days=3
+ *
+ * # Copy all data (no filtering)
+ * iceberg.filter.enabled=false
+ * # No filter.date needed - will copy all partitions from current snapshot
+ *
+ * # Bin packing for better resource utilization
+ * gobblin.copy.binPacking.maxSizePerBin=1000000000  # 1GB per bin
  * </pre>
  */
 @Slf4j
@@ -88,16 +102,15 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
     public static final String ICEBERG_FILES_PER_WORKUNIT = "iceberg.files.per.workunit";
     public static final int DEFAULT_FILES_PER_WORKUNIT = 10;
     public static final String ICEBERG_FILTER_ENABLED = "iceberg.filter.enabled";
-    public static final String ICEBERG_FILTER_EXPR = "iceberg.filter.expr"; // e.g., datepartition=2025-04-01
+    public static final String ICEBERG_FILTER_DATE = "iceberg.filter.date"; // Date value (e.g., 2025-04-01 or CURRENT_DATE)
     public static final String ICEBERG_LOOKBACK_DAYS = "iceberg.lookback.days";
     public static final int DEFAULT_LOOKBACK_DAYS = 1;
-    public static final String ICEBERG_DATE_PARTITION_KEY = "datepartition"; // date partition key name
+    public static final String ICEBERG_PARTITION_COLUMN = "iceberg.partition.column"; // configurable partition column name
+    public static final String DEFAULT_DATE_PARTITION_COLUMN = "datepartition"; // default date partition column name
+    public static final String CURRENT_DATE_PLACEHOLDER = "CURRENT_DATE"; // placeholder for current date
     public static final String ICEBERG_PARTITION_KEY = "iceberg.partition.key";
     public static final String ICEBERG_PARTITION_VALUES = "iceberg.partition.values";
     public static final String ICEBERG_FILE_PARTITION_PATH = "iceberg.file.partition.path";
-    public static final String ICEBERG_SIMULATE = "iceberg.simulate";
-    public static final String ICEBERG_MAX_SIZE_MULTI_WORKUNITS = "iceberg.binPacking.maxSizePerBin";
-    public static final String ICEBERG_MAX_WORK_UNITS_PER_BIN = "iceberg.binPacking.maxWorkUnitsPerBin";
     private static final String WORK_UNIT_WEIGHT = "iceberg.workUnitWeight";
 
     private Optional<LineageInfo> lineageInfo;
@@ -141,10 +154,7 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
             IcebergCatalog catalog = createCatalog(state);
             String database = state.getProp(ICEBERG_DATABASE_NAME);
             String table = state.getProp(ICEBERG_TABLE_NAME);
-
             IcebergTable icebergTable = catalog.openTable(database, table);
-            Preconditions.checkArgument(catalog.tableAlreadyExists(icebergTable),
-                String.format("OpenHouse table not found: %s.%s", database, table));
 
             List<IcebergTable.FilePathWithPartition> filesWithPartitions = discoverPartitionFilePaths(state, icebergTable);
             log.info("Discovered {} files from Iceberg table {}.{}", filesWithPartitions.size(), database, table);
@@ -153,7 +163,7 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
             List<WorkUnit> workUnits = createWorkUnitsFromFiles(filesWithPartitions, state, icebergTable);
 
             // Handle simulate mode - log what would be copied without executing
-            if (state.contains(ICEBERG_SIMULATE) && state.getPropAsBoolean(ICEBERG_SIMULATE)) {
+            if (state.contains(CopySource.SIMULATE) && state.getPropAsBoolean(CopySource.SIMULATE)) {
                 log.info("Simulate mode enabled. Will not execute the copy.");
                 logSimulateMode(workUnits, filesWithPartitions, state);
                 return Lists.newArrayList();
@@ -196,16 +206,28 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
     /**
      * Discover partition data files using Iceberg TableScan API with optional lookback for date partitions.
      *
-     * <p>This method supports two modes:
+     * <p>This method supports three modes:
      * <ol>
-     *   <li><b>Full table scan</b>: When {@code iceberg.filter.enabled=false}, returns all data files from current snapshot</li>
-     *   <li><b>Partition filter</b>: When {@code iceberg.filter.enabled=true}, uses Iceberg TableScan with partition
-     *       filter and applies lookback period for date partitions</li>
+     *   <li><b>Full table scan (copy all data)</b>: Set {@code iceberg.filter.enabled=false}.
+     *       Returns all data files from current snapshot. Use this for one-time full copies or backfills.</li>
+     *   <li><b>Static date partition filter</b>: Set {@code iceberg.filter.enabled=true} with a specific date
+     *       (e.g., {@code iceberg.filter.date=2025-04-01}). Use this for ad-hoc historical data copies.</li>
+     *   <li><b>Dynamic date partition filter</b>: Set {@code iceberg.filter.enabled=true} with
+     *       {@code iceberg.filter.date=CURRENT_DATE}. The {@value #CURRENT_DATE_PLACEHOLDER} placeholder
+     *       is resolved to the current date at runtime. Use this for daily scheduled flows.</li>
      * </ol>
      *
-     * <p>For date partitions (partition key = {@value #ICEBERG_DATE_PARTITION_KEY}), the lookback period allows copying data for the last N days.
-     * For example, with {@code iceberg.filter.expr=datepartition=2025-04-03} and {@code iceberg.lookback.days=3},
-     * this will discover files for partitions: datepartition=2025-04-03, datepartition=2025-04-02, datepartition=2025-04-01
+     * <p>The partition column name is configurable via {@code iceberg.partition.column}
+     * (defaults to {@value #DEFAULT_DATE_PARTITION_COLUMN}). The date value is specified separately via
+     * {@code iceberg.filter.date}, eliminating redundancy and reducing configuration errors.
+     *
+     * <p><b>Configuration Examples:</b>
+     * <ul>
+     *   <li>Static: {@code iceberg.partition.column=datepartition, iceberg.filter.date=2025-04-03, iceberg.lookback.days=3}
+     *       discovers: datepartition=2025-04-03, 2025-04-02, 2025-04-01</li>
+     *   <li>Dynamic: {@code iceberg.filter.date=CURRENT_DATE, iceberg.lookback.days=1}
+     *       discovers today's partition only (resolved at runtime)</li>
+     * </ul>
      *
      * @param state source state containing filter configuration
      * @param icebergTable the Iceberg table to scan
@@ -216,27 +238,25 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
         boolean filterEnabled = state.getPropAsBoolean(ICEBERG_FILTER_ENABLED, true);
 
         if (!filterEnabled) {
-            log.info("Partition filter disabled, discovering all data files from current snapshot");
-            IcebergSnapshotInfo snapshot = icebergTable.getCurrentSnapshotInfo();
-            List<IcebergTable.FilePathWithPartition> result = Lists.newArrayList();
-            for (IcebergSnapshotInfo.ManifestFileInfo mfi : snapshot.getManifestFiles()) {
-                for (String filePath : mfi.getListedFilePaths()) {
-                    result.add(new IcebergTable.FilePathWithPartition(filePath, Maps.newHashMap()));
-                }
-            }
-            log.info("Discovered {} data files from snapshot", result.size());
+            log.info("Partition filter disabled, discovering all data files with partition metadata from current snapshot");
+            // Use TableScan without filter to get all files with partition metadata preserved
+            // This ensures partition structure is maintained even for full table copies
+            List<IcebergTable.FilePathWithPartition> result = icebergTable.getFilePathsWithPartitionsForFilter(Expressions.alwaysTrue());
+            log.info("Discovered {} data files from current snapshot with partition metadata", result.size());
             return result;
         }
 
-        // Parse filter expression
-        String expr = state.getProp(ICEBERG_FILTER_EXPR);
-        Preconditions.checkArgument(!StringUtils.isBlank(expr),
-            "iceberg.filter.expr is required when iceberg.filter.enabled=true");
-        String[] parts = expr.split("=", 2);
-        Preconditions.checkArgument(parts.length == 2,
-            "Invalid iceberg.filter.expr. Expected key=value, got: %s", expr);
-        String key = parts[0].trim();
-        String value = parts[1].trim();
+        String datePartitionColumn = state.getProp(ICEBERG_PARTITION_COLUMN, DEFAULT_DATE_PARTITION_COLUMN);
+        
+        String dateValue = state.getProp(ICEBERG_FILTER_DATE);
+        Preconditions.checkArgument(!StringUtils.isBlank(dateValue),
+            "iceberg.filter.date is required when iceberg.filter.enabled=true");
+
+        // Handle CURRENT_DATE placeholder for flows
+        if (CURRENT_DATE_PLACEHOLDER.equalsIgnoreCase(dateValue)) {
+            dateValue = LocalDate.now().toString();
+            log.info("Resolved {} placeholder to current date: {}", CURRENT_DATE_PLACEHOLDER, dateValue);
+        }
 
         // Apply lookback period for date partitions
         // lookbackDays=1 (default) means copy only the specified date
@@ -244,32 +264,30 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
         int lookbackDays = state.getPropAsInt(ICEBERG_LOOKBACK_DAYS, DEFAULT_LOOKBACK_DAYS);
         List<String> values = Lists.newArrayList();
 
-        if (ICEBERG_DATE_PARTITION_KEY.equals(key) && lookbackDays >= 1) {
-            log.info("Applying lookback period of {} days for date partition: {}", lookbackDays, value);
-            LocalDate start = LocalDate.parse(value);
+        if (lookbackDays >= 1) {
+            log.info("Applying lookback period of {} days for date partition column '{}': {}", lookbackDays, datePartitionColumn, dateValue);
+            LocalDate start = LocalDate.parse(dateValue);
             for (int i = 0; i < lookbackDays; i++) {
                 String partitionValue = start.minusDays(i).toString();
                 values.add(partitionValue);
-                log.debug("Including partition: {}={}", ICEBERG_DATE_PARTITION_KEY, partitionValue);
+                log.info("Including partition: {}={}", datePartitionColumn, partitionValue);
             }
         } else {
-            log.error("Partition key is not correct or lookbackDays < 1, skipping lookback. Input: {}={}, expected: {}=<date>",
-                key, value, ICEBERG_DATE_PARTITION_KEY);
+            log.error("lookbackDays < 1, cannot apply lookback. lookbackDays={}", lookbackDays);
             throw new IllegalArgumentException(String.format(
-                "Only date partition filter with lookback period is supported. Expected partition key: '%s', got: '%s'",
-                ICEBERG_DATE_PARTITION_KEY, key));
+                "lookback.days must be >= 1, got: %d", lookbackDays));
         }
 
         // Store partition info on state for downstream use (extractor, destination path mapping)
-        state.setProp(ICEBERG_PARTITION_KEY, key);
+        state.setProp(ICEBERG_PARTITION_KEY, datePartitionColumn);
         state.setProp(ICEBERG_PARTITION_VALUES, String.join(",", values));
 
         // Use Iceberg TableScan API to get only data files (parquet/orc/avro) for specified partitions
         // TableScan.planFiles() returns DataFiles only - no manifest files or metadata files
-        log.info("Executing TableScan with filter: {}={}", key, values);
+        log.info("Executing TableScan with filter: {}={}", datePartitionColumn, values);
         Expression icebergExpr = null;
         for (String val : values) {
-            Expression e = Expressions.equal(key, val);
+            Expression e = Expressions.equal(datePartitionColumn, val);
             icebergExpr = (icebergExpr == null) ? e : Expressions.or(icebergExpr, e);
         }
 
@@ -350,7 +368,7 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
             addLineageSourceInfo(state, workUnit, table);
             workUnits.add(workUnit);
 
-            log.debug("Created work unit {} with {} files, total size: {} bytes", i, group.size(), totalSize);
+            log.info("Created work unit {} with {} files, total size: {} bytes", i, group.size(), totalSize);
         }
 
         return workUnits;
@@ -465,22 +483,20 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
      * @return packed work units (or original if bin packing not configured)
      */
     private List<? extends WorkUnit> applyBinPacking(List<WorkUnit> workUnits, SourceState state) {
-        long maxSizePerBin = state.getPropAsLong(ICEBERG_MAX_SIZE_MULTI_WORKUNITS, 0);
+        long maxSizePerBin = state.getPropAsLong(CopySource.MAX_SIZE_MULTI_WORKUNITS, 0);
 
         if (maxSizePerBin <= 0) {
-            log.debug("Bin packing disabled (maxSizePerBin={}), returning original work units", maxSizePerBin);
+            log.info("Bin packing disabled (maxSizePerBin={}), returning original work units", maxSizePerBin);
             return workUnits;
         }
 
-        long maxWorkUnitsPerBin = state.getPropAsLong(ICEBERG_MAX_WORK_UNITS_PER_BIN, 50);
-        log.info("Applying bin packing: maxSizePerBin={} bytes, maxWorkUnitsPerBin={}",
-            maxSizePerBin, maxWorkUnitsPerBin);
+        log.info("Applying bin packing with maxSizePerBin={} bytes", maxSizePerBin);
 
         List<? extends WorkUnit> packedWorkUnits = new WorstFitDecreasingBinPacking(maxSizePerBin)
             .pack(workUnits, this.weighter);
 
-        log.info("Bin packing complete. Initial work units: {}, packed work units: {}, max weight per bin: {}, max work units per bin: {}",
-            workUnits.size(), packedWorkUnits.size(), maxSizePerBin, maxWorkUnitsPerBin);
+        log.info("Bin packing complete. Initial work units: {}, packed work units: {}, max size per bin: {} bytes",
+            workUnits.size(), packedWorkUnits.size(), maxSizePerBin);
 
         return packedWorkUnits;
     }
