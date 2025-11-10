@@ -117,7 +117,11 @@ public class IcebergTableTest extends HiveMetastoreTest {
   @BeforeClass
   public void setUp() throws Exception {
     startMetastore();
-    catalog.createNamespace(Namespace.of(dbName));
+    try {
+      catalog.createNamespace(Namespace.of(dbName));
+    } catch (Exception e) {
+      // Namespace may already exist if another test class ran first
+    }
   }
 
   @BeforeMethod
