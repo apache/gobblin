@@ -43,100 +43,100 @@ import org.apache.gobblin.source.extractor.filebased.TimestampAwareFileBasedHelp
 @Slf4j
 public class IcebergFileStreamHelper implements TimestampAwareFileBasedHelper {
 
-    private final State state;
-    private final Configuration configuration;
-    private FileSystem fileSystem;
+  private final State state;
+  private final Configuration configuration;
+  private FileSystem fileSystem;
 
-    public IcebergFileStreamHelper(State state) {
-        this.state = state;
-        this.configuration = new Configuration();
+  public IcebergFileStreamHelper(State state) {
+    this.state = state;
+    this.configuration = new Configuration();
 
-        // Add any Hadoop configuration from job properties
-        for (String key : state.getPropertyNames()) {
-            if (key.startsWith("fs.") || key.startsWith("hadoop.")) {
-                configuration.set(key, state.getProp(key));
-            }
-        }
+    // Add any Hadoop configuration from job properties
+    for (String key : state.getPropertyNames()) {
+      if (key.startsWith("fs.") || key.startsWith("hadoop.")) {
+        configuration.set(key, state.getProp(key));
+      }
     }
+  }
 
-    @Override
-    public void connect() throws FileBasedHelperException {
-        try {
-            this.fileSystem = FileSystem.get(configuration);
-            log.info("Connected to Iceberg file stream helper with FileSystem: {}", fileSystem.getClass().getSimpleName());
-        } catch (IOException e) {
-            throw new FileBasedHelperException("Failed to initialize FileSystem for Iceberg file streaming", e);
-        }
+  @Override
+  public void connect() throws FileBasedHelperException {
+    try {
+      this.fileSystem = FileSystem.get(configuration);
+      log.info("Connected to Iceberg file stream helper with FileSystem: {}", fileSystem.getClass().getSimpleName());
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Failed to initialize FileSystem for Iceberg file streaming", e);
     }
+  }
 
-    @Override
-    public List<String> ls(String path) throws FileBasedHelperException {
-        try {
-            // For Iceberg, file discovery is handled by IcebergSource
-            // This method returns files from work unit configuration
-            List<String> filesToPull = state.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, "");
-            log.debug("Returning {} files for processing", filesToPull.size());
-            return filesToPull;
-        } catch (Exception e) {
-            throw new FileBasedHelperException("Failed to list files", e);
-        }
+  @Override
+  public List<String> ls(String path) throws FileBasedHelperException {
+    try {
+      // For Iceberg, file discovery is handled by IcebergSource
+      // This method returns files from work unit configuration
+      List<String> filesToPull = state.getPropAsList(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, "");
+      log.debug("Returning {} files for processing", filesToPull.size());
+      return filesToPull;
+    } catch (Exception e) {
+      throw new FileBasedHelperException("Failed to list files", e);
     }
+  }
 
-    @Override
-    public InputStream getFileStream(String filePath) throws FileBasedHelperException {
-        try {
-            Path path = new Path(filePath);
-            FileSystem fs = getFileSystemForPath(path);
-            return fs.open(path);
-        } catch (IOException e) {
-            throw new FileBasedHelperException("Failed to get file stream for: " + filePath, e);
-        }
+  @Override
+  public InputStream getFileStream(String filePath) throws FileBasedHelperException {
+    try {
+      Path path = new Path(filePath);
+      FileSystem fs = getFileSystemForPath(path);
+      return fs.open(path);
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Failed to get file stream for: " + filePath, e);
     }
+  }
 
-    @Override
-    public long getFileSize(String filePath) throws FileBasedHelperException {
-        try {
-            Path path = new Path(filePath);
-            FileSystem fs = getFileSystemForPath(path);
-            return fs.getFileStatus(path).getLen();
-        } catch (IOException e) {
-            throw new FileBasedHelperException("Failed to get file size for: " + filePath, e);
-        }
+  @Override
+  public long getFileSize(String filePath) throws FileBasedHelperException {
+    try {
+      Path path = new Path(filePath);
+      FileSystem fs = getFileSystemForPath(path);
+      return fs.getFileStatus(path).getLen();
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Failed to get file size for: " + filePath, e);
     }
+  }
 
-    @Override
-    public long getFileMTime(String filePath) throws FileBasedHelperException {
-        try {
-            Path path = new Path(filePath);
-            FileSystem fs = getFileSystemForPath(path);
-            return fs.getFileStatus(path).getModificationTime();
-        } catch (IOException e) {
-            throw new FileBasedHelperException("Failed to get file modification time for: " + filePath, e);
-        }
+  @Override
+  public long getFileMTime(String filePath) throws FileBasedHelperException {
+    try {
+      Path path = new Path(filePath);
+      FileSystem fs = getFileSystemForPath(path);
+      return fs.getFileStatus(path).getModificationTime();
+    } catch (IOException e) {
+      throw new FileBasedHelperException("Failed to get file modification time for: " + filePath, e);
     }
+  }
 
-    private FileSystem getFileSystemForPath(Path path) throws IOException {
-        // If path has a different scheme than the default FileSystem, get scheme-specific FS
-        if (path.toUri().getScheme() != null &&
-            !path.toUri().getScheme().equals(fileSystem.getUri().getScheme())) {
-            return path.getFileSystem(configuration);
-        }
-        return fileSystem;
+  private FileSystem getFileSystemForPath(Path path) throws IOException {
+    // If path has a different scheme than the default FileSystem, get scheme-specific FS
+    if (path.toUri().getScheme() != null &&
+      !path.toUri().getScheme().equals(fileSystem.getUri().getScheme())) {
+      return path.getFileSystem(configuration);
     }
+    return fileSystem;
+  }
 
-    @Override
-    public void close() throws IOException {
-        if (fileSystem != null) {
-            try {
-                fileSystem.close();
-                log.info("Closed Iceberg file stream helper and FileSystem connection");
-            } catch (IOException e) {
-                log.warn("Error closing FileSystem connection", e);
-                throw e;
-            }
-        } else {
-            log.debug("Closing Iceberg file stream helper - no FileSystem to close");
-        }
+  @Override
+  public void close() throws IOException {
+    if (fileSystem != null) {
+      try {
+        fileSystem.close();
+        log.info("Closed Iceberg file stream helper and FileSystem connection");
+      } catch (IOException e) {
+        log.warn("Error closing FileSystem connection", e);
+        throw e;
+      }
+    } else {
+      log.debug("Closing Iceberg file stream helper - no FileSystem to close");
     }
+  }
 
 }
