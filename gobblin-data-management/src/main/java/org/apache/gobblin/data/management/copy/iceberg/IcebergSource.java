@@ -285,8 +285,17 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
       // Check if hourly partitioning is enabled
       boolean isHourlyPartition = state.getPropAsBoolean(ICEBERG_HOURLY_PARTITION_ENABLED, DEFAULT_HOURLY_PARTITION_ENABLED);
       
-      // Parse the date in standard yyyy-MM-dd format
-      LocalDate start = LocalDate.parse(dateValue);
+      // Parse the date in yyyy-MM-dd format
+      LocalDate start;
+      try {
+        start = LocalDate.parse(dateValue);
+      } catch (java.time.format.DateTimeParseException e) {
+        String errorMsg = String.format(
+          "Invalid date format for '%s': '%s'. Expected format: yyyy-MM-dd. Error: %s",
+          ICEBERG_FILTER_DATE, dateValue, e.getMessage());
+        log.error(errorMsg);
+        throw new IllegalArgumentException(errorMsg, e);
+      }
       
       for (int i = 0; i < lookbackDays; i++) {
         String dateOnly = start.minusDays(i).toString();
