@@ -610,7 +610,12 @@ public class IcebergSourceTest {
     @BeforeClass
     public void setUp() throws Exception {
       // Start metastore and create test namespace
-      startMetastore();
+      try {
+        startMetastore();
+      } catch (Exception e) {
+        // Metastore may already be started if another test class ran first
+        // The startMetastore() method creates a default 'hivedb' which will fail if already exists
+      }
       catalog.createNamespace(Namespace.of(TEST_DB_NAME));
     }
 
