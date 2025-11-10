@@ -52,11 +52,13 @@ import org.apache.iceberg.avro.AvroSchemaUtil;
 import org.apache.iceberg.catalog.Namespace;
 import org.apache.iceberg.catalog.TableIdentifier;
 import org.apache.iceberg.expressions.Expression;
+import org.apache.iceberg.hive.HiveMetastoreTest;
 import org.apache.iceberg.shaded.org.apache.avro.SchemaBuilder;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
+import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
@@ -584,7 +586,7 @@ public class IcebergSourceTest {
    * Integration test class that creates real Iceberg tables with multiple partitions
    * and tests partition-specific data file fetching.
    */
-  public static class IcebergSourcePartitionIntegrationTest extends IcebergTableTest {
+  public static class IcebergSourcePartitionIntegrationTest extends HiveMetastoreTest {
 
     private static final String TEST_DB_NAME = "test_partition_db";
     private TableIdentifier partitionedTableId;
@@ -605,62 +607,46 @@ public class IcebergSourceTest {
         .identity("datepartition")
         .build();
 
-    @Override
+    @BeforeClass
+    public void setUp() throws Exception {
+      // Start metastore and create test namespace
+      startMetastore();
+      catalog.createNamespace(Namespace.of(TEST_DB_NAME));
+    }
+
     @BeforeMethod
     public void setUpEachTest() {
-      // Override parent's setup - we don't need tableId, sourceTableId, destTableId
-      // Instead, set up our partitioned table
-      setUpPartitionedTable();
+      // Create a partitioned table for each test
+      partitionedTableId = TableIdentifier.of(TEST_DB_NAME, "partitioned_table");
+      partitionedTable = catalog.createTable(partitionedTableId, partitionedIcebergSchema, partitionSpec,
+        java.util.Collections.singletonMap("format-version", "2"));
+
+      // Add data files for multiple partitions
+      addDataFilesForPartition("2025-04-01", java.util.Arrays.asList(
+        "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-01/file1.parquet",
+        "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-01/file2.parquet"
+      ));
+      addDataFilesForPartition("2025-04-02", java.util.Arrays.asList(
+        "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-02/file3.parquet"
+      ));
+      addDataFilesForPartition("2025-04-03", java.util.Arrays.asList(
+        "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-03/file4.parquet",
+        "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-03/file5.parquet",
+        "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-03/file6.parquet"
+      ));
+
+      // Create IcebergTable wrapper
+      icebergTable = new IcebergTable(
+        partitionedTableId,
+        catalog.newTableOps(partitionedTableId),
+        catalog.getConf().get(CatalogProperties.URI),
+        catalog.loadTable(partitionedTableId)
+      );
     }
 
-    public void setUpPartitionedTable() {
-      try {
-        // Ensure namespace exists
-        try {
-          catalog.createNamespace(Namespace.of(TEST_DB_NAME));
-        } catch (Exception e) {
-          // Namespace may already exist
-        }
-
-        // Create a partitioned table
-        partitionedTableId = TableIdentifier.of(TEST_DB_NAME, "partitioned_table");
-        partitionedTable = catalog.createTable(partitionedTableId, partitionedIcebergSchema, partitionSpec,
-          java.util.Collections.singletonMap("format-version", "2"));
-
-        // Add data files for multiple partitions
-        addDataFilesForPartition("2025-04-01", java.util.Arrays.asList(
-          "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-01/file1.parquet",
-          "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-01/file2.parquet"
-        ));
-        addDataFilesForPartition("2025-04-02", java.util.Arrays.asList(
-          "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-02/file3.parquet"
-        ));
-        addDataFilesForPartition("2025-04-03", java.util.Arrays.asList(
-          "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-03/file4.parquet",
-          "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-03/file5.parquet",
-          "/data/warehouse/test_db/partitioned_table/datepartition=2025-04-03/file6.parquet"
-        ));
-
-        // Create IcebergTable wrapper
-        icebergTable = new IcebergTable(
-          partitionedTableId,
-          catalog.newTableOps(partitionedTableId),
-          catalog.getConf().get(CatalogProperties.URI),
-          catalog.loadTable(partitionedTableId)
-        );
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to set up partitioned table", e);
-      }
-    }
-
-    @Override
     @AfterMethod
     public void cleanUpEachTest() {
-      // Override parent's cleanup logic
-      cleanUpPartitionedTable();
-    }
-
-    public void cleanUpPartitionedTable() {
+      // Clean up partitioned table
       if (partitionedTableId != null && catalog != null) {
         try {
           catalog.dropTable(partitionedTableId);
