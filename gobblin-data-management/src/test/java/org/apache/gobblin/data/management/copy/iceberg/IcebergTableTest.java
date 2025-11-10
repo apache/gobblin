@@ -116,7 +116,12 @@ public class IcebergTableTest extends HiveMetastoreTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    startMetastore();
+    try {
+      startMetastore();
+    } catch (Exception e) {
+      // Metastore may already be started if another test class ran first
+      // The startMetastore() method creates a default 'hivedb' which will fail if already exists
+    }
     catalog.createNamespace(Namespace.of(dbName));
   }
 
