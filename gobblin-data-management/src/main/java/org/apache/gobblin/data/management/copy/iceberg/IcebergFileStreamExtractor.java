@@ -32,6 +32,7 @@ import org.apache.hadoop.fs.Path;
 
 import com.google.common.base.Optional;
 import com.google.gson.Gson;
+import com.google.gson.JsonSyntaxException;
 import com.google.gson.reflect.TypeToken;
 
 import lombok.extern.slf4j.Slf4j;
@@ -59,16 +60,33 @@ public class IcebergFileStreamExtractor extends FileBasedExtractor<String, FileA
 
   private final Map<String, String> fileToPartitionPathMap;
   private final Gson gson = new Gson();
+  private final FileSystem targetFs;
+  private final CopyConfiguration copyConfiguration;
 
   public IcebergFileStreamExtractor(WorkUnitState workUnitState) throws IOException {
     super(workUnitState, new IcebergFileStreamHelper(workUnitState));
 
+    // Initialize target FileSystem and CopyConfiguration once
+    String writerFsUri = workUnitState.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
+    Configuration writerConf = WriterUtils.getFsConfiguration(workUnitState);
+    this.targetFs = FileSystem.get(URI.create(writerFsUri), writerConf);
+    this.copyConfiguration = CopyConfiguration.builder(this.targetFs, workUnitState.getProperties()).build();
+
     // Load partition path mapping from work unit (set by IcebergSource)
     String partitionPathJson = workUnitState.getProp(IcebergSource.ICEBERG_FILE_PARTITION_PATH);
     if (!StringUtils.isBlank(partitionPathJson)) {
-      this.fileToPartitionPathMap = gson.fromJson(partitionPathJson,
-          new TypeToken<Map<String, String>>() {}.getType());
-      log.info("Loaded partition path mapping for {} files", fileToPartitionPathMap.size());
+      try {
+        this.fileToPartitionPathMap = gson.fromJson(partitionPathJson,
+            new TypeToken<Map<String, String>>() {}.getType());
+        log.info("Loaded partition path mapping for {} files", fileToPartitionPathMap.size());
+      } catch (JsonSyntaxException e) {
+        String errorMsg = String.format("Failed to parse partition path mapping from work unit. "
+            + "Expected valid JSON map, got: '%s'. Error: %s",
+            partitionPathJson.length() > 200 ? partitionPathJson.substring(0, 200) + "..." : partitionPathJson,
+            e.getMessage());
+        log.error(errorMsg, e);
+        throw new IOException(errorMsg, e);
+      }
     } else {
       this.fileToPartitionPathMap = Collections.emptyMap();
       log.info("No partition path mapping found in work unit");
@@ -110,17 +128,10 @@ public class IcebergFileStreamExtractor extends FileBasedExtractor<String, FileA
       throw new IOException("Failed to open source stream for: " + filePath, e);
     }
 
-    // Build CopyableFile carrying origin + destination metadata
+    // Get source file metadata using fsHelper's FileSystem
     Path sourcePath = new Path(filePath);
-    Configuration hadoopConf = new Configuration();
-    FileSystem originFs = sourcePath.getFileSystem(hadoopConf);
+    FileSystem originFs = ((IcebergFileStreamHelper) this.getFsHelper()).getFileSystemForPath(sourcePath);
     FileStatus originStatus = originFs.getFileStatus(sourcePath);
-
-    // Destination FS and CopyConfiguration
-    String writerFsUri = this.workUnitState.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
-    Configuration writerConf = WriterUtils.getFsConfiguration(this.workUnitState);
-    FileSystem targetFs = FileSystem.get(URI.create(writerFsUri), writerConf);
-    CopyConfiguration copyConfiguration = CopyConfiguration.builder(targetFs, this.workUnitState.getProperties()).build();
 
     // Compute partition-aware destination path
     String finalDir = this.workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR);
@@ -130,7 +141,8 @@ public class IcebergFileStreamExtractor extends FileBasedExtractor<String, FileA
     }
     Path destinationPath = computeDestinationPath(filePath, finalDir, sourcePath.getName());
 
-    CopyableFile copyableFile = CopyableFile.fromOriginAndDestination(originFs, originStatus, destinationPath, copyConfiguration).build();
+    // Build CopyableFile using cached targetFs and copyConfiguration (initialized once in constructor)
+    CopyableFile copyableFile = CopyableFile.fromOriginAndDestination(originFs, originStatus, destinationPath, this.copyConfiguration).build();
 
     FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder()
         .file(copyableFile)

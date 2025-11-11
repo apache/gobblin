@@ -87,7 +87,7 @@ public class IcebergFileStreamExtractorTest {
   public void testGetSchema() throws Exception {
     String schema = extractor.getSchema();
     Assert.assertEquals(schema, "FileAwareInputStream",
-    "Schema should be FileAwareInputStream for file streaming mode");
+        "Schema should be FileAwareInputStream for file streaming mode");
   }
 
   @Test
@@ -117,14 +117,14 @@ public class IcebergFileStreamExtractorTest {
 
     // Verify origin path matches source
     Assert.assertTrue(fais.getFile().getOrigin().getPath().toString().contains(testFile.getName()),
-    "Origin path should contain test file name");
+        "Origin path should contain test file name");
 
     // Verify destination path is under final dir
     String finalDir = workUnitState.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR);
     Assert.assertTrue(fais.getFile().getDestination().toString().contains(finalDir),
-    "Destination should be under final dir");
+        "Destination should be under final dir");
     Assert.assertTrue(fais.getFile().getDestination().toString().contains(testFile.getName()),
-    "Destination should contain test file name");
+        "Destination should contain test file name");
   }
 
   @Test
@@ -138,8 +138,7 @@ public class IcebergFileStreamExtractorTest {
     Assert.assertTrue(bytesRead > 0, "Should be able to read bytes from stream");
 
     String content = new String(buffer, 0, bytesRead);
-    Assert.assertTrue(content.contains("Test data content"),
-    "Stream content should match file content");
+    Assert.assertTrue(content.contains("Test data content"), "Stream content should match file content");
   }
 
   @Test(expectedExceptions = IOException.class)
@@ -175,7 +174,7 @@ public class IcebergFileStreamExtractorTest {
     // Verify different files
     Assert.assertNotEquals(fais1.getFile().getOrigin().getPath().getName(),
     fais2.getFile().getOrigin().getPath().getName(),
-    "Should process different files");
+        "Should process different files");
   }
 
   @Test
@@ -185,9 +184,9 @@ public class IcebergFileStreamExtractorTest {
 
     // Verify origin file status is captured
     Assert.assertTrue(fais.getFile().getOrigin().isFile(),
-    "Origin should be a file, not directory");
+        "Origin should be a file, not directory");
     Assert.assertTrue(fais.getFile().getOrigin().getLen() > 0,
-    "Origin file size should be greater than 0");
+        "Origin file size should be greater than 0");
   }
 
   @Test
@@ -195,18 +194,16 @@ public class IcebergFileStreamExtractorTest {
     // Test that partition path is correctly included in destination
     // Set up partition path mapping in work unit
     String partitionPath = "datepartition=2025-04-01";
-    String fileToPartitionJson = String.format("{\"%s\":\"%s\"}",
-    testFile.getAbsolutePath(), partitionPath);
+    String fileToPartitionJson = String.format("{\"%s\":\"%s\"}", testFile.getAbsolutePath(), partitionPath);
 
     Properties propsWithPartition = new Properties();
     propsWithPartition.putAll(workUnitState.getProperties());
     propsWithPartition.setProperty(IcebergSource.ICEBERG_FILE_PARTITION_PATH, fileToPartitionJson);
 
     WorkUnit workUnit = WorkUnit.create(
-      new Extract(Extract.TableType.SNAPSHOT_ONLY, "test_namespace", "test_table")
-    );
+        new Extract(Extract.TableType.SNAPSHOT_ONLY, "test_namespace", "test_table"));
     WorkUnitState wuStateWithPartition = new WorkUnitState(workUnit,
-    new org.apache.gobblin.configuration.State(propsWithPartition));
+        new org.apache.gobblin.configuration.State(propsWithPartition));
 
     // Create new extractor with partition mapping
     IcebergFileStreamExtractor extractorWithPartition = new IcebergFileStreamExtractor(wuStateWithPartition);
@@ -218,15 +215,14 @@ public class IcebergFileStreamExtractorTest {
       // Verify destination includes partition path
       String destinationPath = fais.getFile().getDestination().toString();
       Assert.assertTrue(destinationPath.contains(partitionPath),
-      "Destination should contain partition path: " + partitionPath);
+          "Destination should contain partition path: " + partitionPath);
       Assert.assertTrue(destinationPath.contains(testFile.getName()),
-      "Destination should contain file name");
+          "Destination should contain file name");
 
       // Verify path structure: <finalDir>/<partitionPath>/<filename>
-      String finalDir = wuStateWithPartition.getProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR);
       String expectedPathSubstring = partitionPath + "/" + testFile.getName();
       Assert.assertTrue(destinationPath.contains(expectedPathSubstring),
-      "Destination should have structure: " + expectedPathSubstring);
+          "Destination should have structure: " + expectedPathSubstring);
     } finally {
       extractorWithPartition.close();
     }
@@ -244,18 +240,17 @@ public class IcebergFileStreamExtractorTest {
     String partition1 = "datepartition=2025-04-01";
     String partition2 = "datepartition=2025-04-02";
     String fileToPartitionJson = String.format("{\"%s\":\"%s\", \"%s\":\"%s\"}",
-    testFile.getAbsolutePath(), partition1,
-    testFile2.getAbsolutePath(), partition2);
+        testFile.getAbsolutePath(), partition1,
+        testFile2.getAbsolutePath(), partition2);
 
     Properties propsWithPartitions = new Properties();
     propsWithPartitions.putAll(workUnitState.getProperties());
     propsWithPartitions.setProperty(IcebergSource.ICEBERG_FILE_PARTITION_PATH, fileToPartitionJson);
 
     WorkUnit workUnit = WorkUnit.create(
-      new Extract(Extract.TableType.SNAPSHOT_ONLY, "test_namespace", "test_table")
-    );
+        new Extract(Extract.TableType.SNAPSHOT_ONLY, "test_namespace", "test_table"));
     WorkUnitState wuStateWithPartitions = new WorkUnitState(workUnit,
-    new org.apache.gobblin.configuration.State(propsWithPartitions));
+        new org.apache.gobblin.configuration.State(propsWithPartitions));
 
     IcebergFileStreamExtractor extractorWithPartitions = new IcebergFileStreamExtractor(wuStateWithPartitions);
 
@@ -274,7 +269,7 @@ public class IcebergFileStreamExtractorTest {
       Iterator<FileAwareInputStream> iterator2 = extractorWithPartitions.downloadFile(testFile2.getAbsolutePath());
       FileAwareInputStream fais2 = iterator2.next();
       Assert.assertTrue(fais2.getFile().getDestination().toString().contains(partition2),
-      "Second file should map to partition2");
+          "Second file should map to partition2");
     } finally {
       extractorWithPartitions.close();
     }
@@ -293,7 +288,41 @@ public class IcebergFileStreamExtractorTest {
     // Should be: <finalDir>/<filename> (no partition subdirectory)
     String expectedPath = finalDir + "/" + testFile.getName();
     Assert.assertEquals(destinationPath, expectedPath,
-    "Without partition mapping, destination should be directly under finalDir");
+        "Without partition mapping, destination should be directly under finalDir");
+  }
+
+  @Test(expectedExceptions = IOException.class)
+  public void testMalformedPartitionJsonThrowsException() throws Exception {
+    // Test that malformed JSON in partition path mapping throws a clear exception
+    Properties propsWithMalformedJson = new Properties();
+    propsWithMalformedJson.putAll(workUnitState.getProperties());
+    propsWithMalformedJson.setProperty(IcebergSource.ICEBERG_FILE_PARTITION_PATH, "{invalid json missing quote");
+
+    WorkUnit workUnit = WorkUnit.create(
+        new Extract(Extract.TableType.SNAPSHOT_ONLY, "test_namespace", "test_table")
+    );
+    WorkUnitState wuStateWithMalformedJson = new WorkUnitState(workUnit,
+        new org.apache.gobblin.configuration.State(propsWithMalformedJson));
+
+    // Should throw IOException wrapping JsonSyntaxException with clear error message
+    IcebergFileStreamExtractor testExtractor = null;
+    try {
+      testExtractor = new IcebergFileStreamExtractor(wuStateWithMalformedJson);
+      Assert.fail("Should throw IOException for malformed partition JSON");
+    } catch (IOException e) {
+      // Verify error message is informative
+      Assert.assertTrue(e.getMessage().contains("Failed to parse partition path mapping"),
+          "Error message should indicate JSON parsing failure");
+      Assert.assertTrue(e.getMessage().contains("invalid json missing quote"),
+          "Error message should include the malformed JSON snippet");
+      Assert.assertTrue(e.getCause() instanceof com.google.gson.JsonSyntaxException,
+          "Root cause should be JsonSyntaxException");
+      throw e; // Re-throw for @Test(expectedExceptions)
+    } finally {
+      if (testExtractor != null) {
+        testExtractor.close();
+      }
+    }
   }
 
   private void deleteDirectory(File directory) {
