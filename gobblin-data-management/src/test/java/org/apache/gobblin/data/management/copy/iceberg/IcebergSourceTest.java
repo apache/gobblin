@@ -172,6 +172,8 @@ public class IcebergSourceTest {
     State jobState = new State(properties);
     WorkUnitState workUnitState = new WorkUnitState(dummyWu, jobState);
     workUnitState.setProp(IcebergSource.ICEBERG_RECORD_PROCESSING_ENABLED, "false");
+    // IcebergFileStreamExtractor requires data.publisher.final.dir for CopyConfiguration
+    workUnitState.setProp(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/tmp/test-destination");
 
     Extractor<String, FileAwareInputStream> extractor = icebergSource.getExtractor(workUnitState);
     // Verify correct extractor type

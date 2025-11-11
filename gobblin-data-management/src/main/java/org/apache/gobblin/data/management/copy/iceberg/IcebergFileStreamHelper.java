@@ -113,7 +113,18 @@ public class IcebergFileStreamHelper implements TimestampAwareFileBasedHelper {
     }
   }
 
-  private FileSystem getFileSystemForPath(Path path) throws IOException {
+  /**
+   * Get FileSystem for a given path, reusing the default FileSystem when possible.
+   * 
+   * <p>This method avoids creating unnecessary FileSystem instances by reusing the
+   * default FileSystem for paths with the same scheme. Only creates a new FileSystem
+   * if the path uses a different scheme (e.g., reading from HDFS while default is local).
+   * 
+   * @param path the path to get FileSystem for
+   * @return FileSystem instance (either the default or a new one for cross-scheme access)
+   * @throws IOException if FileSystem cannot be created
+   */
+  public FileSystem getFileSystemForPath(Path path) throws IOException {
     // If path has a different scheme than the default FileSystem, get scheme-specific FS
     if (path.toUri().getScheme() != null &&
       !path.toUri().getScheme().equals(fileSystem.getUri().getScheme())) {
