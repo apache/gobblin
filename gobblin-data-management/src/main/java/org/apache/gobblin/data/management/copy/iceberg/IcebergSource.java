@@ -56,6 +56,9 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
 
+import static org.apache.gobblin.data.management.copy.CopySource.SERIALIZED_COPYABLE_DATASET;
+
+
 /**
  * Unified Iceberg source that supports partition-based data copying from Iceberg tables.
  *
@@ -262,7 +265,7 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
     }
 
     String datePartitionColumn = state.getProp(ICEBERG_PARTITION_COLUMN, DEFAULT_DATE_PARTITION_COLUMN);
-        
+
     String dateValue = state.getProp(ICEBERG_FILTER_DATE);
     Preconditions.checkArgument(!StringUtils.isBlank(dateValue),
       "iceberg.filter.date is required when iceberg.filter.enabled=true");
@@ -281,13 +284,18 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
 
     if (lookbackDays >= 1) {
       log.info("Applying lookback period of {} days for date partition column '{}': {}", lookbackDays, datePartitionColumn, dateValue);
-      
+
       // Check if hourly partitioning is enabled
       boolean isHourlyPartition = state.getPropAsBoolean(ICEBERG_HOURLY_PARTITION_ENABLED, DEFAULT_HOURLY_PARTITION_ENABLED);
-      
+
       // Parse the date in yyyy-MM-dd format
       LocalDate start;
       try {
+        // TODO (OH-Azure): data parsing fails if dateValue is like '2025-09-08-00'
+        if (isHourlyPartition) {
+          dateValue = dateValue.replace(HOURLY_PARTITION_SUFFIX, "");
+          log.info("Updated date value to {} for hourly partition", dateValue);
+        }
         start = LocalDate.parse(dateValue);
       } catch (java.time.format.DateTimeParseException e) {
         String errorMsg = String.format(
@@ -296,7 +304,7 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
         log.error(errorMsg);
         throw new IllegalArgumentException(errorMsg, e);
       }
-      
+
       for (int i = 0; i < lookbackDays; i++) {
         String dateOnly = start.minusDays(i).toString();
         // Append hour suffix if hourly partitioning is enabled
@@ -353,7 +361,9 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
     String tableName = table.getTableId().name();
     Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, nameSpace, tableName);
 
-    int filesPerWorkUnit = state.getPropAsInt(ICEBERG_FILES_PER_WORKUNIT, DEFAULT_FILES_PER_WORKUNIT);
+    // TODO (OH-Azure): For filesPerWorkUnit > 1, we get this error if we don't use closer in IcebergFileStreamExtractor
+    //  FileAwareInputStreamDataWriter can only process one file and cannot be reused
+    int filesPerWorkUnit = 1;
     List<List<IcebergTable.FilePathWithPartition>> groups = Lists.partition(filesWithPartitions, Math.max(1, filesPerWorkUnit));
     log.info("Grouping {} files into {} work units ({} files per work unit)",
       filesWithPartitions.size(), groups.size(), filesPerWorkUnit);
@@ -376,8 +386,12 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
         // Accumulate file sizes for work unit weight
         totalSize += fileWithPartition.getFileSize();
       }
+      // TODO (OH-Azure): This property is required during commit step
+      workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, "datasetid");
 
       workUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, String.join(",", filePaths));
+      // TODO (OH-Azure): This property is required for process work unit
+      workUnit.setProp(SERIALIZED_COPYABLE_DATASET, "{}");
 
       // Store partition path mapping as JSON for extractor to use
       workUnit.setProp(ICEBERG_FILE_PARTITION_PATH, new com.google.gson.Gson().toJson(fileToPartitionPath));

@@ -97,6 +97,9 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     try (Closer closer = Closer.create()) {
       final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
           ActivityType.GENERATE_WORKUNITS.buildActivityOptions(temporalJobProps, true));
+      // TODO (OH-Azure): for multi work units, flows are failing frequently
+      //  Either disable cache or use 1 file = 1 work unit
+      jobProps.setProperty("fs.hdfs.impl.disable.cache", "true");
       GenerateWorkUnitsResult generateWorkUnitResult = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       optGenerateWorkUnitResult = Optional.of(generateWorkUnitResult);
       WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();

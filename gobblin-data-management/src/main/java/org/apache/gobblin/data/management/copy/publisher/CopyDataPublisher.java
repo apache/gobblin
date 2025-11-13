@@ -157,8 +157,8 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
       try {
         this.publishFileSet(datasetAndPartition, datasets.get(datasetAndPartition));
       } catch (Throwable e) {
+        log.error("Failed to publish ", e);
         CopyEventSubmitterHelper.submitFailedDatasetPublish(this.eventSubmitter, datasetAndPartition);
-        log.error("Failed to publish " + datasetAndPartition.getDataset().getDatasetURN(), e);
         allDatasetsPublished = false;
       }
     }
@@ -383,7 +383,9 @@ public class CopyDataPublisher extends DataPublisher implements UnpublishedHandl
             fileSetRoot = Optional.of(copyableFile.getDatasetOutputPath());
           }
           if (lineageInfo.isPresent()) {
-            lineageInfo.get().putDestination(copyableFile.getDestinationData(), 0, wus);
+            // TODO (OH-Azure): Getting NPE because of datasetUrn not set perhaps
+            log.warn("Lineage publishing not supported for OH-Azure copy");
+//            lineageInfo.get().putDestination(copyableFile.getDestinationData(), 0, wus);
           }
         }
         if (datasetOriginTimestamp > copyableFile.getOriginTimestamp()) {
