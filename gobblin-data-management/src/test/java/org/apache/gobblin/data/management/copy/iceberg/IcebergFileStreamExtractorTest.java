@@ -325,6 +325,43 @@ public class IcebergFileStreamExtractorTest {
     }
   }
 
+  @Test
+  public void testCopyableFileHasRequiredFieldsPopulated() throws Exception {
+    // Test that CopyableFile has all required fields populated for publish phase
+    Iterator<FileAwareInputStream> iterator = extractor.downloadFile(testFile.getAbsolutePath());
+    FileAwareInputStream fais = iterator.next();
+
+    org.apache.gobblin.data.management.copy.CopyableFile copyableFile = fais.getFile();
+
+    // Verify destinationData is populated
+    org.apache.gobblin.dataset.Descriptor destinationData =
+        copyableFile.getDestinationData();
+    Assert.assertNotNull(destinationData,
+        "CopyableFile destinationData should be populated");
+
+    // Verify datasetOutputPath is populated
+    String datasetOutputPath = copyableFile.getDatasetOutputPath();
+    Assert.assertNotNull(datasetOutputPath,
+        "CopyableFile datasetOutputPath should be populated");
+    Assert.assertFalse(datasetOutputPath.isEmpty(),
+        "CopyableFile datasetOutputPath should not be empty");
+
+    // Verify ancestorsOwnerAndPermission is populated
+    java.util.List<org.apache.gobblin.util.filesystem.OwnerAndPermission> ancestorsOwnerAndPermission =
+        copyableFile.getAncestorsOwnerAndPermission();
+    Assert.assertNotNull(ancestorsOwnerAndPermission,
+        "CopyableFile ancestorsOwnerAndPermission should be populated");
+    // ancestorsOwnerAndPermission may be empty list if no ancestors need permission preservation,
+    // but it should not be null
+
+    // Additional verification: ensure origin and destination paths are set
+    // This is important for the publish phase
+    Assert.assertNotNull(copyableFile.getOrigin(),
+        "CopyableFile should have origin FileStatus");
+    Assert.assertNotNull(copyableFile.getDestination(),
+        "CopyableFile should have destination Path");
+  }
+
   private void deleteDirectory(File directory) {
     File[] files = directory.listFiles();
     if (files != null) {

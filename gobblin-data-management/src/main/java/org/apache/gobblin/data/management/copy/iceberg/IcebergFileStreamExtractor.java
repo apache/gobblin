@@ -124,10 +124,9 @@ public class IcebergFileStreamExtractor extends FileBasedExtractor<String, FileA
   public Iterator<FileAwareInputStream> downloadFile(String filePath) throws IOException {
     log.info("Preparing FileAwareInputStream for file: {}", filePath);
 
-    // Open source stream using fsHelper - don't register with Closer as the writer will manage the stream
+    // Open source stream using fsHelper
     final InputStream inputStream;
     try {
-      // TODO (OH-Azure): This is to fix stream closed exception during process work unit step
       inputStream = this.getFsHelper().getFileStream(filePath);
     } catch (FileBasedHelperException e) {
       throw new IOException("Failed to open source stream for: " + filePath, e);
@@ -151,11 +150,10 @@ public class IcebergFileStreamExtractor extends FileBasedExtractor<String, FileA
             sourcePath.getParent(), PathUtils.getRootPathChild(sourcePath), copyConfiguration);
     // Build CopyableFile using cached targetFs and copyConfiguration (initialized once in constructor)
     CopyableFile copyableFile = CopyableFile.fromOriginAndDestination(originFs, originStatus, destinationPath, this.copyConfiguration)
-        // TODO (OH-Azure): Some properties are required for CopyDataPublisher during commit step
-        .fileSet("datasetid")
         .datasetOutputPath(targetFs.getUri().getPath())
         .ancestorsOwnerAndPermission(ancestorOwnerAndPermissionList)
         .build();
+    copyableFile.setFsDatasets(originFs, targetFs);
 
     FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder()
         .file(copyableFile)

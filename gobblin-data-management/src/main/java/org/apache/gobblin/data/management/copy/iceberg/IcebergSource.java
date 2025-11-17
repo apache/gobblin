@@ -24,6 +24,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 
+import org.apache.hadoop.fs.FileSystem;
+import org.apache.hadoop.fs.Path;
+
 import com.google.common.base.Optional;
 import org.apache.commons.lang.StringUtils;
 import org.apache.hadoop.conf.Configuration;
@@ -56,8 +59,12 @@ import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.iceberg.expressions.Expression;
 import org.apache.iceberg.expressions.Expressions;
 
+import static org.apache.gobblin.configuration.ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR;
 import static org.apache.gobblin.data.management.copy.CopySource.SERIALIZED_COPYABLE_DATASET;
 
+import org.apache.gobblin.data.management.copy.entities.PrePublishStep;
+import org.apache.gobblin.util.commit.DeleteFileCommitStep;
+import org.apache.gobblin.commit.CommitStep;
 
 /**
  * Unified Iceberg source that supports partition-based data copying from Iceberg tables.
@@ -110,7 +117,6 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
   public static final String ICEBERG_RECORD_PROCESSING_ENABLED = "iceberg.record.processing.enabled";
   public static final boolean DEFAULT_RECORD_PROCESSING_ENABLED = false;
   public static final String ICEBERG_FILES_PER_WORKUNIT = "iceberg.files.per.workunit";
-  public static final int DEFAULT_FILES_PER_WORKUNIT = 10;
   public static final String ICEBERG_FILTER_ENABLED = "iceberg.filter.enabled";
   public static final String ICEBERG_FILTER_DATE = "iceberg.filter.date"; // Date value (e.g., 2025-04-01 or CURRENT_DATE)
   public static final String ICEBERG_LOOKBACK_DAYS = "iceberg.lookback.days";
@@ -125,6 +131,10 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
   public static final boolean DEFAULT_HOURLY_PARTITION_ENABLED = true;
   private static final String HOURLY_PARTITION_SUFFIX = "-00";
   private static final String WORK_UNIT_WEIGHT = "iceberg.workUnitWeight";
+
+  // Delete configuration - similar to RecursiveCopyableDataset
+  public static final String DELETE_FILES_NOT_IN_SOURCE = "iceberg.copy.delete";
+  public static final boolean DEFAULT_DELETE_FILES_NOT_IN_SOURCE = true;
 
   private Optional<LineageInfo> lineageInfo;
   private final WorkUnitWeighter weighter = new FieldWeighter(WORK_UNIT_WEIGHT);
@@ -291,11 +301,6 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
       // Parse the date in yyyy-MM-dd format
       LocalDate start;
       try {
-        // TODO (OH-Azure): data parsing fails if dateValue is like '2025-09-08-00'
-        if (isHourlyPartition) {
-          dateValue = dateValue.replace(HOURLY_PARTITION_SUFFIX, "");
-          log.info("Updated date value to {} for hourly partition", dateValue);
-        }
         start = LocalDate.parse(dateValue);
       } catch (java.time.format.DateTimeParseException e) {
         String errorMsg = String.format(
@@ -348,7 +353,8 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
    * @param table the Iceberg table being copied
    * @return list of work units ready for parallel execution
    */
-  private List<WorkUnit> createWorkUnitsFromFiles(List<IcebergTable.FilePathWithPartition> filesWithPartitions, SourceState state, IcebergTable table) {
+  private List<WorkUnit> createWorkUnitsFromFiles(
+      List<IcebergTable.FilePathWithPartition> filesWithPartitions, SourceState state, IcebergTable table) throws IOException {
     List<WorkUnit> workUnits = Lists.newArrayList();
 
     if (filesWithPartitions.isEmpty()) {
@@ -361,46 +367,32 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
     String tableName = table.getTableId().name();
     Extract extract = new Extract(Extract.TableType.SNAPSHOT_ONLY, nameSpace, tableName);
 
-    // TODO (OH-Azure): For filesPerWorkUnit > 1, we get this error if we don't use closer in IcebergFileStreamExtractor
-    //  FileAwareInputStreamDataWriter can only process one file and cannot be reused
-    int filesPerWorkUnit = 1;
-    List<List<IcebergTable.FilePathWithPartition>> groups = Lists.partition(filesWithPartitions, Math.max(1, filesPerWorkUnit));
-    log.info("Grouping {} files into {} work units ({} files per work unit)",
-      filesWithPartitions.size(), groups.size(), filesPerWorkUnit);
+    String datasetUrn = table.getTableId().toString();
+    long totalSize = 0L;
 
-    for (int i = 0; i < groups.size(); i++) {
-      List<IcebergTable.FilePathWithPartition> group = groups.get(i);
+    for (IcebergTable.FilePathWithPartition fileWithPartition : filesWithPartitions) {
       WorkUnit workUnit = new WorkUnit(extract);
+      String filePath = fileWithPartition.getFilePath();
+      totalSize += fileWithPartition.getFileSize();
 
-      // Store data file paths and their partition metadata separately
-      // Note: Only data files (parquet/orc/avro) are included, no Iceberg metadata files
-      List<String> filePaths = Lists.newArrayList();
+      // Store partition path for each file
       Map<String, String> fileToPartitionPath = Maps.newHashMap();
-      long totalSize = 0L;
+      fileToPartitionPath.put(filePath, fileWithPartition.getPartitionPath());
+      workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
 
-      for (IcebergTable.FilePathWithPartition fileWithPartition : group) {
-        String filePath = fileWithPartition.getFilePath();
-        filePaths.add(filePath);
-        // Store partition path for each file
-        fileToPartitionPath.put(filePath, fileWithPartition.getPartitionPath());
-        // Accumulate file sizes for work unit weight
-        totalSize += fileWithPartition.getFileSize();
-      }
-      // TODO (OH-Azure): This property is required during commit step
-      workUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, "datasetid");
-
-      workUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, String.join(",", filePaths));
-      // TODO (OH-Azure): This property is required for process work unit
+      workUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, filePath);
+      // Serialized copyable dataset / file is not required during work unit generation step.
+      // Copyable file is created during process work unit step (IcebergFileStreamExtractor)
       workUnit.setProp(SERIALIZED_COPYABLE_DATASET, "{}");
 
       // Store partition path mapping as JSON for extractor to use
       workUnit.setProp(ICEBERG_FILE_PARTITION_PATH, new com.google.gson.Gson().toJson(fileToPartitionPath));
 
       // Set work unit size for dynamic scaling (instead of just file count)
-      workUnit.setProp(ServiceConfigKeys.WORK_UNIT_SIZE, totalSize);
+      workUnit.setProp(ServiceConfigKeys.WORK_UNIT_SIZE, fileWithPartition.getFileSize());
 
       // Set work unit weight for bin packing
-      setWorkUnitWeight(workUnit, totalSize);
+      setWorkUnitWeight(workUnit, fileWithPartition.getFileSize());
 
       // Carry partition info to extractor for destination path mapping
       if (state.contains(ICEBERG_PARTITION_KEY)) {
@@ -413,11 +405,138 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
       // Add lineage information for data governance and tracking
       addLineageSourceInfo(state, workUnit, table);
       workUnits.add(workUnit);
-
-      log.info("Created work unit {} with {} files, total size: {} bytes", i, group.size(), totalSize);
     }
+    log.info("Created {} work unit(s), total size: {} bytes", workUnits.size(), totalSize);
+
+    // Add delete step to overwrite partitions
+    addDeleteStepIfNeeded(state, workUnits, extract, datasetUrn);
 
     return workUnits;
+  }
+
+  /**
+   * Creates a PrePublishStep with DeleteFileCommitStep to delete ALL files in impacted directories.
+   * This enables complete partition rewrites - all existing files in target partitions are deleted
+   * before new files are copied from source.
+   *
+   * Execution Order:
+   * 1. Source Phase (this method): Identifies directories to delete and creates PrePublishStep
+   * 2. Task Execution: Files are copied from source to staging directory
+   * 3. Publisher Phase - PrePublishStep: Deletes ALL files from target directories (BEFORE rename)
+   * 4. Publisher Phase - Rename: Moves files from staging to final target location
+   *
+   * Behavior:
+   * 1. If filter is enabled (iceberg.filter.enabled=true): Deletes ALL files in specific partition
+   *    directories based on source partition values. For example, if source has partitions 2025-10-11,
+   *    2025-10-10, 2025-10-09, it will delete ALL files in those partition directories in target.
+   * 2. If filter is disabled (iceberg.filter.enabled=false): Deletes ALL files in the entire root directory.
+   * 3. No file comparison - this is a complete rewrite of the impacted directories.
+   */
+  private void addDeleteStepIfNeeded(SourceState state, List<WorkUnit> workUnits, Extract extract, String datasetUrn) throws IOException {
+    boolean deleteEnabled = state.getPropAsBoolean(DELETE_FILES_NOT_IN_SOURCE, DEFAULT_DELETE_FILES_NOT_IN_SOURCE);
+    if (!deleteEnabled || workUnits.isEmpty()) {
+      log.info("Delete not enabled or no work units created, skipping delete step");
+      return;
+    }
+
+    // Get target filesystem and directory
+    String targetRootDir = state.getProp(DATA_PUBLISHER_FINAL_DIR);
+    if (targetRootDir == null) {
+      log.warn("DATA_PUBLISHER_FINAL_DIR not configured, cannot determine directories to delete");
+      return;
+    }
+
+    try {
+      FileSystem targetFs = HadoopUtils.getWriterFileSystem(state, 1, 0);
+      Path targetRootPath = new Path(targetRootDir);
+
+      if (!targetFs.exists(targetRootPath)) {
+        log.info("Target directory {} does not exist, no directories to delete", targetRootPath);
+        return;
+      }
+
+      // Determine which directories to delete based on filter configuration
+      List<Path> directoriesToDelete = Lists.newArrayList();
+      boolean filterEnabled = state.getPropAsBoolean(ICEBERG_FILTER_ENABLED, true);
+
+      if (!filterEnabled) {
+        // No filter: Delete entire root directory to rewrite all data
+        log.info("Filter disabled - will delete entire root directory: {}", targetRootPath);
+        directoriesToDelete.add(targetRootPath);
+      } else {
+        // Filter enabled: Delete only specific partition directories
+        String partitionColumn = state.getProp(ICEBERG_PARTITION_KEY);
+        String partitionValuesStr = state.getProp(ICEBERG_PARTITION_VALUES);
+
+        if (partitionColumn == null || partitionValuesStr == null) {
+          log.warn("Partition key or values not found in state, cannot determine partition directories to delete");
+          return;
+        }
+
+        // Parse partition values (comma-separated list from lookback calculation)
+        // These values already include hourly suffix if applicable (e.g., "2025-10-11-00,2025-10-10-00,2025-10-09-00")
+        String[] values = partitionValuesStr.split(",");
+        log.info("Filter enabled - will delete {} partition directories for {}={}",
+            values.length, partitionColumn, partitionValuesStr);
+
+        // Collect partition directories to delete
+        for (String value : values) {
+          String trimmedValue = value.trim();
+          // Construct partition directory path: targetRoot/partitionColumn=value/
+          // Example: /root/datepartition=2025-10-11-00/
+          Path partitionDir = new Path(targetRootPath, partitionColumn + "=" + trimmedValue);
+
+          if (targetFs.exists(partitionDir)) {
+            log.info("Found partition directory to delete: {}", partitionDir);
+            directoriesToDelete.add(partitionDir);
+          } else {
+            log.info("Partition directory does not exist in target: {}", partitionDir);
+          }
+        }
+      }
+
+      if (directoriesToDelete.isEmpty()) {
+        log.info("No directories to delete in target directory {}", targetRootPath);
+        return;
+      }
+
+      // Delete directories (and all their contents) for complete overwrite
+      // DeleteFileCommitStep will recursively delete all files within these directories
+      log.info("Will delete {} for complete overwrite", directoriesToDelete.size());
+
+      // Log directories to be deleted
+      for (Path dir : directoriesToDelete) {
+        log.info("Will delete directory: {}", dir);
+      }
+
+      // Create DeleteFileCommitStep to delete directories recursively
+      // Note: deleteEmptyDirs is not needed since we're deleting entire directories
+      CommitStep deleteStep = DeleteFileCommitStep.fromPaths(targetFs, directoriesToDelete, state.getProperties());
+
+      // Create a dedicated work unit for the delete step
+      WorkUnit deleteWorkUnit = new WorkUnit(extract);
+      deleteWorkUnit.addAll(state);
+
+      // Set properties so extractor knows this is a delete-only work unit (no files to copy)
+      deleteWorkUnit.setProp(ConfigurationKeys.SOURCE_FILEBASED_FILES_TO_PULL, "");
+      deleteWorkUnit.setProp(SERIALIZED_COPYABLE_DATASET, "{}");
+      deleteWorkUnit.setProp(ConfigurationKeys.DATASET_URN_KEY, datasetUrn);
+      deleteWorkUnit.setProp(ICEBERG_FILE_PARTITION_PATH, "{}");
+      setWorkUnitWeight(deleteWorkUnit, 0);
+
+      // Use PrePublishStep to delete BEFORE copying new files
+      PrePublishStep prePublishStep = new PrePublishStep(datasetUrn, Maps.newHashMap(), deleteStep, 0);
+
+      // Serialize the PrePublishStep as a CopyEntity
+      CopySource.serializeCopyEntity(deleteWorkUnit, prePublishStep);
+      workUnits.add(deleteWorkUnit);
+
+      log.info("Added PrePublishStep with DeleteFileCommitStep to work units");
+
+    } catch (Exception e) {
+      log.error("Failed to create delete step", e);
+      throw new IOException("Failed to create delete step", e);
+    }
   }
 
   /**
