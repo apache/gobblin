@@ -19,22 +19,50 @@ package org.apache.gobblin.temporal.workflows.metrics;
 
 import java.util.Map;
 
-import io.temporal.workflow.Workflow;
+import java.util.Optional;
+import lombok.extern.slf4j.Slf4j;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 
-import org.slf4j.Logger;
-
+import org.apache.gobblin.cluster.ContainerMetrics;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.GobblinEventBuilder;
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.metrics.kafka.KafkaAvroEventKeyValueReporter;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
+import org.apache.gobblin.temporal.cluster.WorkerConfig;
+import org.apache.gobblin.util.ConfigUtils;
 
 
+@Slf4j
 public class SubmitGTEActivityImpl implements SubmitGTEActivity {
-    private static Logger log = Workflow.getLogger(SubmitGTEActivityImpl.class);
 
     @Override
     public void submitGTE(GobblinEventBuilder eventBuilder, EventSubmitterContext eventSubmitterContext) {
-        log.info("submitting GTE - {}", summarizeEventMetadataForLogging(eventBuilder));
+        log.info("Submitting GTE - {}", summarizeEventMetadataForLogging(eventBuilder));
         eventSubmitterContext.create().submit(eventBuilder);
+        Config config = WorkerConfig.of(this).orElse(ConfigFactory.load());
+        if (config.hasPath(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINER_METRICS_TASK_RUNNER_ID) &&
+            config.hasPath(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINER_METRICS_APPLICATION_NAME)) {
+            String containerMetricsApplicationName = config.getString(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINER_METRICS_APPLICATION_NAME);
+            String containerMetricsTaskRunnerId = config.getString(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINER_METRICS_TASK_RUNNER_ID);
+            ContainerMetrics containerMetrics = ContainerMetrics.get(ConfigUtils.configToState(config), containerMetricsApplicationName, containerMetricsTaskRunnerId);
+            log.info("Fetched container metrics instance {} for taskRunnerId: {} and applicationName: {}", containerMetrics.toString(),
+                containerMetricsTaskRunnerId, containerMetricsApplicationName);
+            Optional<KafkaAvroEventKeyValueReporter> kafkaReporterOptional = containerMetrics.getScheduledReporter(KafkaAvroEventKeyValueReporter.class);
+            if (kafkaReporterOptional.isPresent()) {
+                log.info("Submitting GTE in synchronous manner to Kafka reporter");
+                kafkaReporterOptional.get().reportSynchronously();
+                log.info("Submitted GTE to Kafka reporter");
+            } else {
+                log.error("No KafkaAvroEventKeyValueReporter found in container metrics for taskRunnerId: {} and applicationName: {}",
+                    containerMetricsTaskRunnerId, containerMetricsApplicationName);
+            }
+        } else {
+            log.error("Both {} and {} must be set to fetch container metrics instance for synchronous GTE submission",
+                GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINER_METRICS_TASK_RUNNER_ID,
+                GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINER_METRICS_APPLICATION_NAME);
+        }
     }
 
     private static String summarizeEventMetadataForLogging(GobblinEventBuilder eventBuilder) {

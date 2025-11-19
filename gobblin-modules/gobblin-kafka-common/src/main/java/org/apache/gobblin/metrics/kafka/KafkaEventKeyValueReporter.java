@@ -54,6 +54,27 @@ public class KafkaEventKeyValueReporter extends KafkaEventReporter {
 
   @Override
   public void reportEventQueue(Queue<GobblinTrackingEvent> queue) {
+    List<Pair<String, byte[]>> events = getEventsFromQueue(queue);
+    if (!events.isEmpty()) {
+      log.info("Pushing {} Gobblin Tracking Events to Kafka", events.size());
+      this.kafkaPusher.pushMessages(events);
+    } else {
+      log.debug("No GTE to push.");
+    }
+  }
+
+  @Override
+  public void reportEventQueueSynchronously(Queue<GobblinTrackingEvent> queue) {
+    List<Pair<String, byte[]>> events = getEventsFromQueue(queue);
+    if (!events.isEmpty()) {
+      log.info("Pushing {} Gobblin Tracking Events to Kafka", events.size());
+      this.kafkaPusher.pushMessagesSync(events);
+    } else {
+      log.debug("No GTE to push.");
+    }
+  }
+
+  private List<Pair<String, byte[]>> getEventsFromQueue(Queue<GobblinTrackingEvent> queue) {
     GobblinTrackingEvent nextEvent;
     List<Pair<String, byte[]>> events = Lists.newArrayList();
 
@@ -75,9 +96,7 @@ public class KafkaEventKeyValueReporter extends KafkaEventReporter {
       events.add(Pair.of(key, this.serializer.serializeRecord(nextEvent)));
     }
 
-    if (!events.isEmpty()) {
-      this.kafkaPusher.pushMessages(events);
-    }
+    return events;
   }
 
   private static class BuilderImpl extends Builder<BuilderImpl> {

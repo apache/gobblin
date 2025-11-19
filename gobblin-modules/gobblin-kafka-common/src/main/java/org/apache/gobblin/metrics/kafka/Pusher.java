@@ -30,4 +30,13 @@ public interface Pusher<M> extends Closeable {
    * @param messages List of byte array messages to push to Kakfa.
    */
   void pushMessages(List<M> messages);
+
+  /**
+   * Synchronous version of {@link #pushMessages(List)}.
+   * Default implementation just calls {@link #pushMessages(List)}.
+   * @param messages
+   */
+  default void pushMessagesSync(List<M> messages) {
+    pushMessages(messages);
+  }
 }
