@@ -163,6 +163,9 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
     reportEventQueue(this.reportingQueue);
   }
 
+  /**
+   * Report all {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s in the queue synchronously.
+   */
   public void reportSynchronously() {
     reportEventQueueSynchronously(this.reportingQueue);
   }
