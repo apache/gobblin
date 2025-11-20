@@ -55,11 +55,11 @@ public class SubmitGTEActivityImpl implements SubmitGTEActivity {
                 kafkaReporterOptional.get().reportSynchronously();
                 log.info("Submitted GTE to Kafka reporter");
             } else {
-                log.error("No KafkaAvroEventKeyValueReporter found in container metrics for taskRunnerId: {} and applicationName: {}",
+                log.warn("No KafkaAvroEventKeyValueReporter found in container metrics for taskRunnerId: {} and applicationName: {}",
                     containerMetricsTaskRunnerId, containerMetricsApplicationName);
             }
         } else {
-            log.error("Both {} and {} must be set to fetch container metrics instance for synchronous GTE submission",
+            log.warn("Both {} and {} should be set to fetch container metrics instance for synchronous GTE submission",
                 GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINER_METRICS_TASK_RUNNER_ID,
                 GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINER_METRICS_APPLICATION_NAME);
         }

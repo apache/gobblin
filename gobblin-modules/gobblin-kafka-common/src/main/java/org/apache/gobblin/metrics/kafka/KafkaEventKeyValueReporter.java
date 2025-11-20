@@ -54,21 +54,23 @@ public class KafkaEventKeyValueReporter extends KafkaEventReporter {
 
   @Override
   public void reportEventQueue(Queue<GobblinTrackingEvent> queue) {
-    List<Pair<String, byte[]>> events = getEventsFromQueue(queue);
-    if (!events.isEmpty()) {
-      log.info("Pushing {} Gobblin Tracking Events to Kafka", events.size());
-      this.kafkaPusher.pushMessages(events);
-    } else {
-      log.debug("No GTE to push.");
-    }
+    reportEventQueueInternal(queue, false);
   }
 
   @Override
   public void reportEventQueueSynchronously(Queue<GobblinTrackingEvent> queue) {
+    reportEventQueueInternal(queue, true);
+  }
+
+  private void reportEventQueueInternal(Queue<GobblinTrackingEvent> queue, boolean sync) {
     List<Pair<String, byte[]>> events = getEventsFromQueue(queue);
     if (!events.isEmpty()) {
       log.info("Pushing {} Gobblin Tracking Events to Kafka", events.size());
-      this.kafkaPusher.pushMessagesSync(events);
+      if (sync) {
+        this.kafkaPusher.pushMessagesSync(events);
+      } else {
+        this.kafkaPusher.pushMessages(events);
+      }
     } else {
       log.debug("No GTE to push.");
     }

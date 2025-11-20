@@ -27,14 +27,14 @@ import java.util.List;
 public interface Pusher<M> extends Closeable {
   /**
    * Push all byte array messages to the Kafka topic.
-   * @param messages List of byte array messages to push to Kakfa.
+   * @param messages List of byte array messages to push to Kafka.
    */
   void pushMessages(List<M> messages);
 
   /**
    * Synchronous version of {@link #pushMessages(List)}.
    * Default implementation just calls {@link #pushMessages(List)}.
-   * @param messages
+   * @param messages List of byte array messages to push to Kafka.
    */
   default void pushMessagesSync(List<M> messages) {
     pushMessages(messages);

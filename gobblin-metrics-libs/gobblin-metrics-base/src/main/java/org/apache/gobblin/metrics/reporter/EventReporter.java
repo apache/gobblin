@@ -179,7 +179,7 @@ public abstract class EventReporter extends ScheduledReporter implements Closeab
   /**
    * Emit all {@link org.apache.gobblin.metrics.GobblinTrackingEvent} in queue synchronously.
    * Default implementation just calls {@link #reportEventQueue(Queue)} for backward compatibility.
-   * @param queue
+   * @param queue {@link java.util.Queue} containing {@link org.apache.gobblin.metrics.GobblinTrackingEvent}s that should be emitted.
    */
   public void reportEventQueueSynchronously(Queue<GobblinTrackingEvent> queue) {
     reportEventQueue(queue);
