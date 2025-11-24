@@ -22,6 +22,7 @@ import java.io.InputStream;
 import java.net.URI;
 import java.util.Collections;
 import java.util.Iterator;
+import java.util.List;
 import java.util.Map;
 
 import org.apache.commons.lang3.StringUtils;
@@ -44,14 +45,17 @@ import org.apache.gobblin.data.management.copy.CopyableFile;
 import org.apache.gobblin.data.management.copy.FileAwareInputStream;
 import org.apache.gobblin.source.extractor.filebased.FileBasedExtractor;
 import org.apache.gobblin.source.extractor.filebased.FileBasedHelperException;
+import org.apache.gobblin.util.PathUtils;
 import org.apache.gobblin.util.WriterUtils;
+import org.apache.gobblin.util.filesystem.OwnerAndPermission;
+
 
 /**
  * Extractor for file streaming mode that creates FileAwareInputStream for each file.
- * 
+ *
  * This extractor is used when {@code iceberg.record.processing.enabled=false} to stream
  * Iceberg table files as binary data to destinations like Azure, HDFS
- * 
+ *
  * Each "record" is a {@link FileAwareInputStream} representing one file from
  * the Iceberg table. The downstream writer handles streaming the file content.
  */
@@ -123,7 +127,7 @@ public class IcebergFileStreamExtractor extends FileBasedExtractor<String, FileA
     // Open source stream using fsHelper
     final InputStream inputStream;
     try {
-      inputStream = this.getCloser().register(this.getFsHelper().getFileStream(filePath));
+      inputStream = this.getFsHelper().getFileStream(filePath);
     } catch (FileBasedHelperException e) {
       throw new IOException("Failed to open source stream for: " + filePath, e);
     }
@@ -141,8 +145,15 @@ public class IcebergFileStreamExtractor extends FileBasedExtractor<String, FileA
     }
     Path destinationPath = computeDestinationPath(filePath, finalDir, sourcePath.getName());
 
+    List<OwnerAndPermission> ancestorOwnerAndPermissionList =
+        CopyableFile.resolveReplicatedOwnerAndPermissionsRecursively(originFs,
+            sourcePath.getParent(), PathUtils.getRootPathChild(sourcePath), copyConfiguration);
     // Build CopyableFile using cached targetFs and copyConfiguration (initialized once in constructor)
-    CopyableFile copyableFile = CopyableFile.fromOriginAndDestination(originFs, originStatus, destinationPath, this.copyConfiguration).build();
+    CopyableFile copyableFile = CopyableFile.fromOriginAndDestination(originFs, originStatus, destinationPath, this.copyConfiguration)
+        .datasetOutputPath(targetFs.getUri().getPath())
+        .ancestorsOwnerAndPermission(ancestorOwnerAndPermissionList)
+        .build();
+    copyableFile.setFsDatasets(originFs, targetFs);
 
     FileAwareInputStream fileAwareInputStream = FileAwareInputStream.builder()
         .file(copyableFile)
