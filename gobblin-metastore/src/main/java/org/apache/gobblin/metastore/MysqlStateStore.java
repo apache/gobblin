@@ -85,6 +85,10 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
   private static final Logger LOG = LoggerFactory.getLogger(MysqlStateStore.class);
   private static final AtomicInteger POOL_NUM = new AtomicInteger(0);
 
+  // SSL mode configuration constants
+  private static final String SSL_MODE_PROPERTY = "sslMode";
+  private static final String SSL_MODE_VERIFY_IDENTITY = "VERIFY_IDENTITY";
+
   /** Specifies which 'Job State' query columns receive search evaluation (with SQL `LIKE` operator). */
   protected enum JobStateSearchColumns {
     NONE,
@@ -241,6 +245,12 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
         config.getString(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
     dataSource.setPassword(passwordManager.readPassword(
         config.getString(ConfigurationKeys.STATE_STORE_DB_PASSWORD_KEY)));
+
+    // Add SSL mode configuration if enabled
+    if (ConfigUtils.getBoolean(config, ConfigurationKeys.STATE_STORE_DB_SSL_MODE_ENABLED, false)) {
+      dataSource.addDataSourceProperty(SSL_MODE_PROPERTY, SSL_MODE_VERIFY_IDENTITY);
+      LOG.info("SSL mode enabled with VERIFY_IDENTITY for data source");
+    }
 
     return dataSource;
   }
