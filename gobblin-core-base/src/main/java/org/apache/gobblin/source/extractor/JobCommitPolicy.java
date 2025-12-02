@@ -19,10 +19,12 @@ package org.apache.gobblin.source.extractor;
 
 import java.util.Properties;
 
+import com.typesafe.config.Config;
 import lombok.Getter;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
+import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -106,5 +108,17 @@ public enum JobCommitPolicy {
    */
   public static JobCommitPolicy getCommitPolicy(State state) {
     return forName(state.getProp(ConfigurationKeys.JOB_COMMIT_POLICY_KEY, ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
+  }
+
+  /**
+   * Get a {@link JobCommitPolicy} through its name specified in configuration property
+   * {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY}.
+   *
+   * @param config a {@link Config} instance carrying job configuration properties
+   * @return a {@link JobCommitPolicy} with the given name specified in {@link ConfigurationKeys#JOB_COMMIT_POLICY_KEY}
+   */
+  public static JobCommitPolicy getCommitPolicy(Config config) {
+    return forName(ConfigUtils.getString(config, ConfigurationKeys.JOB_COMMIT_POLICY_KEY,
+        ConfigurationKeys.DEFAULT_JOB_COMMIT_POLICY));
   }
 }

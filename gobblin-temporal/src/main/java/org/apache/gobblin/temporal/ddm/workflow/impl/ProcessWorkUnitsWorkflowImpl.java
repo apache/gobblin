@@ -30,6 +30,7 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
@@ -79,7 +80,10 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
       log.error("ProcessWorkUnits failure - attempting partial commit before re-throwing exception", e);
 
       try {
-        performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed, props);// Attempt partial commit before surfacing the failure
+        if (shouldAttemptPartialCommit()) {
+          performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed,
+              props);// Attempt partial commit before surfacing the failure
+        }
       } catch (Exception commitException) {
         // Combine current and commit exception messages for a more complete context
         String combinedMessage = String.format(
@@ -96,6 +100,11 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
       throw e;// Re-throw after any partial commit, to fail the parent workflow in case commitWorkflow didn't flow (unlikely)
     }
     return performCommitIfAnyWorkUnitsProcessed(workSpec, searchAttributes, workunitsProcessed, props);
+  }
+
+  private boolean shouldAttemptPartialCommit() {
+    return JobCommitPolicy.getCommitPolicy(WorkerConfig.of(this).orElse(ConfigFactory.load()))
+        .isAllowPartialCommit();
   }
 
   private CommitStats performCommitIfAnyWorkUnitsProcessed(WUProcessingSpec workSpec,
