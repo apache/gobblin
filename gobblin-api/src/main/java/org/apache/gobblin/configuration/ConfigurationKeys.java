@@ -77,6 +77,9 @@ public class ConfigurationKeys {
   public static final String DEFAULT_STATE_STORE_DB_JDBC_DRIVER = "com.mysql.cj.jdbc.Driver";
   public static final String STATE_STORE_DB_URL_KEY = "state.store.db.url";
   public static final String STATE_STORE_DB_USER_KEY = "state.store.db.user";
+
+  public static final String STATE_STORE_DB_SSL_MODE_ENABLED = "state.store.db.sslModeEnabled";
+
   public static final String STATE_STORE_DB_PASSWORD_KEY = "state.store.db.password";
   public static final String STATE_STORE_DB_TABLE_KEY = "state.store.db.table";
   public static final String DEFAULT_STATE_STORE_DB_TABLE = "gobblin_job_state";
