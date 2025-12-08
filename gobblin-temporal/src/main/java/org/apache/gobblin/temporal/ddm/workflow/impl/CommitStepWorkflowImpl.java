@@ -29,6 +29,7 @@ import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
 import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow;
+import org.apache.gobblin.temporal.ddm.workflow.WorkflowStage;
 
 
 @Slf4j
@@ -36,7 +37,11 @@ public class CommitStepWorkflowImpl implements CommitStepWorkflow {
 
   @Override
   public CommitStats commit(WUProcessingSpec workSpec, final Properties props) {
-    final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class, ActivityType.COMMIT.buildActivityOptions(props, true));
+    // Route Commit to commit queue
+    com.typesafe.config.Config config = com.typesafe.config.ConfigFactory.parseProperties(props);
+    String commitTaskQueue = WorkflowStage.COMMIT.getTaskQueue(config);
+    final CommitActivity activityStub = Workflow.newActivityStub(CommitActivity.class,
+        ActivityType.COMMIT.buildActivityOptions(props, true, commitTaskQueue));
     CommitStats commitGobblinStats = activityStub.commit(workSpec);
     if (commitGobblinStats.getOptFailure().isPresent()) {
       throw ApplicationFailure.newNonRetryableFailureWithCause(

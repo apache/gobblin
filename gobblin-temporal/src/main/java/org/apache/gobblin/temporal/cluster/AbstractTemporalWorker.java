@@ -33,16 +33,12 @@ import org.apache.gobblin.util.ConfigUtils;
 /** Basic boilerplate for a {@link TemporalWorker} to register its activity and workflow capabilities and listen on a particular queue */
 public abstract class AbstractTemporalWorker implements TemporalWorker {
     private final WorkflowClient workflowClient;
-    private final String queueName;
     private final WorkerFactory workerFactory;
-    private final Config config;
+    protected final Config config;
 
     public AbstractTemporalWorker(Config cfg, WorkflowClient client) {
         config = cfg;
         workflowClient = client;
-        queueName = ConfigUtils.getString(cfg,
-            GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE,
-            GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
 
         // Create a Worker factory that can be used to create Workers that poll specific Task Queues.
         workerFactory = WorkerFactory.newInstance(workflowClient);
@@ -52,7 +48,7 @@ public abstract class AbstractTemporalWorker implements TemporalWorker {
 
     @Override
     public void start() {
-        Worker worker = workerFactory.newWorker(queueName, createWorkerOptions());
+        Worker worker = workerFactory.newWorker(getTaskQueue(), createWorkerOptions());
         // This Worker hosts both Workflow and Activity implementations.
         // Workflows are stateful, so you need to supply a type to create instances.
         worker.registerWorkflowImplementationTypes(getWorkflowImplClasses());
@@ -76,6 +72,16 @@ public abstract class AbstractTemporalWorker implements TemporalWorker {
 
     /** @return activity instances; NOTE: activities must be stateless and thread-safe, so a shared instance is used. */
     protected abstract Object[] getActivityImplInstances();
+
+    /** 
+     * @return the task queue name this worker should poll from.
+     * Subclasses can override this to specify a custom task queue.
+     */
+    protected String getTaskQueue() {
+        return ConfigUtils.getString(config,
+            GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE,
+            GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
+    }
 
     private final void stashWorkerConfig(Config cfg) {
         // stash to associate with...

@@ -105,6 +105,7 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
       log.error("No work units processed, so no commit attempted.");
       return CommitStats.createEmpty();
     }
+
     CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
     CommitStats result = commitWorkflow.commit(workSpec, props);
     if (result.getNumCommittedWorkUnits() == 0) {
@@ -153,4 +154,5 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
 
     return Workflow.newChildWorkflowStub(CommitStepWorkflow.class, childOpts);
   }
+
 }

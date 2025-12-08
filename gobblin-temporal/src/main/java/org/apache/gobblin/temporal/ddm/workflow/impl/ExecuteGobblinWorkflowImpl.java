@@ -52,6 +52,7 @@ import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.activity.RecommendScalingForWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
+import org.apache.gobblin.temporal.ddm.workflow.WorkflowStage;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
@@ -95,8 +96,11 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
     boolean isSuccessful = false;
     try (Closer closer = Closer.create()) {
+      // Route GenerateWorkUnits to discovery queue
+      Config config = ConfigFactory.parseProperties(temporalJobProps);
+      String discoveryTaskQueue = WorkflowStage.WORK_DISCOVERY.getTaskQueue(config);
       final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
-          ActivityType.GENERATE_WORKUNITS.buildActivityOptions(temporalJobProps, true));
+          ActivityType.GENERATE_WORKUNITS.buildActivityOptions(temporalJobProps, true, discoveryTaskQueue));
       GenerateWorkUnitsResult generateWorkUnitResult = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       optGenerateWorkUnitResult = Optional.of(generateWorkUnitResult);
       WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();
@@ -107,11 +111,13 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       CommitStats commitStats = CommitStats.createEmpty();
       if (numWUsGenerated > 0) {
         TimeBudget timeBudget = calcWUProcTimeBudget(jobSuccessTimer.getStartTime(), wuSizeSummary, jobProps);
+        // Route RecommendScaling to discovery queue
         final RecommendScalingForWorkUnits recommendScalingStub = Workflow.newActivityStub(RecommendScalingForWorkUnits.class,
-            ActivityType.RECOMMEND_SCALING.buildActivityOptions(temporalJobProps, false));
+            ActivityType.RECOMMEND_SCALING.buildActivityOptions(temporalJobProps, false, discoveryTaskQueue));
         List<ScalingDirective> scalingDirectives =
-            recommendScalingStub.recommendScaling(wuSizeSummary, generateWorkUnitResult.getSourceClass(), timeBudget, jobProps);
-        log.info("Recommended scaling to process WUs within {}: {}", timeBudget, scalingDirectives);
+            recommendScalingStub.recommendScaling(wuSizeSummary, generateWorkUnitResult.getSourceClass(), timeBudget, jobProps,
+                WorkflowStage.WORK_EXECUTION);
+        log.info("Recommended scaling for WORK_EXECUTION stage to process WUs within {}: {}", timeBudget, scalingDirectives);
         try {
           ScalingDirectivesRecipient recipient = createScalingDirectivesRecipient(jobProps, closer);
           List<ScalingDirective> adjustedScalingDirectives = adjustRecommendedScaling(jobProps, scalingDirectives);

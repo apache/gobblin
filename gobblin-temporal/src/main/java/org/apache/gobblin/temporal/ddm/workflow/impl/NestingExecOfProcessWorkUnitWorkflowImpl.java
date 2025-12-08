@@ -26,6 +26,7 @@ import io.temporal.workflow.Workflow;
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
+import org.apache.gobblin.temporal.ddm.workflow.WorkflowStage;
 import org.apache.gobblin.temporal.util.nesting.workflow.AbstractNestingExecWorkflowImpl;
 
 
@@ -34,8 +35,11 @@ public class NestingExecOfProcessWorkUnitWorkflowImpl extends AbstractNestingExe
 
   @Override
   protected Promise<Integer> launchAsyncActivity(final WorkUnitClaimCheck wu, final Properties props) {
+    // Route ProcessWorkUnit to execution queue
+    com.typesafe.config.Config config = com.typesafe.config.ConfigFactory.parseProperties(props);
+    String executionTaskQueue = WorkflowStage.WORK_EXECUTION.getTaskQueue(config);
     final ProcessWorkUnit processWorkUnitStub = Workflow.newActivityStub(ProcessWorkUnit.class,
-        ActivityType.PROCESS_WORKUNIT.buildActivityOptions(props, true));
+        ActivityType.PROCESS_WORKUNIT.buildActivityOptions(props, true, executionTaskQueue));
     return Async.function(processWorkUnitStub::processWorkUnit, wu);
   }
 }

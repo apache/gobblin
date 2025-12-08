@@ -250,8 +250,11 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     WorkflowClient client = TemporalWorkflowClientFactory.createClientInstance(
         managedWorkflowServiceStubs.getWorkflowServiceStubs(), namespace);
 
-    String workerClassName = ConfigUtils.getString(clusterConfig,
-        GobblinTemporalConfigurationKeys.WORKER_CLASS, GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS);
+    // Read worker class from system property (set by YarnService when launching containers)
+    // Fallback to config for non-YARN deployments
+    String workerClassName = System.getProperty(GobblinTemporalConfigurationKeys.WORKER_CLASS,
+        ConfigUtils.getString(clusterConfig, GobblinTemporalConfigurationKeys.WORKER_CLASS,
+            GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS));
     logger.info("Creating worker - class: '{}'", workerClassName);
     Config workerConfig = clusterConfig;
     TemporalWorker worker = GobblinConstructorUtils.invokeLongestConstructor(

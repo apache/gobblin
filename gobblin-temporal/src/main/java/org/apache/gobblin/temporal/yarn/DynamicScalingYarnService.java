@@ -27,6 +27,7 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -38,6 +39,9 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
+import org.apache.gobblin.temporal.ddm.workflow.WorkflowStage;
 import org.apache.gobblin.temporal.dynamic.ProfileDerivation;
 import org.apache.gobblin.temporal.dynamic.ProfileOverlay;
 import org.apache.gobblin.temporal.dynamic.ScalingDirective;
@@ -65,23 +69,140 @@ public class DynamicScalingYarnService extends YarnService {
   private final WorkforceStaffing actualWorkforceStaffing;
   /** this holds the current total workforce plan as per latest received scaling directives */
   private final WorkforcePlan workforcePlan;
+  private final int initialContainers;
   protected final Queue<ContainerId> removedContainerIds;
   private final AtomicLong profileNameSuffixGenerator;
+  private final boolean dynamicScalingEnabled;
 
   public DynamicScalingYarnService(Config config, String applicationName, String applicationId,
       YarnConfiguration yarnConfiguration, FileSystem fs, EventBus eventBus) throws Exception {
     super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);
 
+    this.dynamicScalingEnabled = ConfigUtils.getBoolean(config,
+        GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED, false);
+    this.initialContainers = this.config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
+
     this.actualWorkforceStaffing = WorkforceStaffing.initialize(0);
-    this.workforcePlan = new WorkforcePlan(this.config, this.config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY));
+    // Initialize workforce plan:
+    // - For dynamic scaling: start with 0 baseline, then add stage-specific profiles
+    // - For traditional mode: initialize baseline with configured initial containers
+    int baselineSetPoint = this.dynamicScalingEnabled ? 0 : this.initialContainers;
+    this.workforcePlan = new WorkforcePlan(this.config, baselineSetPoint);
     this.removedContainerIds = new ConcurrentLinkedQueue<>();
     this.profileNameSuffixGenerator = new AtomicLong();
+
+    // For dynamic scaling, add stage-specific profiles derived from baseline
+    if (this.dynamicScalingEnabled) {
+      initializeDynamicScalingProfiles();
+    }
+  }
+
+  /**
+   * Initializes stage-specific worker profiles for dynamic scaling mode.
+   * Creates two profiles derived from baseline:
+   * 1. DiscoveryCommitWorker - for discovery/commit activities
+   * 2. ExecutionWorker - for execution activities
+   */
+  private void initializeDynamicScalingProfiles() {
+    log.info("Initializing stage-specific profiles");
+    long currTimeMillis = System.currentTimeMillis();
+    List<ScalingDirective> initialDirectives = new ArrayList<>();
+
+    // Container 1: DiscoveryCommitWorker (for discovery/commit activities)
+    ProfileOverlay discoveryCommitOverlay = createDiscoveryCommitProfileOverlay();
+    initialDirectives.add(new ScalingDirective(
+        "initial-discovery-commit",
+        1, // setPoint = 1 container
+        currTimeMillis,
+        WorkforceProfiles.BASELINE_NAME,
+        discoveryCommitOverlay
+    ));
+
+    // Container 2: ExecutionWorker (for execution activities)
+    ProfileOverlay executionOverlay = createExecutionProfileOverlay();
+    initialDirectives.add(new ScalingDirective(
+        "initial-execution",
+        1, // setPoint = 1 container
+        currTimeMillis + EPSILON_MIILIS,
+        WorkforceProfiles.BASELINE_NAME,
+        executionOverlay
+    ));
+
+    // Apply initial directives to workforce plan
+    this.workforcePlan.reviseWhenNewer(initialDirectives, ire -> {
+      log.error("Failed to create stage-specific profiles", ire);
+      throw new RuntimeException("Failed to initialize stage-specific profiles for dynamic scaling", ire);
+    });
+
+    log.info("Initialized {} stage-specific profiles for dynamic scaling", initialDirectives.size());
   }
 
   @Override
   protected synchronized void requestInitialContainers() {
+    log.info("Requesting initial containers based on workforce plan");
+    // Calculate deltas between plan and current staffing, then request containers
     StaffingDeltas deltas = this.workforcePlan.calcStaffingDeltas(this.actualWorkforceStaffing);
     requestNewContainersForStaffingDeltas(deltas);
+  }
+
+  private ProfileOverlay createDiscoveryCommitProfileOverlay() {
+    List<ProfileOverlay.KVPair> overlayPairs = new ArrayList<>();
+
+    // Set worker class
+    overlayPairs.add(new ProfileOverlay.KVPair(
+        GobblinTemporalConfigurationKeys.WORKER_CLASS,
+        "org.apache.gobblin.temporal.ddm.worker.DiscoveryCommitWorker"
+    ));
+
+    // Set Helix tag
+    overlayPairs.add(new ProfileOverlay.KVPair(
+        GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY,
+        "discovery-commit"
+    ));
+
+    // Set stage-specific memory (discovery/commit operations are typically lightweight)
+    // Falls back to global CONTAINER_MEMORY_MBS_KEY if stage-specific memory not configured
+    if (this.config.hasPath(GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_MEMORY_MB)) {
+      String discoveryCommitMemoryMb = this.config.getString(
+          GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_MEMORY_MB);
+      overlayPairs.add(new ProfileOverlay.KVPair(
+          GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY,
+          discoveryCommitMemoryMb
+      ));
+      log.info("Setting discovery-commit container memory to {} MB", discoveryCommitMemoryMb);
+    }
+
+    return new ProfileOverlay.Adding(overlayPairs);
+  }
+
+  private ProfileOverlay createExecutionProfileOverlay() {
+    List<ProfileOverlay.KVPair> overlayPairs = new ArrayList<>();
+
+    // Set worker class
+    overlayPairs.add(new ProfileOverlay.KVPair(
+        GobblinTemporalConfigurationKeys.WORKER_CLASS,
+        "org.apache.gobblin.temporal.ddm.worker.ExecutionWorker"
+    ));
+
+    // Set Helix tag
+    overlayPairs.add(new ProfileOverlay.KVPair(
+        GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY,
+        "execution"
+    ));
+
+    // Set stage-specific memory (execution operations are typically memory-intensive)
+    // Falls back to global CONTAINER_MEMORY_MBS_KEY if stage-specific memory not configured
+    if (this.config.hasPath(GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB)) {
+      String executionMemoryMb = this.config.getString(
+          GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB);
+      overlayPairs.add(new ProfileOverlay.KVPair(
+          GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY,
+          executionMemoryMb
+      ));
+      log.info("Setting execution container memory to {} MB", executionMemoryMb);
+    }
+
+    return new ProfileOverlay.Adding(overlayPairs);
   }
 
   /**
@@ -226,12 +347,16 @@ public class DynamicScalingYarnService extends YarnService {
   }
 
   private synchronized void handleContainerExitedWithOOM(ContainerId completedContainerId, ContainerInfo completedContainerInfo) {
-    log.info("Container {} for profile {} exited with OOM, starting to launch a replacement container",
-        completedContainerId, completedContainerInfo.getWorkerProfileName());
+    WorkerProfile workerProfile = completedContainerInfo.getWorkerProfile();
+
+    // Determine which workflow stage this container belongs to
+    WorkflowStage stage = WorkflowStage.fromProfileName(workerProfile.getName());
+
+    log.info("Container {} for profile {} (stage: {}) exited with OOM, starting to launch a replacement container",
+        completedContainerId, completedContainerInfo.getWorkerProfileName(), stage);
 
     List<ScalingDirective> scalingDirectives = new ArrayList<>();
 
-    WorkerProfile workerProfile = completedContainerInfo.getWorkerProfile();
     long currTimeMillis = System.currentTimeMillis();
     // Update the current staffing to reflect the container that exited with OOM
     int currNumContainers = this.actualWorkforceStaffing.getStaffing(workerProfile.getName()).orElse(0);
@@ -242,25 +367,121 @@ public class DynamicScalingYarnService extends YarnService {
       scalingDirectives.add(new ScalingDirective(workerProfile.getName(), currNumContainers - 1, currTimeMillis));
     }
 
-    // Request a replacement container
+    // Get stage-specific OOM configuration
+    int memoryMultiplier = getMemoryMultiplierForStage(stage);
+    int maxMemoryMbs = getMaxMemoryForStage(stage);
+
+    // Request a replacement container with stage-specific limits
     int currContainerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
-    if (currContainerMemoryMbs >= MAX_REPLACEMENT_CONTAINER_MEMORY_MBS) {
-      log.warn("Container {} already had max allowed memory {} MBs. Not requesting a replacement container.",
-          completedContainerId, currContainerMemoryMbs);
+    if (currContainerMemoryMbs >= maxMemoryMbs) {
+      log.warn("Container {} for stage {} already had max allowed memory {} MBs (stage max: {} MBs). Not requesting a replacement container.",
+          completedContainerId, stage, currContainerMemoryMbs, maxMemoryMbs);
       return;
     }
-    int newContainerMemoryMbs = Math.min(currContainerMemoryMbs * DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER,
-        MAX_REPLACEMENT_CONTAINER_MEMORY_MBS);
-    Optional<ProfileDerivation> optProfileDerivation = Optional.of(new ProfileDerivation(workerProfile.getName(),
-        new ProfileOverlay.Adding(new ProfileOverlay.KVPair(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY, newContainerMemoryMbs + ""))
-    ));
+    int newContainerMemoryMbs = Math.min(currContainerMemoryMbs * memoryMultiplier, maxMemoryMbs);
+
+    log.info("Creating OOM replacement for stage {} with memory: {} MB -> {} MB (max: {} MB)",
+        stage, currContainerMemoryMbs, newContainerMemoryMbs, maxMemoryMbs);
+
+    // Derive from global baseline with stage-specific overlays
+    ProfileOverlay overlay = createStageSpecificOOMOverlay(stage, newContainerMemoryMbs);
+    Optional<ProfileDerivation> optProfileDerivation = Optional.of(
+        new ProfileDerivation(WorkforceProfiles.BASELINE_NAME, overlay)
+    );
     scalingDirectives.add(new ScalingDirective(
-        DEFAULT_REPLACEMENT_CONTAINER_WORKER_PROFILE_NAME_PREFIX + "-" + profileNameSuffixGenerator.getAndIncrement(),
+        stage.getProfileBaseName() + "-oomReplacement-" + profileNameSuffixGenerator.getAndIncrement(),
         1,
         currTimeMillis + EPSILON_MIILIS, // Each scaling directive should have a newer timestamp than the previous one
         optProfileDerivation
     ));
     reviseWorkforcePlanAndRequestNewContainers(scalingDirectives);
+  }
+
+  /**
+   * Gets the memory multiplier for OOM retries for a specific workflow stage.
+   */
+  private int getMemoryMultiplierForStage(WorkflowStage stage) {
+    String key;
+    int defaultValue;
+
+    switch (stage) {
+      case WORK_DISCOVERY:
+      case COMMIT:
+        key = GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_OOM_MEMORY_MULTIPLIER;
+        defaultValue = GobblinTemporalConfigurationKeys.DEFAULT_DISCOVERY_COMMIT_OOM_MEMORY_MULTIPLIER;
+        break;
+      case WORK_EXECUTION:
+        key = GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MEMORY_MULTIPLIER;
+        defaultValue = GobblinTemporalConfigurationKeys.DEFAULT_WORK_EXECUTION_OOM_MEMORY_MULTIPLIER;
+        break;
+      default:
+        return DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER;
+    }
+
+    return config.hasPath(key) ? config.getInt(key) : defaultValue;
+  }
+
+  /**
+   * Gets the maximum memory allowed for OOM retries for a specific workflow stage.
+   */
+  private int getMaxMemoryForStage(WorkflowStage stage) {
+    String key;
+    int defaultValue;
+
+    switch (stage) {
+      case WORK_DISCOVERY:
+      case COMMIT:
+        key = GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_OOM_MAX_MEMORY_MB;
+        defaultValue = GobblinTemporalConfigurationKeys.DEFAULT_DISCOVERY_COMMIT_OOM_MAX_MEMORY_MB;
+        break;
+      case WORK_EXECUTION:
+        key = GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MAX_MEMORY_MB;
+        defaultValue = GobblinTemporalConfigurationKeys.DEFAULT_WORK_EXECUTION_OOM_MAX_MEMORY_MB;
+        break;
+      default:
+        return MAX_REPLACEMENT_CONTAINER_MEMORY_MBS;
+    }
+
+    return config.hasPath(key) ? config.getInt(key) : defaultValue;
+  }
+
+  /**
+   * Creates a ProfileOverlay for OOM replacement with stage-specific memory and worker class.
+   * This derives from the global baseline, ensuring task queue routing is preserved.
+   */
+  private ProfileOverlay createStageSpecificOOMOverlay(WorkflowStage stage, int newMemoryMbs) {
+    List<ProfileOverlay.KVPair> overlayPairs = new ArrayList<>();
+
+    // Add increased memory
+    overlayPairs.add(new ProfileOverlay.KVPair(
+        GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY,
+        String.valueOf(newMemoryMbs)
+    ));
+
+    // Add stage-specific worker class to ensure correct task queue routing
+    String workerClass = getWorkerClassForStage(stage);
+    overlayPairs.add(new ProfileOverlay.KVPair(
+        GobblinTemporalConfigurationKeys.WORKER_CLASS,
+        workerClass
+    ));
+
+    return new ProfileOverlay.Adding(overlayPairs);
+  }
+
+  /**
+   * Gets the worker class for a specific workflow stage.
+   */
+  private String getWorkerClassForStage(WorkflowStage stage) {
+    switch (stage) {
+      case WORK_DISCOVERY:
+        return "org.apache.gobblin.temporal.ddm.worker.DiscoveryCommitWorker";
+      case WORK_EXECUTION:
+        return "org.apache.gobblin.temporal.ddm.worker.ExecutionWorker";
+      case COMMIT:
+        return "org.apache.gobblin.temporal.ddm.worker.DiscoveryCommitWorker";
+      default:
+        return "org.apache.gobblin.temporal.ddm.worker.WorkFulfillmentWorker";
+    }
   }
 
 }

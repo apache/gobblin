@@ -14,7 +14,6 @@
  * See the License for the specific language governing permissions and
  * limitations under the License.
  */
-
 package org.apache.gobblin.temporal.ddm.activity;
 
 import java.util.List;
@@ -26,13 +25,13 @@ import io.temporal.activity.ActivityMethod;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.ddm.work.TimeBudget;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
+import org.apache.gobblin.temporal.ddm.workflow.WorkflowStage;
 import org.apache.gobblin.temporal.dynamic.ScalingDirective;
 
 
 
 /**
  * Activity to suggest the Dynamic Scaling warranted to complete processing of some amount of {@link org.apache.gobblin.source.workunit.WorkUnit}s
- * within {@link TimeBudget}, through a combination of Workforce auto-scaling and Worker right-sizing.
  *
  * As with all {@link ActivityInterface}s, this is stateless, so the {@link ScalingDirective}(s) returned "stand alone", presuming nothing of current
  * {@link org.apache.gobblin.temporal.dynamic.WorkforceStaffing}.  It thus falls to the caller to coordinate whether to apply the directive(s) as-is,
@@ -49,8 +48,9 @@ public interface RecommendScalingForWorkUnits {
    * @param sourceClass contextualizes the `WorkUnitsSizeSummary` and should name a {@link org.apache.gobblin.source.Source}
    * @param timeBudget the remaining target duration for processing the summarized `WorkUnit`s
    * @param jobProps all job props, to either guide the recommendation or better contextualize the nature of the `remainingWork`
+   * @param stage the workflow stage for which scaling is being recommended (e.g., WORK_EXECUTION)
    * @return the {@link ScalingDirective}s to process the summarized {@link WorkUnit}s within {@link TimeBudget}
    */
   @ActivityMethod
-  List<ScalingDirective> recommendScaling(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget timeBudget, Properties jobProps);
+  List<ScalingDirective> recommendScaling(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget timeBudget, Properties jobProps, WorkflowStage stage);
 }

@@ -37,6 +37,13 @@ public interface GobblinTemporalConfigurationKeys {
 
   String GOBBLIN_TEMPORAL_TASK_QUEUE = PREFIX + "task.queue.name";
   String DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE = "GobblinTemporalTaskQueue";
+
+  // Stage-specific task queues for worker specialization
+  // Discovery and Commit share the same queue (lightweight operations)
+  String DISCOVERY_COMMIT_TASK_QUEUE = PREFIX + "discovery.commit.task.queue.name";
+  String DEFAULT_DISCOVERY_COMMIT_TASK_QUEUE = "GobblinTemporalDiscoveryCommitQueue";
+  String EXECUTION_TASK_QUEUE = PREFIX + "execution.task.queue.name";
+  String DEFAULT_EXECUTION_TASK_QUEUE = "GobblinTemporalExecutionQueue";
   String GOBBLIN_TEMPORAL_JOB_LAUNCHER_PREFIX = PREFIX + "job.launcher.";
   String GOBBLIN_TEMPORAL_JOB_LAUNCHER_CLASS = GOBBLIN_TEMPORAL_JOB_LAUNCHER_PREFIX + "class";
   String DEFAULT_GOBBLIN_TEMPORAL_JOB_LAUNCHER_CLASS = HelloWorldJobLauncher.class.getName();
@@ -129,5 +136,26 @@ public interface GobblinTemporalConfigurationKeys {
   double DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_BACKOFF_COEFFICIENT = 2;
   String TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS = TEMPORAL_ACTIVITY_RETRY_OPTIONS + "maximum.attempts";
   int DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS = 4;
+
+  /**
+   * Stage-specific resource configuration
+   * Allows independent memory and OOM configuration per workflow stage
+   */
+  String STAGE_SPECIFIC_PREFIX = PREFIX + "stage.";
+
+  // Discovery/Commit stage configuration (shared by DiscoveryCommitWorker)
+  // Handles both work discovery and commit activities in the same container
+  String DISCOVERY_COMMIT_MEMORY_MB = STAGE_SPECIFIC_PREFIX + "discoveryCommit.memory.mb";
+  String DISCOVERY_COMMIT_OOM_MEMORY_MULTIPLIER = STAGE_SPECIFIC_PREFIX + "discoveryCommit.oom.memory.multiplier";
+  int DEFAULT_DISCOVERY_COMMIT_OOM_MEMORY_MULTIPLIER = 2;
+  String DISCOVERY_COMMIT_OOM_MAX_MEMORY_MB = STAGE_SPECIFIC_PREFIX + "discoveryCommit.oom.max.memory.mb";
+  int DEFAULT_DISCOVERY_COMMIT_OOM_MAX_MEMORY_MB = 32768; // 32GB (lightweight operations)
+
+  // Work Execution stage configuration
+  String WORK_EXECUTION_MEMORY_MB = STAGE_SPECIFIC_PREFIX + "workExecution.memory.mb";
+  String WORK_EXECUTION_OOM_MEMORY_MULTIPLIER = STAGE_SPECIFIC_PREFIX + "workExecution.oom.memory.multiplier";
+  int DEFAULT_WORK_EXECUTION_OOM_MEMORY_MULTIPLIER = 2;
+  String WORK_EXECUTION_OOM_MAX_MEMORY_MB = STAGE_SPECIFIC_PREFIX + "workExecution.oom.max.memory.mb";
+  int DEFAULT_WORK_EXECUTION_OOM_MAX_MEMORY_MB = 65536; // 64GB (memory-intensive operations)
 
 }
