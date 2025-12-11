@@ -96,11 +96,9 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
     WUProcessingSpec wuSpec = createProcessingSpec(jobProps, eventSubmitterContext);
     boolean isSuccessful = false;
     try (Closer closer = Closer.create()) {
-      // Route GenerateWorkUnits to discovery queue
-      Config config = ConfigFactory.parseProperties(temporalJobProps);
-      String discoveryTaskQueue = WorkflowStage.WORK_DISCOVERY.getTaskQueue(config);
+      // GenerateWorkUnits uses default queue (inherits from workflow)
       final GenerateWorkUnits genWUsActivityStub = Workflow.newActivityStub(GenerateWorkUnits.class,
-          ActivityType.GENERATE_WORKUNITS.buildActivityOptions(temporalJobProps, true, discoveryTaskQueue));
+          ActivityType.GENERATE_WORKUNITS.buildActivityOptions(temporalJobProps, true));
       GenerateWorkUnitsResult generateWorkUnitResult = genWUsActivityStub.generateWorkUnits(jobProps, eventSubmitterContext);
       optGenerateWorkUnitResult = Optional.of(generateWorkUnitResult);
       WorkUnitsSizeSummary wuSizeSummary = generateWorkUnitResult.getWorkUnitsSizeSummary();
@@ -111,9 +109,9 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       CommitStats commitStats = CommitStats.createEmpty();
       if (numWUsGenerated > 0) {
         TimeBudget timeBudget = calcWUProcTimeBudget(jobSuccessTimer.getStartTime(), wuSizeSummary, jobProps);
-        // Route RecommendScaling to discovery queue
+        // RecommendScaling uses default queue (inherits from workflow)
         final RecommendScalingForWorkUnits recommendScalingStub = Workflow.newActivityStub(RecommendScalingForWorkUnits.class,
-            ActivityType.RECOMMEND_SCALING.buildActivityOptions(temporalJobProps, false, discoveryTaskQueue));
+            ActivityType.RECOMMEND_SCALING.buildActivityOptions(temporalJobProps, false));
         List<ScalingDirective> scalingDirectives =
             recommendScalingStub.recommendScaling(wuSizeSummary, generateWorkUnitResult.getSourceClass(), timeBudget, jobProps,
                 WorkflowStage.WORK_EXECUTION);

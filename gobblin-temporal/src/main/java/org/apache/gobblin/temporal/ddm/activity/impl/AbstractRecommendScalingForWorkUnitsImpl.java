@@ -108,32 +108,25 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
 
   /**
    * Returns the configuration key for stage-specific memory.
+   * Only WORK_EXECUTION has stage-specific memory config; others use default.
    */
   private String getStageMemoryConfigKey(WorkflowStage stage) {
-    switch (stage) {
-      case WORK_DISCOVERY:
-      case COMMIT:
-        return GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_MEMORY_MB;
-      case WORK_EXECUTION:
-        return GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB;
-      default:
-        throw new IllegalArgumentException("Unknown stage: " + stage);
+    if (stage == WorkflowStage.WORK_EXECUTION) {
+      return GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB;
     }
+    // Non-execution stages (discovery, commit) use default/baseline memory
+    return null;
   }
 
   /**
    * Gets the worker class for a specific workflow stage.
+   * Returns ExecutionWorker for WORK_EXECUTION, WorkFulfillmentWorker for all others.
    */
   private String getWorkerClassForStage(WorkflowStage stage) {
-    switch (stage) {
-      case WORK_DISCOVERY:
-        return "org.apache.gobblin.temporal.ddm.worker.DiscoveryCommitWorker";
-      case WORK_EXECUTION:
-        return "org.apache.gobblin.temporal.ddm.worker.ExecutionWorker";
-      case COMMIT:
-        return "org.apache.gobblin.temporal.ddm.worker.DiscoveryCommitWorker";
-      default:
-        return "org.apache.gobblin.temporal.ddm.worker.WorkFulfillmentWorker";
+    if (stage == WorkflowStage.WORK_EXECUTION) {
+      return "org.apache.gobblin.temporal.ddm.worker.ExecutionWorker";
     }
+    // All non-execution stages use WorkFulfillmentWorker (discovery, commit, etc.)
+    return "org.apache.gobblin.temporal.ddm.worker.WorkFulfillmentWorker";
   }
 }

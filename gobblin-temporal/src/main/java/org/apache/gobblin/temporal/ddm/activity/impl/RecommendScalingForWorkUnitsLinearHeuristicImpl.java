@@ -97,7 +97,9 @@ public class RecommendScalingForWorkUnitsLinearHeuristicImpl extends AbstractRec
     int recommendedNumContainers = Math.max(numContainerForWUs, numContainerForThroughout);
     log.info("Recommended auto-scaling: {} containers, no. of containers considering throughput: {}, no. of containers considering WUs: {}",
         recommendedNumContainers, numContainerForThroughout, numContainerForWUs);
-
+/**
+ *
+ */
     return recommendedNumContainers;
   }
 

@@ -98,43 +98,32 @@ public class DynamicScalingYarnService extends YarnService {
   }
 
   /**
-   * Initializes stage-specific worker profiles for dynamic scaling mode.
-   * Creates two profiles derived from baseline:
-   * 1. DiscoveryCommitWorker - for discovery/commit activities
-   * 2. ExecutionWorker - for execution activities
+   * Initializes stage-specific worker profile for dynamic scaling mode.
+   * Creates ExecutionWorker profile for processing work units.
+   * Default WorkFulfillmentWorker handles all other activities (discovery, commit, etc).
    */
   private void initializeDynamicScalingProfiles() {
-    log.info("Initializing stage-specific profiles");
+    log.info("Initializing execution worker profile for dynamic scaling");
     long currTimeMillis = System.currentTimeMillis();
     List<ScalingDirective> initialDirectives = new ArrayList<>();
 
-    // Container 1: DiscoveryCommitWorker (for discovery/commit activities)
-    ProfileOverlay discoveryCommitOverlay = createDiscoveryCommitProfileOverlay();
-    initialDirectives.add(new ScalingDirective(
-        "initial-discovery-commit",
-        1, // setPoint = 1 container
-        currTimeMillis,
-        WorkforceProfiles.BASELINE_NAME,
-        discoveryCommitOverlay
-    ));
-
-    // Container 2: ExecutionWorker (for execution activities)
+    // ExecutionWorker for execution activities only
     ProfileOverlay executionOverlay = createExecutionProfileOverlay();
     initialDirectives.add(new ScalingDirective(
         "initial-execution",
         1, // setPoint = 1 container
-        currTimeMillis + EPSILON_MIILIS,
+        currTimeMillis,
         WorkforceProfiles.BASELINE_NAME,
         executionOverlay
     ));
 
     // Apply initial directives to workforce plan
     this.workforcePlan.reviseWhenNewer(initialDirectives, ire -> {
-      log.error("Failed to create stage-specific profiles", ire);
-      throw new RuntimeException("Failed to initialize stage-specific profiles for dynamic scaling", ire);
+      log.error("Failed to create execution worker profile", ire);
+      throw new RuntimeException("Failed to initialize execution worker profile for dynamic scaling", ire);
     });
 
-    log.info("Initialized {} stage-specific profiles for dynamic scaling", initialDirectives.size());
+    log.info("Initialized execution worker profile for dynamic scaling");
   }
 
   @Override
@@ -143,36 +132,6 @@ public class DynamicScalingYarnService extends YarnService {
     // Calculate deltas between plan and current staffing, then request containers
     StaffingDeltas deltas = this.workforcePlan.calcStaffingDeltas(this.actualWorkforceStaffing);
     requestNewContainersForStaffingDeltas(deltas);
-  }
-
-  private ProfileOverlay createDiscoveryCommitProfileOverlay() {
-    List<ProfileOverlay.KVPair> overlayPairs = new ArrayList<>();
-
-    // Set worker class
-    overlayPairs.add(new ProfileOverlay.KVPair(
-        GobblinTemporalConfigurationKeys.WORKER_CLASS,
-        "org.apache.gobblin.temporal.ddm.worker.DiscoveryCommitWorker"
-    ));
-
-    // Set Helix tag
-    overlayPairs.add(new ProfileOverlay.KVPair(
-        GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY,
-        "discovery-commit"
-    ));
-
-    // Set stage-specific memory (discovery/commit operations are typically lightweight)
-    // Falls back to global CONTAINER_MEMORY_MBS_KEY if stage-specific memory not configured
-    if (this.config.hasPath(GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_MEMORY_MB)) {
-      String discoveryCommitMemoryMb = this.config.getString(
-          GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_MEMORY_MB);
-      overlayPairs.add(new ProfileOverlay.KVPair(
-          GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY,
-          discoveryCommitMemoryMb
-      ));
-      log.info("Setting discovery-commit container memory to {} MB", discoveryCommitMemoryMb);
-    }
-
-    return new ProfileOverlay.Adding(overlayPairs);
   }
 
   private ProfileOverlay createExecutionProfileOverlay() {
@@ -399,50 +358,30 @@ public class DynamicScalingYarnService extends YarnService {
 
   /**
    * Gets the memory multiplier for OOM retries for a specific workflow stage.
+   * Uses execution-specific config for WORK_EXECUTION, default for all others.
    */
   private int getMemoryMultiplierForStage(WorkflowStage stage) {
-    String key;
-    int defaultValue;
-
-    switch (stage) {
-      case WORK_DISCOVERY:
-      case COMMIT:
-        key = GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_OOM_MEMORY_MULTIPLIER;
-        defaultValue = GobblinTemporalConfigurationKeys.DEFAULT_DISCOVERY_COMMIT_OOM_MEMORY_MULTIPLIER;
-        break;
-      case WORK_EXECUTION:
-        key = GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MEMORY_MULTIPLIER;
-        defaultValue = GobblinTemporalConfigurationKeys.DEFAULT_WORK_EXECUTION_OOM_MEMORY_MULTIPLIER;
-        break;
-      default:
-        return DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER;
+    if (stage == WorkflowStage.WORK_EXECUTION) {
+      return config.hasPath(GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MEMORY_MULTIPLIER)
+          ? config.getInt(GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MEMORY_MULTIPLIER)
+          : GobblinTemporalConfigurationKeys.DEFAULT_WORK_EXECUTION_OOM_MEMORY_MULTIPLIER;
     }
-
-    return config.hasPath(key) ? config.getInt(key) : defaultValue;
+    // Use default multiplier for all non-execution stages (discovery, commit, etc.)
+    return DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER;
   }
 
   /**
    * Gets the maximum memory allowed for OOM retries for a specific workflow stage.
+   * Uses execution-specific config for WORK_EXECUTION, default for all others.
    */
   private int getMaxMemoryForStage(WorkflowStage stage) {
-    String key;
-    int defaultValue;
-
-    switch (stage) {
-      case WORK_DISCOVERY:
-      case COMMIT:
-        key = GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_OOM_MAX_MEMORY_MB;
-        defaultValue = GobblinTemporalConfigurationKeys.DEFAULT_DISCOVERY_COMMIT_OOM_MAX_MEMORY_MB;
-        break;
-      case WORK_EXECUTION:
-        key = GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MAX_MEMORY_MB;
-        defaultValue = GobblinTemporalConfigurationKeys.DEFAULT_WORK_EXECUTION_OOM_MAX_MEMORY_MB;
-        break;
-      default:
-        return MAX_REPLACEMENT_CONTAINER_MEMORY_MBS;
+    if (stage == WorkflowStage.WORK_EXECUTION) {
+      return config.hasPath(GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MAX_MEMORY_MB)
+          ? config.getInt(GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MAX_MEMORY_MB)
+          : GobblinTemporalConfigurationKeys.DEFAULT_WORK_EXECUTION_OOM_MAX_MEMORY_MB;
     }
-
-    return config.hasPath(key) ? config.getInt(key) : defaultValue;
+    // Use default max memory for all non-execution stages (discovery, commit, etc.)
+    return MAX_REPLACEMENT_CONTAINER_MEMORY_MBS;
   }
 
   /**
@@ -470,18 +409,14 @@ public class DynamicScalingYarnService extends YarnService {
 
   /**
    * Gets the worker class for a specific workflow stage.
+   * Returns ExecutionWorker for WORK_EXECUTION, WorkFulfillmentWorker for all others.
    */
   private String getWorkerClassForStage(WorkflowStage stage) {
-    switch (stage) {
-      case WORK_DISCOVERY:
-        return "org.apache.gobblin.temporal.ddm.worker.DiscoveryCommitWorker";
-      case WORK_EXECUTION:
-        return "org.apache.gobblin.temporal.ddm.worker.ExecutionWorker";
-      case COMMIT:
-        return "org.apache.gobblin.temporal.ddm.worker.DiscoveryCommitWorker";
-      default:
-        return "org.apache.gobblin.temporal.ddm.worker.WorkFulfillmentWorker";
+    if (stage == WorkflowStage.WORK_EXECUTION) {
+      return "org.apache.gobblin.temporal.ddm.worker.ExecutionWorker";
     }
+    // All non-execution stages use WorkFulfillmentWorker (discovery, commit, etc.)
+    return "org.apache.gobblin.temporal.ddm.worker.WorkFulfillmentWorker";
   }
 
 }

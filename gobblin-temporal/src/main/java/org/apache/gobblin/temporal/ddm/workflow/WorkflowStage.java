@@ -23,30 +23,28 @@ import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 
 /**
  * Represents the different stages of a Gobblin Temporal workflow.
- * Each stage has independent resource configuration (memory, OOM limits) and dedicated containers.
- *
+ * 
  * <p>Stages:
  * <ul>
- *   <li>WORK_DISCOVERY: Discovers data sources, generates work units, and handles commits (1 container, lightweight operations)</li>
- *   <li>WORK_EXECUTION: Processes work units to transform and load data (20+ containers)</li>
+ *   <li>WORK_DISCOVERY: Discovers data sources, generates work units (uses default queue)</li>
+ *   <li>WORK_EXECUTION: Processes work units to transform and load data (uses execution queue when dynamic scaling enabled)</li>
+ *   <li>COMMIT: Commits work units (uses default queue)</li>
  * </ul>
  *
- * <p>Each stage has:
+ * <p>Queue routing:
  * <ul>
- *   <li>Dedicated task queue for activity routing</li>
- *   <li>Specialized worker class</li>
- *   <li>Independent memory configuration</li>
- *   <li>Stage-specific OOM handling</li>
+ *   <li>Dynamic scaling OFF: All stages use default queue</li>
+ *   <li>Dynamic scaling ON: WORK_EXECUTION uses dedicated execution queue, others use default queue</li>
  * </ul>
  */
 @Getter
 public enum WorkflowStage {
-  WORK_DISCOVERY("workDiscovery", GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_TASK_QUEUE,
-      GobblinTemporalConfigurationKeys.DEFAULT_DISCOVERY_COMMIT_TASK_QUEUE),
+  WORK_DISCOVERY("workDiscovery", GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE,
+      GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE),
   WORK_EXECUTION("workExecution", GobblinTemporalConfigurationKeys.EXECUTION_TASK_QUEUE,
       GobblinTemporalConfigurationKeys.DEFAULT_EXECUTION_TASK_QUEUE),
-  COMMIT("commit", GobblinTemporalConfigurationKeys.DISCOVERY_COMMIT_TASK_QUEUE,
-      GobblinTemporalConfigurationKeys.DEFAULT_DISCOVERY_COMMIT_TASK_QUEUE);
+  COMMIT("commit", GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE,
+      GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE);
 
   private final String profileBaseName;
   private final String taskQueueConfigKey;
@@ -94,18 +92,26 @@ public enum WorkflowStage {
    * Determines the workflow stage from a profile name.
    * Used by OOM handler to identify which stage a container belongs to.
    *
-   * @param profileName the profile name (e.g., "workExecution-proc", "baseline-workDiscovery")
+   * In the 2-worker model:
+   * - Empty/null profile name = baseline/default containers (WorkFulfillmentWorker) → WORK_DISCOVERY
+   * - Profile containing "workExecution" or "execution" = ExecutionWorker → WORK_EXECUTION
+   * - All other profiles = default containers → WORK_DISCOVERY
+   *
+   * @param profileName the profile name (e.g., "initial-execution", "workExecution-oomReplacement-1", "" for baseline)
    * @return the corresponding WorkflowStage
    */
   public static WorkflowStage fromProfileName(String profileName) {
+    // Empty or null = baseline/default containers (WorkFulfillmentWorker)
     if (profileName == null || profileName.isEmpty()) {
-      return WORK_DISCOVERY;  // Global baseline used by initial container
+      return WORK_DISCOVERY;  // Represents default/non-execution work
     }
-    for (WorkflowStage stage : values()) {
-      if (profileName.contains(stage.getProfileBaseName())) {
-        return stage;
-      }
+    
+    // Check if this is an execution worker profile
+    if (profileName.contains("workExecution") || profileName.contains("execution")) {
+      return WORK_EXECUTION;
     }
-    return WORK_EXECUTION;  // Default to execution if no match
+    
+    // All other profiles default to non-execution work (WorkFulfillmentWorker)
+    return WORK_DISCOVERY;
   }
 }

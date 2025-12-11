@@ -45,14 +45,14 @@ import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
- * Unified worker that handles ALL workflow stages (Discovery, Execution, Commit).
+ * Unified worker that handles ALL workflow stages except execution (Discovery, Commit, etc.).
  * 
- * This worker polls the DEFAULT task queue and is used when:
- * - Dynamic scaling is disabled
- * - Small jobs where scaling doesn't make sense
+ * This worker polls the DEFAULT task queue and is used:
+ * - Always for discovery, commit, and other non-execution activities
+ * - For execution activities when dynamic scaling is disabled
  * 
- * When dynamic scaling is enabled, activities are routed to stage-specific queues
- * and handled by specialized workers (DiscoveryCommitWorker, ExecutionWorker).
+ * When dynamic scaling is enabled, execution activities are routed to the execution queue
+ * and handled by the specialized ExecutionWorker.
  * 
  * This prevents resource mismatches (e.g., execution tasks requiring 64GB running
  * on a baseline container with only 8GB).
