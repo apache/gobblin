@@ -326,24 +326,20 @@ public class DynamicScalingYarnService extends YarnService {
       scalingDirectives.add(new ScalingDirective(workerProfile.getName(), currNumContainers - 1, currTimeMillis));
     }
 
-    // Get stage-specific OOM configuration
-    int memoryMultiplier = getMemoryMultiplierForStage(stage);
-    int maxMemoryMbs = getMaxMemoryForStage(stage);
-
-    // Request a replacement container with stage-specific limits
+    // Use default OOM configuration for all containers
     int currContainerMemoryMbs = workerProfile.getConfig().getInt(GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY);
-    if (currContainerMemoryMbs >= maxMemoryMbs) {
-      log.warn("Container {} for stage {} already had max allowed memory {} MBs (stage max: {} MBs). Not requesting a replacement container.",
-          completedContainerId, stage, currContainerMemoryMbs, maxMemoryMbs);
+    if (currContainerMemoryMbs >= MAX_REPLACEMENT_CONTAINER_MEMORY_MBS) {
+      log.warn("Container {} already had max allowed memory {} MBs (max: {} MBs). Not requesting a replacement container.",
+          completedContainerId, currContainerMemoryMbs, MAX_REPLACEMENT_CONTAINER_MEMORY_MBS);
       return;
     }
-    int newContainerMemoryMbs = Math.min(currContainerMemoryMbs * memoryMultiplier, maxMemoryMbs);
+    int newContainerMemoryMbs = Math.min(currContainerMemoryMbs * DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER, MAX_REPLACEMENT_CONTAINER_MEMORY_MBS);
 
-    log.info("Creating OOM replacement for stage {} with memory: {} MB -> {} MB (max: {} MB)",
-        stage, currContainerMemoryMbs, newContainerMemoryMbs, maxMemoryMbs);
+    log.info("Creating OOM replacement with memory: {} MB -> {} MB (max: {} MB)",
+        currContainerMemoryMbs, newContainerMemoryMbs, MAX_REPLACEMENT_CONTAINER_MEMORY_MBS);
 
-    // Derive from global baseline with stage-specific overlays
-    ProfileOverlay overlay = createStageSpecificOOMOverlay(stage, newContainerMemoryMbs);
+    // Derive from global baseline with memory and worker class overlays
+    ProfileOverlay overlay = createOOMReplacementOverlay(stage, newContainerMemoryMbs);
     Optional<ProfileDerivation> optProfileDerivation = Optional.of(
         new ProfileDerivation(WorkforceProfiles.BASELINE_NAME, overlay)
     );
@@ -357,38 +353,10 @@ public class DynamicScalingYarnService extends YarnService {
   }
 
   /**
-   * Gets the memory multiplier for OOM retries for a specific workflow stage.
-   * Uses execution-specific config for WORK_EXECUTION, default for all others.
-   */
-  private int getMemoryMultiplierForStage(WorkflowStage stage) {
-    if (stage == WorkflowStage.WORK_EXECUTION) {
-      return config.hasPath(GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MEMORY_MULTIPLIER)
-          ? config.getInt(GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MEMORY_MULTIPLIER)
-          : GobblinTemporalConfigurationKeys.DEFAULT_WORK_EXECUTION_OOM_MEMORY_MULTIPLIER;
-    }
-    // Use default multiplier for all non-execution stages (discovery, commit, etc.)
-    return DEFAULT_REPLACEMENT_CONTAINER_MEMORY_MULTIPLIER;
-  }
-
-  /**
-   * Gets the maximum memory allowed for OOM retries for a specific workflow stage.
-   * Uses execution-specific config for WORK_EXECUTION, default for all others.
-   */
-  private int getMaxMemoryForStage(WorkflowStage stage) {
-    if (stage == WorkflowStage.WORK_EXECUTION) {
-      return config.hasPath(GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MAX_MEMORY_MB)
-          ? config.getInt(GobblinTemporalConfigurationKeys.WORK_EXECUTION_OOM_MAX_MEMORY_MB)
-          : GobblinTemporalConfigurationKeys.DEFAULT_WORK_EXECUTION_OOM_MAX_MEMORY_MB;
-    }
-    // Use default max memory for all non-execution stages (discovery, commit, etc.)
-    return MAX_REPLACEMENT_CONTAINER_MEMORY_MBS;
-  }
-
-  /**
-   * Creates a ProfileOverlay for OOM replacement with stage-specific memory and worker class.
+   * Creates a ProfileOverlay for OOM replacement with increased memory and appropriate worker class.
    * This derives from the global baseline, ensuring task queue routing is preserved.
    */
-  private ProfileOverlay createStageSpecificOOMOverlay(WorkflowStage stage, int newMemoryMbs) {
+  private ProfileOverlay createOOMReplacementOverlay(WorkflowStage stage, int newMemoryMbs) {
     List<ProfileOverlay.KVPair> overlayPairs = new ArrayList<>();
 
     // Add increased memory

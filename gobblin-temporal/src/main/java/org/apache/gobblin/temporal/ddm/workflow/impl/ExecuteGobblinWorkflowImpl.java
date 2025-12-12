@@ -29,6 +29,7 @@ import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
+import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 
@@ -165,11 +166,17 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   }
 
   protected ProcessWorkUnitsWorkflow createProcessWorkUnitsWorkflow(Properties jobProps) {
+    com.typesafe.config.Config config = com.typesafe.config.ConfigFactory.parseProperties(jobProps);
+    boolean dynamicScalingEnabled = config.hasPath(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED)
+        && config.getBoolean(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED);
+
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_TERMINATE)
         .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(PROCESS_WORKFLOW_ID_BASE, ConfigFactory.parseProperties(jobProps)))
         .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(jobProps))
+        .setTaskQueue(dynamicScalingEnabled ? WorkflowStage.WORK_EXECUTION.getTaskQueue(config) : null)
         .build();
+
     return Workflow.newChildWorkflowStub(ProcessWorkUnitsWorkflow.class, childOpts);
   }
 

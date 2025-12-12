@@ -136,15 +136,11 @@ public interface GobblinTemporalConfigurationKeys {
 
   /**
    * Stage-specific resource configuration for execution workers
-   * Allows independent memory and OOM configuration for work execution stage
+   * Allows independent memory configuration for work execution stage when dynamic scaling is enabled
    */
   String STAGE_SPECIFIC_PREFIX = PREFIX + "stage.";
 
   // Work Execution stage configuration (for ExecutionWorker when dynamic scaling is enabled)
   String WORK_EXECUTION_MEMORY_MB = STAGE_SPECIFIC_PREFIX + "workExecution.memory.mb";
-  String WORK_EXECUTION_OOM_MEMORY_MULTIPLIER = STAGE_SPECIFIC_PREFIX + "workExecution.oom.memory.multiplier";
-  int DEFAULT_WORK_EXECUTION_OOM_MEMORY_MULTIPLIER = 2;
-  String WORK_EXECUTION_OOM_MAX_MEMORY_MB = STAGE_SPECIFIC_PREFIX + "workExecution.oom.max.memory.mb";
-  int DEFAULT_WORK_EXECUTION_OOM_MAX_MEMORY_MB = 65536; // 64GB (memory-intensive operations)
 
 }

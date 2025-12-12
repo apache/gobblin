@@ -49,84 +49,63 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
 
   @Override
   public List<ScalingDirective> recommendScaling(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget timeBudget, Properties jobProps, WorkflowStage stage) {
+    // NOTE: Scaling is only done for WORK_EXECUTION stage (processing work units)
     // NOTE: no attempt to determine the current scaling - per `RecommendScalingForWorkUnits` javadoc, the `ScalingDirective`(s) returned must "stand alone",
     // presuming nothing of the current `WorkforcePlan`'s `WorkforceStaffing`
     JobState jobState = new JobState(jobProps);
     ScalingDirective procWUsWorkerScaling = new ScalingDirective(
-        calcProfileDerivationName(jobState, stage),
+        calcProfileDerivationName(jobState),
         calcDerivationSetPoint(remainingWork, sourceClass, timeBudget, jobState),
         System.currentTimeMillis(),
-        Optional.of(calcProfileDerivation(calcBasisProfileName(jobState, stage), remainingWork, sourceClass, jobState, stage))
+        Optional.of(calcProfileDerivation(calcBasisProfileName(jobState), remainingWork, sourceClass, jobState))
     );
-    log.info("Recommended re-scaling for {} stage to process work units: {}", stage, procWUsWorkerScaling);
+    log.info("Recommended re-scaling for WORK_EXECUTION to process work units: {}", procWUsWorkerScaling);
     return Arrays.asList(procWUsWorkerScaling);
   }
 
   protected abstract int calcDerivationSetPoint(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget timeBudget, JobState jobState);
 
-  protected ProfileDerivation calcProfileDerivation(String basisProfileName, WorkUnitsSizeSummary remainingWork, String sourceClass, JobState jobState, WorkflowStage stage) {
-    // Create overlay with stage-specific memory and worker class
-    ProfileOverlay overlay = createStageSpecificOverlay(jobState, stage);
+  protected ProfileDerivation calcProfileDerivation(String basisProfileName, WorkUnitsSizeSummary remainingWork, String sourceClass, JobState jobState) {
+    // Create overlay with execution-specific memory and worker class
+    ProfileOverlay overlay = createExecutionWorkerOverlay(jobState);
     return new ProfileDerivation(basisProfileName, overlay);
   }
 
-  protected String calcProfileDerivationName(JobState jobState, WorkflowStage stage) {
+  protected String calcProfileDerivationName(JobState jobState) {
     // TODO: if we ever return > 1 directive, append a monotonically increasing number to avoid collisions
-    return stage.getProcessingProfileName();  // e.g., "workExecution-proc"
+    return WorkflowStage.WORK_EXECUTION.getProcessingProfileName();  // "workExecution-proc"
   }
 
-  protected String calcBasisProfileName(JobState jobState, WorkflowStage stage) {
+  protected String calcBasisProfileName(JobState jobState) {
     // Always derive from the global baseline
     return WorkforceProfiles.BASELINE_NAME;
   }
 
   /**
-   * Creates a ProfileOverlay with stage-specific memory and worker class configuration.
-   * This allows deriving stage-specific profiles from the global baseline.
+   * Creates a ProfileOverlay for ExecutionWorker with optional memory override and worker class.
+   * 
+   * This overlay is applied to the baseline profile to create execution worker containers.
+   * If gobblin.temporal.stage.workExecution.memory.mb is configured in job properties,
+   * it overrides the baseline container memory for execution workers.
    */
-  private ProfileOverlay createStageSpecificOverlay(JobState jobState, WorkflowStage stage) {
+  private ProfileOverlay createExecutionWorkerOverlay(JobState jobState) {
     List<ProfileOverlay.KVPair> overlayPairs = new java.util.ArrayList<>();
 
-    // Add stage-specific memory if configured
-    String memoryKey = getStageMemoryConfigKey(stage);
-    if (jobState.contains(memoryKey)) {
+    // Add execution-specific memory if configured (overrides baseline memory)
+    if (jobState.contains(GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB)) {
       overlayPairs.add(new ProfileOverlay.KVPair(
           GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY,
-          jobState.getProp(memoryKey)
+          jobState.getProp(GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB)
       ));
     }
 
-    // Add stage-specific worker class
-    String workerClass = getWorkerClassForStage(stage);
+    // Add ExecutionWorker class to ensure correct task queue routing
     overlayPairs.add(new ProfileOverlay.KVPair(
         GobblinTemporalConfigurationKeys.WORKER_CLASS,
-        workerClass
+        "org.apache.gobblin.temporal.ddm.worker.ExecutionWorker"
     ));
 
     return overlayPairs.isEmpty() ? ProfileOverlay.unchanged() : new ProfileOverlay.Adding(overlayPairs);
   }
 
-  /**
-   * Returns the configuration key for stage-specific memory.
-   * Only WORK_EXECUTION has stage-specific memory config; others use default.
-   */
-  private String getStageMemoryConfigKey(WorkflowStage stage) {
-    if (stage == WorkflowStage.WORK_EXECUTION) {
-      return GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB;
-    }
-    // Non-execution stages (discovery, commit) use default/baseline memory
-    return null;
-  }
-
-  /**
-   * Gets the worker class for a specific workflow stage.
-   * Returns ExecutionWorker for WORK_EXECUTION, WorkFulfillmentWorker for all others.
-   */
-  private String getWorkerClassForStage(WorkflowStage stage) {
-    if (stage == WorkflowStage.WORK_EXECUTION) {
-      return "org.apache.gobblin.temporal.ddm.worker.ExecutionWorker";
-    }
-    // All non-execution stages use WorkFulfillmentWorker (discovery, commit, etc.)
-    return "org.apache.gobblin.temporal.ddm.worker.WorkFulfillmentWorker";
-  }
 }

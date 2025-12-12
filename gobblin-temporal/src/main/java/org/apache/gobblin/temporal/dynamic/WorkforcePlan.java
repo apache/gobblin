@@ -84,13 +84,7 @@ public class WorkforcePlan {
   /** create new plan with the initial, baseline worker profile using `baselineConfig` at `initialSetPoint` */
   public WorkforcePlan(Config baselineConfig, int initialSetPoint) {
     this.profiles = WorkforceProfiles.withBaseline(baselineConfig);
-    this.staffing = WorkforceStaffing.initialize(0);
-    // Initial containers use the global baseline profile
-    this.staffing.reviseStaffing(
-        WorkforceProfiles.BASELINE_NAME,
-        initialSetPoint,
-        0
-    );
+    this.staffing = WorkforceStaffing.initialize(initialSetPoint);
     this.lastRevisionEpochMillis = 0;
   }
 
