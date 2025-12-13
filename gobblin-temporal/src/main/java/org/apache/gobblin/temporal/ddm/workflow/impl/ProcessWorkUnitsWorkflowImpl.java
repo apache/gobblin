@@ -22,6 +22,7 @@ import java.util.Properties;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.api.enums.v1.ParentClosePolicy;
@@ -30,6 +31,7 @@ import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
@@ -144,12 +146,17 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   protected CommitStepWorkflow createCommitStepWorkflow(Map<String, Object> searchAttributes) {
+    Config config = WorkerConfig.of(this).orElse(ConfigFactory.empty());
+    String defaultTaskQueue = config.hasPath(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE)
+        ? config.getString(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE)
+        : GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE;
+    
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         // TODO: verify to instead use:  Policy.PARENT_CLOSE_POLICY_TERMINATE)
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
         .setSearchAttributes(searchAttributes)
-        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE,
-            WorkerConfig.of(this).orElse(ConfigFactory.empty())))
+        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE, config))
+        .setTaskQueue(defaultTaskQueue)
         .build();
 
     return Workflow.newChildWorkflowStub(CommitStepWorkflow.class, childOpts);
