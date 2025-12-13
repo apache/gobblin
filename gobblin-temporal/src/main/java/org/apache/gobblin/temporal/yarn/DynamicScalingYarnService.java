@@ -69,7 +69,6 @@ public class DynamicScalingYarnService extends YarnService {
   private final WorkforceStaffing actualWorkforceStaffing;
   /** this holds the current total workforce plan as per latest received scaling directives */
   private final WorkforcePlan workforcePlan;
-  private final int initialContainers;
   protected final Queue<ContainerId> removedContainerIds;
   private final AtomicLong profileNameSuffixGenerator;
   private final boolean dynamicScalingEnabled;
@@ -80,18 +79,13 @@ public class DynamicScalingYarnService extends YarnService {
 
     this.dynamicScalingEnabled = ConfigUtils.getBoolean(config,
         GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED, false);
-    this.initialContainers = this.config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY);
 
     this.actualWorkforceStaffing = WorkforceStaffing.initialize(0);
-    // Initialize workforce plan:
-    // - For dynamic scaling: start with 0 baseline, then add stage-specific profiles
-    // - For traditional mode: initialize baseline with configured initial containers
-    int baselineSetPoint = this.dynamicScalingEnabled ? 0 : this.initialContainers;
-    this.workforcePlan = new WorkforcePlan(this.config, baselineSetPoint);
+    this.workforcePlan = new WorkforcePlan(this.config, this.config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY));
+
     this.removedContainerIds = new ConcurrentLinkedQueue<>();
     this.profileNameSuffixGenerator = new AtomicLong();
 
-    // For dynamic scaling, add stage-specific profiles derived from baseline
     if (this.dynamicScalingEnabled) {
       initializeDynamicScalingProfiles();
     }
