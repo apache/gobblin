@@ -105,38 +105,9 @@ public class OpenTelemetryInstrumentation {
    * @param metric the {@link GobblinOpenTelemetryMetrics} enum defining name, description, unit, and type {@link OpenTelemetryMetricType}
    * @return an {@link OpenTelemetryMetric} instance corresponding to the provided enum
    */
-  public OpenTelemetryMetric getOrCreate(GobblinOpenTelemetryMetrics metric) {
-    return this.metrics.computeIfAbsent(metric.getMetricName(), name -> createMetric(metric));
-  }
-
-  private OpenTelemetryMetric createMetric(GobblinOpenTelemetryMetrics metric) {
-    String name = metric.getMetricName();
-    String description = metric.getMetricDescription();
-    String unit = metric.getMetricUnit();
-    Attributes attrs = this.commonAttributes;
-
-    switch (metric.getMetricType()) {
-      case LONG_COUNTER:
-        return new OpenTelemetryLongCounter(
-            name,
-            attrs,
-            this.meter.counterBuilder(name)
-                .setDescription(description)
-                .setUnit(unit)
-                .build()
-        );
-      case DOUBLE_HISTOGRAM:
-        return new OpenTelemetryDoubleHistogram(
-            name,
-            attrs,
-            this.meter.histogramBuilder(name)
-                .setDescription(metric.getMetricDescription())
-                .setUnit(metric.getMetricUnit())
-                .build()
-        );
-      default:
-        throw new IllegalArgumentException("Unsupported metric type: " + metric.getMetricType());
-    }
+  @SuppressWarnings("unchecked")
+  public <T extends OpenTelemetryMetric> T getOrCreate(GobblinOpenTelemetryMetrics metric) {
+    return (T) this.metrics.computeIfAbsent(metric.getMetricName(), name -> metric.createMetric(this.commonAttributes, this.meter));
   }
 
   private Attributes buildCommonAttributes(final State state) {

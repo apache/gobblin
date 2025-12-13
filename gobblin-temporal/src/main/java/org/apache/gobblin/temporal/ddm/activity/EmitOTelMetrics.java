@@ -25,12 +25,31 @@ import io.temporal.activity.ActivityMethod;
 
 import org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetrics;
 
+/**
+ * Temporal activity interface for emitting OpenTelemetry metrics.
+ */
 @ActivityInterface
 public interface EmitOTelMetrics {
 
+  /**
+   * Emits a long counter metric.
+   *
+   * @param metric The OpenTelemetry metric to emit.
+   * @param value The value to add to the counter.
+   * @param attributes Additional attributes for the metric.
+   * @param jobProps Properties related to the job context.
+   */
   @ActivityMethod
   void emitLongCounterMetric(GobblinOpenTelemetryMetrics metric, long value, Map<String, String> attributes, Properties jobProps);
 
+  /**
+   * Emits a double histogram metric.
+   *
+   * @param metric The OpenTelemetry metric to emit.
+   * @param value The value to record in the histogram.
+   * @param attributes Additional attributes for the metric.
+   * @param jobProps Properties related to the job context.
+   */
   @ActivityMethod
   void emitDoubleHistogramMetric(GobblinOpenTelemetryMetrics metric, double value, Map<String, String> attributes, Properties jobProps);
 }

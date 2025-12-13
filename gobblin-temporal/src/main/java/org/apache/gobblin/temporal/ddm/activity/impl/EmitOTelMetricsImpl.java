@@ -25,20 +25,29 @@ import org.apache.gobblin.metrics.opentelemetry.OpenTelemetryDoubleHistogram;
 import org.apache.gobblin.metrics.opentelemetry.OpenTelemetryHelper;
 import org.apache.gobblin.metrics.opentelemetry.OpenTelemetryInstrumentation;
 import org.apache.gobblin.metrics.opentelemetry.OpenTelemetryLongCounter;
+import org.apache.gobblin.metrics.opentelemetry.OpenTelemetryMetricType;
 import org.apache.gobblin.temporal.ddm.activity.EmitOTelMetrics;
 
-
+/**
+ * Implementation of {@link EmitOTelMetrics} that emits OpenTelemetry metrics.
+ */
 public class EmitOTelMetricsImpl implements EmitOTelMetrics {
 
   @Override
   public void emitLongCounterMetric(GobblinOpenTelemetryMetrics metric, long value, Map<String, String> attributes, Properties jobProps) {
-    OpenTelemetryLongCounter longCounter = (OpenTelemetryLongCounter) OpenTelemetryInstrumentation.getInstance(jobProps).getOrCreate(metric);
+    if (!metric.getMetricType().equals(OpenTelemetryMetricType.LONG_COUNTER)) {
+      throw new IllegalArgumentException("Metric " + metric.getMetricName() + " is not of type LONG_COUNTER");
+    }
+    OpenTelemetryLongCounter longCounter = OpenTelemetryInstrumentation.getInstance(jobProps).getOrCreate(metric);
     longCounter.add(value, OpenTelemetryHelper.toOpenTelemetryAttributes(attributes));
   }
 
   @Override
   public void emitDoubleHistogramMetric(GobblinOpenTelemetryMetrics metric, double value, Map<String, String> attributes, Properties jobProps) {
-    OpenTelemetryDoubleHistogram doubleHistogram = (OpenTelemetryDoubleHistogram) OpenTelemetryInstrumentation.getInstance(jobProps).getOrCreate(metric);
+    if (!metric.getMetricType().equals(OpenTelemetryMetricType.DOUBLE_HISTOGRAM)) {
+      throw new IllegalArgumentException("Metric " + metric.getMetricName() + " is not of type DOUBLE_HISTOGRAM");
+    }
+    OpenTelemetryDoubleHistogram doubleHistogram = OpenTelemetryInstrumentation.getInstance(jobProps).getOrCreate(metric);
     doubleHistogram.record(value, OpenTelemetryHelper.toOpenTelemetryAttributes(attributes));
   }
 }

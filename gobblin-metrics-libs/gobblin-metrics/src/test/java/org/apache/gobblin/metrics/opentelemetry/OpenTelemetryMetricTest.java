@@ -36,9 +36,11 @@ import io.opentelemetry.sdk.metrics.data.MetricData;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.InMemoryOpenTelemetryMetrics;
 
-/** Tests for OpenTelemetry metrics implementation, specifically for
- * {@link OpenTelemetryLongCounter} and {@link OpenTelemetryDoubleHistogram}.
- * These tests validate the correct recording of metrics with and without additional attributes.
+/** Tests for OpenTelemetry metrics implementation, & its associated factory classes {@link OpenTelemetryMetricFactory}
+ * specifically for {@link OpenTelemetryLongCounter} and {@link OpenTelemetryDoubleHistogram}.
+ * These tests validate the object creation through factory classes {@link OpenTelemetryMetricFactory#LONG_COUNTER_FACTORY}
+ * & {@link OpenTelemetryMetricFactory#DOUBLE_HISTOGRAM_FACTORY} ,correct recording of metrics with and without
+ * additional attributes.
  */
 public class OpenTelemetryMetricTest {
 
@@ -57,8 +59,8 @@ public class OpenTelemetryMetricTest {
   @Test
   public void testOpenTelemetryLongCounter() {
     String metricName = "testLongCounter";
-    OpenTelemetryLongCounter longCounter = new OpenTelemetryLongCounter(metricName, baseAttributes,
-        inMemoryOpenTelemetryMetrics.getMeter(testMeterGroupName).counterBuilder(metricName).build());
+    OpenTelemetryLongCounter longCounter = OpenTelemetryMetricFactory.LONG_COUNTER_FACTORY.newMetric(metricName,
+        "testLongCounterDescription", "1", baseAttributes, inMemoryOpenTelemetryMetrics.getMeter(testMeterGroupName));
     longCounter.add(20, Attributes.builder().put("dim3", "val3").build());
     Collection<MetricData> metrics = inMemoryOpenTelemetryMetrics.metricReader.collectAllMetrics();
     Assert.assertEquals(metrics.size(), 1);
@@ -75,8 +77,8 @@ public class OpenTelemetryMetricTest {
   @Test
   public void testOpenTelemetryLongCounterWithoutAdditionalAttributes() {
     String metricName = "testLongCounterWithoutAdditionalAttributes";
-    OpenTelemetryLongCounter longCounter = new OpenTelemetryLongCounter(metricName, baseAttributes,
-        inMemoryOpenTelemetryMetrics.getMeter(testMeterGroupName).counterBuilder(metricName).build());
+    OpenTelemetryLongCounter longCounter = OpenTelemetryMetricFactory.LONG_COUNTER_FACTORY.newMetric(metricName,
+        "testLongCounterDescription", "1", baseAttributes, inMemoryOpenTelemetryMetrics.getMeter(testMeterGroupName));
     longCounter.add(10);
     Collection<MetricData> metrics = inMemoryOpenTelemetryMetrics.metricReader.collectAllMetrics();
     Assert.assertEquals(metrics.size(), 1);
@@ -94,8 +96,8 @@ public class OpenTelemetryMetricTest {
   @Test
   public void testOpenTelemetryDoubleHistogram() {
     String metricName = "testDoubleHistogram";
-    OpenTelemetryDoubleHistogram doubleHistogram = new OpenTelemetryDoubleHistogram(metricName, baseAttributes,
-        inMemoryOpenTelemetryMetrics.getMeter(testMeterGroupName).histogramBuilder(metricName).build());
+    OpenTelemetryDoubleHistogram doubleHistogram = OpenTelemetryMetricFactory.DOUBLE_HISTOGRAM_FACTORY.newMetric(metricName,
+        "testDoubleHistogramDescription", "s", baseAttributes, inMemoryOpenTelemetryMetrics.getMeter(testMeterGroupName));
     doubleHistogram.record(5.0, Attributes.builder().put("dim3", "val3").build());
     doubleHistogram.record(10.0, Attributes.builder().put("dim3", "val3").build());
     Collection<MetricData> metrics = inMemoryOpenTelemetryMetrics.metricReader.collectAllMetrics();

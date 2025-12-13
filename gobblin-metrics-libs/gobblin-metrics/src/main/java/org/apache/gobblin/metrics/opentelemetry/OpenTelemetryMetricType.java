@@ -17,14 +17,22 @@
 
 package org.apache.gobblin.metrics.opentelemetry;
 
+import lombok.Getter;
 
 /**
  * Enum representing the types of OpenTelemetry metrics supported.
  */
+@Getter
 public enum OpenTelemetryMetricType {
   /** Represents a metric of type LongCounter. */
-  LONG_COUNTER,
+  LONG_COUNTER(OpenTelemetryMetricFactory.LONG_COUNTER_FACTORY),
   /** Represents a metric of type DoubleHistogram. */
-  DOUBLE_HISTOGRAM;
+  DOUBLE_HISTOGRAM(OpenTelemetryMetricFactory.DOUBLE_HISTOGRAM_FACTORY);
+
+  private final OpenTelemetryMetricFactory<? extends OpenTelemetryMetric> factory;
+
+  OpenTelemetryMetricType(OpenTelemetryMetricFactory<? extends OpenTelemetryMetric> factory) {
+    this.factory = factory;
+  }
 
 }
