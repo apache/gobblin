@@ -23,11 +23,9 @@ import io.temporal.workflow.Async;
 import io.temporal.workflow.Promise;
 import io.temporal.workflow.Workflow;
 
-import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
-import org.apache.gobblin.temporal.ddm.workflow.WorkflowStage;
 import org.apache.gobblin.temporal.util.nesting.workflow.AbstractNestingExecWorkflowImpl;
 
 
@@ -36,22 +34,8 @@ public class NestingExecOfProcessWorkUnitWorkflowImpl extends AbstractNestingExe
 
   @Override
   protected Promise<Integer> launchAsyncActivity(final WorkUnitClaimCheck wu, final Properties props) {
-    // Route ProcessWorkUnit to execution queue only if dynamic scaling is enabled
-    com.typesafe.config.Config config = com.typesafe.config.ConfigFactory.parseProperties(props);
-    boolean dynamicScalingEnabled = config.hasPath(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED)
-        && config.getBoolean(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED);
-    
-    final ProcessWorkUnit processWorkUnitStub;
-    if (dynamicScalingEnabled) {
-      // Route to execution queue for specialized worker
-      String executionTaskQueue = WorkflowStage.WORK_EXECUTION.getTaskQueue(config);
-      processWorkUnitStub = Workflow.newActivityStub(ProcessWorkUnit.class,
-          ActivityType.PROCESS_WORKUNIT.buildActivityOptions(props, true, executionTaskQueue));
-    } else {
-      // Use default queue (inherits from workflow)
-      processWorkUnitStub = Workflow.newActivityStub(ProcessWorkUnit.class,
-          ActivityType.PROCESS_WORKUNIT.buildActivityOptions(props, true));
-    }
+    final ProcessWorkUnit processWorkUnitStub = Workflow.newActivityStub(ProcessWorkUnit.class,
+        ActivityType.PROCESS_WORKUNIT.buildActivityOptions(props, true));
     return Async.function(processWorkUnitStub::processWorkUnit, wu);
   }
 }

@@ -17,13 +17,14 @@
 
 package org.apache.gobblin.temporal.ddm.workflow;
 
+import com.typesafe.config.Config;
 import lombok.Getter;
 
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 
 /**
  * Represents the different stages of a Gobblin Temporal workflow.
- * 
+ *
  * <p>Stages:
  * <ul>
  *   <li>WORK_DISCOVERY: Discovers data sources, generates work units (uses default queue)</li>
@@ -57,61 +58,15 @@ public enum WorkflowStage {
   }
 
   /**
-   * Returns the baseline profile name pattern for this stage.
-   * Used for naming derived profiles and identifying stage from profile names.
-   * Note: Stage-specific profiles are derived dynamically from the global baseline,
-   * not created as separate baseline profiles.
-   * Example: "baseline-workDiscovery", "baseline-workExecution"
-   */
-  public String getBaselineProfileName() {
-    return "baseline-" + profileBaseName;
-  }
-
-  /**
-   * Returns the processing profile name for this stage.
-   * Example: "workDiscovery-proc", "workExecution-proc"
-   */
-  public String getProcessingProfileName() {
-    return profileBaseName + "-proc";
-  }
-
-  /**
    * Returns the task queue for this stage, reading from config or using default.
    * Example: "GobblinTemporalDiscoveryCommitQueue", "GobblinTemporalExecutionQueue"
    *
    * @param config the configuration to read from
    * @return the task queue name for this stage
    */
-  public String getTaskQueue(com.typesafe.config.Config config) {
+  public String getTaskQueue(Config config) {
     return config.hasPath(taskQueueConfigKey)
         ? config.getString(taskQueueConfigKey)
         : defaultTaskQueue;
-  }
-
-  /**
-   * Determines the workflow stage from a profile name.
-   * Used by OOM handler to identify which stage a container belongs to.
-   *
-   * In the 2-worker model:
-   * - Empty/null profile name = baseline/default containers (WorkFulfillmentWorker) → WORK_DISCOVERY
-   * - Profile containing "workExecution" or "execution" = ExecutionWorker → WORK_EXECUTION
-   * - All other profiles = default containers → WORK_DISCOVERY
-   *
-   * @param profileName the profile name (e.g., "initial-execution", "workExecution-oomReplacement-1", "" for baseline)
-   * @return the corresponding WorkflowStage
-   */
-  public static WorkflowStage fromProfileName(String profileName) {
-    // Empty or null = baseline/default containers (WorkFulfillmentWorker)
-    if (profileName == null || profileName.isEmpty()) {
-      return WORK_DISCOVERY;  // Represents default/non-execution work
-    }
-    
-    // Check if this is an execution worker profile
-    if (profileName.contains("workExecution") || profileName.contains("execution")) {
-      return WORK_EXECUTION;
-    }
-    
-    // All other profiles default to non-execution work (WorkFulfillmentWorker)
-    return WORK_DISCOVERY;
   }
 }

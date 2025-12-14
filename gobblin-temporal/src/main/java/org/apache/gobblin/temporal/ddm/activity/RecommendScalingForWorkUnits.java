@@ -25,7 +25,6 @@ import io.temporal.activity.ActivityMethod;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.ddm.work.TimeBudget;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
-import org.apache.gobblin.temporal.ddm.workflow.WorkflowStage;
 import org.apache.gobblin.temporal.dynamic.ScalingDirective;
 
 
@@ -48,9 +47,8 @@ public interface RecommendScalingForWorkUnits {
    * @param sourceClass contextualizes the `WorkUnitsSizeSummary` and should name a {@link org.apache.gobblin.source.Source}
    * @param timeBudget the remaining target duration for processing the summarized `WorkUnit`s
    * @param jobProps all job props, to either guide the recommendation or better contextualize the nature of the `remainingWork`
-   * @param stage the workflow stage for which scaling is being recommended (e.g., WORK_EXECUTION)
    * @return the {@link ScalingDirective}s to process the summarized {@link WorkUnit}s within {@link TimeBudget}
    */
   @ActivityMethod
-  List<ScalingDirective> recommendScaling(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget timeBudget, Properties jobProps, WorkflowStage stage);
+  List<ScalingDirective> recommendScaling(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget timeBudget, Properties jobProps);
 }

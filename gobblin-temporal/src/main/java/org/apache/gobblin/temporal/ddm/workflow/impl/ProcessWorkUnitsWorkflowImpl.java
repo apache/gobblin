@@ -107,7 +107,6 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
       log.error("No work units processed, so no commit attempted.");
       return CommitStats.createEmpty();
     }
-
     CommitStepWorkflow commitWorkflow = createCommitStepWorkflow(searchAttributes);
     CommitStats result = commitWorkflow.commit(workSpec, props);
     if (result.getNumCommittedWorkUnits() == 0) {
@@ -146,20 +145,14 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
   }
 
   protected CommitStepWorkflow createCommitStepWorkflow(Map<String, Object> searchAttributes) {
-    Config config = WorkerConfig.of(this).orElse(ConfigFactory.empty());
-    String defaultTaskQueue = config.hasPath(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE)
-        ? config.getString(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE)
-        : GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE;
-    
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         // TODO: verify to instead use:  Policy.PARENT_CLOSE_POLICY_TERMINATE)
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
         .setSearchAttributes(searchAttributes)
-        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE, config))
-        .setTaskQueue(defaultTaskQueue)
+        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE,
+            WorkerConfig.of(this).orElse(ConfigFactory.empty())))
         .build();
 
     return Workflow.newChildWorkflowStub(CommitStepWorkflow.class, childOpts);
   }
-
 }

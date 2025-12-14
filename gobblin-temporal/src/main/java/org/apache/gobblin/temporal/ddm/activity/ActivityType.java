@@ -72,23 +72,16 @@ public enum ActivityType {
         .build();
   }
 
-  /**
-   * Build activity options with a specific task queue for stage-specific routing.
-   * @param props job properties
-   * @param setHeartbeatTimeout whether to set heartbeat timeout
-   * @param taskQueue the task queue to route this activity to
-   * @return ActivityOptions with task queue set
-   */
   public ActivityOptions buildActivityOptions(Properties props, boolean setHeartbeatTimeout, String taskQueue) {
     ActivityOptions.Builder builder = ActivityOptions.newBuilder()
         .setStartToCloseTimeout(getStartToCloseTimeout(props))
         .setRetryOptions(buildRetryOptions(props))
-        .setTaskQueue(taskQueue);  // Route to specific queue
-    
+        .setTaskQueue(taskQueue);
+
     if (setHeartbeatTimeout) {
       builder.setHeartbeatTimeout(getHeartbeatTimeout(props));
     }
-    
+
     return builder.build();
   }
 

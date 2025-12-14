@@ -104,7 +104,6 @@ import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 import org.apache.gobblin.yarn.GobblinYarnEventConstants;
 import org.apache.gobblin.yarn.GobblinYarnMetricTagNames;
 import org.apache.gobblin.yarn.YarnHelixUtils;
-import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.dynamic.WorkerProfile;
 import org.apache.gobblin.temporal.dynamic.WorkforceProfiles;
 
@@ -515,11 +514,6 @@ class YarnService extends AbstractIdleService {
         Optional.of(workerProfileConfig.getString(GobblinYarnConfigurationKeys.CONTAINER_JVM_ARGS_KEY)) :
         Optional.<String>absent();
 
-    // Extract worker class from profile config to pass as system property
-    String workerClass = ConfigUtils.getString(workerProfileConfig,
-        GobblinTemporalConfigurationKeys.WORKER_CLASS,
-        GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS);
-
     String containerProcessName = GobblinTemporalYarnTaskRunner.class.getSimpleName();
     StringBuilder containerCommand = new StringBuilder()
         .append(ApplicationConstants.Environment.JAVA_HOME.$()).append("/bin/java")
@@ -528,7 +522,6 @@ class YarnService extends AbstractIdleService {
         .append(" -D").append(GobblinYarnConfigurationKeys.JVM_USER_TIMEZONE_CONFIG).append("=").append(this.containerTimezone)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_DIR_NAME).append("=").append(ApplicationConstants.LOG_DIR_EXPANSION_VAR)
         .append(" -D").append(GobblinYarnConfigurationKeys.GOBBLIN_YARN_CONTAINER_LOG_FILE_NAME).append("=").append(containerProcessName).append(".").append(ApplicationConstants.STDOUT)
-        .append(" -D").append(GobblinTemporalConfigurationKeys.WORKER_CLASS).append("=").append(workerClass)
         .append(" ").append(JvmUtils.formatJvmArguments(workerJvmArgs))
         .append(" ").append(this.proxyJvmArgs)
         .append(" ").append(GobblinTemporalYarnTaskRunner.class.getName())

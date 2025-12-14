@@ -48,8 +48,7 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
   public static final String DEFAULT_PROFILE_DERIVATION_NAME = "workUnitsProc";
 
   @Override
-  public List<ScalingDirective> recommendScaling(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget timeBudget, Properties jobProps, WorkflowStage stage) {
-    // NOTE: Scaling is only done for WORK_EXECUTION stage (processing work units)
+  public List<ScalingDirective> recommendScaling(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget timeBudget, Properties jobProps) {
     // NOTE: no attempt to determine the current scaling - per `RecommendScalingForWorkUnits` javadoc, the `ScalingDirective`(s) returned must "stand alone",
     // presuming nothing of the current `WorkforcePlan`'s `WorkforceStaffing`
     JobState jobState = new JobState(jobProps);
@@ -59,7 +58,7 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
         System.currentTimeMillis(),
         Optional.of(calcProfileDerivation(calcBasisProfileName(jobState), remainingWork, sourceClass, jobState))
     );
-    log.info("Recommended re-scaling for WORK_EXECUTION to process work units: {}", procWUsWorkerScaling);
+    log.info("Recommended re-scaling to process work units: {}", procWUsWorkerScaling);
     return Arrays.asList(procWUsWorkerScaling);
   }
 
@@ -73,7 +72,7 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
 
   protected String calcProfileDerivationName(JobState jobState) {
     // TODO: if we ever return > 1 directive, append a monotonically increasing number to avoid collisions
-    return WorkflowStage.WORK_EXECUTION.getProcessingProfileName();  // "workExecution-proc"
+    return DEFAULT_PROFILE_DERIVATION_NAME;
   }
 
   protected String calcBasisProfileName(JobState jobState) {
@@ -81,13 +80,6 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
     return WorkforceProfiles.BASELINE_NAME;
   }
 
-  /**
-   * Creates a ProfileOverlay for ExecutionWorker with optional memory override and worker class.
-   * 
-   * This overlay is applied to the baseline profile to create execution worker containers.
-   * If gobblin.temporal.stage.workExecution.memory.mb is configured in job properties,
-   * it overrides the baseline container memory for execution workers.
-   */
   private ProfileOverlay createExecutionWorkerOverlay(JobState jobState) {
     List<ProfileOverlay.KVPair> overlayPairs = new java.util.ArrayList<>();
 
@@ -102,7 +94,7 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
     // Add ExecutionWorker class to ensure correct task queue routing
     overlayPairs.add(new ProfileOverlay.KVPair(
         GobblinTemporalConfigurationKeys.WORKER_CLASS,
-        "org.apache.gobblin.temporal.ddm.worker.ExecutionWorker"
+        GobblinTemporalConfigurationKeys.EXECUTION_WORKER_CLASS
     ));
 
     return overlayPairs.isEmpty() ? ProfileOverlay.unchanged() : new ProfileOverlay.Adding(overlayPairs);

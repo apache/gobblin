@@ -36,7 +36,7 @@ import org.apache.gobblin.util.ConfigUtils;
  * Specialized worker for Work Execution stage.
  * This worker only registers activities for:
  * - ProcessWorkUnit (Work Execution)
- * 
+ *
  * Runs on containers with stage-specific memory for work execution operations.
  * Polls the execution task queue to ensure activities run on appropriately-sized containers.
  */
@@ -52,17 +52,16 @@ public class ExecutionWorker extends AbstractTemporalWorker {
 
     @Override
     protected Class<?>[] getWorkflowImplClasses() {
-        return new Class[] { 
-            ProcessWorkUnitsWorkflowImpl.class, 
-            NestingExecOfProcessWorkUnitWorkflowImpl.class 
+        return new Class[] {
+            ProcessWorkUnitsWorkflowImpl.class,
+            NestingExecOfProcessWorkUnitWorkflowImpl.class
         };
     }
 
     @Override
     protected Object[] getActivityImplInstances() {
-        // Only register activities for Execution stage
-        return new Object[] { 
-            new ProcessWorkUnitImpl()  // Work Execution only
+        return new Object[] {
+            new ProcessWorkUnitImpl()
         };
     }
 

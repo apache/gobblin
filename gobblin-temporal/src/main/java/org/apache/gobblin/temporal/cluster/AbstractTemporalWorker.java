@@ -73,10 +73,6 @@ public abstract class AbstractTemporalWorker implements TemporalWorker {
     /** @return activity instances; NOTE: activities must be stateless and thread-safe, so a shared instance is used. */
     protected abstract Object[] getActivityImplInstances();
 
-    /** 
-     * @return the task queue name this worker should poll from.
-     * Subclasses can override this to specify a custom task queue.
-     */
     protected String getTaskQueue() {
         return ConfigUtils.getString(config,
             GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_TASK_QUEUE,

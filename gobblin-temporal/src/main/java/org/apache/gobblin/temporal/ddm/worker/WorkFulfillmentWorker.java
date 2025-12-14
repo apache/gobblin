@@ -17,19 +17,15 @@
 
 package org.apache.gobblin.temporal.ddm.worker;
 
-import java.util.Arrays;
 import java.util.concurrent.TimeUnit;
 
 import com.typesafe.config.Config;
 
 import io.temporal.client.WorkflowClient;
-import io.temporal.worker.Worker;
-import io.temporal.worker.WorkerFactory;
 import io.temporal.worker.WorkerOptions;
 
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
-import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.activity.impl.CommitActivityImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.DeleteWorkDirsActivityImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.GenerateWorkUnitsImpl;
@@ -44,19 +40,7 @@ import org.apache.gobblin.temporal.workflows.metrics.SubmitGTEActivityImpl;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-/**
- * Unified worker that handles ALL workflow stages except execution (Discovery, Commit, etc.).
- * 
- * This worker polls the DEFAULT task queue and is used:
- * - Always for discovery, commit, and other non-execution activities
- * - For execution activities when dynamic scaling is disabled
- * 
- * When dynamic scaling is enabled, execution activities are routed to the execution queue
- * and handled by the specialized ExecutionWorker.
- * 
- * This prevents resource mismatches (e.g., execution tasks requiring 64GB running
- * on a baseline container with only 8GB).
- */
+/** Worker for the {@link ProcessWorkUnitsWorkflowImpl} super-workflow */
 public class WorkFulfillmentWorker extends AbstractTemporalWorker {
     public static final long DEADLOCK_DETECTION_TIMEOUT_SECONDS = 120; // TODO: make configurable!
     public int maxExecutionConcurrency;

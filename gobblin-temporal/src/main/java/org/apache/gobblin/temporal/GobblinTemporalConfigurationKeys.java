@@ -18,6 +18,7 @@
 package org.apache.gobblin.temporal;
 
 import org.apache.gobblin.annotation.Alpha;
+import org.apache.gobblin.temporal.ddm.worker.ExecutionWorker;
 import org.apache.gobblin.temporal.workflows.helloworld.HelloWorldJobLauncher;
 import org.apache.gobblin.temporal.workflows.helloworld.HelloWorldWorker;
 
@@ -29,16 +30,18 @@ import org.apache.gobblin.temporal.workflows.helloworld.HelloWorldWorker;
 public interface GobblinTemporalConfigurationKeys {
 
   String PREFIX = "gobblin.temporal.";
+  String STAGE_SPECIFIC_PREFIX = PREFIX + "stage.";
 
   String WORKER_CLASS = PREFIX + "worker.class";
   String DEFAULT_WORKER_CLASS = HelloWorldWorker.class.getName();
+  String EXECUTION_WORKER_CLASS = ExecutionWorker.class.getName();
   String GOBBLIN_TEMPORAL_NAMESPACE = PREFIX + "namespace";
   String DEFAULT_GOBBLIN_TEMPORAL_NAMESPACE = PREFIX + "namespace";
 
   String GOBBLIN_TEMPORAL_TASK_QUEUE = PREFIX + "task.queue.name";
   String DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE = "GobblinTemporalTaskQueue";
 
-  // Execution task queue for worker specialization (when dynamic scaling is enabled)
+  // Execution task queue for work execution specialization
   String EXECUTION_TASK_QUEUE = PREFIX + "execution.task.queue.name";
   String DEFAULT_EXECUTION_TASK_QUEUE = "GobblinTemporalExecutionQueue";
   String GOBBLIN_TEMPORAL_JOB_LAUNCHER_PREFIX = PREFIX + "job.launcher.";
@@ -134,13 +137,5 @@ public interface GobblinTemporalConfigurationKeys {
   String TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS = TEMPORAL_ACTIVITY_RETRY_OPTIONS + "maximum.attempts";
   int DEFAULT_TEMPORAL_ACTIVITY_RETRY_OPTIONS_MAXIMUM_ATTEMPTS = 4;
 
-  /**
-   * Stage-specific resource configuration for execution workers
-   * Allows independent memory configuration for work execution stage when dynamic scaling is enabled
-   */
-  String STAGE_SPECIFIC_PREFIX = PREFIX + "stage.";
-
-  // Work Execution stage configuration (for ExecutionWorker when dynamic scaling is enabled)
   String WORK_EXECUTION_MEMORY_MB = STAGE_SPECIFIC_PREFIX + "workExecution.memory.mb";
-
 }
