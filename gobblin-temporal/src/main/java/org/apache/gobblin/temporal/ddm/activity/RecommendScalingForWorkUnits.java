@@ -31,6 +31,7 @@ import org.apache.gobblin.temporal.dynamic.ScalingDirective;
 
 /**
  * Activity to suggest the Dynamic Scaling warranted to complete processing of some amount of {@link org.apache.gobblin.source.workunit.WorkUnit}s
+ * within {@link TimeBudget}, through a combination of Workforce auto-scaling and Worker right-sizing.
  *
  * As with all {@link ActivityInterface}s, this is stateless, so the {@link ScalingDirective}(s) returned "stand alone", presuming nothing of current
  * {@link org.apache.gobblin.temporal.dynamic.WorkforceStaffing}.  It thus falls to the caller to coordinate whether to apply the directive(s) as-is,

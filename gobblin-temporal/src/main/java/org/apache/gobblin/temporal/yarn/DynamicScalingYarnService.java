@@ -39,8 +39,6 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
-import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
-import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.dynamic.ProfileDerivation;
 import org.apache.gobblin.temporal.dynamic.ProfileOverlay;
 import org.apache.gobblin.temporal.dynamic.ScalingDirective;
@@ -70,79 +68,22 @@ public class DynamicScalingYarnService extends YarnService {
   private final WorkforcePlan workforcePlan;
   protected final Queue<ContainerId> removedContainerIds;
   private final AtomicLong profileNameSuffixGenerator;
-  private final boolean dynamicScalingEnabled;
 
   public DynamicScalingYarnService(Config config, String applicationName, String applicationId,
       YarnConfiguration yarnConfiguration, FileSystem fs, EventBus eventBus) throws Exception {
     super(config, applicationName, applicationId, yarnConfiguration, fs, eventBus);
-
-    this.dynamicScalingEnabled = ConfigUtils.getBoolean(config,
-        GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED, false);
 
     this.actualWorkforceStaffing = WorkforceStaffing.initialize(0);
     this.workforcePlan = new WorkforcePlan(this.config, this.config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY));
 
     this.removedContainerIds = new ConcurrentLinkedQueue<>();
     this.profileNameSuffixGenerator = new AtomicLong();
-
-    if (this.dynamicScalingEnabled) {
-      initializeExecutionWorkerProfile();
-    }
-  }
-
-  private void initializeExecutionWorkerProfile() {
-    log.info("Initializing execution worker profile");
-    long currTimeMillis = System.currentTimeMillis();
-    List<ScalingDirective> initialDirectives = new ArrayList<>();
-
-    // ExecutionWorker for execution activities only
-    ProfileOverlay executionOverlay = createExecutionProfileOverlay();
-    initialDirectives.add(new ScalingDirective(
-        "initial-execution",
-        1,
-        currTimeMillis,
-        WorkforceProfiles.BASELINE_NAME,
-        executionOverlay
-    ));
-
-    // Apply initial directives to workforce plan
-    this.workforcePlan.reviseWhenNewer(initialDirectives, ire -> {
-      log.error("Failed to create execution worker profile", ire);
-      throw new RuntimeException("Failed to initialize execution worker profile for dynamic scaling", ire);
-    });
   }
 
   @Override
   protected synchronized void requestInitialContainers() {
     StaffingDeltas deltas = this.workforcePlan.calcStaffingDeltas(this.actualWorkforceStaffing);
     requestNewContainersForStaffingDeltas(deltas);
-  }
-
-  private ProfileOverlay createExecutionProfileOverlay() {
-    List<ProfileOverlay.KVPair> overlayPairs = new ArrayList<>();
-
-    overlayPairs.add(new ProfileOverlay.KVPair(
-        GobblinTemporalConfigurationKeys.WORKER_CLASS,
-        GobblinTemporalConfigurationKeys.EXECUTION_WORKER_CLASS
-    ));
-
-    overlayPairs.add(new ProfileOverlay.KVPair(
-        GobblinClusterConfigurationKeys.HELIX_INSTANCE_TAGS_KEY,
-        "execution"
-    ));
-
-    // Set stage-specific memory
-    // Falls back to global CONTAINER_MEMORY_MBS_KEY if stage-specific memory not configured
-    if (this.config.hasPath(GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB)) {
-      String executionMemoryMb = this.config.getString(
-          GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB);
-      overlayPairs.add(new ProfileOverlay.KVPair(
-          GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY,
-          executionMemoryMb
-      ));
-    }
-
-    return new ProfileOverlay.Adding(overlayPairs);
   }
 
   /**
