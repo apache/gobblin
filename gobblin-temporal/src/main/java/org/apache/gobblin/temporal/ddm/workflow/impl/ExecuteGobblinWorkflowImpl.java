@@ -161,20 +161,12 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   }
 
   protected ProcessWorkUnitsWorkflow createProcessWorkUnitsWorkflow(Properties jobProps) {
-    Config config = ConfigFactory.parseProperties(jobProps);
-    boolean dynamicScalingEnabled = config.hasPath(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED)
-        && config.getBoolean(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED);
-
-    ChildWorkflowOptions.Builder childOpts = ChildWorkflowOptions.newBuilder()
+    ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_TERMINATE)
         .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(PROCESS_WORKFLOW_ID_BASE, ConfigFactory.parseProperties(jobProps)))
-        .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(jobProps));
-
-    if (dynamicScalingEnabled) {
-      childOpts.setTaskQueue(WorkflowStage.WORK_EXECUTION.getTaskQueue(config));
-    }
-
-    return Workflow.newChildWorkflowStub(ProcessWorkUnitsWorkflow.class, childOpts.build());
+        .setSearchAttributes(TemporalWorkFlowUtils.generateGaasSearchAttributes(jobProps))
+        .build();
+    return Workflow.newChildWorkflowStub(ProcessWorkUnitsWorkflow.class, childOpts);
   }
 
   protected TimeBudget calcWUProcTimeBudget(Instant jobStartTime, WorkUnitsSizeSummary wuSizeSummary, Properties jobProps) {

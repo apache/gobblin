@@ -34,8 +34,11 @@ import com.typesafe.config.ConfigFactory;
 import io.temporal.workflow.ChildWorkflowOptions;
 import io.temporal.workflow.Workflow;
 
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
+import org.apache.gobblin.temporal.ddm.work.WUProcessingSpec;
 import org.apache.gobblin.temporal.ddm.workflow.CommitStepWorkflow;
+import org.apache.gobblin.temporal.util.nesting.workflow.NestingExecWorkflow;
 
 
 /**
@@ -162,5 +165,147 @@ public class ProcessWorkUnitsWorkflowImplTest {
     // Verify through mock interactions
     workflowMockedStatic.verify(() -> Workflow.newChildWorkflowStub(
         Mockito.any(), Mockito.any()), Mockito.times(1));
+  }
+
+  /**
+   * Tests that NestingExecWorkflow is routed to execution queue when dynamic scaling is enabled.
+   */
+  @Test
+  public void testCreateProcessingWorkflowWithDynamicScalingEnabled() {
+    // Setup
+    Map<String, Object> searchAttributes = new HashMap<>();
+    WUProcessingSpec mockSpec = Mockito.mock(WUProcessingSpec.class);
+    
+    Config mockConfig = ConfigFactory.parseString(
+        GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED + "=true\n" +
+        GobblinTemporalConfigurationKeys.EXECUTION_TASK_QUEUE + "=TestExecutionQueue"
+    );
+    
+    workerConfigMockedStatic.when(() -> WorkerConfig.of(Mockito.any()))
+        .thenReturn(java.util.Optional.of(mockConfig));
+
+    NestingExecWorkflow mockNestingWorkflow = Mockito.mock(NestingExecWorkflow.class);
+    
+    // Capture the ChildWorkflowOptions passed to newChildWorkflowStub
+    workflowMockedStatic.when(() -> Workflow.newChildWorkflowStub(
+        Mockito.eq(NestingExecWorkflow.class),
+        Mockito.any(ChildWorkflowOptions.class)))
+        .thenAnswer(invocation -> {
+          ChildWorkflowOptions options = invocation.getArgument(1);
+          // Verify task queue IS set to execution queue
+          Assert.assertEquals(options.getTaskQueue(), "TestExecutionQueue",
+              "NestingExecWorkflow should use execution queue when dynamic scaling is enabled");
+          return mockNestingWorkflow;
+        });
+
+    // Execute
+    NestingExecWorkflow result = workflow.createProcessingWorkflow(mockSpec, searchAttributes);
+
+    // Verify
+    Assert.assertNotNull(result);
+    workflowMockedStatic.verify(() -> Workflow.newChildWorkflowStub(
+        Mockito.eq(NestingExecWorkflow.class),
+        Mockito.any(ChildWorkflowOptions.class)), Mockito.times(1));
+  }
+
+  /**
+   * Tests that NestingExecWorkflow uses default execution queue when config key is not present.
+   */
+  @Test
+  public void testCreateProcessingWorkflowWithDynamicScalingEnabledDefaultQueue() {
+    // Setup
+    Map<String, Object> searchAttributes = new HashMap<>();
+    WUProcessingSpec mockSpec = Mockito.mock(WUProcessingSpec.class);
+    
+    Config mockConfig = ConfigFactory.parseString(
+        GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED + "=true"
+    );
+    
+    workerConfigMockedStatic.when(() -> WorkerConfig.of(Mockito.any()))
+        .thenReturn(java.util.Optional.of(mockConfig));
+
+    NestingExecWorkflow mockNestingWorkflow = Mockito.mock(NestingExecWorkflow.class);
+    
+    workflowMockedStatic.when(() -> Workflow.newChildWorkflowStub(
+        Mockito.eq(NestingExecWorkflow.class),
+        Mockito.any(ChildWorkflowOptions.class)))
+        .thenAnswer(invocation -> {
+          ChildWorkflowOptions options = invocation.getArgument(1);
+          // Verify task queue uses default execution queue
+          Assert.assertEquals(options.getTaskQueue(), 
+              GobblinTemporalConfigurationKeys.DEFAULT_EXECUTION_TASK_QUEUE,
+              "NestingExecWorkflow should use default execution queue");
+          return mockNestingWorkflow;
+        });
+
+    // Execute
+    workflow.createProcessingWorkflow(mockSpec, searchAttributes);
+  }
+
+  /**
+   * Tests that NestingExecWorkflow does NOT have task queue set when dynamic scaling is disabled.
+   */
+  @Test
+  public void testCreateProcessingWorkflowWithDynamicScalingDisabled() {
+    // Setup
+    Map<String, Object> searchAttributes = new HashMap<>();
+    WUProcessingSpec mockSpec = Mockito.mock(WUProcessingSpec.class);
+    
+    Config mockConfig = ConfigFactory.parseString(
+        GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED + "=false"
+    );
+    
+    workerConfigMockedStatic.when(() -> WorkerConfig.of(Mockito.any()))
+        .thenReturn(java.util.Optional.of(mockConfig));
+
+    NestingExecWorkflow mockNestingWorkflow = Mockito.mock(NestingExecWorkflow.class);
+    
+    workflowMockedStatic.when(() -> Workflow.newChildWorkflowStub(
+        Mockito.eq(NestingExecWorkflow.class),
+        Mockito.any(ChildWorkflowOptions.class)))
+        .thenAnswer(invocation -> {
+          ChildWorkflowOptions options = invocation.getArgument(1);
+          // Verify task queue is NOT set (inherits from parent)
+          Assert.assertNull(options.getTaskQueue(),
+              "NestingExecWorkflow should not have explicit task queue when dynamic scaling is disabled");
+          return mockNestingWorkflow;
+        });
+
+    // Execute
+    NestingExecWorkflow result = workflow.createProcessingWorkflow(mockSpec, searchAttributes);
+
+    // Verify
+    Assert.assertNotNull(result);
+  }
+
+  /**
+   * Tests that NestingExecWorkflow does NOT have task queue set when dynamic scaling config is absent.
+   */
+  @Test
+  public void testCreateProcessingWorkflowWithoutDynamicScalingConfig() {
+    // Setup
+    Map<String, Object> searchAttributes = new HashMap<>();
+    WUProcessingSpec mockSpec = Mockito.mock(WUProcessingSpec.class);
+    
+    Config mockConfig = ConfigFactory.empty();
+    
+    workerConfigMockedStatic.when(() -> WorkerConfig.of(Mockito.any()))
+        .thenReturn(java.util.Optional.of(mockConfig));
+
+    NestingExecWorkflow mockNestingWorkflow = Mockito.mock(NestingExecWorkflow.class);
+    
+    workflowMockedStatic.when(() -> Workflow.newChildWorkflowStub(
+        Mockito.eq(NestingExecWorkflow.class),
+        Mockito.any(ChildWorkflowOptions.class)))
+        .thenAnswer(invocation -> {
+          ChildWorkflowOptions options = invocation.getArgument(1);
+          // Verify task queue is NOT set (inherits from parent)
+          Assert.assertNull(options.getTaskQueue(),
+              "NestingExecWorkflow should not have explicit task queue when dynamic scaling config is absent");
+          return mockNestingWorkflow;
+        });
+
+    // Execute
+    workflow.createProcessingWorkflow(mockSpec, searchAttributes);
   }
 }
