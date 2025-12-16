@@ -17,6 +17,12 @@
 
 package org.apache.gobblin.temporal.cluster;
 
+import java.lang.reflect.Field;
+import java.lang.reflect.Method;
+import java.util.ArrayList;
+import java.util.List;
+
+import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
@@ -25,116 +31,117 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
-import org.apache.gobblin.temporal.ddm.worker.ExecutionWorker;
-import org.apache.gobblin.temporal.workflows.helloworld.HelloWorldWorker;
+import org.apache.gobblin.temporal.workflows.service.ManagedWorkflowServiceStubs;
 
 
 /**
- * Tests for {@link GobblinTemporalTaskRunner} focusing on worker class resolution
- * from configuration without relying on system properties.
+ * Tests for {@link GobblinTemporalTaskRunner} worker initialization logic.
  */
 public class GobblinTemporalTaskRunnerTest {
 
   /**
-   * Tests that worker class is correctly read from config (not system properties).
-   * This verifies the fix where we removed System.getProperty() in favor of ConfigUtils.getString().
+   * Tests that initializeExecutionWorkers does nothing when dynamic scaling is disabled.
    */
   @Test
-  public void testWorkerClassResolvedFromConfig() {
-    // Setup - config with ExecutionWorker class
+  public void testInitializeExecutionWorkersWhenDynamicScalingDisabled() throws Exception {
     Config config = ConfigFactory.empty()
-        .withValue(GobblinTemporalConfigurationKeys.WORKER_CLASS,
-            ConfigValueFactory.fromAnyRef(ExecutionWorker.class.getName()));
-
-    // Verify the config contains the expected worker class
-    String workerClass = config.getString(GobblinTemporalConfigurationKeys.WORKER_CLASS);
-    Assert.assertEquals(workerClass, ExecutionWorker.class.getName(),
-        "Config should contain ExecutionWorker class name");
-  }
-
-  /**
-   * Tests that default worker class is used when not configured.
-   */
-  @Test
-  public void testDefaultWorkerClassWhenNotConfigured() {
-    // Setup - empty config
-    Config config = ConfigFactory.empty();
-
-    // Verify default is used
-    String workerClass = config.hasPath(GobblinTemporalConfigurationKeys.WORKER_CLASS)
-        ? config.getString(GobblinTemporalConfigurationKeys.WORKER_CLASS)
-        : GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS;
-    
-    Assert.assertEquals(workerClass, HelloWorldWorker.class.getName(),
-        "Should use default HelloWorldWorker when not configured");
-  }
-
-  /**
-   * Tests that worker class configuration is properly overridden in profile overlay.
-   * This simulates how ExecutionWorker profile overrides the baseline worker class.
-   */
-  @Test
-  public void testWorkerClassOverrideInProfile() {
-    // Setup - baseline config with default worker
-    Config baselineConfig = ConfigFactory.empty()
-        .withValue(GobblinTemporalConfigurationKeys.WORKER_CLASS,
-            ConfigValueFactory.fromAnyRef(HelloWorldWorker.class.getName()));
-
-    // Simulate profile overlay for execution worker
-    Config executionConfig = baselineConfig
-        .withValue(GobblinTemporalConfigurationKeys.WORKER_CLASS,
-            ConfigValueFactory.fromAnyRef(ExecutionWorker.class.getName()));
-
-    // Verify baseline uses HelloWorldWorker
-    Assert.assertEquals(baselineConfig.getString(GobblinTemporalConfigurationKeys.WORKER_CLASS),
-        HelloWorldWorker.class.getName(),
-        "Baseline should use HelloWorldWorker");
-
-    // Verify execution profile uses ExecutionWorker
-    Assert.assertEquals(executionConfig.getString(GobblinTemporalConfigurationKeys.WORKER_CLASS),
-        ExecutionWorker.class.getName(),
-        "Execution profile should use ExecutionWorker");
-  }
-
-  /**
-   * Tests that EXECUTION_WORKER_CLASS constant matches ExecutionWorker class name.
-   */
-  @Test
-  public void testExecutionWorkerClassConstant() {
-    Assert.assertEquals(GobblinTemporalConfigurationKeys.EXECUTION_WORKER_CLASS,
-        ExecutionWorker.class.getName(),
-        "EXECUTION_WORKER_CLASS constant should match ExecutionWorker.class.getName()");
-  }
-
-  /**
-   * Tests that DEFAULT_WORKER_CLASS constant matches HelloWorldWorker class name.
-   */
-  @Test
-  public void testDefaultWorkerClassConstant() {
-    Assert.assertEquals(GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS,
-        HelloWorldWorker.class.getName(),
-        "DEFAULT_WORKER_CLASS constant should match HelloWorldWorker.class.getName()");
-  }
-
-  /**
-   * Tests worker class configuration for different container types in dynamic scaling.
-   */
-  @Test
-  public void testWorkerClassForDifferentContainerTypes() {
-    // Baseline container config (WorkFulfillmentWorker)
-    Config baselineConfig = ConfigFactory.empty()
+        .withValue(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED, ConfigValueFactory.fromAnyRef(false))
         .withValue(GobblinTemporalConfigurationKeys.WORKER_CLASS,
             ConfigValueFactory.fromAnyRef(GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS));
 
-    // Execution container config (ExecutionWorker)
-    Config executionConfig = ConfigFactory.empty()
+    GobblinTemporalTaskRunner taskRunner = createMockTaskRunner(config);
+    List<TemporalWorker> workers = getWorkersField(taskRunner);
+    int initialWorkerCount = workers.size();
+
+    invokeInitializeExecutionWorkers(taskRunner);
+
+    Assert.assertEquals(workers.size(), initialWorkerCount,
+        "No workers should be added when dynamic scaling is disabled");
+  }
+
+  /**
+   * Tests that initializeExecutionWorkers does nothing when container is already ExecutionWorker.
+   */
+  @Test
+  public void testInitializeExecutionWorkersWhenAlreadyExecutionWorker() throws Exception {
+    Config config = ConfigFactory.empty()
+        .withValue(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED, ConfigValueFactory.fromAnyRef(true))
         .withValue(GobblinTemporalConfigurationKeys.WORKER_CLASS,
             ConfigValueFactory.fromAnyRef(GobblinTemporalConfigurationKeys.EXECUTION_WORKER_CLASS));
 
-    // Verify different worker classes for different container types
-    Assert.assertNotEquals(
-        baselineConfig.getString(GobblinTemporalConfigurationKeys.WORKER_CLASS),
-        executionConfig.getString(GobblinTemporalConfigurationKeys.WORKER_CLASS),
-        "Baseline and execution containers should use different worker classes");
+    GobblinTemporalTaskRunner taskRunner = createMockTaskRunner(config);
+    List<TemporalWorker> workers = getWorkersField(taskRunner);
+    int initialWorkerCount = workers.size();
+
+    invokeInitializeExecutionWorkers(taskRunner);
+
+    Assert.assertEquals(workers.size(), initialWorkerCount,
+        "No workers should be added when container is already ExecutionWorker");
+  }
+
+  /**
+   * Tests that initializeExecutionWorkers does nothing when dynamic scaling config is missing.
+   */
+  @Test
+  public void testInitializeExecutionWorkersWhenConfigMissing() throws Exception {
+    Config config = ConfigFactory.empty()
+        .withValue(GobblinTemporalConfigurationKeys.WORKER_CLASS,
+            ConfigValueFactory.fromAnyRef(GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS));
+
+    GobblinTemporalTaskRunner taskRunner = createMockTaskRunner(config);
+    List<TemporalWorker> workers = getWorkersField(taskRunner);
+    int initialWorkerCount = workers.size();
+
+    invokeInitializeExecutionWorkers(taskRunner);
+
+    Assert.assertEquals(workers.size(), initialWorkerCount,
+        "No workers should be added when dynamic scaling config is missing");
+  }
+
+  /**
+   * Helper to create a mock GobblinTemporalTaskRunner with necessary fields set.
+   */
+  private GobblinTemporalTaskRunner createMockTaskRunner(Config config) throws Exception {
+    GobblinTemporalTaskRunner taskRunner = Mockito.mock(GobblinTemporalTaskRunner.class, Mockito.CALLS_REAL_METHODS);
+
+    // Set clusterConfig field
+    Field clusterConfigField = GobblinTemporalTaskRunner.class.getDeclaredField("clusterConfig");
+    clusterConfigField.setAccessible(true);
+    clusterConfigField.set(taskRunner, config);
+
+    // Set workers list
+    Field workersField = GobblinTemporalTaskRunner.class.getDeclaredField("workers");
+    workersField.setAccessible(true);
+    workersField.set(taskRunner, new ArrayList<TemporalWorker>());
+
+    // Mock managedWorkflowServiceStubs
+    ManagedWorkflowServiceStubs mockStubs = Mockito.mock(ManagedWorkflowServiceStubs.class);
+    Field stubsField = GobblinTemporalTaskRunner.class.getDeclaredField("managedWorkflowServiceStubs");
+    stubsField.setAccessible(true);
+    stubsField.set(taskRunner, mockStubs);
+
+    // Mock WorkflowClient
+    Mockito.when(mockStubs.getWorkflowServiceStubs()).thenReturn(null);
+
+    return taskRunner;
+  }
+
+  /**
+   * Helper to invoke the private initializeExecutionWorkers method using reflection.
+   */
+  private void invokeInitializeExecutionWorkers(GobblinTemporalTaskRunner taskRunner) throws Exception {
+    Method method = GobblinTemporalTaskRunner.class.getDeclaredMethod("initializeExecutionWorkers");
+    method.setAccessible(true);
+    method.invoke(taskRunner);
+  }
+
+  /**
+   * Helper to get the workers list field using reflection.
+   */
+  @SuppressWarnings("unchecked")
+  private List<TemporalWorker> getWorkersField(GobblinTemporalTaskRunner taskRunner) throws Exception {
+    Field workersField = GobblinTemporalTaskRunner.class.getDeclaredField("workers");
+    workersField.setAccessible(true);
+    return (List<TemporalWorker>) workersField.get(taskRunner);
   }
 }

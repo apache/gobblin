@@ -27,7 +27,6 @@ import java.util.concurrent.atomic.AtomicLong;
 
 import org.apache.commons.collections.CollectionUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.gobblin.util.ConfigUtils;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.records.ContainerExitStatus;
 import org.apache.hadoop.yarn.api.records.ContainerId;
@@ -75,7 +74,6 @@ public class DynamicScalingYarnService extends YarnService {
 
     this.actualWorkforceStaffing = WorkforceStaffing.initialize(0);
     this.workforcePlan = new WorkforcePlan(this.config, this.config.getInt(GobblinYarnConfigurationKeys.INITIAL_CONTAINERS_KEY));
-
     this.removedContainerIds = new ConcurrentLinkedQueue<>();
     this.profileNameSuffixGenerator = new AtomicLong();
   }

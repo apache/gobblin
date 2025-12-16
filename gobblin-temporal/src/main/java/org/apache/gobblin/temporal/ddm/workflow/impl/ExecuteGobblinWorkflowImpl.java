@@ -52,7 +52,6 @@ import org.apache.gobblin.temporal.ddm.activity.DeleteWorkDirsActivity;
 import org.apache.gobblin.temporal.ddm.activity.GenerateWorkUnits;
 import org.apache.gobblin.temporal.ddm.activity.RecommendScalingForWorkUnits;
 import org.apache.gobblin.temporal.ddm.launcher.ProcessWorkUnitsJobLauncher;
-import org.apache.gobblin.temporal.ddm.workflow.WorkflowStage;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.ddm.util.TemporalWorkFlowUtils;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
@@ -112,6 +111,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
             ActivityType.RECOMMEND_SCALING.buildActivityOptions(temporalJobProps, false));
         List<ScalingDirective> scalingDirectives =
             recommendScalingStub.recommendScaling(wuSizeSummary, generateWorkUnitResult.getSourceClass(), timeBudget, jobProps);
+        log.info("Recommended scaling to process WUs within {}: {}", timeBudget, scalingDirectives);
         try {
           ScalingDirectivesRecipient recipient = createScalingDirectivesRecipient(jobProps, closer);
           List<ScalingDirective> adjustedScalingDirectives = adjustRecommendedScaling(jobProps, scalingDirectives);
