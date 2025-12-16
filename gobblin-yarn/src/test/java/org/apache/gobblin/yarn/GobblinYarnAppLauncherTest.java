@@ -515,63 +515,109 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   }
 
   @Test
-  public void testAddJarCachingConfig_JarCacheDirExists() throws Exception {
+  public void testAddJarCachingConfig_JarCachingDisabled() throws Exception {
     FileSystem mockFs = Mockito.mock(FileSystem.class);
-    String jarCacheDir = "/test/jar/cache/dir";
-    
-    // Mock: JAR_CACHE_DIR exists
-    Mockito.when(mockFs.exists(Mockito.any(org.apache.hadoop.fs.Path.class))).thenReturn(true);
     
     Config config = ConfigFactory.empty()
-        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(jarCacheDir))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(false));
+    
+    Config result = GobblinYarnAppLauncher.addJarCachingConfig(config, mockFs);
+    
+    // Should skip validation and return config as-is when jar caching is disabled
+    Assert.assertFalse(result.getBoolean(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED));
+    // Verify no filesystem checks were made
+    Mockito.verify(mockFs, Mockito.never()).exists(Mockito.any(org.apache.hadoop.fs.Path.class));
+  }
+
+  @Test
+  public void testAddJarCachingConfig_NoRootDirsConfigured() throws Exception {
+    FileSystem mockFs = Mockito.mock(FileSystem.class);
+    
+    // Mock: filesystem calls return false
+    Mockito.when(mockFs.exists(Mockito.any(org.apache.hadoop.fs.Path.class))).thenReturn(false);
+    
+    Config config = ConfigFactory.empty()
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
     
     Config result = GobblinYarnAppLauncher.addJarCachingConfig(config, mockFs);
     
-    // Should keep the original JAR_CACHE_DIR
-    Assert.assertEquals(result.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR), jarCacheDir);
-    Assert.assertTrue(result.getBoolean(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED));
+    // Should disable jar caching when no root directories are configured
+    Assert.assertFalse(result.getBoolean(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED));
   }
 
   @Test
-  public void testAddJarCachingConfig_JarCacheDirNotExistsFallbackExists() throws Exception {
+  public void testAddJarCachingConfig_RootDirExists() throws Exception {
     FileSystem mockFs = Mockito.mock(FileSystem.class);
-    String jarCacheDir = "/test/jar/cache/dir";
-    String fallbackDir = "/test/fallback/dir";
+    String rootDir = "/user/testuser";
+    String suffix = ".gobblinCache/gobblin-temporal/myproject";
+    String expectedFullPath = "/user/testuser/.gobblinCache/gobblin-temporal/myproject";
     
-    // Mock: JAR_CACHE_DIR doesn't exist, but FALLBACK_JAR_CACHE_DIR exists
+    // Mock: Root directory exists
     Mockito.when(mockFs.exists(Mockito.any(org.apache.hadoop.fs.Path.class))).thenAnswer(new Answer<Boolean>() {
       @Override
       public Boolean answer(InvocationOnMock invocation) {
         org.apache.hadoop.fs.Path path = invocation.getArgument(0);
-        return path.toString().equals(fallbackDir);
+        return path.toString().equals(rootDir);
       }
     });
     
     Config config = ConfigFactory.empty()
-        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(jarCacheDir))
-        .withValue(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(fallbackDir))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ROOT_DIR, ConfigValueFactory.fromAnyRef(rootDir))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_SUFFIX, ConfigValueFactory.fromAnyRef(suffix))
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
     
     Config result = GobblinYarnAppLauncher.addJarCachingConfig(config, mockFs);
     
-    // Should use fallback directory
-    Assert.assertEquals(result.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR), fallbackDir);
+    // Should set JAR_CACHE_DIR to root + suffix
+    Assert.assertEquals(result.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR), expectedFullPath);
     Assert.assertTrue(result.getBoolean(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED));
   }
 
   @Test
-  public void testAddJarCachingConfig_NeitherDirExists() throws Exception {
+  public void testAddJarCachingConfig_RootDirNotExistsFallbackRootExists() throws Exception {
     FileSystem mockFs = Mockito.mock(FileSystem.class);
-    String jarCacheDir = "/test/jar/cache/dir";
-    String fallbackDir = "/test/fallback/dir";
+    String rootDir = "/user/baduser";
+    String fallbackRootDir = "/user/gooduser";
+    String suffix = ".gobblinCache/gobblin-temporal/myproject";
+    String expectedFullPath = "/user/gooduser/.gobblinCache/gobblin-temporal/myproject";
     
-    // Mock: Neither directory exists
+    // Mock: Root dir doesn't exist, but fallback root exists
+    Mockito.when(mockFs.exists(Mockito.any(org.apache.hadoop.fs.Path.class))).thenAnswer(new Answer<Boolean>() {
+      @Override
+      public Boolean answer(InvocationOnMock invocation) {
+        org.apache.hadoop.fs.Path path = invocation.getArgument(0);
+        // Only fallback root directory exists
+        return path.toString().equals(fallbackRootDir);
+      }
+    });
+    
+    Config config = ConfigFactory.empty()
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ROOT_DIR, ConfigValueFactory.fromAnyRef(rootDir))
+        .withValue(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_ROOT_DIR, ConfigValueFactory.fromAnyRef(fallbackRootDir))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_SUFFIX, ConfigValueFactory.fromAnyRef(suffix))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
+    
+    Config result = GobblinYarnAppLauncher.addJarCachingConfig(config, mockFs);
+    
+    // Should set JAR_CACHE_DIR to fallback root + suffix
+    Assert.assertEquals(result.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR), expectedFullPath);
+    Assert.assertTrue(result.getBoolean(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED));
+  }
+
+  @Test
+  public void testAddJarCachingConfig_NeitherRootDirExists() throws Exception {
+    FileSystem mockFs = Mockito.mock(FileSystem.class);
+    String rootDir = "/user/baduser1";
+    String fallbackRootDir = "/user/baduser2";
+    String suffix = ".gobblinCache/gobblin-temporal/myproject";
+    
+    // Mock: Neither root directory exists
     Mockito.when(mockFs.exists(Mockito.any(org.apache.hadoop.fs.Path.class))).thenReturn(false);
     
     Config config = ConfigFactory.empty()
-        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(jarCacheDir))
-        .withValue(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(fallbackDir))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ROOT_DIR, ConfigValueFactory.fromAnyRef(rootDir))
+        .withValue(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_ROOT_DIR, ConfigValueFactory.fromAnyRef(fallbackRootDir))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_SUFFIX, ConfigValueFactory.fromAnyRef(suffix))
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
     
     Config result = GobblinYarnAppLauncher.addJarCachingConfig(config, mockFs);
@@ -581,39 +627,33 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
   }
 
   @Test
-  public void testAddJarCachingConfig_NoDirConfiguredFallbackExists() throws Exception {
+  public void testAddJarCachingConfig_OnlyFallbackRootConfigured() throws Exception {
     FileSystem mockFs = Mockito.mock(FileSystem.class);
-    String fallbackDir = "/test/fallback/dir";
+    String fallbackRootDir = "/user/testuser";
+    String suffix = ".gobblinCache/gobblin-temporal/myproject";
+    String expectedFullPath = "/user/testuser/.gobblinCache/gobblin-temporal/myproject";
     
-    // Mock: Fallback directory exists
-    Mockito.when(mockFs.exists(Mockito.any(org.apache.hadoop.fs.Path.class))).thenReturn(true);
+    // Mock: Fallback root directory exists
+    Mockito.when(mockFs.exists(Mockito.any(org.apache.hadoop.fs.Path.class))).thenAnswer(new Answer<Boolean>() {
+      @Override
+      public Boolean answer(InvocationOnMock invocation) {
+        org.apache.hadoop.fs.Path path = invocation.getArgument(0);
+        return path.toString().equals(fallbackRootDir);
+      }
+    });
     
     Config config = ConfigFactory.empty()
-        .withValue(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(fallbackDir))
+        .withValue(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_ROOT_DIR, ConfigValueFactory.fromAnyRef(fallbackRootDir))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_SUFFIX, ConfigValueFactory.fromAnyRef(suffix))
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
     
     Config result = GobblinYarnAppLauncher.addJarCachingConfig(config, mockFs);
     
-    // Should use fallback directory
-    Assert.assertEquals(result.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR), fallbackDir);
+    // Should set JAR_CACHE_DIR to fallback root + suffix
+    Assert.assertEquals(result.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR), expectedFullPath);
     Assert.assertTrue(result.getBoolean(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED));
   }
 
-  @Test
-  public void testAddJarCachingConfig_NoDirConfigured() throws Exception {
-    FileSystem mockFs = Mockito.mock(FileSystem.class);
-    
-    // Mock: No directories exist
-    Mockito.when(mockFs.exists(Mockito.any(org.apache.hadoop.fs.Path.class))).thenReturn(false);
-    
-    Config config = ConfigFactory.empty()
-        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
-    
-    Config result = GobblinYarnAppLauncher.addJarCachingConfig(config, mockFs);
-    
-    // Should disable jar caching
-    Assert.assertFalse(result.getBoolean(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED));
-  }
 
   /**
    * An application master for accessing protected fields in {@link GobblinApplicationMaster}

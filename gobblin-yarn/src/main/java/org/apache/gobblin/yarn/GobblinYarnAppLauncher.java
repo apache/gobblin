@@ -1000,35 +1000,86 @@ public class GobblinYarnAppLauncher {
     }
   }
 
+  /**
+   * Configures jar caching by validating root directories and setting JAR_CACHE_DIR.
+   * 
+   * <p>This method validates that the configured jar cache root directory exists on the filesystem
+   * before enabling jar caching. It follows this logic:</p>
+   * <ol>
+   *   <li>Check if jar caching is enabled, if not return config as-is</li>
+   *   <li>Read JAR_CACHE_ROOT_DIR and JAR_CACHE_SUFFIX from config</li>
+   *   <li>Check if JAR_CACHE_ROOT_DIR exists on filesystem (e.g., /user/${user.to.proxy})</li>
+   *   <li>If it exists: Set JAR_CACHE_DIR = JAR_CACHE_ROOT_DIR + JAR_CACHE_SUFFIX</li>
+   *   <li>If not: Try FALLBACK_JAR_CACHE_ROOT_DIR with same logic</li>
+   *   <li>If neither exists: Disable jar caching by setting JAR_CACHE_ENABLED to false</li>
+   * </ol>
+   * 
+   * <p>This ensures that the base user directory exists before attempting to cache jars in nested
+   * subdirectories, preventing runtime failures from misconfigured paths.</p>
+   * 
+   * @param config the application configuration
+   * @param fs the filesystem to use for validation
+   * @return updated config with JAR_CACHE_DIR set or JAR_CACHE_ENABLED disabled
+   * @throws IOException if filesystem operations fail
+   */
   private static Config addJarCachingConfig(Config config, FileSystem fs) throws IOException {
-    // Check if JAR_CACHE_DIR is configured and exists
-    if (config.hasPath(GobblinYarnConfigurationKeys.JAR_CACHE_DIR)) {
-      Path jarCacheDir = new Path(config.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR));
-      if (fs.exists(jarCacheDir)) {
-        // JAR_CACHE_DIR exists, nothing to do
-        return config;
-      }
-      LOGGER.warn("Configured JAR_CACHE_DIR does not exist: {}", jarCacheDir);
+    // Skip validation if jar caching is not enabled
+    boolean jarCachingEnabled = ConfigUtils.getBoolean(config, 
+        GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, 
+        GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED_DEFAULT);
+    
+    if (!jarCachingEnabled) {
+      LOGGER.info("Jar caching is not enabled, skipping jar cache directory validation");
+      return config;
     }
     
-    // JAR_CACHE_DIR doesn't exist or not configured, try fallback
-    if (config.hasPath(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_DIR)) {
-      Path fallbackDir = new Path(config.getString(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_DIR));
-      if (fs.exists(fallbackDir)) {
-        LOGGER.info("Using FALLBACK_JAR_CACHE_DIR: {}", fallbackDir);
-        config = config.withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, 
-            ConfigValueFactory.fromAnyRef(fallbackDir.toString()));
-        return config;
+    String suffix = ConfigUtils.getString(config, GobblinYarnConfigurationKeys.JAR_CACHE_SUFFIX, "");
+    
+    // Try primary root directory
+    if (config.hasPath(GobblinYarnConfigurationKeys.JAR_CACHE_ROOT_DIR)) {
+      String rootDir = config.getString(GobblinYarnConfigurationKeys.JAR_CACHE_ROOT_DIR);
+      Config result = validateAndSetJarCacheDir(config, fs, rootDir, suffix, "JAR_CACHE_ROOT_DIR");
+      if (result != null) {
+        return result;
       }
-      LOGGER.warn("Configured FALLBACK_JAR_CACHE_DIR does not exist: {}", fallbackDir);
     }
     
-    // Neither JAR_CACHE_DIR nor FALLBACK_JAR_CACHE_DIR exist, disable jar caching
-    LOGGER.warn("Neither JAR_CACHE_DIR nor FALLBACK_JAR_CACHE_DIR exist, disabling jar caching");
-    config = config.withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, 
+    // Try fallback root directory
+    if (config.hasPath(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_ROOT_DIR)) {
+      String fallbackRootDir = config.getString(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_ROOT_DIR);
+      Config result = validateAndSetJarCacheDir(config, fs, fallbackRootDir, suffix, "FALLBACK_JAR_CACHE_ROOT_DIR");
+      if (result != null) {
+        return result;
+      }
+    }
+    
+    // Neither root directory exists, disable jar caching
+    LOGGER.warn("No valid jar cache root directory found, disabling jar caching");
+    return config.withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, 
         ConfigValueFactory.fromAnyRef(false));
-    
-    return config;
+  }
+  
+  /**
+   * Validates if the root directory exists and sets JAR_CACHE_DIR if it does.
+   * 
+   * @param config the configuration
+   * @param fs the filesystem to check
+   * @param rootDir the root directory to validate
+   * @param suffix the suffix to append to root directory
+   * @param configName the config name for logging
+   * @return updated config if valid, null otherwise
+   */
+  private static Config validateAndSetJarCacheDir(Config config, FileSystem fs, String rootDir, 
+      String suffix, String configName) throws IOException {
+    Path rootPath = new Path(rootDir);
+    if (fs.exists(rootPath)) {
+      String fullPath = new Path(rootPath, suffix).toString();
+      LOGGER.info("{} exists: {}, setting JAR_CACHE_DIR to: {}", configName, rootDir, fullPath);
+      return config.withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, 
+          ConfigValueFactory.fromAnyRef(fullPath));
+    }
+    LOGGER.warn("Configured {} does not exist: {}", configName, rootDir);
+    return null;
   }
 
   /**
