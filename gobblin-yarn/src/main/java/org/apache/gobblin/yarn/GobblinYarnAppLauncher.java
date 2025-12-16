@@ -323,6 +323,7 @@ public class GobblinYarnAppLauncher {
 
     try {
       config = addDynamicConfig(config);
+      config = addJarCachingConfig(config, this.fs);
       outputConfigToFile(config);
     } catch (SchemaRegistryException e) {
       throw new IOException(e);
@@ -997,6 +998,37 @@ public class GobblinYarnAppLauncher {
     } else {
       return config;
     }
+  }
+
+  private static Config addJarCachingConfig(Config config, FileSystem fs) throws IOException {
+    // Check if JAR_CACHE_DIR is configured and exists
+    if (config.hasPath(GobblinYarnConfigurationKeys.JAR_CACHE_DIR)) {
+      Path jarCacheDir = new Path(config.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR));
+      if (fs.exists(jarCacheDir)) {
+        // JAR_CACHE_DIR exists, nothing to do
+        return config;
+      }
+      LOGGER.warn("Configured JAR_CACHE_DIR does not exist: {}", jarCacheDir);
+    }
+    
+    // JAR_CACHE_DIR doesn't exist or not configured, try fallback
+    if (config.hasPath(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_DIR)) {
+      Path fallbackDir = new Path(config.getString(GobblinYarnConfigurationKeys.FALLBACK_JAR_CACHE_DIR));
+      if (fs.exists(fallbackDir)) {
+        LOGGER.info("Using FALLBACK_JAR_CACHE_DIR: {}", fallbackDir);
+        config = config.withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, 
+            ConfigValueFactory.fromAnyRef(fallbackDir.toString()));
+        return config;
+      }
+      LOGGER.warn("Configured FALLBACK_JAR_CACHE_DIR does not exist: {}", fallbackDir);
+    }
+    
+    // Neither JAR_CACHE_DIR nor FALLBACK_JAR_CACHE_DIR exist, disable jar caching
+    LOGGER.warn("Neither JAR_CACHE_DIR nor FALLBACK_JAR_CACHE_DIR exist, disabling jar caching");
+    config = config.withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, 
+        ConfigValueFactory.fromAnyRef(false));
+    
+    return config;
   }
 
   /**

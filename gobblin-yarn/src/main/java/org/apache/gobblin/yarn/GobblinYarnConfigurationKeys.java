@@ -55,6 +55,9 @@ public class GobblinYarnConfigurationKeys {
 
   public static final String JAR_CACHE_DIR = GOBBLIN_YARN_PREFIX + "jar.cache.dir";
 
+  public static final String FALLBACK_JAR_CACHE_DIR = GOBBLIN_YARN_PREFIX + "jar.cache.dir";
+
+
   public static final String YARN_APPLICATION_LIB_JAR_LIST = GOBBLIN_YARN_PREFIX + "lib.jar.list";
 
   /**
