@@ -174,5 +174,4 @@ public class WorkforcePlan {
   WorkerProfile peepBaselineProfile() throws WorkforceProfiles.UnknownProfileException {
     return profiles.getOrThrow(WorkforceProfiles.BASELINE_NAME);
   }
-
 }
