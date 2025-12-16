@@ -351,6 +351,18 @@ public class GobblinMetrics {
   }
 
   /**
+   * Get the first {@link ScheduledReporter} of the given class if it exists.
+   * @param clazz the class of the ScheduledReporter to get
+   * @return an Optional containing the first ScheduledReporter of the given class if it exists, else an absent Optional
+   */
+  public <T extends com.codahale.metrics.ScheduledReporter> java.util.Optional<T> getScheduledReporter(Class<T> clazz) {
+    if (clazz == null) {
+      throw new IllegalArgumentException("Class argument cannot be null");
+    }
+    return this.codahaleScheduledReporters.stream().filter(clazz::isInstance).map(clazz::cast).findFirst();
+  }
+
+  /**
    * Starts metric reporting and appends the given metrics file suffix to the current value of
    * {@link ConfigurationKeys#METRICS_FILE_SUFFIX}.
    */

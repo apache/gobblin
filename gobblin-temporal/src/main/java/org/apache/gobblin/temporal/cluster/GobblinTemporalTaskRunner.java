@@ -208,8 +208,10 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
 
   private Config saveConfigToFile(Config config)
       throws IOException {
-    Config newConf = config
-        .withValue(CLUSTER_APP_WORK_DIR, ConfigValueFactory.fromAnyRef(this.appWorkPath.toString()));
+    // Save the application name and task runner id in the config for getting ContainerMetrics instance later
+    Config newConf = config.withValue(CLUSTER_APP_WORK_DIR, ConfigValueFactory.fromAnyRef(this.appWorkPath.toString()))
+        .withValue(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINER_METRICS_APPLICATION_NAME, ConfigValueFactory.fromAnyRef(this.applicationName))
+        .withValue(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINER_METRICS_TASK_RUNNER_ID, ConfigValueFactory.fromAnyRef(this.taskRunnerId));
     ConfigUtils configUtils = new ConfigUtils(new FileUtils());
     configUtils.saveConfigToFile(newConf, CLUSTER_CONF_PATH);
     return newConf;
