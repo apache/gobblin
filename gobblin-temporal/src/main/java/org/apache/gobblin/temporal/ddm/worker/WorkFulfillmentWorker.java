@@ -28,6 +28,7 @@ import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
 import org.apache.gobblin.temporal.ddm.activity.impl.CommitActivityImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.DeleteWorkDirsActivityImpl;
+import org.apache.gobblin.temporal.ddm.activity.impl.EmitOTelMetricsImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.GenerateWorkUnitsImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.RecommendScalingForWorkUnitsLinearHeuristicImpl;
@@ -60,7 +61,7 @@ public class WorkFulfillmentWorker extends AbstractTemporalWorker {
     @Override
     protected Object[] getActivityImplInstances() {
         return new Object[] { new SubmitGTEActivityImpl(), new GenerateWorkUnitsImpl(), new RecommendScalingForWorkUnitsLinearHeuristicImpl(), new ProcessWorkUnitImpl(),
-            new CommitActivityImpl(), new DeleteWorkDirsActivityImpl() };
+            new CommitActivityImpl(), new DeleteWorkDirsActivityImpl(), new EmitOTelMetricsImpl()};
     }
 
     @Override

@@ -23,7 +23,6 @@ import io.temporal.failure.ApplicationFailure;
 import io.temporal.workflow.Workflow;
 
 import lombok.extern.slf4j.Slf4j;
-
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
 import org.apache.gobblin.temporal.ddm.activity.CommitActivity;
 import org.apache.gobblin.temporal.ddm.work.CommitStats;
