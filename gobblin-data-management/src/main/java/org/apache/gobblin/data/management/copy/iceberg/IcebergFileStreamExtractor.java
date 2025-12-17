@@ -150,6 +150,7 @@ public class IcebergFileStreamExtractor extends FileBasedExtractor<String, FileA
             sourcePath.getParent(), PathUtils.getRootPathChild(sourcePath), copyConfiguration);
     // Build CopyableFile using cached targetFs and copyConfiguration (initialized once in constructor)
     CopyableFile copyableFile = CopyableFile.fromOriginAndDestination(originFs, originStatus, destinationPath, this.copyConfiguration)
+        .fileSet(workUnit.getProp(ConfigurationKeys.DATASET_URN_KEY))
         .datasetOutputPath(targetFs.getUri().getPath())
         .ancestorsOwnerAndPermission(ancestorOwnerAndPermissionList)
         .build();
