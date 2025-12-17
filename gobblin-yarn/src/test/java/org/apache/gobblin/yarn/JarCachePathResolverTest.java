@@ -49,8 +49,7 @@ public class JarCachePathResolverTest {
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, 
             ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
     
-    JarCachePathResolver resolver = new JarCachePathResolver(config, mockFs);
-    Path result = resolver.resolveJarCachePath();
+    Path result = JarCachePathResolver.resolveJarCachePath(config, mockFs);
     
     // Should use explicitly configured JAR_CACHE_DIR
     Assert.assertEquals(result.toString(), explicitCacheDir);
@@ -81,8 +80,7 @@ public class JarCachePathResolverTest {
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, 
             ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
     
-    JarCachePathResolver resolver = new JarCachePathResolver(config, mockFs);
-    Path result = resolver.resolveJarCachePath();
+    Path result = JarCachePathResolver.resolveJarCachePath(config, mockFs);
     
     // Should resolve to root + suffix
     Assert.assertEquals(result.toString(), expectedFullPath);
@@ -114,8 +112,7 @@ public class JarCachePathResolverTest {
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, 
             ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
     
-    JarCachePathResolver resolver = new JarCachePathResolver(config, mockFs);
-    Path result = resolver.resolveJarCachePath();
+    Path result = JarCachePathResolver.resolveJarCachePath(config, mockFs);
     
     // Should resolve to fallback root + suffix
     Assert.assertEquals(result.toString(), expectedFullPath);
@@ -140,9 +137,8 @@ public class JarCachePathResolverTest {
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, 
             ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
     
-    JarCachePathResolver resolver = new JarCachePathResolver(config, mockFs);
     // Should throw IOException when no valid root directory found
-    resolver.resolveJarCachePath();
+    JarCachePathResolver.resolveJarCachePath(config, mockFs);
   }
 
   @Test
@@ -168,8 +164,7 @@ public class JarCachePathResolverTest {
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, 
             ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
     
-    JarCachePathResolver resolver = new JarCachePathResolver(config, mockFs);
-    Path result = resolver.resolveJarCachePath();
+    Path result = JarCachePathResolver.resolveJarCachePath(config, mockFs);
     
     // Should resolve to fallback root + suffix
     Assert.assertEquals(result.toString(), expectedFullPath);
@@ -185,9 +180,67 @@ public class JarCachePathResolverTest {
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, 
             ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
     
-    JarCachePathResolver resolver = new JarCachePathResolver(config, mockFs);
     // Should throw IOException when no root directories are configured
-    resolver.resolveJarCachePath();
+    JarCachePathResolver.resolveJarCachePath(config, mockFs);
+  }
+
+  @Test
+  public void testResolveJarCachePath_DefaultSuffix() throws IOException {
+    FileSystem mockFs = Mockito.mock(FileSystem.class);
+    String rootDir = "/user/testuser";
+    // Note: Hadoop Path normalizes and removes trailing slashes
+    String expectedFullPath = "/user/testuser/.gobblinCache/gobblin-temporal";
+    
+    // Mock: Root directory exists
+    Mockito.when(mockFs.exists(Mockito.any(Path.class))).thenAnswer(new Answer<Boolean>() {
+      @Override
+      public Boolean answer(InvocationOnMock invocation) {
+        Path path = invocation.getArgument(0);
+        return path.toString().equals(rootDir);
+      }
+    });
+    
+    // Config without JAR_CACHE_SUFFIX - should use default
+    Config config = ConfigFactory.empty()
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ROOT_DIR, ConfigValueFactory.fromAnyRef(rootDir))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true))
+        .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, 
+            ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
+    
+    Path result = JarCachePathResolver.resolveJarCachePath(config, mockFs);
+    
+    // Should use default suffix
+    Assert.assertEquals(result.toString(), expectedFullPath);
+  }
+
+  @Test
+  public void testResolveJarCachePath_EmptySuffixUsesDefault() throws IOException {
+    FileSystem mockFs = Mockito.mock(FileSystem.class);
+    String rootDir = "/user/testuser";
+    // Note: Hadoop Path normalizes and removes trailing slashes
+    String expectedFullPath = "/user/testuser/.gobblinCache/gobblin-temporal";
+    
+    // Mock: Root directory exists
+    Mockito.when(mockFs.exists(Mockito.any(Path.class))).thenAnswer(new Answer<Boolean>() {
+      @Override
+      public Boolean answer(InvocationOnMock invocation) {
+        Path path = invocation.getArgument(0);
+        return path.toString().equals(rootDir);
+      }
+    });
+    
+    // Config with empty JAR_CACHE_SUFFIX - should use default
+    Config config = ConfigFactory.empty()
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ROOT_DIR, ConfigValueFactory.fromAnyRef(rootDir))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_SUFFIX, ConfigValueFactory.fromAnyRef(""))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true))
+        .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, 
+            ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
+    
+    Path result = JarCachePathResolver.resolveJarCachePath(config, mockFs);
+    
+    // Should use default suffix when configured suffix is empty
+    Assert.assertEquals(result.toString(), expectedFullPath);
   }
 
   @Test
@@ -213,8 +266,7 @@ public class JarCachePathResolverTest {
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, 
             ConfigValueFactory.fromAnyRef(System.currentTimeMillis()));
     
-    JarCachePathResolver resolver = new JarCachePathResolver(config, mockFs);
-    Path result = resolver.resolveJarCachePath();
+    Path result = JarCachePathResolver.resolveJarCachePath(config, mockFs);
     
     // Should normalize suffix by stripping leading '/' to avoid absolute path issue
     Assert.assertEquals(result.toString(), expectedFullPath);

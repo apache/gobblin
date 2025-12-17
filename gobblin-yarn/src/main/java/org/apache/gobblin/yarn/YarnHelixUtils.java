@@ -216,8 +216,7 @@ public class YarnHelixUtils {
    */
   public static Path calculatePerMonthJarCachePath(Config config, FileSystem fs) throws IOException {
     // Use JarCachePathResolver to resolve the base jar cache directory
-    JarCachePathResolver resolver = new JarCachePathResolver(config, fs);
-    Path baseCacheDir = resolver.resolveJarCachePath();
+    Path baseCacheDir = JarCachePathResolver.resolveJarCachePath(config, fs);
     
     // Append monthly suffix
     String monthSuffix = new SimpleDateFormat("yyyy-MM").format(
