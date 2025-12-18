@@ -209,15 +209,19 @@ public class YarnHelixUtils {
   /**
    * Calculate the path of a jar cache on HDFS, which is retained on a monthly basis.
    * Should be used in conjunction with {@link #retainKLatestJarCachePaths(Path, int, FileSystem)}. to clean up the cache on a periodic basis
-   * @param config
-   * @return
-   * @throws IOException
+   * @param config the configuration
+   * @param fs the filesystem to use for validation
+   * @return the monthly jar cache path
+   * @throws IOException if filesystem operations fail
    */
-  public static Path calculatePerMonthJarCachePath(Config config) throws IOException {
-    Path jarsCacheDirMonthly = new Path(config.getString(GobblinYarnConfigurationKeys.JAR_CACHE_DIR));
-    String monthSuffix = new SimpleDateFormat("yyyy-MM").format(config.getLong(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY));
-    return new Path(jarsCacheDirMonthly, monthSuffix);
-
+  public static Path calculatePerMonthJarCachePath(Config config, FileSystem fs) throws IOException {
+    // Use JarCachePathResolver to resolve the base jar cache directory
+    Path baseCacheDir = JarCachePathResolver.resolveJarCachePath(config, fs);
+    
+    // Append monthly suffix
+    String monthSuffix = new SimpleDateFormat("yyyy-MM").format(
+        config.getLong(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY));
+    return new Path(baseCacheDir, monthSuffix);
   }
 
   /**

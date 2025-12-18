@@ -27,6 +27,7 @@ import org.apache.hadoop.security.Credentials;
 import org.apache.hadoop.security.UserGroupInformation;
 import org.apache.hadoop.security.token.Token;
 import org.junit.Assert;
+import org.mockito.Mockito;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.Test;
 
@@ -71,10 +72,12 @@ public class YarnHelixUtilsTest {
 
   @Test
   public void testGetJarCachePath() throws IOException {
+    FileSystem mockFs = Mockito.mock(FileSystem.class);
     Config config = ConfigFactory.empty()
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, ConfigValueFactory.fromAnyRef(1726074000013L))
-        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef("/tmp"));
-    Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config);
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef("/tmp"))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
+    Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config, mockFs);
 
     Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09"));
   }
@@ -84,8 +87,9 @@ public class YarnHelixUtilsTest {
     FileSystem fs = FileSystem.getLocal(new Configuration());
     Config config = ConfigFactory.empty()
         .withValue(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY, ConfigValueFactory.fromAnyRef(1726074000013L))
-        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(this.tempDir + "/tmp"));
-    Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config);
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(this.tempDir + "/tmp"))
+        .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
+    Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config, fs);
     fs.mkdirs(jarCachePath);
     fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08"));
     fs.mkdirs(new Path(jarCachePath.getParent(), "2024-07"));

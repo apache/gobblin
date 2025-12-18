@@ -394,7 +394,7 @@ class YarnService extends AbstractIdleService {
     Path appWorkDir = GobblinClusterUtils.getAppWorkDirPathFromConfig(this.config, this.fs, this.applicationName, this.applicationId);
     // Used for -SNAPSHOT versions of jars
     Path containerJarsUnsharedDir = new Path(appWorkDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
-    Path jarCacheDir = this.jarCacheEnabled ? YarnHelixUtils.calculatePerMonthJarCachePath(this.config) : appWorkDir;
+    Path jarCacheDir = this.jarCacheEnabled ? YarnHelixUtils.calculatePerMonthJarCachePath(this.config, this.fs) : appWorkDir;
     Path containerJarsCachedDir = new Path(jarCacheDir, GobblinYarnConfigurationKeys.CONTAINER_WORK_DIR_NAME);
     LOGGER.info("Container cached jars root dir: " + containerJarsCachedDir);
     LOGGER.info("Container execution-private jars root dir: " + containerJarsUnsharedDir);
