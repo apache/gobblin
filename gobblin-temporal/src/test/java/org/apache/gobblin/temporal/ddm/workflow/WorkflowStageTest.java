@@ -97,7 +97,7 @@ public class WorkflowStageTest {
 
     // Verify
     Assert.assertEquals(taskQueue, GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_TASK_QUEUE,
-        "WORK_COMMIT should use default task queue");
+        "COMMIT should use default task queue");
   }
 
   /**

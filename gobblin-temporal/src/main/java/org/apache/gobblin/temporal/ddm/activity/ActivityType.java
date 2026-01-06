@@ -72,19 +72,6 @@ public enum ActivityType {
         .build();
   }
 
-  public ActivityOptions buildActivityOptions(Properties props, boolean setHeartbeatTimeout, String taskQueue) {
-    ActivityOptions.Builder builder = ActivityOptions.newBuilder()
-        .setStartToCloseTimeout(getStartToCloseTimeout(props))
-        .setRetryOptions(buildRetryOptions(props))
-        .setTaskQueue(taskQueue);
-
-    if (setHeartbeatTimeout) {
-      builder.setHeartbeatTimeout(getHeartbeatTimeout(props));
-    }
-
-    return builder.build();
-  }
-
   private ActivityOptions buildActivityOptionsWithoutHeartBeatTimeout(Properties props) {
     return ActivityOptions.newBuilder()
         .setStartToCloseTimeout(getStartToCloseTimeout(props))

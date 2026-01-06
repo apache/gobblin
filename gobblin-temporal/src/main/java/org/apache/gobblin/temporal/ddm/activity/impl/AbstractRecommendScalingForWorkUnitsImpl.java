@@ -97,7 +97,7 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
         GobblinTemporalConfigurationKeys.EXECUTION_WORKER_CLASS
     ));
 
-    return overlayPairs.isEmpty() ? ProfileOverlay.unchanged() : new ProfileOverlay.Adding(overlayPairs);
+    return new ProfileOverlay.Adding(overlayPairs);
   }
 
 }
