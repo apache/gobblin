@@ -934,7 +934,10 @@ public class ConfigurationKeys {
 
   // Opentelemetry based metrics reporting
   public static final String METRICS_REPORTING_OPENTELEMETRY_PREFIX = "metrics.reporting.opentelemetry.";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_CLASSNAME = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "className";
+  public static final String DEFAULT_METRICS_REPORTING_OPENTELEMETRY_CLASSNAME = "org.apache.gobblin.metrics.OpenTelemetryMetrics";
   public static final String METRICS_REPORTING_OPENTELEMETRY_ENABLED = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "enabled";
+  public static final Boolean DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED = false;
 
   public static final String METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_ENABLED = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "logexporter.enabled";
 
@@ -943,14 +946,19 @@ public class ConfigurationKeys {
   public static final String METRICS_REPORTING_OPENTELEMETRY_LOGEXPORTER_CLASSNAME = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "logexporter.className";
 
   public static final String METRICS_REPORTING_OPENTELEMETRY_CONFIGS_PREFIX = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "configs.";
-  public static final Boolean DEFAULT_METRICS_REPORTING_OPENTELEMETRY_ENABLED = false;
 
   public static final String METRICS_REPORTING_OPENTELEMETRY_ENDPOINT = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "endpoint";
   public static final String METRICS_REPORTING_OPENTELEMETRY_FABRIC = METRICS_REPORTING_OPENTELEMETRY_CONFIGS_PREFIX + "fabric";
   // Headers to add to the OpenTelemetry HTTP Exporter, formatted as a JSON String with string keys and values
   public static final String METRICS_REPORTING_OPENTELEMETRY_HEADERS = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "headers";
 
-  public static final String METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS = METRICS_CONFIGURATIONS_PREFIX + "interval.millis";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_INTERVAL_MILLIS = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "interval.millis";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_HISTOGRAM_MAX_BUCKETS = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "histogram.max.buckets";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_HISTOGRAM_MAX_SCALE = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "histogram.max.scale";
+  // A comma-separated list of dimensions to add to the OpenTelemetry metrics
+  public static final String METRICS_REPORTING_OPENTELEMETRY_DIMENSIONS = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "dimensions";
+  public static final String METRICS_REPORTING_OPENTELEMETRY_GROUP_NAME = METRICS_REPORTING_OPENTELEMETRY_PREFIX + "group.name";
+  public static final String DEFAULT_METRICS_REPORTING_OPENTELEMETRY_GROUP_NAME = "org.apache.gobblin.metrics";
 
   /**
    * Rest server configuration properties.

@@ -41,7 +41,7 @@ def BuildProperties BUILD_PROPERTIES = new BuildProperties(project)
     .register(new BuildProperty("publishToMaven", false, "Enable publishing of artifacts to a central Maven repository"))
     .register(new BuildProperty("publishToNexus", false, "Enable publishing of artifacts to Nexus"))
     .register(new BuildProperty("salesforceVersion", "42.0.0", "Salesforce dependencies version"))
-    .register(new BuildProperty("openTelemetryVersion", "1.30.0", "OpenTelemetry dependencies version"))
+    .register(new BuildProperty("openTelemetryVersion", "1.47.0", "OpenTelemetry dependencies version"))
     .register(new BuildProperty("micrometerVersion", "1.11.1", "Micrometer dependencies version"))
 task buildProperties(description: 'Lists main properties that can be used to customize the build') {
   doLast {
