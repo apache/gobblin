@@ -42,7 +42,7 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 public class ExecutionWorker extends AbstractTemporalWorker {
     public static final long DEADLOCK_DETECTION_TIMEOUT_SECONDS = 120;
-    public int maxExecutionConcurrency;
+    private final int maxExecutionConcurrency;
 
     public ExecutionWorker(Config config, WorkflowClient workflowClient) {
         super(config, workflowClient);
@@ -82,5 +82,12 @@ public class ExecutionWorker extends AbstractTemporalWorker {
             GobblinTemporalConfigurationKeys.EXECUTION_TASK_QUEUE,
             GobblinTemporalConfigurationKeys.DEFAULT_EXECUTION_TASK_QUEUE
         );
+    }
+
+    /**
+     * Package-private for testing purposes.
+     */
+    int getMaxExecutionConcurrency() {
+        return maxExecutionConcurrency;
     }
 }

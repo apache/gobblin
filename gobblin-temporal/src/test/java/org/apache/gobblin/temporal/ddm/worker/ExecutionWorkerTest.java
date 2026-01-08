@@ -184,7 +184,7 @@ public class ExecutionWorkerTest {
 
     ExecutionWorker worker = createMockWorker(config);
 
-    Assert.assertEquals(worker.maxExecutionConcurrency, customConcurrency,
+    Assert.assertEquals(worker.getMaxExecutionConcurrency(), customConcurrency,
         "maxExecutionConcurrency should be initialized from config");
   }
 
@@ -197,7 +197,7 @@ public class ExecutionWorkerTest {
 
     ExecutionWorker worker = createMockWorker(config);
 
-    Assert.assertEquals(worker.maxExecutionConcurrency,
+    Assert.assertEquals(worker.getMaxExecutionConcurrency(),
         GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER,
         "maxExecutionConcurrency should use default value when not configured");
   }
