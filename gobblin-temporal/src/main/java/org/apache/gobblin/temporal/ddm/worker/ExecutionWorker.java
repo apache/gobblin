@@ -23,6 +23,8 @@ import com.typesafe.config.Config;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.worker.WorkerOptions;
+import lombok.AccessLevel;
+import lombok.Getter;
 
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
@@ -42,12 +44,31 @@ import org.apache.gobblin.util.ConfigUtils;
  */
 public class ExecutionWorker extends AbstractTemporalWorker {
     public static final long DEADLOCK_DETECTION_TIMEOUT_SECONDS = 120;
-    private final int maxExecutionConcurrency;
+    @Getter(AccessLevel.PACKAGE)
+    private final int maxConcurrentActivityExecutionSize;
+    @Getter(AccessLevel.PACKAGE)
+    private final int maxConcurrentLocalActivityExecutionSize;
+    @Getter(AccessLevel.PACKAGE)
+    private final int maxConcurrentWorkflowTaskExecutionSize;
 
     public ExecutionWorker(Config config, WorkflowClient workflowClient) {
         super(config, workflowClient);
-        this.maxExecutionConcurrency = ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER,
-            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER);
+        int defaultThreadsPerWorker = GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER;
+
+        // Fallback chain: TEMPORAL_NUM_THREADS_PER_EXECUTION_WORKER -> TEMPORAL_NUM_THREADS_PER_WORKER -> DEFAULT
+        int executionWorkerThreads = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_EXECUTION_WORKER,
+            ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER, defaultThreadsPerWorker));
+
+        this.maxConcurrentActivityExecutionSize = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_ACTIVITY_SIZE,
+            executionWorkerThreads);
+        this.maxConcurrentLocalActivityExecutionSize = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_LOCAL_ACTIVITY_SIZE,
+            executionWorkerThreads);
+        this.maxConcurrentWorkflowTaskExecutionSize = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_WORKFLOW_TASK_SIZE,
+            executionWorkerThreads);
     }
 
     @Override
@@ -69,9 +90,9 @@ public class ExecutionWorker extends AbstractTemporalWorker {
     protected WorkerOptions createWorkerOptions() {
         return WorkerOptions.newBuilder()
             .setDefaultDeadlockDetectionTimeout(TimeUnit.SECONDS.toMillis(DEADLOCK_DETECTION_TIMEOUT_SECONDS))
-            .setMaxConcurrentActivityExecutionSize(this.maxExecutionConcurrency)
-            .setMaxConcurrentLocalActivityExecutionSize(this.maxExecutionConcurrency)
-            .setMaxConcurrentWorkflowTaskExecutionSize(this.maxExecutionConcurrency)
+            .setMaxConcurrentActivityExecutionSize(this.maxConcurrentActivityExecutionSize)
+            .setMaxConcurrentLocalActivityExecutionSize(this.maxConcurrentLocalActivityExecutionSize)
+            .setMaxConcurrentWorkflowTaskExecutionSize(this.maxConcurrentWorkflowTaskExecutionSize)
             .build();
     }
 
@@ -82,12 +103,5 @@ public class ExecutionWorker extends AbstractTemporalWorker {
             GobblinTemporalConfigurationKeys.EXECUTION_TASK_QUEUE,
             GobblinTemporalConfigurationKeys.DEFAULT_EXECUTION_TASK_QUEUE
         );
-    }
-
-    /**
-     * Package-private for testing purposes.
-     */
-    int getMaxExecutionConcurrency() {
-        return maxExecutionConcurrency;
     }
 }

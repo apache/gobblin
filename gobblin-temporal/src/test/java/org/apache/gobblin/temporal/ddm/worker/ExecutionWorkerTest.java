@@ -17,8 +17,6 @@
 
 package org.apache.gobblin.temporal.ddm.worker;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Method;
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
@@ -39,7 +37,6 @@ import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl;
 import org.apache.gobblin.temporal.ddm.workflow.impl.NestingExecOfProcessWorkUnitWorkflowImpl;
 import org.apache.gobblin.temporal.ddm.workflow.impl.ProcessWorkUnitsWorkflowImpl;
-import org.apache.gobblin.util.ConfigUtils;
 
 
 /**
@@ -53,9 +50,9 @@ public class ExecutionWorkerTest {
   @Test
   public void testGetWorkflowImplClasses() throws Exception {
     Config config = ConfigFactory.empty();
-    ExecutionWorker worker = createMockWorker(config);
+    ExecutionWorker worker = createWorker(config);
 
-    Class<?>[] workflows = invokeGetWorkflowImplClasses(worker);
+    Class<?>[] workflows = worker.getWorkflowImplClasses();
 
     Assert.assertEquals(workflows.length, 2,
         "ExecutionWorker should register exactly 2 workflow types");
@@ -76,9 +73,9 @@ public class ExecutionWorkerTest {
   @Test
   public void testGetActivityImplInstances() throws Exception {
     Config config = ConfigFactory.empty();
-    ExecutionWorker worker = createMockWorker(config);
+    ExecutionWorker worker = createWorker(config);
 
-    Object[] activities = invokeGetActivityImplInstances(worker);
+    Object[] activities = worker.getActivityImplInstances();
 
     Assert.assertEquals(activities.length, 1,
         "ExecutionWorker should register exactly 1 activity type");
@@ -96,8 +93,8 @@ public class ExecutionWorkerTest {
         .withValue(GobblinTemporalConfigurationKeys.EXECUTION_TASK_QUEUE,
             ConfigValueFactory.fromAnyRef(customQueue));
 
-    ExecutionWorker worker = createMockWorker(config);
-    String taskQueue = invokeGetTaskQueue(worker);
+    ExecutionWorker worker = createWorker(config);
+    String taskQueue = worker.getTaskQueue();
 
     Assert.assertEquals(taskQueue, customQueue,
         "ExecutionWorker should use execution task queue from config");
@@ -110,8 +107,8 @@ public class ExecutionWorkerTest {
   public void testGetTaskQueueDefault() throws Exception {
     Config config = ConfigFactory.empty();
 
-    ExecutionWorker worker = createMockWorker(config);
-    String taskQueue = invokeGetTaskQueue(worker);
+    ExecutionWorker worker = createWorker(config);
+    String taskQueue = worker.getTaskQueue();
 
     Assert.assertEquals(taskQueue, GobblinTemporalConfigurationKeys.DEFAULT_EXECUTION_TASK_QUEUE,
         "ExecutionWorker should use default execution task queue when not configured");
@@ -122,19 +119,25 @@ public class ExecutionWorkerTest {
    */
   @Test
   public void testCreateWorkerOptionsWithCustomConcurrency() throws Exception {
-    int customConcurrency = 10;
+    int customActivityConcurrency = 10;
+    int customLocalActivityConcurrency = 8;
+    int customWorkflowTaskConcurrency = 12;
     Config config = ConfigFactory.empty()
-        .withValue(GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER,
-            ConfigValueFactory.fromAnyRef(customConcurrency));
+        .withValue(GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_ACTIVITY_SIZE,
+            ConfigValueFactory.fromAnyRef(customActivityConcurrency))
+        .withValue(GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_LOCAL_ACTIVITY_SIZE,
+            ConfigValueFactory.fromAnyRef(customLocalActivityConcurrency))
+        .withValue(GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_WORKFLOW_TASK_SIZE,
+            ConfigValueFactory.fromAnyRef(customWorkflowTaskConcurrency));
 
-    ExecutionWorker worker = createMockWorker(config);
-    WorkerOptions options = invokeCreateWorkerOptions(worker);
+    ExecutionWorker worker = createWorker(config);
+    WorkerOptions options = worker.createWorkerOptions();
 
-    Assert.assertEquals(options.getMaxConcurrentActivityExecutionSize(), customConcurrency,
+    Assert.assertEquals(options.getMaxConcurrentActivityExecutionSize(), customActivityConcurrency,
         "MaxConcurrentActivityExecutionSize should match configured value");
-    Assert.assertEquals(options.getMaxConcurrentLocalActivityExecutionSize(), customConcurrency,
+    Assert.assertEquals(options.getMaxConcurrentLocalActivityExecutionSize(), customLocalActivityConcurrency,
         "MaxConcurrentLocalActivityExecutionSize should match configured value");
-    Assert.assertEquals(options.getMaxConcurrentWorkflowTaskExecutionSize(), customConcurrency,
+    Assert.assertEquals(options.getMaxConcurrentWorkflowTaskExecutionSize(), customWorkflowTaskConcurrency,
         "MaxConcurrentWorkflowTaskExecutionSize should match configured value");
   }
 
@@ -145,8 +148,8 @@ public class ExecutionWorkerTest {
   public void testCreateWorkerOptionsWithDefaultConcurrency() throws Exception {
     Config config = ConfigFactory.empty();
 
-    ExecutionWorker worker = createMockWorker(config);
-    WorkerOptions options = invokeCreateWorkerOptions(worker);
+    ExecutionWorker worker = createWorker(config);
+    WorkerOptions options = worker.createWorkerOptions();
 
     int defaultConcurrency = GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER;
     Assert.assertEquals(options.getMaxConcurrentActivityExecutionSize(), defaultConcurrency,
@@ -164,8 +167,8 @@ public class ExecutionWorkerTest {
   public void testCreateWorkerOptionsDeadlockTimeout() throws Exception {
     Config config = ConfigFactory.empty();
 
-    ExecutionWorker worker = createMockWorker(config);
-    WorkerOptions options = invokeCreateWorkerOptions(worker);
+    ExecutionWorker worker = createWorker(config);
+    WorkerOptions options = worker.createWorkerOptions();
 
     long expectedTimeoutMillis = TimeUnit.SECONDS.toMillis(ExecutionWorker.DEADLOCK_DETECTION_TIMEOUT_SECONDS);
     Assert.assertEquals(options.getDefaultDeadlockDetectionTimeout(), expectedTimeoutMillis,
@@ -173,89 +176,82 @@ public class ExecutionWorkerTest {
   }
 
   /**
-   * Tests that maxExecutionConcurrency field is initialized from config.
+   * Tests that concurrency fields are initialized from config.
    */
   @Test
-  public void testMaxExecutionConcurrencyInitialization() throws Exception {
+  public void testConcurrencyFieldsInitialization() throws Exception {
     int customConcurrency = 15;
     Config config = ConfigFactory.empty()
-        .withValue(GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER,
+        .withValue(GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_EXECUTION_WORKER,
             ConfigValueFactory.fromAnyRef(customConcurrency));
 
-    ExecutionWorker worker = createMockWorker(config);
+    ExecutionWorker worker = createWorker(config);
 
-    Assert.assertEquals(worker.getMaxExecutionConcurrency(), customConcurrency,
-        "maxExecutionConcurrency should be initialized from config");
+    Assert.assertEquals(worker.getMaxConcurrentActivityExecutionSize(), customConcurrency,
+        "maxConcurrentActivityExecutionSize should be initialized from execution worker config");
+    Assert.assertEquals(worker.getMaxConcurrentLocalActivityExecutionSize(), customConcurrency,
+        "maxConcurrentLocalActivityExecutionSize should be initialized from execution worker config");
+    Assert.assertEquals(worker.getMaxConcurrentWorkflowTaskExecutionSize(), customConcurrency,
+        "maxConcurrentWorkflowTaskExecutionSize should be initialized from execution worker config");
   }
 
   /**
-   * Tests that maxExecutionConcurrency uses default when not configured.
+   * Tests that concurrency fields use default when not configured.
    */
   @Test
-  public void testMaxExecutionConcurrencyDefault() throws Exception {
+  public void testConcurrencyFieldsDefault() throws Exception {
     Config config = ConfigFactory.empty();
 
-    ExecutionWorker worker = createMockWorker(config);
+    ExecutionWorker worker = createWorker(config);
 
-    Assert.assertEquals(worker.getMaxExecutionConcurrency(),
-        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER,
-        "maxExecutionConcurrency should use default value when not configured");
+    int defaultConcurrency = GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER;
+    Assert.assertEquals(worker.getMaxConcurrentActivityExecutionSize(), defaultConcurrency,
+        "maxConcurrentActivityExecutionSize should use default value when not configured");
+    Assert.assertEquals(worker.getMaxConcurrentLocalActivityExecutionSize(), defaultConcurrency,
+        "maxConcurrentLocalActivityExecutionSize should use default value when not configured");
+    Assert.assertEquals(worker.getMaxConcurrentWorkflowTaskExecutionSize(), defaultConcurrency,
+        "maxConcurrentWorkflowTaskExecutionSize should use default value when not configured");
   }
 
   /**
-   * Helper to create a mock ExecutionWorker without calling the constructor.
+   * Helper to create an ExecutionWorker instance with mocked dependencies.
+   * Uses a partial mock to avoid calling the parent constructor which requires full Temporal setup.
    */
-  private ExecutionWorker createMockWorker(Config config) throws Exception {
+  private ExecutionWorker createWorker(Config config) throws Exception {
+    // Create a spy that doesn't call the real constructor
     ExecutionWorker worker = Mockito.mock(ExecutionWorker.class, Mockito.CALLS_REAL_METHODS);
     
-    // Set config field
-    Field configField = org.apache.gobblin.temporal.cluster.AbstractTemporalWorker.class.getDeclaredField("config");
+    // Manually set the config field from AbstractTemporalWorker
+    java.lang.reflect.Field configField = org.apache.gobblin.temporal.cluster.AbstractTemporalWorker.class
+        .getDeclaredField("config");
     configField.setAccessible(true);
     configField.set(worker, config);
     
-    // Set maxExecutionConcurrency field
-    Field maxConcurrencyField = ExecutionWorker.class.getDeclaredField("maxExecutionConcurrency");
-    maxConcurrencyField.setAccessible(true);
-    int concurrency = ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER,
-        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER);
-    maxConcurrencyField.set(worker, concurrency);
+    // Manually initialize the concurrency fields by calling the logic from the constructor
+    int defaultThreadsPerWorker = GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER;
+    int executionWorkerThreads = org.apache.gobblin.util.ConfigUtils.getInt(config,
+        GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_EXECUTION_WORKER,
+        org.apache.gobblin.util.ConfigUtils.getInt(config, 
+            GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER, defaultThreadsPerWorker));
+    
+    java.lang.reflect.Field activityField = ExecutionWorker.class.getDeclaredField("maxConcurrentActivityExecutionSize");
+    activityField.setAccessible(true);
+    activityField.set(worker, org.apache.gobblin.util.ConfigUtils.getInt(config,
+        GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_ACTIVITY_SIZE,
+        executionWorkerThreads));
+    
+    java.lang.reflect.Field localActivityField = ExecutionWorker.class.getDeclaredField("maxConcurrentLocalActivityExecutionSize");
+    localActivityField.setAccessible(true);
+    localActivityField.set(worker, org.apache.gobblin.util.ConfigUtils.getInt(config,
+        GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_LOCAL_ACTIVITY_SIZE,
+        executionWorkerThreads));
+    
+    java.lang.reflect.Field workflowTaskField = ExecutionWorker.class.getDeclaredField("maxConcurrentWorkflowTaskExecutionSize");
+    workflowTaskField.setAccessible(true);
+    workflowTaskField.set(worker, org.apache.gobblin.util.ConfigUtils.getInt(config,
+        GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_WORKFLOW_TASK_SIZE,
+        executionWorkerThreads));
     
     return worker;
-  }
-
-  /**
-   * Helper to invoke the protected getWorkflowImplClasses method using reflection.
-   */
-  private Class<?>[] invokeGetWorkflowImplClasses(ExecutionWorker worker) throws Exception {
-    Method method = ExecutionWorker.class.getDeclaredMethod("getWorkflowImplClasses");
-    method.setAccessible(true);
-    return (Class<?>[]) method.invoke(worker);
-  }
-
-  /**
-   * Helper to invoke the protected getActivityImplInstances method using reflection.
-   */
-  private Object[] invokeGetActivityImplInstances(ExecutionWorker worker) throws Exception {
-    Method method = ExecutionWorker.class.getDeclaredMethod("getActivityImplInstances");
-    method.setAccessible(true);
-    return (Object[]) method.invoke(worker);
-  }
-
-  /**
-   * Helper to invoke the protected getTaskQueue method using reflection.
-   */
-  private String invokeGetTaskQueue(ExecutionWorker worker) throws Exception {
-    Method method = ExecutionWorker.class.getDeclaredMethod("getTaskQueue");
-    method.setAccessible(true);
-    return (String) method.invoke(worker);
-  }
-
-  /**
-   * Helper to invoke the protected createWorkerOptions method using reflection.
-   */
-  private WorkerOptions invokeCreateWorkerOptions(ExecutionWorker worker) throws Exception {
-    Method method = ExecutionWorker.class.getDeclaredMethod("createWorkerOptions");
-    method.setAccessible(true);
-    return (WorkerOptions) method.invoke(worker);
   }
 }

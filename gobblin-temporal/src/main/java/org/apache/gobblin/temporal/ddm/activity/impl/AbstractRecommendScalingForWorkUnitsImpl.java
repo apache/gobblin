@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -29,7 +30,6 @@ import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.ddm.activity.RecommendScalingForWorkUnits;
 import org.apache.gobblin.temporal.ddm.work.TimeBudget;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
-import org.apache.gobblin.temporal.ddm.workflow.WorkflowStage;
 import org.apache.gobblin.temporal.dynamic.ProfileDerivation;
 import org.apache.gobblin.temporal.dynamic.ProfileOverlay;
 import org.apache.gobblin.temporal.dynamic.ScalingDirective;
@@ -81,7 +81,7 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
   }
 
   private ProfileOverlay createExecutionWorkerOverlay(JobState jobState) {
-    List<ProfileOverlay.KVPair> overlayPairs = new java.util.ArrayList<>();
+    List<ProfileOverlay.KVPair> overlayPairs = new ArrayList<>();
 
     // Add execution-specific memory if configured (overrides baseline memory)
     if (jobState.contains(GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB)) {

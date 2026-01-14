@@ -44,12 +44,28 @@ import org.apache.gobblin.util.ConfigUtils;
 /** Worker for the {@link ProcessWorkUnitsWorkflowImpl} super-workflow */
 public class WorkFulfillmentWorker extends AbstractTemporalWorker {
     public static final long DEADLOCK_DETECTION_TIMEOUT_SECONDS = 120; // TODO: make configurable!
-    public int maxExecutionConcurrency;
+    private final int maxConcurrentActivityExecutionSize;
+    private final int maxConcurrentLocalActivityExecutionSize;
+    private final int maxConcurrentWorkflowTaskExecutionSize;
 
     public WorkFulfillmentWorker(Config config, WorkflowClient workflowClient) {
         super(config, workflowClient);
-        this.maxExecutionConcurrency = ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER,
-            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER);
+        int defaultThreadsPerWorker = GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER;
+        
+        // Fallback chain: TEMPORAL_NUM_THREADS_PER_WORKER -> DEFAULT
+        int workerThreads = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER,
+            defaultThreadsPerWorker);
+        
+        this.maxConcurrentActivityExecutionSize = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
+            workerThreads);
+        this.maxConcurrentLocalActivityExecutionSize = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE,
+            workerThreads);
+        this.maxConcurrentWorkflowTaskExecutionSize = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
+            workerThreads);
     }
 
     @Override
@@ -69,9 +85,9 @@ public class WorkFulfillmentWorker extends AbstractTemporalWorker {
         return WorkerOptions.newBuilder()
             // default is only 1s - WAY TOO SHORT for `o.a.hadoop.fs.FileSystem#listStatus`!
             .setDefaultDeadlockDetectionTimeout(TimeUnit.SECONDS.toMillis(DEADLOCK_DETECTION_TIMEOUT_SECONDS))
-            .setMaxConcurrentActivityExecutionSize(this.maxExecutionConcurrency)
-            .setMaxConcurrentLocalActivityExecutionSize(this.maxExecutionConcurrency)
-            .setMaxConcurrentWorkflowTaskExecutionSize(this.maxExecutionConcurrency)
+            .setMaxConcurrentActivityExecutionSize(this.maxConcurrentActivityExecutionSize)
+            .setMaxConcurrentLocalActivityExecutionSize(this.maxConcurrentLocalActivityExecutionSize)
+            .setMaxConcurrentWorkflowTaskExecutionSize(this.maxConcurrentWorkflowTaskExecutionSize)
             .build();
     }
 }

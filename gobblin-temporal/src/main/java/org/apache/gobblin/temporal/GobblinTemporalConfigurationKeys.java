@@ -78,6 +78,17 @@ public interface GobblinTemporalConfigurationKeys {
   int DEFAULT_TEMPORAL_NUM_WORKERS_PER_CONTAINERS = 1;
   String TEMPORAL_NUM_THREADS_PER_WORKER = PREFIX + "num.threads.per.worker";
   int DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER = 15;
+  String TEMPORAL_NUM_THREADS_PER_EXECUTION_WORKER = PREFIX + "num.threads.per.execution.worker";
+
+  // Concurrency configs for WorkFulfillmentWorker
+  String TEMPORAL_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE = PREFIX + "max.concurrent.activity.execution.size";
+  String TEMPORAL_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE = PREFIX + "max.concurrent.local.activity.execution.size";
+  String TEMPORAL_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE = PREFIX + "max.concurrent.workflow.task.execution.size";
+
+  // Concurrency configs for ExecutionWorker
+  String TEMPORAL_EXECUTION_MAX_CONCURRENT_ACTIVITY_SIZE = PREFIX + "execution.max.concurrent.activity.size";
+  String TEMPORAL_EXECUTION_MAX_CONCURRENT_LOCAL_ACTIVITY_SIZE = PREFIX + "execution.max.concurrent.local.activity.size";
+  String TEMPORAL_EXECUTION_MAX_CONCURRENT_WORKFLOW_TASK_SIZE = PREFIX + "execution.max.concurrent.workflow.task.size";
 
   // Configuration key for setting the amortized throughput per worker thread per minute
   String TEMPORAL_WORKER_THREAD_AMORTIZED_THROUGHPUT_PER_MINUTE = PREFIX + "worker.thread.amortized.throughput.per.minute";
