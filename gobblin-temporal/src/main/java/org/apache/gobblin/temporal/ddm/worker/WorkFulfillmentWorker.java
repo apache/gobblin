@@ -51,20 +51,20 @@ public class WorkFulfillmentWorker extends AbstractTemporalWorker {
     public WorkFulfillmentWorker(Config config, WorkflowClient workflowClient) {
         super(config, workflowClient);
         int defaultThreadsPerWorker = GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER;
-        
+
         // Fallback chain: TEMPORAL_NUM_THREADS_PER_WORKER -> DEFAULT
         int workerThreads = ConfigUtils.getInt(config,
             GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER,
             defaultThreadsPerWorker);
-        
+
         this.maxConcurrentActivityExecutionSize = ConfigUtils.getInt(config,
-            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_ACTIVITY_EXECUTION_SIZE,
+            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_ACTIVITY_SIZE,
             workerThreads);
         this.maxConcurrentLocalActivityExecutionSize = ConfigUtils.getInt(config,
-            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_LOCAL_ACTIVITY_EXECUTION_SIZE,
+            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_LOCAL_ACTIVITY_SIZE,
             workerThreads);
         this.maxConcurrentWorkflowTaskExecutionSize = ConfigUtils.getInt(config,
-            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_WORKFLOW_TASK_EXECUTION_SIZE,
+            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_WORKFLOW_TASK_SIZE,
             workerThreads);
     }
 
