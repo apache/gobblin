@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.temporal.ddm.activity.impl;
 
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Optional;
@@ -25,6 +26,7 @@ import java.util.Properties;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.runtime.JobState;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.ddm.activity.RecommendScalingForWorkUnits;
 import org.apache.gobblin.temporal.ddm.work.TimeBudget;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitsSizeSummary;
@@ -32,6 +34,7 @@ import org.apache.gobblin.temporal.dynamic.ProfileDerivation;
 import org.apache.gobblin.temporal.dynamic.ProfileOverlay;
 import org.apache.gobblin.temporal.dynamic.ScalingDirective;
 import org.apache.gobblin.temporal.dynamic.WorkforceProfiles;
+import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 
 
 /**
@@ -62,8 +65,9 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
   protected abstract int calcDerivationSetPoint(WorkUnitsSizeSummary remainingWork, String sourceClass, TimeBudget timeBudget, JobState jobState);
 
   protected ProfileDerivation calcProfileDerivation(String basisProfileName, WorkUnitsSizeSummary remainingWork, String sourceClass, JobState jobState) {
-    // TODO: implement right-sizing!!! (for now just return unchanged)
-    return new ProfileDerivation(basisProfileName, ProfileOverlay.unchanged());
+    // Create overlay with execution-specific memory and worker class
+    ProfileOverlay overlay = createExecutionWorkerOverlay(jobState);
+    return new ProfileDerivation(basisProfileName, overlay);
   }
 
   protected String calcProfileDerivationName(JobState jobState) {
@@ -72,6 +76,28 @@ public abstract class AbstractRecommendScalingForWorkUnitsImpl implements Recomm
   }
 
   protected String calcBasisProfileName(JobState jobState) {
-    return WorkforceProfiles.BASELINE_NAME; // always build upon baseline
+    // Always derive from the global baseline
+    return WorkforceProfiles.BASELINE_NAME;
   }
+
+  private ProfileOverlay createExecutionWorkerOverlay(JobState jobState) {
+    List<ProfileOverlay.KVPair> overlayPairs = new ArrayList<>();
+
+    // Add execution-specific memory if configured (overrides baseline memory)
+    if (jobState.contains(GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB)) {
+      overlayPairs.add(new ProfileOverlay.KVPair(
+          GobblinYarnConfigurationKeys.CONTAINER_MEMORY_MBS_KEY,
+          jobState.getProp(GobblinTemporalConfigurationKeys.WORK_EXECUTION_MEMORY_MB)
+      ));
+    }
+
+    // Add ExecutionWorker class to ensure correct task queue routing
+    overlayPairs.add(new ProfileOverlay.KVPair(
+        GobblinTemporalConfigurationKeys.WORKER_CLASS,
+        GobblinTemporalConfigurationKeys.EXECUTION_WORKER_CLASS
+    ));
+
+    return new ProfileOverlay.Adding(overlayPairs);
+  }
+
 }

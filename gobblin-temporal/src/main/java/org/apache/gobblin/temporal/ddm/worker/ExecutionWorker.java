@@ -23,71 +23,85 @@ import com.typesafe.config.Config;
 
 import io.temporal.client.WorkflowClient;
 import io.temporal.worker.WorkerOptions;
+import lombok.AccessLevel;
+import lombok.Getter;
 
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.AbstractTemporalWorker;
-import org.apache.gobblin.temporal.ddm.activity.impl.CommitActivityImpl;
-import org.apache.gobblin.temporal.ddm.activity.impl.DeleteWorkDirsActivityImpl;
-import org.apache.gobblin.temporal.ddm.activity.impl.EmitOTelMetricsImpl;
-import org.apache.gobblin.temporal.ddm.activity.impl.GenerateWorkUnitsImpl;
 import org.apache.gobblin.temporal.ddm.activity.impl.ProcessWorkUnitImpl;
-import org.apache.gobblin.temporal.ddm.activity.impl.RecommendScalingForWorkUnitsLinearHeuristicImpl;
-import org.apache.gobblin.temporal.ddm.workflow.impl.CommitStepWorkflowImpl;
-import org.apache.gobblin.temporal.ddm.workflow.impl.ExecuteGobblinWorkflowImpl;
-import org.apache.gobblin.temporal.ddm.workflow.impl.GenerateWorkUnitsWorkflowImpl;
 import org.apache.gobblin.temporal.ddm.workflow.impl.NestingExecOfProcessWorkUnitWorkflowImpl;
 import org.apache.gobblin.temporal.ddm.workflow.impl.ProcessWorkUnitsWorkflowImpl;
-import org.apache.gobblin.temporal.workflows.metrics.SubmitGTEActivityImpl;
 import org.apache.gobblin.util.ConfigUtils;
 
 
-/** Worker for the {@link ProcessWorkUnitsWorkflowImpl} super-workflow */
-public class WorkFulfillmentWorker extends AbstractTemporalWorker {
-    public static final long DEADLOCK_DETECTION_TIMEOUT_SECONDS = 120; // TODO: make configurable!
+/**
+ * Specialized worker for Work Execution stage.
+ * This worker only registers activities for:
+ * - ProcessWorkUnit (Work Execution)
+ *
+ * Runs on containers with stage-specific memory for work execution operations.
+ * Polls the execution task queue to ensure activities run on appropriately-sized containers.
+ */
+public class ExecutionWorker extends AbstractTemporalWorker {
+    public static final long DEADLOCK_DETECTION_TIMEOUT_SECONDS = 120;
+    @Getter(AccessLevel.PACKAGE)
     private final int maxConcurrentActivityExecutionSize;
+    @Getter(AccessLevel.PACKAGE)
     private final int maxConcurrentLocalActivityExecutionSize;
+    @Getter(AccessLevel.PACKAGE)
     private final int maxConcurrentWorkflowTaskExecutionSize;
 
-    public WorkFulfillmentWorker(Config config, WorkflowClient workflowClient) {
+    public ExecutionWorker(Config config, WorkflowClient workflowClient) {
         super(config, workflowClient);
         int defaultThreadsPerWorker = GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_NUM_THREADS_PER_WORKER;
 
-        // Fallback chain: TEMPORAL_NUM_THREADS_PER_WORKER -> DEFAULT
-        int workerThreads = ConfigUtils.getInt(config,
-            GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER,
-            defaultThreadsPerWorker);
+        // Fallback chain: TEMPORAL_NUM_THREADS_PER_EXECUTION_WORKER -> TEMPORAL_NUM_THREADS_PER_WORKER -> DEFAULT
+        int executionWorkerThreads = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_EXECUTION_WORKER,
+            ConfigUtils.getInt(config, GobblinTemporalConfigurationKeys.TEMPORAL_NUM_THREADS_PER_WORKER, defaultThreadsPerWorker));
 
         this.maxConcurrentActivityExecutionSize = ConfigUtils.getInt(config,
-            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_ACTIVITY_SIZE,
-            workerThreads);
+            GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_ACTIVITY_SIZE,
+            executionWorkerThreads);
         this.maxConcurrentLocalActivityExecutionSize = ConfigUtils.getInt(config,
-            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_LOCAL_ACTIVITY_SIZE,
-            workerThreads);
+            GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_LOCAL_ACTIVITY_SIZE,
+            executionWorkerThreads);
         this.maxConcurrentWorkflowTaskExecutionSize = ConfigUtils.getInt(config,
-            GobblinTemporalConfigurationKeys.TEMPORAL_MAX_CONCURRENT_WORKFLOW_TASK_SIZE,
-            workerThreads);
+            GobblinTemporalConfigurationKeys.TEMPORAL_EXECUTION_MAX_CONCURRENT_WORKFLOW_TASK_SIZE,
+            executionWorkerThreads);
     }
 
     @Override
     protected Class<?>[] getWorkflowImplClasses() {
-        return new Class[] { ExecuteGobblinWorkflowImpl.class, ProcessWorkUnitsWorkflowImpl.class, NestingExecOfProcessWorkUnitWorkflowImpl.class,
-            CommitStepWorkflowImpl.class, GenerateWorkUnitsWorkflowImpl.class };
+        return new Class[] {
+            ProcessWorkUnitsWorkflowImpl.class,
+            NestingExecOfProcessWorkUnitWorkflowImpl.class
+        };
     }
 
     @Override
     protected Object[] getActivityImplInstances() {
-        return new Object[] { new SubmitGTEActivityImpl(), new GenerateWorkUnitsImpl(), new RecommendScalingForWorkUnitsLinearHeuristicImpl(), new ProcessWorkUnitImpl(),
-            new CommitActivityImpl(), new DeleteWorkDirsActivityImpl(), new EmitOTelMetricsImpl()};
+        return new Object[] {
+            new ProcessWorkUnitImpl()
+        };
     }
 
     @Override
     protected WorkerOptions createWorkerOptions() {
         return WorkerOptions.newBuilder()
-            // default is only 1s - WAY TOO SHORT for `o.a.hadoop.fs.FileSystem#listStatus`!
             .setDefaultDeadlockDetectionTimeout(TimeUnit.SECONDS.toMillis(DEADLOCK_DETECTION_TIMEOUT_SECONDS))
             .setMaxConcurrentActivityExecutionSize(this.maxConcurrentActivityExecutionSize)
             .setMaxConcurrentLocalActivityExecutionSize(this.maxConcurrentLocalActivityExecutionSize)
             .setMaxConcurrentWorkflowTaskExecutionSize(this.maxConcurrentWorkflowTaskExecutionSize)
             .build();
+    }
+
+    @Override
+    protected String getTaskQueue() {
+        return ConfigUtils.getString(
+            config,
+            GobblinTemporalConfigurationKeys.EXECUTION_TASK_QUEUE,
+            GobblinTemporalConfigurationKeys.DEFAULT_EXECUTION_TASK_QUEUE
+        );
     }
 }
