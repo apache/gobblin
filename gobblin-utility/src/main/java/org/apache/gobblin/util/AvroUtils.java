@@ -1143,7 +1143,7 @@ public class AvroUtils {
   @Nullable
   public static Object getCompatibleDefaultValue(Schema.Field field) {
     return AvroCompatibilityHelper.fieldHasDefault(field)
-        ? AvroCompatibilityHelper.getGenericDefaultValue(field)
+        ? Schema.parseJsonToObject(AvroCompatibilityHelper.getDefaultValueAsJsonString(field))
         : null;
   }
 
