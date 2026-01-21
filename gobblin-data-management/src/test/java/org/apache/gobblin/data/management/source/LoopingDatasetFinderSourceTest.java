@@ -454,6 +454,42 @@ public class LoopingDatasetFinderSourceTest {
     testDatasetStates(datasets4, watermarks4, TEST_JOB_NAME_2);
   }
 
+  @Test
+  public void testEndOfDatasetsMarker() {
+    Dataset dataset1 = new SimpleDatasetForTesting("dataset1");
+    Dataset dataset2 = new SimplePartitionableDatasetForTesting("dataset2",
+        Lists.newArrayList(new SimpleDatasetPartitionForTesting("p1"), new SimpleDatasetPartitionForTesting("p2")));
+    Dataset dataset3 = new SimpleDatasetForTesting("dataset3");
+    IterableDatasetFinder finder =
+        new StaticDatasetsFinderForTesting(Lists.newArrayList(dataset3, dataset2, dataset1));
+
+    //Don't drill down into partitons
+    MySource mySource = new MySource(false, finder);
+
+    SourceState sourceState = new SourceState();
+    sourceState.setProp(LoopingDatasetFinderSource.MAX_WORK_UNITS_PER_RUN_KEY, 3);
+
+    WorkUnitStream workUnitStream = mySource.getWorkunitStream(sourceState);
+    List<WorkUnit> workUnits = Lists.newArrayList(workUnitStream.getWorkUnits());
+
+    Assert.assertEquals(workUnits.size(), 4);
+    Assert.assertTrue(workUnits.get(3).getPropAsBoolean(LoopingDatasetFinderSource.GLOBAL_WATERMARK_DATASET_KEY));
+    Assert.assertTrue(workUnits.get(3).getPropAsBoolean(LoopingDatasetFinderSource.END_OF_DATASETS_KEY));
+
+    //Drill down into partitions
+    mySource = new MySource(true, finder);
+
+    sourceState = new SourceState();
+    sourceState.setProp(LoopingDatasetFinderSource.MAX_WORK_UNITS_PER_RUN_KEY, 4);
+
+    workUnitStream = mySource.getWorkunitStream(sourceState);
+    workUnits = Lists.newArrayList(workUnitStream.getWorkUnits());
+
+    Assert.assertEquals(workUnits.size(), 5);
+    Assert.assertTrue(workUnits.get(4).getPropAsBoolean(LoopingDatasetFinderSource.GLOBAL_WATERMARK_DATASET_KEY));
+    Assert.assertTrue(workUnits.get(4).getPropAsBoolean(LoopingDatasetFinderSource.END_OF_DATASETS_KEY));
+  }
+
   public void verifyWorkUnitState(List<WorkUnit> workUnits, String datasetUrn, String partitionUrn,
       boolean endOfDatasets, boolean isDatasetStateStoreEnabled) {
     int i;
