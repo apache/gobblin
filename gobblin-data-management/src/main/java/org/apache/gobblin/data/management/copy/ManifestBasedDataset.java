@@ -69,8 +69,10 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
 
   // Enable setting permission post publish to reset permission bits, default is true
   private static final String ENABLE_SET_PERMISSION_POST_PUBLISH = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".enableSetPermissionPostPublish";
+  public static final String SKIP_PERMISSION_CHECK = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".skipPermissionCheck";
   private static final String DEFAULT_PERMISSION_CACHE_TTL_SECONDS = "30";
   private static final String DEFAULT_COMMON_FILES_PARENT = "/";
+  private static final boolean DEFAULT_SKIP_PERMISSION_CHECK = false;
   private final FileSystem srcFs;
   private final FileSystem manifestReadFs;
   private final Path manifestPath;
@@ -80,6 +82,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private final int permissionCacheTTLSeconds;
 
   private final boolean enableSetPermissionPostPublish;
+  private final boolean skipPermissionCheck;
 
   public ManifestBasedDataset(final FileSystem srcFs, final FileSystem manifestReadFs, final Path manifestPath, final Properties properties) {
     this.srcFs = srcFs;
@@ -90,6 +93,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     this.commonFilesParent = properties.getProperty(COMMON_FILES_PARENT, DEFAULT_COMMON_FILES_PARENT);
     this.permissionCacheTTLSeconds = Integer.parseInt(properties.getProperty(PERMISSION_CACHE_TTL_SECONDS, DEFAULT_PERMISSION_CACHE_TTL_SECONDS));
     this.enableSetPermissionPostPublish = Boolean.parseBoolean(properties.getProperty(ENABLE_SET_PERMISSION_POST_PUBLISH, "true"));
+    this.skipPermissionCheck = Boolean.parseBoolean(properties.getProperty(SKIP_PERMISSION_CHECK, String.valueOf(DEFAULT_SKIP_PERMISSION_CHECK)));
   }
 
   @Override
@@ -132,6 +136,10 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         Path fileToCopy = new Path(file.fileName);
         if (srcFs.exists(fileToCopy)) {
           boolean existOnTarget = targetFs.exists(fileToCopy);
+          if (this.skipPermissionCheck && existOnTarget) {
+            // Skip Permission Check for files that already exist in the target when skipPermissionCheck is true
+            continue;
+          }
           FileStatus srcFile = srcFs.getFileStatus(fileToCopy);
           OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(srcFs, srcFile, configuration);
           if (!existOnTarget || shouldCopy(targetFs, srcFile, targetFs.getFileStatus(fileToCopy), replicatedPermission)) {
