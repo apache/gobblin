@@ -81,7 +81,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
   public static final String ISSUES_READ_FAILED_METRIC_NAME =  GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "getIssuesFailedCount";
   public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
   public static final String GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME = "jobSucceeded";
-  private static final String DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE = "NA";
+  private static final String DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE = "-";
   private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
 
   /**
@@ -105,6 +105,25 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
   public static final String JOB_SUCCEEDED_EXTRA_DIMENSIONS_KEYS_JOBPROP =
           "metrics.reporting.opentelemetry.jobSucceeded.extraDimensions.keys";
 
+  /**
+   * Baseline dimensions for the {@code jobSucceeded} metric. These should always be present for backward compatibility,
+   * even if the orchestrator-provided {@link #JOB_SUCCEEDED_DIMENSIONS_MAP_KEY} is incomplete.
+   *
+   * <p>Map values are Avro field names on {@link GaaSJobObservabilityEvent} (strict).</p>
+   */
+  private static final Map<String, String> JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP = createJobSucceededBaselineDimensionsMap();
+
+  private static Map<String, String> createJobSucceededBaselineDimensionsMap() {
+    Map<String, String> baseline = new LinkedHashMap<>();
+    baseline.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, "flowName");
+    baseline.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, "flowGroup");
+    baseline.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, "jobName");
+    baseline.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "flowExecutionId");
+    baseline.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "executorId");
+    baseline.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdgeId");
+    return baseline;
+  }
+
   protected MetricContext metricContext;
   protected State state;
 
@@ -124,7 +143,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
     if (this.instrumentationEnabled) {
       this.metricContext = Instrumented.getMetricContext(state, getClass());
       this.getIssuesFailedMeter = this.metricContext.contextAwareMeter(MetricRegistry.name(ServiceMetricNames.GOBBLIN_SERVICE_PREFIX,
-              ISSUES_READ_FAILED_METRIC_NAME));
+          ISSUES_READ_FAILED_METRIC_NAME));
       setupMetrics(state);
     }
   }
@@ -138,20 +157,20 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
     this.opentelemetryMetrics = getOpentelemetryMetrics(state);
     if (this.opentelemetryMetrics != null) {
       this.jobStatusMetric = this.opentelemetryMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-              .gaugeBuilder(GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME)
-              .ofLongs()
-              .buildObserver();
+          .gaugeBuilder(GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME)
+          .ofLongs()
+          .buildObserver();
       this.opentelemetryMetrics.getMeter(GAAS_OBSERVABILITY_METRICS_GROUPNAME)
-              .batchCallback(() -> {
-                for (GaaSJobObservabilityEvent event : this.eventCollector) {
-                  Attributes tags = getEventAttributes(event);
-                  int status = event.getJobStatus() == JobStatus.SUCCEEDED ? 1 : 0;
-                  this.jobStatusMetric.record(status, tags);
-                }
-                log.info("Submitted {} job status events", this.eventCollector.size());
-                // Empty the list of events as they are all emitted at this point.
-                this.eventCollector.clear();
-              }, this.jobStatusMetric);
+          .batchCallback(() -> {
+            for (GaaSJobObservabilityEvent event : this.eventCollector) {
+              Attributes tags = getEventAttributes(event);
+              int status = event.getJobStatus() == JobStatus.SUCCEEDED ? 1 : 0;
+              this.jobStatusMetric.record(status, tags);
+            }
+            log.info("Submitted {} job status events", this.eventCollector.size());
+            // Empty the list of events as they are all emitted at this point.
+            this.eventCollector.clear();
+          }, this.jobStatusMetric);
     }
   }
 
@@ -176,28 +195,79 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
   public Attributes getEventAttributes(GaaSJobObservabilityEvent event) {
     Map<String, String> configuredMap = getConfiguredJobSucceededDimensionsMap(this.state);
     if (configuredMap == null || configuredMap.isEmpty()) {
-      // Backward-compatible fallback to existing hardcoded default attributes
-      return Attributes.builder().put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, getOrDefault(event.getFlowName(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE))
-              .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, getOrDefault(event.getFlowGroup(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE))
-              .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, getOrDefault(event.getJobName(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE))
-              .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, event.getFlowExecutionId())
-              .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, getOrDefault(event.getExecutorId(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE))
-              .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, getOrDefault(event.getFlowEdgeId(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE))
-              .build();
+      // Backward-compatible fallback: always emit the baseline dimensions.
+      // If the extra-dimensions gate is enabled, honor per-run dimensions from job properties.
+      AttributesBuilder builder = Attributes.builder();
+      for (Map.Entry<String, String> entry : JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP.entrySet()) {
+        addObsEventFieldAttribute(builder, entry.getKey(), entry.getValue(), event);
+      }
+      if (this.state.getPropAsBoolean(JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY, false)) {
+        addExtraDimensionsFromJobProperties(builder, JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP, event);
+      }
+      return builder.build();
+    }
+
+    // Drop orchestrator dimensions that point to the same event field as a baseline dimension.
+    // This prevents capturing the same source field under multiple dimension keys.
+    Map<String, String> filteredConfiguredMap = dropDuplicateObsEventFieldMappings(configuredMap, JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP);
+
+    // Ensure baseline dimensions are always emitted, even if orchestrator config is missing some keys.
+    Map<String, String> effectiveMap = new LinkedHashMap<>(filteredConfiguredMap);
+    for (Map.Entry<String, String> baselineEntry : JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP.entrySet()) {
+      effectiveMap.putIfAbsent(baselineEntry.getKey(), baselineEntry.getValue());
     }
 
     AttributesBuilder builder = Attributes.builder();
-    for (Map.Entry<String, String> entry : configuredMap.entrySet()) {
+    for (Map.Entry<String, String> entry : effectiveMap.entrySet()) {
       String mdmDimensionKey = entry.getKey();
       String obsEventFieldKey = entry.getValue();
       addObsEventFieldAttribute(builder, mdmDimensionKey, obsEventFieldKey, event);
     }
 
     if (this.state.getPropAsBoolean(JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY, false)) {
-      addExtraDimensionsFromJobProperties(builder, configuredMap, event);
+      addExtraDimensionsFromJobProperties(builder, effectiveMap, event);
     }
 
     return builder.build();
+  }
+
+  private static Map<String, String> dropDuplicateObsEventFieldMappings(Map<String, String> configuredMap,
+      Map<String, String> baselineMap) {
+    Map<String, String> baselineObsFieldToKey = new LinkedHashMap<>();
+    for (Map.Entry<String, String> entry : baselineMap.entrySet()) {
+      if (StringUtils.isNotBlank(entry.getValue())) {
+        baselineObsFieldToKey.put(entry.getValue().trim(), entry.getKey());
+      }
+    }
+
+    Map<String, String> seenObsFieldToKey = new LinkedHashMap<>();
+    Map<String, String> filtered = new LinkedHashMap<>();
+    for (Map.Entry<String, String> entry : configuredMap.entrySet()) {
+      String dimensionKey = entry.getKey();
+      String obsFieldKey = entry.getValue();
+      if (StringUtils.isBlank(dimensionKey) || StringUtils.isBlank(obsFieldKey)) {
+        continue;
+      }
+      String normalizedObsFieldKey = obsFieldKey.trim();
+
+      String baselineKey = baselineObsFieldToKey.get(normalizedObsFieldKey);
+      if (baselineKey != null && !baselineKey.equals(dimensionKey)) {
+        log.warn("Ignoring jobSucceeded dimension mapping `{}` -> `{}` because field `{}` is already captured under baseline dimension `{}`",
+            dimensionKey, obsFieldKey, normalizedObsFieldKey, baselineKey);
+        continue;
+      }
+
+      String previousKey = seenObsFieldToKey.get(normalizedObsFieldKey);
+      if (previousKey != null && !previousKey.equals(dimensionKey)) {
+        log.warn("Ignoring duplicate jobSucceeded dimension mapping `{}` -> `{}` because field `{}` is already captured under dimension `{}`",
+            dimensionKey, obsFieldKey, normalizedObsFieldKey, previousKey);
+        continue;
+      }
+
+      seenObsFieldToKey.put(normalizedObsFieldKey, dimensionKey);
+      filtered.put(dimensionKey, obsFieldKey);
+    }
+    return filtered;
   }
 
   /**
@@ -372,14 +442,14 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
     String fullFlowEdge = jobState.getProp(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "");
     // Parse the flow edge from edge id that is stored in format sourceNode_destinationNode_flowEdgeId
     String edgeId = StringUtils.substringAfter(
-            StringUtils.substringAfter(fullFlowEdge, jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "")),
-            BaseFlowGraphHelper.FLOW_EDGE_LABEL_JOINER_CHAR);
+        StringUtils.substringAfter(fullFlowEdge, jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, "")),
+        BaseFlowGraphHelper.FLOW_EDGE_LABEL_JOINER_CHAR);
 
     Type datasetTaskSummaryType = new TypeToken<ArrayList<DatasetTaskSummary>>(){}.getType();
     List<DatasetTaskSummary> datasetTaskSummaries = jobState.contains(TimingEvent.DATASET_TASK_SUMMARIES) ?
-            GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(jobState.getProp(TimingEvent.DATASET_TASK_SUMMARIES), datasetTaskSummaryType) : null;
+        GsonUtils.GSON_WITH_DATE_HANDLING.fromJson(jobState.getProp(TimingEvent.DATASET_TASK_SUMMARIES), datasetTaskSummaryType) : null;
     List<DatasetMetric> datasetMetrics = datasetTaskSummaries != null ? datasetTaskSummaries.stream().map(
-            DatasetTaskSummary::toDatasetMetric).collect(Collectors.toList()) : null;
+       DatasetTaskSummary::toDatasetMetric).collect(Collectors.toList()) : null;
 
     GaaSJobObservabilityEvent.Builder builder = GaaSJobObservabilityEvent.newBuilder();
     List<Issue> issueList = null;
@@ -394,28 +464,28 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
     }
     JobStatus status = convertExecutionStatusTojobState(jobState, ExecutionStatus.valueOf(jobState.getProp(JobStatusRetriever.EVENT_NAME_FIELD)));
     builder.setEventTimestamp(System.currentTimeMillis())
-            .setFlowName(flowName)
-            .setFlowGroup(flowGroup)
-            .setFlowExecutionId(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
-            .setLastFlowModificationTimestamp(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD, 0))
-            .setJobName(jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD))
-            .setExecutorUrl(jobState.getProp(TimingEvent.METADATA_MESSAGE))
-            .setExecutorId(jobState.getProp(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, ""))
-            .setJobStartTimestamp(jobStartTime)
-            .setJobEndTimestamp(jobEndTime)
-            .setJobOrchestratedTimestamp(jobOrchestratedTime)
-            .setJobPlanningStartTimestamp(jobPlanningPhaseStartTime)
-            .setJobPlanningEndTimestamp(jobPlanningPhaseEndTime)
-            .setIssues(issueList)
-            .setJobStatus(status)
-            .setEffectiveUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null))
-            .setDatasetsMetrics(datasetMetrics)
-            .setGaasId(this.state.getProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, null))
-            .setJobProperties(GsonUtils.GSON_WITH_DATE_HANDLING.toJson(jobProperties))
-            .setSourceNode(jobProperties.getProperty(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))
-            .setDestinationNode(jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ""))
-            .setFlowEdgeId(!edgeId.isEmpty() ? edgeId : fullFlowEdge)
-            .setExecutorUrn(null); //TODO: Fill with information from job execution
+        .setFlowName(flowName)
+        .setFlowGroup(flowGroup)
+        .setFlowExecutionId(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD))
+        .setLastFlowModificationTimestamp(jobState.getPropAsLong(TimingEvent.FlowEventConstants.FLOW_MODIFICATION_TIME_FIELD, 0))
+        .setJobName(jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD))
+        .setExecutorUrl(jobState.getProp(TimingEvent.METADATA_MESSAGE))
+        .setExecutorId(jobState.getProp(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, ""))
+        .setJobStartTimestamp(jobStartTime)
+        .setJobEndTimestamp(jobEndTime)
+        .setJobOrchestratedTimestamp(jobOrchestratedTime)
+        .setJobPlanningStartTimestamp(jobPlanningPhaseStartTime)
+        .setJobPlanningEndTimestamp(jobPlanningPhaseEndTime)
+        .setIssues(issueList)
+        .setJobStatus(status)
+        .setEffectiveUserUrn(jobState.getProp(AzkabanProjectConfig.USER_TO_PROXY, null))
+        .setDatasetsMetrics(datasetMetrics)
+        .setGaasId(this.state.getProp(ServiceConfigKeys.GOBBLIN_SERVICE_INSTANCE_NAME, null))
+        .setJobProperties(GsonUtils.GSON_WITH_DATE_HANDLING.toJson(jobProperties))
+        .setSourceNode(jobProperties.getProperty(ServiceConfigKeys.FLOW_SOURCE_IDENTIFIER_KEY, ""))
+        .setDestinationNode(jobProperties.getProperty(ServiceConfigKeys.FLOW_DESTINATION_IDENTIFIER_KEY, ""))
+        .setFlowEdgeId(!edgeId.isEmpty() ? edgeId : fullFlowEdge)
+        .setExecutorUrn(null); //TODO: Fill with information from job execution
     return builder.build();
   }
 
@@ -439,30 +509,30 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
 
   private static List<Issue> getIssuesForJob(MultiContextIssueRepository issueRepository, State jobState) throws TroubleshooterException {
     return issueRepository.getAll(TroubleshooterUtils.getContextIdForJob(jobState.getProperties())).stream().map(
-            issue -> new Issue(
-                    issue.getTime().toEpochSecond(),
-                    IssueSeverity.valueOf(issue.getSeverity().toString()),
-                    issue.getCode(),
-                    issue.getSummary(),
-                    issue.getDetails(),
-                    issue.getProperties()
-            )).collect(Collectors.toList());
+        issue -> new Issue(
+            issue.getTime().toEpochSecond(),
+            IssueSeverity.valueOf(issue.getSeverity().toString()),
+            issue.getCode(),
+            issue.getSummary(),
+            issue.getDetails(),
+            issue.getProperties()
+        )).collect(Collectors.toList());
   }
 
   private GaaSFlowObservabilityEvent convertJobEventToFlowEvent(GaaSJobObservabilityEvent jobEvent, State jobState) {
     GaaSFlowObservabilityEvent.Builder builder = GaaSFlowObservabilityEvent.newBuilder();
     builder.setEventTimestamp(jobEvent.getEventTimestamp())
-            .setGaasId(jobEvent.getGaasId())
-            .setFlowName(jobEvent.getFlowName())
-            .setFlowGroup(jobEvent.getFlowGroup())
-            .setFlowExecutionId(jobEvent.getFlowExecutionId())
-            .setLastFlowModificationTimestamp(jobEvent.getLastFlowModificationTimestamp())
-            .setSourceNode(jobEvent.getSourceNode())
-            .setDestinationNode(jobEvent.getDestinationNode())
-            .setEffectiveUserUrn(jobEvent.getEffectiveUserUrn())
-            .setFlowStatus(FlowStatus.valueOf(jobEvent.getJobStatus().toString()))
-            .setFlowStartTimestamp(jobState.getPropAsLong(SerializationConstants.FLOW_START_TIME_KEY, 0))
-            .setFlowEndTimestamp(jobEvent.getJobEndTimestamp());
+        .setGaasId(jobEvent.getGaasId())
+        .setFlowName(jobEvent.getFlowName())
+        .setFlowGroup(jobEvent.getFlowGroup())
+        .setFlowExecutionId(jobEvent.getFlowExecutionId())
+        .setLastFlowModificationTimestamp(jobEvent.getLastFlowModificationTimestamp())
+        .setSourceNode(jobEvent.getSourceNode())
+        .setDestinationNode(jobEvent.getDestinationNode())
+        .setEffectiveUserUrn(jobEvent.getEffectiveUserUrn())
+        .setFlowStatus(FlowStatus.valueOf(jobEvent.getJobStatus().toString()))
+        .setFlowStartTimestamp(jobState.getPropAsLong(SerializationConstants.FLOW_START_TIME_KEY, 0))
+        .setFlowEndTimestamp(jobEvent.getJobEndTimestamp());
     return builder.build();
   }
 

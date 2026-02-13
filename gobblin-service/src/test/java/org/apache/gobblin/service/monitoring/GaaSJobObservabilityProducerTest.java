@@ -361,9 +361,10 @@ public class GaaSJobObservabilityProducerTest {
 
     State producerState = new State();
     producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
-    // Use non-default OTel keys to prove we're not falling back to the hardcoded attributes
+    // Use a non-baseline field to prove we're not falling back to the hardcoded attributes,
+    // and that non-baseline mappings are honored.
     producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_DIMENSIONS_MAP_KEY,
-            "{\"executor\":\"executorId\",\"edgeId\":\"flowEdgeId\"}");
+            "{\"status\":\"jobStatus\"}");
     producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY, "true");
 
     try (MockGaaSJobObservabilityEventProducer producer =
@@ -398,14 +399,163 @@ public class GaaSJobObservabilityProducerTest {
       Map<AttributeKey<?>, Object> attrs = datapoints.get(0).getAttributes().asMap();
 
       // From dimensionsMap
-      Assert.assertEquals(attrs.get(AttributeKey.stringKey("executor")), "specExecutor");
-      Assert.assertEquals(attrs.get(AttributeKey.stringKey("edgeId")), "flowEdge");
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("status")), "SUCCEEDED");
 
-      // Verify fallback did not happen (hardcoded keys should not be present)
-      Assert.assertNull(attrs.get(AttributeKey.stringKey("specExecutor")));
-      Assert.assertNull(attrs.get(AttributeKey.stringKey("flowEdge")));
+      // Baseline dimensions should always be present (backfilled if missing from the dimensionsMap)
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("specExecutor")), "specExecutor");
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowEdge")), "flowEdge");
 
       // Extra dimensions from job props
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("java_version")), "11");
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("tag")), "foo");
+    }
+  }
+
+  @Test
+  public void testMockProduceMetrics_dimensionsMapMissingBaselineDimsStillEmitted() throws Exception {
+    String flowGroup = "testFlowGroupBaselineBackfill";
+    String flowName = "testFlowNameBaselineBackfill";
+    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobNameBaselineBackfill");
+
+    State producerState = new State();
+    producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
+    // Intentionally omit baseline keys like flowName/flowGroup/jobName/flowExecutionId to ensure they are backfilled.
+    producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_DIMENSIONS_MAP_KEY,
+        "{\"status\":\"jobStatus\"}");
+
+    try (MockGaaSJobObservabilityEventProducer producer =
+        new MockGaaSJobObservabilityEventProducer(producerState, this.issueRepository, true)) {
+      Map<String, String> gteEventMetadata = Maps.newHashMap();
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
+      gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
+
+      Properties jobStatusProps = new Properties();
+      jobStatusProps.putAll(gteEventMetadata);
+      producer.emitObservabilityEvent(new State(jobStatusProps));
+
+      Collection<MetricData> metrics = producer.getOpentelemetryMetrics().metricReader.collectAllMetrics();
+      Map<String, MetricData> metricsByName =
+          metrics.stream().collect(Collectors.toMap(metric -> metric.getName(), metricData -> metricData));
+      MetricData jobStatusMetric = metricsByName.get("jobSucceeded");
+      List<LongPointData> datapoints = jobStatusMetric.getLongGaugeData().getPoints().stream().collect(Collectors.toList());
+      Assert.assertEquals(datapoints.size(), 1);
+      Map<AttributeKey<?>, Object> attrs = datapoints.get(0).getAttributes().asMap();
+
+      // Configured key
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("status")), "SUCCEEDED");
+
+      // Backfilled baseline keys
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowName")), flowName);
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowGroup")), flowGroup);
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("jobName")), jobName);
+      Assert.assertEquals(attrs.get(AttributeKey.longKey("flowExecutionId")), 1L);
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("specExecutor")), "specExecutor");
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowEdge")), "flowEdge");
+    }
+  }
+
+  @Test
+  public void testMockProduceMetrics_dimensionsMapDuplicateObsFieldIgnored() throws Exception {
+    String flowGroup = "testFlowGroupDupObsField";
+    String flowName = "testFlowNameDupObsField";
+    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobNameDupObsField");
+
+    State producerState = new State();
+    producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
+    // Attempt to capture a baseline field (flowEdgeId) under a different key; should be ignored.
+    producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_DIMENSIONS_MAP_KEY,
+        "{\"edgeId\":\"flowEdgeId\",\"executor\":\"executorId\"}");
+
+    try (MockGaaSJobObservabilityEventProducer producer =
+        new MockGaaSJobObservabilityEventProducer(producerState, this.issueRepository, true)) {
+      Map<String, String> gteEventMetadata = Maps.newHashMap();
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
+      gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
+
+      Properties jobStatusProps = new Properties();
+      jobStatusProps.putAll(gteEventMetadata);
+      producer.emitObservabilityEvent(new State(jobStatusProps));
+
+      Collection<MetricData> metrics = producer.getOpentelemetryMetrics().metricReader.collectAllMetrics();
+      Map<String, MetricData> metricsByName =
+          metrics.stream().collect(Collectors.toMap(MetricData::getName, metricData -> metricData));
+      MetricData jobStatusMetric = metricsByName.get("jobSucceeded");
+      List<LongPointData> datapoints = jobStatusMetric.getLongGaugeData().getPoints().stream().collect(Collectors.toList());
+      Assert.assertEquals(datapoints.size(), 1);
+      Map<AttributeKey<?>, Object> attrs = datapoints.get(0).getAttributes().asMap();
+
+      // Duplicate mappings for baseline source fields should be ignored.
+      Assert.assertNull(attrs.get(AttributeKey.stringKey("edgeId")));
+      Assert.assertNull(attrs.get(AttributeKey.stringKey("executor")));
+
+      // Baseline keys still present.
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowEdge")), "flowEdge");
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("specExecutor")), "specExecutor");
+    }
+  }
+
+  @Test
+  public void testMockProduceMetrics_noDimensionsMapExtraDimsStillHonoredWhenGateEnabled() throws Exception {
+    String flowGroup = "testFlowGroupNoMapExtraDims";
+    String flowName = "testFlowNameNoMapExtraDims";
+    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobNameNoMapExtraDims");
+
+    State producerState = new State();
+    producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
+    // No dimensionsMap set => fallback baseline attributes
+    producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY, "true");
+
+    try (MockGaaSJobObservabilityEventProducer producer =
+        new MockGaaSJobObservabilityEventProducer(producerState, this.issueRepository, true)) {
+      Properties jobProps = new Properties();
+      jobProps.setProperty(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_EXTRA_DIMENSIONS_KEYS_JOBPROP, "java_version,tag");
+      jobProps.setProperty("java_version", "11");
+      jobProps.setProperty("tag", "foo");
+
+      Map<String, String> gteEventMetadata = Maps.newHashMap();
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
+      gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
+      gteEventMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, PropertiesUtils.serialize(jobProps));
+
+      Properties jobStatusProps = new Properties();
+      jobStatusProps.putAll(gteEventMetadata);
+      producer.emitObservabilityEvent(new State(jobStatusProps));
+
+      Collection<MetricData> metrics = producer.getOpentelemetryMetrics().metricReader.collectAllMetrics();
+      Map<String, MetricData> metricsByName =
+          metrics.stream().collect(Collectors.toMap(MetricData::getName, metricData -> metricData));
+      MetricData jobStatusMetric = metricsByName.get("jobSucceeded");
+      List<LongPointData> datapoints = jobStatusMetric.getLongGaugeData().getPoints().stream().collect(Collectors.toList());
+      Assert.assertEquals(datapoints.size(), 1);
+      Map<AttributeKey<?>, Object> attrs = datapoints.get(0).getAttributes().asMap();
+
+      // Baseline keys
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowName")), flowName);
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowGroup")), flowGroup);
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("jobName")), jobName);
+      Assert.assertEquals(attrs.get(AttributeKey.longKey("flowExecutionId")), 1L);
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("specExecutor")), "specExecutor");
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowEdge")), "flowEdge");
+
+      // Extra dims still honored
       Assert.assertEquals(attrs.get(AttributeKey.stringKey("java_version")), "11");
       Assert.assertEquals(attrs.get(AttributeKey.stringKey("tag")), "foo");
     }
