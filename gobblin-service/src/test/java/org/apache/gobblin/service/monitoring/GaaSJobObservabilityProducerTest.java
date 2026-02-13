@@ -561,6 +561,141 @@ public class GaaSJobObservabilityProducerTest {
     }
   }
 
+  @Test
+  public void testMockProduceMetrics_maxDimensionsCapsExtraDims() throws Exception {
+    String flowGroup = "testFlowGroupMaxDims";
+    String flowName = "testFlowNameMaxDims";
+    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobNameMaxDims");
+
+    State producerState = new State();
+    producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
+    producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY, "true");
+    // Baseline has 6 dims; cap at 7 means we cannot add both extras, so we add none (all-or-nothing).
+    producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, "7");
+
+    try (MockGaaSJobObservabilityEventProducer producer =
+        new MockGaaSJobObservabilityEventProducer(producerState, this.issueRepository, true)) {
+      Properties jobProps = new Properties();
+      jobProps.setProperty(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_EXTRA_DIMENSIONS_KEYS_JOBPROP, "java_version,tag");
+      jobProps.setProperty("java_version", "11");
+      jobProps.setProperty("tag", "foo");
+
+      Map<String, String> gteEventMetadata = Maps.newHashMap();
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
+      gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
+      gteEventMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, PropertiesUtils.serialize(jobProps));
+
+      Properties jobStatusProps = new Properties();
+      jobStatusProps.putAll(gteEventMetadata);
+      producer.emitObservabilityEvent(new State(jobStatusProps));
+
+      Collection<MetricData> metrics = producer.getOpentelemetryMetrics().metricReader.collectAllMetrics();
+      Map<String, MetricData> metricsByName =
+          metrics.stream().collect(Collectors.toMap(MetricData::getName, metricData -> metricData));
+      MetricData jobStatusMetric = metricsByName.get("jobSucceeded");
+      List<LongPointData> datapoints = jobStatusMetric.getLongGaugeData().getPoints().stream().collect(Collectors.toList());
+      Assert.assertEquals(datapoints.size(), 1);
+      Map<AttributeKey<?>, Object> attrs = datapoints.get(0).getAttributes().asMap();
+
+      Assert.assertNull(attrs.get(AttributeKey.stringKey("java_version")));
+      Assert.assertNull(attrs.get(AttributeKey.stringKey("tag")));
+    }
+  }
+
+  @Test
+  public void testMockProduceMetrics_maxDimensionsAllowsAllExtraDims() throws Exception {
+    String flowGroup = "testFlowGroupMaxDimsAllExtras";
+    String flowName = "testFlowNameMaxDimsAllExtras";
+    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobNameMaxDimsAllExtras");
+
+    State producerState = new State();
+    producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
+    producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY, "true");
+    // Baseline(6) + extras(2) = 8 fits.
+    producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, "8");
+
+    try (MockGaaSJobObservabilityEventProducer producer =
+        new MockGaaSJobObservabilityEventProducer(producerState, this.issueRepository, true)) {
+      Properties jobProps = new Properties();
+      jobProps.setProperty(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_EXTRA_DIMENSIONS_KEYS_JOBPROP, "java_version,tag");
+      jobProps.setProperty("java_version", "11");
+      jobProps.setProperty("tag", "foo");
+
+      Map<String, String> gteEventMetadata = Maps.newHashMap();
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
+      gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
+      gteEventMetadata.put(JobExecutionPlan.JOB_PROPS_KEY, PropertiesUtils.serialize(jobProps));
+
+      Properties jobStatusProps = new Properties();
+      jobStatusProps.putAll(gteEventMetadata);
+      producer.emitObservabilityEvent(new State(jobStatusProps));
+
+      Collection<MetricData> metrics = producer.getOpentelemetryMetrics().metricReader.collectAllMetrics();
+      Map<String, MetricData> metricsByName =
+          metrics.stream().collect(Collectors.toMap(MetricData::getName, metricData -> metricData));
+      MetricData jobStatusMetric = metricsByName.get("jobSucceeded");
+      List<LongPointData> datapoints = jobStatusMetric.getLongGaugeData().getPoints().stream().collect(Collectors.toList());
+      Assert.assertEquals(datapoints.size(), 1);
+      Map<AttributeKey<?>, Object> attrs = datapoints.get(0).getAttributes().asMap();
+
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("java_version")), "11");
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("tag")), "foo");
+    }
+  }
+
+  @Test
+  public void testMockProduceMetrics_maxDimensionsExceededFallsBackToBaseline() throws Exception {
+    String flowGroup = "testFlowGroupMaxDimsBaselineOnly";
+    String flowName = "testFlowNameMaxDimsBaselineOnly";
+    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobNameMaxDimsBaselineOnly");
+
+    State producerState = new State();
+    producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
+    // Effective map would be baseline(6) + configured(1) => 7, but cap at 6 => baseline only.
+    producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, "6");
+    producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_DIMENSIONS_MAP_KEY, "{\"status\":\"jobStatus\"}");
+
+    try (MockGaaSJobObservabilityEventProducer producer =
+        new MockGaaSJobObservabilityEventProducer(producerState, this.issueRepository, true)) {
+      Map<String, String> gteEventMetadata = Maps.newHashMap();
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "1");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD, flowName);
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdge");
+      gteEventMetadata.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "specExecutor");
+      gteEventMetadata.put(JobStatusRetriever.EVENT_NAME_FIELD, ExecutionStatus.COMPLETE.name());
+
+      Properties jobStatusProps = new Properties();
+      jobStatusProps.putAll(gteEventMetadata);
+      producer.emitObservabilityEvent(new State(jobStatusProps));
+
+      Collection<MetricData> metrics = producer.getOpentelemetryMetrics().metricReader.collectAllMetrics();
+      Map<String, MetricData> metricsByName =
+          metrics.stream().collect(Collectors.toMap(MetricData::getName, metricData -> metricData));
+      MetricData jobStatusMetric = metricsByName.get("jobSucceeded");
+      List<LongPointData> datapoints = jobStatusMetric.getLongGaugeData().getPoints().stream().collect(Collectors.toList());
+      Assert.assertEquals(datapoints.size(), 1);
+      Map<AttributeKey<?>, Object> attrs = datapoints.get(0).getAttributes().asMap();
+
+      Assert.assertNull(attrs.get(AttributeKey.stringKey("status")));
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowName")), flowName);
+    }
+  }
+
   private Issue createTestIssue(String summary, String code, IssueSeverity severity) {
     return Issue.builder().summary(summary).code(code).time(ZonedDateTime.now()).severity(severity).build();
   }

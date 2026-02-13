@@ -106,6 +106,14 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
           "metrics.reporting.opentelemetry.jobSucceeded.extraDimensions.keys";
 
   /**
+   * This comes from orchestrator configs.
+   * Maximum number of dimensions to emit for {@code jobSucceeded}. Defaults to 20.
+   */
+  public static final String JOB_SUCCEEDED_MAX_DIMENSIONS_KEY =
+          "metrics.reporting.opentelemetry.jobSucceeded.maxDimensions";
+  private static final int DEFAULT_JOB_SUCCEEDED_MAX_DIMENSIONS = 20;
+
+  /**
    * Baseline dimensions for the {@code jobSucceeded} metric. These should always be present for backward compatibility,
    * even if the orchestrator-provided {@link #JOB_SUCCEEDED_DIMENSIONS_MAP_KEY} is incomplete.
    *
@@ -193,6 +201,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
    * @return
    */
   public Attributes getEventAttributes(GaaSJobObservabilityEvent event) {
+    int maxDimensions = getMaxJobSucceededDimensions();
     Map<String, String> configuredMap = getConfiguredJobSucceededDimensionsMap(this.state);
     if (configuredMap == null || configuredMap.isEmpty()) {
       // Backward-compatible fallback: always emit the baseline dimensions.
@@ -201,9 +210,7 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
       for (Map.Entry<String, String> entry : JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP.entrySet()) {
         addObsEventFieldAttribute(builder, entry.getKey(), entry.getValue(), event);
       }
-      if (this.state.getPropAsBoolean(JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY, false)) {
-        addExtraDimensionsFromJobProperties(builder, JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP, event);
-      }
+      addExtraDimensionsFromJobProperties(builder, JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP, event, maxDimensions);
       return builder.build();
     }
 
@@ -217,6 +224,13 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
       effectiveMap.putIfAbsent(baselineEntry.getKey(), baselineEntry.getValue());
     }
 
+    // If orchestrator config would push us past the cap, drop orchestrator dimensions (keep baseline only).
+    if (effectiveMap.size() > maxDimensions) {
+      log.warn("jobSucceeded would emit {} baseline+orchestrator dimensions which exceeds maxDimensions={} (`{}`); dropping orchestrator dimensions",
+          effectiveMap.size(), maxDimensions, JOB_SUCCEEDED_MAX_DIMENSIONS_KEY);
+      effectiveMap = new LinkedHashMap<>(JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP);
+    }
+
     AttributesBuilder builder = Attributes.builder();
     for (Map.Entry<String, String> entry : effectiveMap.entrySet()) {
       String mdmDimensionKey = entry.getKey();
@@ -224,11 +238,25 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
       addObsEventFieldAttribute(builder, mdmDimensionKey, obsEventFieldKey, event);
     }
 
-    if (this.state.getPropAsBoolean(JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY, false)) {
-      addExtraDimensionsFromJobProperties(builder, effectiveMap, event);
-    }
+    addExtraDimensionsFromJobProperties(builder, effectiveMap, event, maxDimensions);
 
     return builder.build();
+  }
+
+  private int getMaxJobSucceededDimensions() {
+    int jobSucceededMaxDimensions = DEFAULT_JOB_SUCCEEDED_MAX_DIMENSIONS;
+    try {
+      jobSucceededMaxDimensions = this.state.getPropAsInt(JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, DEFAULT_JOB_SUCCEEDED_MAX_DIMENSIONS);
+    } catch (Exception e) {
+      log.warn("Invalid `{}` value; using default {}", JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, DEFAULT_JOB_SUCCEEDED_MAX_DIMENSIONS, e);
+    }
+    int baselineSize = JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP.size();
+    if (jobSucceededMaxDimensions < baselineSize) {
+      log.warn("Configured `{}`={} is less than baseline dimension count {}; using {} instead",
+          JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, jobSucceededMaxDimensions, baselineSize, baselineSize);
+      return baselineSize;
+    }
+    return jobSucceededMaxDimensions;
   }
 
   private static Map<String, String> dropDuplicateObsEventFieldMappings(Map<String, String> configuredMap,
@@ -352,16 +380,40 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
    * @param event
    */
   private void addExtraDimensionsFromJobProperties(AttributesBuilder builder, Map<String, String> defaultDims,
-                                                   GaaSJobObservabilityEvent event) {
-    Map<String, String> jobProps = parseJobPropertiesJson(event);
-    if (jobProps == null || jobProps.isEmpty()) {
-      return;
-    }
-    String extraDimensionKeys = jobProps.getOrDefault(JOB_SUCCEEDED_EXTRA_DIMENSIONS_KEYS_JOBPROP, "");
-    if (StringUtils.isBlank(extraDimensionKeys)) {
+                                                   GaaSJobObservabilityEvent event, int maxDimensions) {
+    if (!this.state.getPropAsBoolean(JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY, false)) {
       return;
     }
 
+    Map<String, String> extraDims = getExtraDimensionsFromJobProperties(defaultDims, event);
+    if (extraDims.isEmpty()) {
+      return;
+    }
+
+    int total = defaultDims.size() + extraDims.size();
+    if (total > maxDimensions) {
+      log.warn("jobSucceeded extra dimensions would exceed maxDimensions={} (`{}`): default={} + extra={} => {}; skipping all extra dimensions",
+          maxDimensions, JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, defaultDims.size(), extraDims.size(), total);
+      return;
+    }
+
+    for (Map.Entry<String, String> entry : extraDims.entrySet()) {
+      builder.put(entry.getKey(), entry.getValue());
+    }
+  }
+
+  private static Map<String, String> getExtraDimensionsFromJobProperties(Map<String, String> defaultDims,
+      GaaSJobObservabilityEvent event) {
+    Map<String, String> jobProps = parseJobPropertiesJson(event);
+    if (jobProps == null || jobProps.isEmpty()) {
+      return new LinkedHashMap<>();
+    }
+    String extraDimensionKeys = jobProps.getOrDefault(JOB_SUCCEEDED_EXTRA_DIMENSIONS_KEYS_JOBPROP, "");
+    if (StringUtils.isBlank(extraDimensionKeys)) {
+      return new LinkedHashMap<>();
+    }
+
+    Map<String, String> extras = new LinkedHashMap<>();
     for (String key : COMMA_SPLITTER.split(extraDimensionKeys)) {
       if (StringUtils.isBlank(key)) {
         continue;
@@ -374,8 +426,9 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
       if (StringUtils.isBlank(value)) {
         continue;
       }
-      builder.put(key, value);
+      extras.put(key, value);
     }
+    return extras;
   }
 
   /**
