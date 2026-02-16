@@ -194,5 +194,5 @@ public class GobblinYarnConfigurationKeys {
    * Default 5. Should be less than the total wait time (see {@link #GRACEFUL_SHUTDOWN_WAIT_TIME_MINUTES_KEY}).
    */
   public static final String GRACEFUL_SHUTDOWN_POLL_INTERVAL_SECONDS_KEY = GOBBLIN_YARN_PREFIX + "graceful.shutdown.poll.interval.seconds";
-  public static final int DEFAULT_GRACEFUL_SHUTDOWN_POLL_INTERVAL_SECONDS = 5;
+  public static final int DEFAULT_GRACEFUL_SHUTDOWN_POLL_INTERVAL_SECONDS = 60;
 }
