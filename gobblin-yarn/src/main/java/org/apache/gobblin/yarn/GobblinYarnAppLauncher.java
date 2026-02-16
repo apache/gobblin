@@ -609,8 +609,8 @@ public class GobblinYarnAppLauncher {
 
     if (this.jarCacheEnabled) {
       Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(this.config, this.fs);
-      // Retain at least the current and last month's jars to handle executions running for ~30 days max
-      boolean cleanedSuccessfully = YarnHelixUtils.retainKLatestJarCachePaths(jarCachePath.getParent(), 2, this.fs);
+      // Retain at least 3 semi-monthly periods (current + 2 previous) to handle executions running for ~45 days max
+      boolean cleanedSuccessfully = YarnHelixUtils.retainKLatestJarCachePaths(jarCachePath.getParent(), 3, this.fs);
       if (!cleanedSuccessfully) {
         LOGGER.warn("Failed to delete older jar cache directories");
       }

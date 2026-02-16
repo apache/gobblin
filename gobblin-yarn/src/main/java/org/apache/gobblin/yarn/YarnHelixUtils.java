@@ -22,6 +22,7 @@ import java.io.IOException;
 import java.net.URL;
 import java.text.SimpleDateFormat;
 import java.util.Arrays;
+import java.util.Calendar;
 import java.util.Collection;
 import java.util.HashSet;
 import java.util.Iterator;
@@ -52,6 +53,7 @@ import org.apache.hadoop.yarn.util.Records;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Splitter;
 import com.google.common.collect.Maps;
 import com.google.common.collect.Sets;
@@ -207,41 +209,96 @@ public class YarnHelixUtils {
   }
 
   /**
-   * Calculate the path of a jar cache on HDFS, which is retained on a monthly basis.
-   * Should be used in conjunction with {@link #retainKLatestJarCachePaths(Path, int, FileSystem)}. to clean up the cache on a periodic basis
+   * Calculate the path of a jar cache on HDFS, which is retained on a semi-monthly basis (twice per month).
+   * directory lock threshold. Each month is split into two periods:
+   * - Period 1: Days 1-15 (suffix: yyyy-MM-1)
+   * - Period 2: Days 16-end (suffix: yyyy-MM-2)
+   *
+   * Should be used in conjunction with {@link #retainKLatestJarCachePaths(Path, int, FileSystem)} to clean up the cache on a periodic basis.
+   *
    * @param config the configuration
    * @param fs the filesystem to use for validation
-   * @return the monthly jar cache path
+   * @return the semi-monthly jar cache path
    * @throws IOException if filesystem operations fail
    */
   public static Path calculatePerMonthJarCachePath(Config config, FileSystem fs) throws IOException {
     // Use JarCachePathResolver to resolve the base jar cache directory
     Path baseCacheDir = JarCachePathResolver.resolveJarCachePath(config, fs);
-    
-    // Append monthly suffix
-    String monthSuffix = new SimpleDateFormat("yyyy-MM").format(
-        config.getLong(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY));
-    return new Path(baseCacheDir, monthSuffix);
+
+    // Calculate semi-monthly suffix based on day of month
+    long startTime = config.getLong(GobblinYarnConfigurationKeys.YARN_APPLICATION_LAUNCHER_START_TIME_KEY);
+    Calendar cal = java.util.Calendar.getInstance();
+    cal.setTimeInMillis(startTime);
+
+    String yearMonth = new SimpleDateFormat("yyyy-MM").format(cal.getTime());
+    int dayOfMonth = cal.get(java.util.Calendar.DAY_OF_MONTH);
+
+    // Partition by 15th of month: days 1-15 = period 1, days 16-end = period 2
+    String periodSuffix = dayOfMonth <= 15 ? "1" : "2";
+    String cacheSuffix = yearMonth + "-" + periodSuffix;
+
+    return new Path(baseCacheDir, cacheSuffix);
   }
 
   /**
    * Retain the latest k jar cache paths that are children of the parent cache path.
-   * @param parentCachePath
+   * Handles both old monthly format (yyyy-MM) and new semi-monthly format (yyyy-MM-1, yyyy-MM-2).
+   * During migration, old monthly directories are treated as belonging to the first half of the month
+   * for sorting purposes (equivalent to yyyy-MM-1), ensuring they are cleaned up before newer semi-monthly periods.
+   *
+   * @param parentCachePath the parent directory containing jar cache subdirectories
    * @param k the number of latest jar cache paths to retain
-   * @param fs
-   * @return
-   * @throws IllegalAccessException
-   * @throws IOException
+   * @param fs the filesystem
+   * @return true if all deletes were successful, false otherwise
+   * @throws IOException if filesystem operations fail
    */
   public static boolean retainKLatestJarCachePaths(Path parentCachePath, int k, FileSystem fs) throws IOException {
-    // Cleanup old cache if necessary
-    List<FileStatus> jarDirs =
-        Arrays.stream(fs.exists(parentCachePath) ? fs.listStatus(parentCachePath) : new FileStatus[0]).sorted().collect(Collectors.toList());
+    if (!fs.exists(parentCachePath)) {
+      return true;
+    }
+
+    // Get all jar cache directories
+    FileStatus[] allDirs = fs.listStatus(parentCachePath);
+
+    // Sort by normalized path name for proper chronological ordering
+    // Old format (yyyy-MM) is treated as yyyy-MM-1 for sorting
+    List<FileStatus> jarDirs = Arrays.stream(allDirs)
+        .sorted((a, b) -> {
+          String nameA = normalizeDirectoryNameForSorting(a.getPath().getName());
+          String nameB = normalizeDirectoryNameForSorting(b.getPath().getName());
+          return nameA.compareTo(nameB);
+        })
+        .collect(Collectors.toList());
+
+    // Delete oldest directories, keeping k latest
     boolean deletesSuccessful = true;
     for (int i = 0; i < jarDirs.size() - k; i++) {
-      deletesSuccessful &= fs.delete(jarDirs.get(i).getPath(), true);
+      Path toDelete = jarDirs.get(i).getPath();
+      LOGGER.info("Deleting old jar cache directory: {}", toDelete);
+      deletesSuccessful &= fs.delete(toDelete, true);
     }
+
     return deletesSuccessful;
+  }
+
+  /**
+   * Normalizes directory names for sorting to handle migration from monthly to semi-monthly format.
+   * Converts old monthly format (yyyy-MM) to yyyy-MM-1 for consistent chronological sorting.
+   * This ensures old directories are cleaned up before newer semi-monthly periods in the same month.
+   *
+   * @param dirName the directory name (e.g., "2024-09" or "2024-09-1")
+   * @return normalized name for sorting (e.g., "2024-09-1" or "2024-09-2")
+   */
+  @VisibleForTesting
+  static String normalizeDirectoryNameForSorting(String dirName) {
+    // Pattern: yyyy-MM or yyyy-MM-{1,2}
+    // If it's old format (yyyy-MM without period suffix), treat as yyyy-MM-1
+    if (dirName.matches("\\d{4}-\\d{2}$")) {
+      // Old monthly format - treat as first half of month for aggressive cleanup
+      return dirName + "-1";
+    }
+    // Already in new format (yyyy-MM-1 or yyyy-MM-2) or unrecognized format
+    return dirName;
   }
 
 
