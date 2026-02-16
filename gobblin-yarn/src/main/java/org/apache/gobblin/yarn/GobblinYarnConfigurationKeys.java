@@ -181,4 +181,12 @@ public class GobblinYarnConfigurationKeys {
   //Config to control Heartbeat interval for Yarn AMRM client.
   public static final String AMRM_HEARTBEAT_INTERVAL_SECS = GOBBLIN_YARN_PREFIX + "amRmHeartbeatIntervalSecs";
   public static final Integer DEFAULT_AMRM_HEARTBEAT_INTERVAL_SECS = 15;
+
+  /** Max time (minutes) to wait for application to reach terminal state after sending graceful shutdown signal. Default 10. */
+  public static final String GRACEFUL_SHUTDOWN_WAIT_TIME_MINUTES_KEY = GOBBLIN_YARN_PREFIX + "graceful.shutdown.wait.time.minutes";
+  public static final int DEFAULT_GRACEFUL_SHUTDOWN_WAIT_TIME_MINUTES = 10;
+
+  /** Poll interval (seconds) when waiting for application completion after graceful shutdown signal. Default 5. */
+  public static final String GRACEFUL_SHUTDOWN_POLL_INTERVAL_SECONDS_KEY = GOBBLIN_YARN_PREFIX + "graceful.shutdown.poll.interval.seconds";
+  public static final int DEFAULT_GRACEFUL_SHUTDOWN_POLL_INTERVAL_SECONDS = 5;
 }

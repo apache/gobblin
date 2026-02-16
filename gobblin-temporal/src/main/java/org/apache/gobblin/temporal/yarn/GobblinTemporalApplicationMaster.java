@@ -22,15 +22,20 @@ import com.google.common.util.concurrent.Service;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
+import java.net.URI;
 import java.util.List;
 import lombok.Getter;
+
+import org.apache.hadoop.conf.Configuration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalClusterManager;
+import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.PathUtils;
@@ -105,6 +110,66 @@ public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterMana
     for (String serviceClassName : serviceClassNames) {
       Class<?> serviceClass = Class.forName(serviceClassName);
       this.applicationLauncher.addService((Service) GobblinConstructorUtils.invokeLongestConstructor(serviceClass, this));
+    }
+
+    registerStagingAndOutputCleanupShutdownHook();
+  }
+
+  /**
+   * Registers a JVM shutdown hook that deletes writer staging and output dirs using paths from config (properties).
+   * Uses a fresh FileSystem so it works even when this.fs is already closed.
+   */
+  private void registerStagingAndOutputCleanupShutdownHook() {
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      try {
+        cleanupStagingAndOutputDirsFromConfig();
+      } catch (Exception e) {
+        LOGGER.debug("Shutdown hook: cleanup of staging/output dirs failed", e);
+      }
+    }, "GobblinTemporalAM-StagingOutputCleanup"));
+  }
+
+  /**
+   * Deletes writer.staging.dir and writer.output.dir using paths and writer FS URI from {@link #config}.
+   * Uses a fresh FileSystem so cleanup works when this.fs may be closed.
+   */
+  private void cleanupStagingAndOutputDirsFromConfig() {
+    cleanupStagingAndOutputDirsFromConfig(this.config);
+  }
+
+  /**
+   * Deletes writer.staging.dir and writer.output.dir from the given config.
+   * Package-private for unit testing. Uses a fresh FileSystem so cleanup works when the caller's fs may be closed.
+   */
+  static void cleanupStagingAndOutputDirsFromConfig(Config config) {
+    String uriStr = ConfigUtils.getString(config, ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
+    String stagingPathStr = ConfigUtils.getString(config, ConfigurationKeys.WRITER_STAGING_DIR, null);
+    String outputPathStr = ConfigUtils.getString(config, ConfigurationKeys.WRITER_OUTPUT_DIR, null);
+    if (stagingPathStr == null && outputPathStr == null) {
+      return;
+    }
+    try {
+      FileSystem fs = FileSystem.get(URI.create(uriStr), new Configuration());
+      try {
+        if (stagingPathStr != null && !stagingPathStr.isEmpty()) {
+          Path stagingPath = new Path(stagingPathStr);
+          if (fs.exists(stagingPath)) {
+            LOGGER.info("Shutdown cleanup: deleting writer staging dir {}", stagingPath);
+            HadoopUtils.deletePath(fs, stagingPath, true);
+          }
+        }
+        if (outputPathStr != null && !outputPathStr.isEmpty()) {
+          Path outputPath = new Path(outputPathStr);
+          if (fs.exists(outputPath)) {
+            LOGGER.info("Shutdown cleanup: deleting writer output dir {}", outputPath);
+            HadoopUtils.deletePath(fs, outputPath, true);
+          }
+        }
+      } finally {
+        fs.close();
+      }
+    } catch (Exception e) {
+      LOGGER.debug("Shutdown cleanup of staging/output dirs failed: {}", e.getMessage());
     }
   }
 
