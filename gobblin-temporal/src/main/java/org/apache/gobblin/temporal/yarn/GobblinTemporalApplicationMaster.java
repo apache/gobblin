@@ -123,19 +123,11 @@ public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterMana
   private void registerStagingAndOutputCleanupShutdownHook() {
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
       try {
-        cleanupStagingAndOutputDirsFromConfig();
+        cleanupStagingAndOutputDirsFromConfig(this.config);
       } catch (Exception e) {
         LOGGER.debug("Shutdown hook: cleanup of staging/output dirs failed", e);
       }
     }, "GobblinTemporalAM-StagingOutputCleanup"));
-  }
-
-  /**
-   * Deletes writer.staging.dir and writer.output.dir using paths and writer FS URI from {@link #config}.
-   * Uses a fresh FileSystem so cleanup works when this.fs may be closed.
-   */
-  private void cleanupStagingAndOutputDirsFromConfig() {
-    cleanupStagingAndOutputDirsFromConfig(this.config);
   }
 
   /**
