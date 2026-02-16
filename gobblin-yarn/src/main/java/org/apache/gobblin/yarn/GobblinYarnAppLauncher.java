@@ -426,6 +426,8 @@ public class GobblinYarnAppLauncher {
 
   /**
    * Stop this {@link GobblinYarnAppLauncher} instance.
+   * When not detaching on exit, sends a graceful shutdown signal to the AM container and polls until
+   * the application reaches a terminal state (or timeout) so the AM can clean up before the launcher exits.
    *
    * @throws IOException if this {@link GobblinYarnAppLauncher} instance fails to clean up its working directory.
    */
@@ -437,6 +439,7 @@ public class GobblinYarnAppLauncher {
     LOGGER.info("Stopping the " + GobblinYarnAppLauncher.class.getSimpleName());
 
     try {
+      // Only signal and wait when we are staying attached: if detachOnExit is enabled, we leave the app running.
       if (this.applicationId.isPresent() && !this.detachOnExitEnabled) {
         signalGracefulShutdownAndWaitForTerminal();
       }
@@ -949,9 +952,12 @@ public class GobblinYarnAppLauncher {
   }
 
   /**
-   * Sends GRACEFUL_SHUTDOWN to the AM container via YarnClient, then polls for terminal state until configurable timeout.
+   * Sends GRACEFUL_SHUTDOWN to the AM container via YarnClient, then polls for terminal state until
+   * configurable timeout. If the AM container is already gone (e.g. app already terminated), we skip
+   * signaling and return immediately.
    */
-  private void signalGracefulShutdownAndWaitForTerminal() {
+  @VisibleForTesting
+  void signalGracefulShutdownAndWaitForTerminal() {
     int waitMinutes = ConfigUtils.getInt(this.config,
         GobblinYarnConfigurationKeys.GRACEFUL_SHUTDOWN_WAIT_TIME_MINUTES_KEY,
         GobblinYarnConfigurationKeys.DEFAULT_GRACEFUL_SHUTDOWN_WAIT_TIME_MINUTES);
@@ -959,7 +965,7 @@ public class GobblinYarnAppLauncher {
     try {
       Optional<ContainerId> amContainerId = getAmContainerId(this.applicationId.get());
       if (!amContainerId.isPresent()) {
-        LOGGER.warn("Could not resolve AM container for application {}; skipping graceful shutdown wait", this.applicationId.get());
+        LOGGER.warn("Could not resolve AM container for application {} (may already be terminated); skipping graceful shutdown wait", this.applicationId.get());
         return;
       }
       sendGracefulShutdownSignal(amContainerId.get());
@@ -1000,22 +1006,26 @@ public class GobblinYarnAppLauncher {
     int pollIntervalSec = ConfigUtils.getInt(this.config,
         GobblinYarnConfigurationKeys.GRACEFUL_SHUTDOWN_POLL_INTERVAL_SECONDS_KEY,
         GobblinYarnConfigurationKeys.DEFAULT_GRACEFUL_SHUTDOWN_POLL_INTERVAL_SECONDS);
-    long pollIntervalMs = Math.min(pollIntervalSec * 1000L, timeoutMs);
+    long pollIntervalMs = pollIntervalSec * 1000L;
+    if (pollIntervalMs > timeoutMs) {
+      pollIntervalMs = timeoutMs;
+    }
     long deadlineMs = System.currentTimeMillis() + timeoutMs;
     ApplicationId appId = this.applicationId.get();
-    while (System.currentTimeMillis() < deadlineMs) {
+    while (true) {
       ApplicationReport report = this.yarnClient.getApplicationReport(appId);
       if (isApplicationCompleted(report)) {
         LOGGER.info("Application {} reached terminal state {}", appId, report.getYarnApplicationState());
         return;
       }
-      long remaining = deadlineMs - System.currentTimeMillis();
-      if (remaining <= 0) {
-        break;
+      long nowMs = System.currentTimeMillis();
+      if (nowMs >= deadlineMs) {
+        LOGGER.info("Graceful shutdown wait timeout reached for application {}", appId);
+        return;
       }
-      Thread.sleep(Math.min(pollIntervalMs, remaining));
+      long remainingMs = deadlineMs - nowMs;
+      Thread.sleep(Math.min(pollIntervalMs, remainingMs));
     }
-    LOGGER.info("Graceful shutdown wait timeout reached for application {}", appId);
   }
 
   @VisibleForTesting

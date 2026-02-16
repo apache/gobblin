@@ -112,6 +112,7 @@ public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterMana
       this.applicationLauncher.addService((Service) GobblinConstructorUtils.invokeLongestConstructor(serviceClass, this));
     }
 
+    // Register last so we only add the hook after construction succeeds; hook runs on JVM exit to clean writer dirs.
     registerStagingAndOutputCleanupShutdownHook();
   }
 
@@ -139,6 +140,7 @@ public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterMana
 
   /**
    * Deletes writer.staging.dir and writer.output.dir from the given config.
+   * Used on JVM shutdown so temporary writer dirs are removed and do not leak storage.
    * Package-private for unit testing. Uses a fresh FileSystem so cleanup works when the caller's fs may be closed.
    */
   static void cleanupStagingAndOutputDirsFromConfig(Config config) {

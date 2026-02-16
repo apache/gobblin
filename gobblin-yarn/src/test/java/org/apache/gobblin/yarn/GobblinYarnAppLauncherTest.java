@@ -566,12 +566,11 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     applicationIdField.setAccessible(true);
     applicationIdField.set(launcher, com.google.common.base.Optional.of(appId));
 
-    java.lang.reflect.Method method = GobblinYarnAppLauncher.class.getDeclaredMethod("signalGracefulShutdownAndWaitForTerminal");
-    method.setAccessible(true);
-    method.invoke(launcher);
+    launcher.signalGracefulShutdownAndWaitForTerminal();
 
     verify(mockYarnClient, times(1)).signalToContainer(eq(containerId), eq(SignalContainerCommand.GRACEFUL_SHUTDOWN));
-    verify(mockYarnClient, times(1)).getApplicationReport(appId);
+    // getApplicationReport: once in getAmContainerId(), once in pollForApplicationCompletionUntil() when checking terminal state
+    verify(mockYarnClient, times(2)).getApplicationReport(appId);
     verify(mockYarnClient, times(1)).getApplicationAttemptReport(attemptId);
   }
 
