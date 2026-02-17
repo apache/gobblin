@@ -19,8 +19,8 @@ package org.apache.gobblin.service.modules.orchestration.troubleshooter;
 
 import java.util.List;
 
-import org.apache.log4j.Level;
-import org.apache.log4j.LogManager;
+import org.apache.logging.log4j.LogManager;
+import org.apache.logging.log4j.core.Logger;
 import org.slf4j.MDC;
 
 import lombok.Getter;
@@ -37,52 +37,28 @@ import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 
 
 /**
- * Service-layer troubleshooter that captures exceptions and errors occurring in the GaaS
- * orchestration/service layer (before job submission to executors).
+ * Captures WARN and ERROR log events from the service/orchestration layer and converts them
+ * to troubleshooting Issues. Uses MDC for flow context extraction.
  *
- * <p>This is the service-layer equivalent of AutomaticTroubleshooterImpl.
- * It uses MDC (Mapped Diagnostic Context) for flow/job context extraction instead of JobState.
- * @see ServiceLayerLogAppender
+ * <p>Service-layer equivalent of AutomaticTroubleshooterImpl (executor-side).
+ *
+ * @see ServiceLayerLog4j2Appender
  * @see org.apache.gobblin.service.modules.orchestration.proc.DagProc
  */
 @Slf4j
 public class ServiceLayerTroubleshooter {
 
-  /**
-   * Repository for storing captured issues during this execution.
-   * Uses InMemoryIssueRepository since issues are submitted immediately after capture.
-   */
   @Getter
   private final IssueRepository issueRepository;
 
-  /**
-   * Log appender that intercepts log.error()/log.warn() calls.
-   */
-  private ServiceLayerLogAppender logAppender;
-
-  /**
-   * If true, only capture logs when MDC has complete flow context.
-   * If false, capture all logs regardless of MDC state.
-   */
+  private ServiceLayerLog4j2Appender logAppender;
   private final boolean requireMdcContext;
-
-  /**
-   * Maximum number of issues to capture per execution to prevent memory issues.
-   */
   private final int maxIssuesPerExecution;
-
-  /**
-   * Flag to track if troubleshooter is currently active.
-   */
   private boolean isStarted = false;
 
   /**
-   * Creates a new ServiceLayerTroubleshooter.
-   *
-   * @param requireMdcContext If true, only capture logs when MDC has flow context.
-   *                          Set to true in production to ensure correct issue attribution.
-   *                          Set to false for testing or debugging.
-   * @param maxIssuesPerExecution Maximum number of issues to capture per execution
+   * @param requireMdcContext If true, only capture events with valid MDC flow context
+   * @param maxIssuesPerExecution Maximum issues to capture per execution
    */
   public ServiceLayerTroubleshooter(boolean requireMdcContext, int maxIssuesPerExecution) {
     this.issueRepository = new InMemoryIssueRepository();
@@ -93,55 +69,56 @@ public class ServiceLayerTroubleshooter {
   /**
    * Starts capturing log events. Should be called after MDC context is set.
    *
-   * <p>Registers a Log4j appender to the root logger that will intercept
-   * WARN and ERROR level log events.
-   *
-   * <p>This method is idempotent - calling it multiple times has no additional effect.
-   *
-   * @throws IllegalStateException if called when already started
+   * <p>Registers a Log4j 2.x appender to intercept WARN and ERROR level events.
+   * The appender filters events to only capture those from the current flow execution.
    */
   public synchronized void start() {
     if (isStarted) {
-      log.warn("ServiceLayerTroubleshooter.start() called when already started. Ignoring.");
+      log.warn("ServiceLayerTroubleshooter already started. Ignoring duplicate start() call.");
       return;
     }
 
-    org.apache.log4j.Logger rootLogger = LogManager.getRootLogger();
+    Logger rootLogger = (Logger) LogManager.getRootLogger();
 
-    logAppender = new ServiceLayerLogAppender(issueRepository, requireMdcContext, maxIssuesPerExecution);
-    logAppender.setThreshold(Level.WARN); // Capture WARN, ERROR, FATAL
-    logAppender.activateOptions();
+    // Extract flow context for event filtering
+    String flowGroup = MDC.get(ConfigurationKeys.FLOW_GROUP_KEY);
+    String flowName = MDC.get(ConfigurationKeys.FLOW_NAME_KEY);
+    String flowExecutionId = MDC.get(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
 
+    logAppender = new ServiceLayerLog4j2Appender(
+        "ServiceLayerTroubleshooterAppender",
+        null,
+        issueRepository,
+        requireMdcContext,
+        maxIssuesPerExecution,
+        flowGroup,
+        flowName,
+        flowExecutionId
+    );
+
+    logAppender.start();
     rootLogger.addAppender(logAppender);
     isStarted = true;
 
-    log.info("ServiceLayerTroubleshooter started for context: flowGroup={}, flowName={}, flowExecutionId={}, jobName={}, maxIssues={}",
-        MDC.get(ConfigurationKeys.FLOW_GROUP_KEY),
-        MDC.get(ConfigurationKeys.FLOW_NAME_KEY),
-        MDC.get(ConfigurationKeys.FLOW_EXECUTION_ID_KEY),
-        MDC.get(ConfigurationKeys.JOB_NAME_KEY),
-        maxIssuesPerExecution);
+    log.debug("ServiceLayerTroubleshooter started for flowGroup={}, flowName={}, flowExecutionId={}, maxIssues={}",
+        flowGroup, flowName, flowExecutionId, maxIssuesPerExecution);
   }
 
   /**
    * Stops capturing log events and removes the appender.
-   *
-   * <p>This method is idempotent - calling it multiple times has no additional effect.
-   *
-   * <p><b>Important:</b> This does NOT clear the issue repository.
-   * Call {@link #reportIssuesAsEvents(EventSubmitter)} to submit captured issues.
+   * Does not clear the issue repository - call {@link #reportIssuesAsEvents} to submit issues.
    */
   public synchronized void stop() {
     if (!isStarted) {
-      log.debug("ServiceLayerTroubleshooter.stop() called when not started. Ignoring.");
       return;
     }
 
     if (logAppender != null) {
-      org.apache.log4j.Logger rootLogger = LogManager.getRootLogger();
+      Logger rootLogger = (Logger) LogManager.getRootLogger();
       rootLogger.removeAppender(logAppender);
+      logAppender.stop();
 
-      log.info("ServiceLayerTroubleshooter stopped. Captured {}/{} issues (processed {} events, skipped {} events).",
+      log.debug("ServiceLayerTroubleshooter stopped. Captured {}/{} issues (processed {} events, skipped {} events).",
           logAppender.getCapturedIssueCount(), maxIssuesPerExecution,
           logAppender.getProcessedEventCount(), logAppender.getSkippedEventCount());
 
@@ -152,17 +129,11 @@ public class ServiceLayerTroubleshooter {
   }
 
   /**
-   * Submits all captured issues as IssueEvents with proper flow/job context metadata.
-   *
-   * <p>Issues are submitted via the provided EventSubmitter, which sends them to the
-   * tracking event stream where JobIssueEventHandler will process them and store in
-   * MultiContextIssueRepository.
-   *
-   * <p>This method extracts flow context from MDC and adds it as metadata to each issue event,
-   * ensuring issues are correctly associated with their originating flow/job.
+   * Submits captured issues as tracking events with flow/job context metadata.
+   * Issues are sent to the tracking stream where JobIssueEventHandler stores them.
    *
    * @param eventSubmitter EventSubmitter for publishing IssueEvents
-   * @throws TroubleshooterException if unable to retrieve issues from repository
+   * @throws TroubleshooterException if unable to retrieve issues
    */
   public void reportIssuesAsEvents(EventSubmitter eventSubmitter) throws TroubleshooterException {
     List<Issue> issues = issueRepository.getAll();
@@ -228,17 +199,13 @@ public class ServiceLayerTroubleshooter {
   }
 
   /**
-   * Logs a summary of captured issues for debugging.
-   *
-   * <p>Formats issues in a human-readable format showing severity, summary, and code.
-   *
-   * @throws TroubleshooterException if unable to retrieve issues from repository
+   * Logs a summary of captured issues in human-readable format.
    */
   public void logIssueSummary() throws TroubleshooterException {
     List<Issue> issues = issueRepository.getAll();
 
     if (issues.isEmpty()) {
-      log.debug("ServiceLayerTroubleshooter: No issues captured.");
+      log.info("ServiceLayerTroubleshooter: No issues captured.");
       return;
     }
 
@@ -272,9 +239,6 @@ public class ServiceLayerTroubleshooter {
     log.info(summary.toString());
   }
 
-  /**
-   * Returns the number of issues currently captured in the repository.
-   */
   public int getIssueCount() {
     try {
       return issueRepository.getAll().size();
@@ -284,19 +248,10 @@ public class ServiceLayerTroubleshooter {
     }
   }
 
-  /**
-   * Returns true if the troubleshooter is currently active (started but not stopped).
-   */
   public boolean isStarted() {
     return isStarted;
   }
 
-  /**
-   * Clears all captured issues from the repository.
-   *
-   * <p>This is useful for testing or when reusing a troubleshooter instance.
-   * In production, each DagProc execution creates a new troubleshooter instance.
-   */
   public void clear() {
     try {
       issueRepository.removeAll();
