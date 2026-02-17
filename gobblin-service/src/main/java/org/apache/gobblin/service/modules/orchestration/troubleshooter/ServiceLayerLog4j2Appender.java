@@ -46,7 +46,6 @@ import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
  * and converts them to troubleshooting Issues.
  *
  * <p>Extracts flow context from MDC to associate issues with specific flow executions.
- * Supports async logging by reading context from LogEvent.getContextData().
  *
  * <p>When targetFlowExecutionId is specified, only captures events from that specific execution,
  * preventing cross-flow contamination when multiple DagProcs run concurrently.
@@ -63,7 +62,6 @@ public class ServiceLayerLog4j2Appender extends AbstractAppender {
   private final boolean requireMdcContext;
   private final int maxIssuesPerExecution;
 
-  /** Target flow context for filtering events (null = no filtering) */
   private final String targetFlowGroup;
   private final String targetFlowName;
   private final String targetFlowExecutionId;
@@ -123,7 +121,6 @@ public class ServiceLayerLog4j2Appender extends AbstractAppender {
       return;
     }
 
-    // Filter by target flow context to prevent cross-flow contamination
     if (targetFlowGroup != null || targetFlowName != null || targetFlowExecutionId != null) {
       boolean matches = true;
       if (targetFlowGroup != null && !targetFlowGroup.equals(flowGroup)) {

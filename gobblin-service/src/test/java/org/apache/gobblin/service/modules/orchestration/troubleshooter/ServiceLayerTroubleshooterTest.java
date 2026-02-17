@@ -80,7 +80,7 @@ public class ServiceLayerTroubleshooterTest {
   }
 
   @Test
-  public void testStartIsIdempotent() {
+  public void testStartStopAreIdempotent() {
     ServiceLayerTroubleshooter troubleshooter = new ServiceLayerTroubleshooter(true, 100);
 
     troubleshooter.start();
@@ -88,17 +88,15 @@ public class ServiceLayerTroubleshooterTest {
 
     Assert.assertTrue(troubleshooter.isStarted());
     troubleshooter.stop();
-  }
 
-  @Test
-  public void testStopIsIdempotent() {
-    ServiceLayerTroubleshooter troubleshooter = new ServiceLayerTroubleshooter(true, 100);
 
-    troubleshooter.start();
-    troubleshooter.stop();
-    troubleshooter.stop();
+    ServiceLayerTroubleshooter troubleshooter2 = new ServiceLayerTroubleshooter(true, 100);
 
-    Assert.assertFalse(troubleshooter.isStarted());
+    troubleshooter2.start();
+    troubleshooter2.stop();
+    troubleshooter2.stop();
+
+    Assert.assertFalse(troubleshooter2.isStarted());
   }
 
   @Test

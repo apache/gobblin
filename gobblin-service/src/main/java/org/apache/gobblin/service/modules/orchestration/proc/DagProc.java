@@ -95,10 +95,6 @@ public abstract class DagProc<T> {
    * 5. Reports captured issues as events
    * 6. Cleans up MDC context
    *
-   * <p>MDC context is managed using try-with-resources to ensure automatic cleanup
-   * even if exceptions occur. This prevents stale context from contaminating subsequent
-   * DagProc executions on the same thread.
-   *
    * @param dagManagementStateStore State store for DAG management operations
    * @param dagProcEngineMetrics Metrics for tracking DagProc execution
    * @throws IOException if processing fails
@@ -112,8 +108,6 @@ public abstract class DagProc<T> {
     String flowExecutionId = String.valueOf(this.dagId.getFlowExecutionId());
     String jobName = this.dagNodeId != null ? this.dagNodeId.getJobName() : JobStatusRetriever.NA_KEY;
 
-    // Set MDC context using try-with-resources for automatic cleanup
-    // This ensures each DagProc execution has clean, isolated context
     try (
         Closeable c1 = MDC.putCloseable(ConfigurationKeys.FLOW_GROUP_KEY, flowGroup);
         Closeable c2 = MDC.putCloseable(ConfigurationKeys.FLOW_NAME_KEY, flowName);
@@ -155,21 +149,16 @@ public abstract class DagProc<T> {
         throw e;
 
       } finally {
-        // Always finalize troubleshooting, even if exceptions occurred
         if (troubleshooter != null) {
           finalizeServiceLayerTroubleshooting(troubleshooter);
         }
       }
-
-    } // MDC automatically cleared here via Closeable.close()
+    }
   }
 
   /**
    * Finalizes service-layer troubleshooting by stopping the appender,
    * logging issue summary, and submitting issues as events.
-   *
-   * <p>This method swallows exceptions to prevent troubleshooting failures
-   * from masking the actual DagProc execution failure.
    *
    * @param troubleshooter The troubleshooter instance to finalize
    */

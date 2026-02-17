@@ -39,9 +39,7 @@ import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 /**
  * Captures WARN and ERROR log events from the service/orchestration layer and converts them
  * to troubleshooting Issues. Uses MDC for flow context extraction.
- *
- * <p>Service-layer equivalent of AutomaticTroubleshooterImpl (executor-side).
- *
+ **
  * @see ServiceLayerLog4j2Appender
  * @see org.apache.gobblin.service.modules.orchestration.proc.DagProc
  */
@@ -156,7 +154,6 @@ public class ServiceLayerTroubleshooter {
       log.warn("ServiceLayerTroubleshooter: MDC context missing when reporting issues. " +
           "flowGroup={}, flowName={}, flowExecutionId={}. Issues may not be correctly attributed.",
           flowGroup, flowName, flowExecutionId);
-      // Continue anyway - better to have issues with incomplete context than none
     }
 
     int successCount = 0;
@@ -167,7 +164,6 @@ public class ServiceLayerTroubleshooter {
         IssueEventBuilder eventBuilder = new IssueEventBuilder(IssueEventBuilder.JOB_ISSUE);
         eventBuilder.setIssue(issue);
 
-        // Add flow/job context metadata for JobIssueEventHandler to extract context ID
         if (flowGroup != null) {
           eventBuilder.addMetadata(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, flowGroup);
         }

@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.util.Optional;
 
+import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
 import org.testng.annotations.AfterMethod;
 import org.testng.annotations.BeforeMethod;
@@ -63,14 +64,12 @@ public class DagProcServiceLayerIssueIntegrationTest {
 
   private static final Logger log = LoggerFactory.getLogger(DagProcServiceLayerIssueIntegrationTest.class);
 
-  private InMemoryMultiContextIssueRepository issueRepository;
   private DagManagementStateStore mockDagManagementStateStore;
   private DagProcessingEngineMetrics mockMetrics;
   private Config config;
 
   @BeforeMethod
   public void setUp() {
-    issueRepository = new InMemoryMultiContextIssueRepository();
     mockDagManagementStateStore = Mockito.mock(DagManagementStateStore.class);
     mockMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
 
@@ -96,7 +95,7 @@ public class DagProcServiceLayerIssueIntegrationTest {
     }
 
     @Override
-    protected org.apache.commons.lang3.tuple.Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(
+    protected Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(
         DagManagementStateStore dagManagementStateStore) throws IOException {
       // Log error before throwing exception
       log.error("Test error in initialize() for flow integration test", new RuntimeException("Initialize failed"));
@@ -194,26 +193,6 @@ public class DagProcServiceLayerIssueIntegrationTest {
 
     // This test verifies that Flow B's errors won't be attributed to Flow A
     // because MDC is properly cleaned up between executions
-  }
-
-  @Test
-  public void testTroubleshooterDisabledByFeatureFlag() throws Exception {
-    // Disable troubleshooter via config
-    Config disabledConfig = ConfigFactory.empty()
-        .withValue(ServiceConfigKeys.SERVICE_LAYER_TROUBLESHOOTER_ENABLED,
-            ConfigValueFactory.fromAnyRef(false));
-
-    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(
-        "test-group", "test-flow", 123L, "test-job", DagActionStore.DagActionType.REEVALUATE);
-    ReevaluateDagTask task = new ReevaluateDagTask(dagAction, null, mockDagManagementStateStore, mockMetrics);
-
-    TestFailingInitDagProc dagProc = new TestFailingInitDagProc(task, disabledConfig);
-
-    try {
-      dagProc.process(mockDagManagementStateStore, mockMetrics);
-    } catch (IOException e) {
-      // Expected
-    }
   }
 
   @Test

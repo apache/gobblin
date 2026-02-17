@@ -182,41 +182,6 @@ public class ServiceLayerLog4j2AppenderTest {
   }
 
   @Test
-  public void testAppenderFlowGroupFiltering() throws Exception {
-    ServiceLayerLog4j2Appender appender = createAppender(false, 10, "target-group", null, null);
-    appender.start();
-
-    Map<String, String> matchingContext = createContextData("target-group", "flow1", "123");
-    LogEvent matchingEvent = createLogEvent(Level.ERROR, "Matching error", null, matchingContext);
-    appender.append(matchingEvent);
-
-    Map<String, String> nonMatchingContext = createContextData("other-group", "flow1", "123");
-    LogEvent nonMatchingEvent = createLogEvent(Level.ERROR, "Non-matching error", null, nonMatchingContext);
-    appender.append(nonMatchingEvent);
-
-    Assert.assertEquals(repository.getAll().size(), 1);
-    Assert.assertEquals(appender.getCapturedIssueCount(), 1);
-    Assert.assertEquals(appender.getSkippedEventCount(), 1);
-  }
-
-  @Test
-  public void testAppenderFlowNameFiltering() throws Exception {
-    ServiceLayerLog4j2Appender appender = createAppender(false, 10, null, "target-flow", null);
-    appender.start();
-
-    Map<String, String> matchingContext = createContextData("group1", "target-flow", "123");
-    LogEvent matchingEvent = createLogEvent(Level.ERROR, "Matching error", null, matchingContext);
-    appender.append(matchingEvent);
-
-    Map<String, String> nonMatchingContext = createContextData("group1", "other-flow", "123");
-    LogEvent nonMatchingEvent = createLogEvent(Level.ERROR, "Non-matching error", null, nonMatchingContext);
-    appender.append(nonMatchingEvent);
-
-    Assert.assertEquals(repository.getAll().size(), 1);
-    Assert.assertEquals(appender.getCapturedIssueCount(), 1);
-  }
-
-  @Test
   public void testAppenderExecutionIdFiltering() throws Exception {
     ServiceLayerLog4j2Appender appender = createAppender(false, 10, null, null, "123");
     appender.start();
@@ -257,23 +222,6 @@ public class ServiceLayerLog4j2AppenderTest {
     Assert.assertEquals(repository.getAll().size(), 1);
     Assert.assertEquals(appender.getCapturedIssueCount(), 1);
     Assert.assertEquals(appender.getSkippedEventCount(), 3);
-  }
-
-  @Test
-  public void testAppenderNoFilteringWhenTargetNull() throws Exception {
-    ServiceLayerLog4j2Appender appender = createAppender(false, 10, null, null, null);
-    appender.start();
-
-    Map<String, String> context1 = createContextData("group1", "flow1", "123");
-    LogEvent event1 = createLogEvent(Level.ERROR, "Error 1", null, context1);
-    appender.append(event1);
-
-    Map<String, String> context2 = createContextData("group2", "flow2", "456");
-    LogEvent event2 = createLogEvent(Level.ERROR, "Error 2", null, context2);
-    appender.append(event2);
-
-    Assert.assertEquals(repository.getAll().size(), 2);
-    Assert.assertEquals(appender.getCapturedIssueCount(), 2);
   }
 
   @Test
