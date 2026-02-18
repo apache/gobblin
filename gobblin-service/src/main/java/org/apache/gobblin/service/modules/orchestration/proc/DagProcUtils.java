@@ -106,12 +106,10 @@ public class DagProcUtils {
 
     // Set MDC jobName for this job execution scope
     String jobName = DagUtils.getJobName(dagNode);
-    try (Closeable jobNameMdc = MDC.putCloseable(ConfigurationKeys.JOB_NAME_KEY, jobName)) {
-      submitJobToExecutorInternal(dagManagementStateStore, dagNode, dagId, jobExecutionPlan, jobSpec,
-          jobMetadata, specExecutorUri);
-    } catch (IOException e) {
-      throw new RuntimeException(e);
-    }
+    MDC.put(ConfigurationKeys.JOB_NAME_KEY, jobName);
+
+    submitJobToExecutorInternal(dagManagementStateStore, dagNode, dagId, jobExecutionPlan, jobSpec,
+        jobMetadata, specExecutorUri);
   }
 
   private static void submitJobToExecutorInternal(DagManagementStateStore dagManagementStateStore,
