@@ -23,6 +23,7 @@ import java.util.Properties;
 
 import lombok.extern.slf4j.Slf4j;
 
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
 import io.temporal.api.enums.v1.ParentClosePolicy;
@@ -32,6 +33,7 @@ import io.temporal.workflow.Workflow;
 
 import org.apache.gobblin.metrics.opentelemetry.GobblinOpenTelemetryMetrics;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.source.extractor.JobCommitPolicy;
 import org.apache.gobblin.temporal.cluster.WorkerConfig;
 import org.apache.gobblin.temporal.ddm.activity.ActivityType;
@@ -174,25 +176,35 @@ public class ProcessWorkUnitsWorkflowImpl implements ProcessWorkUnitsWorkflow {
 
   protected NestingExecWorkflow<WorkUnitClaimCheck> createProcessingWorkflow(FileSystemJobStateful f,
       Map<String, Object> searchAttributes) {
-    ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
+    Config config = WorkerConfig.of(this).orElse(ConfigFactory.empty());
+    boolean dynamicScalingEnabled = config.hasPath(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED)
+        && config.getBoolean(GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED);
+
+    ChildWorkflowOptions.Builder childOpts = ChildWorkflowOptions.newBuilder()
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_TERMINATE)
         .setSearchAttributes(searchAttributes)
-        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(CHILD_WORKFLOW_ID_BASE, f,
-            WorkerConfig.of(this).orElse(ConfigFactory.empty())))
-        .build();
-    // TODO: to incorporate multiple different concrete `NestingExecWorkflow` sub-workflows in the same super-workflow... shall we use queues?!?!?
-    return Workflow.newChildWorkflowStub(NestingExecWorkflow.class, childOpts);
+        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(CHILD_WORKFLOW_ID_BASE, f, config));
+
+    // Route NestingExecWorkflow (work execution) to execution
+    if (dynamicScalingEnabled) {
+      childOpts.setTaskQueue(config.hasPath(GobblinTemporalConfigurationKeys.EXECUTION_TASK_QUEUE)
+          ? config.getString(GobblinTemporalConfigurationKeys.EXECUTION_TASK_QUEUE)
+          : GobblinTemporalConfigurationKeys.DEFAULT_EXECUTION_TASK_QUEUE);
+    }
+
+    return Workflow.newChildWorkflowStub(NestingExecWorkflow.class, childOpts.build());
   }
 
   protected CommitStepWorkflow createCommitStepWorkflow(Map<String, Object> searchAttributes) {
+    Config config = WorkerConfig.of(this).orElse(ConfigFactory.empty());
     ChildWorkflowOptions childOpts = ChildWorkflowOptions.newBuilder()
         // TODO: verify to instead use:  Policy.PARENT_CLOSE_POLICY_TERMINATE)
         .setParentClosePolicy(ParentClosePolicy.PARENT_CLOSE_POLICY_ABANDON)
         .setSearchAttributes(searchAttributes)
-        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE,
-            WorkerConfig.of(this).orElse(ConfigFactory.empty())))
+        .setWorkflowId(Help.qualifyNamePerExecWithFlowExecId(COMMIT_STEP_WORKFLOW_ID_BASE, config))
         .build();
 
+    // CommitStepWorkflow inherits default queue from ProcessWorkUnitsWorkflow parent
     return Workflow.newChildWorkflowStub(CommitStepWorkflow.class, childOpts);
   }
 }
