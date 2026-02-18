@@ -238,6 +238,7 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
       for (int i = 0; i < this.numTemporalWorkers; i++) {
         workers.add(initiateWorker());
       }
+      initializeExecutionWorkers();
     }catch (Exception e) {
       logger.info(e + " for initiate workers");
       throw new RuntimeException(e);
@@ -252,8 +253,8 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     WorkflowClient client = TemporalWorkflowClientFactory.createClientInstance(
         managedWorkflowServiceStubs.getWorkflowServiceStubs(), namespace);
 
-    String workerClassName = ConfigUtils.getString(clusterConfig,
-        GobblinTemporalConfigurationKeys.WORKER_CLASS, GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS);
+    String workerClassName = ConfigUtils.getString(clusterConfig, GobblinTemporalConfigurationKeys.WORKER_CLASS,
+        GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS);
     logger.info("Creating worker - class: '{}'", workerClassName);
     Config workerConfig = clusterConfig;
     TemporalWorker worker = GobblinConstructorUtils.invokeLongestConstructor(
@@ -261,6 +262,38 @@ public class GobblinTemporalTaskRunner implements StandardMetricsBridge {
     worker.start();
     logger.info("Finished starting worker - class: '{}'", workerClassName);
     return worker;
+  }
+
+  private void initializeExecutionWorkers() throws Exception {
+    boolean dynamicScalingEnabled = ConfigUtils.getBoolean(clusterConfig,
+        GobblinTemporalConfigurationKeys.DYNAMIC_SCALING_ENABLED, false);
+
+    if (!dynamicScalingEnabled) {
+      return;
+    }
+
+    String workerClassName = ConfigUtils.getString(clusterConfig, GobblinTemporalConfigurationKeys.WORKER_CLASS,
+        GobblinTemporalConfigurationKeys.DEFAULT_WORKER_CLASS);
+    boolean isExecutionWorkerContainer = GobblinTemporalConfigurationKeys.EXECUTION_WORKER_CLASS.equals(workerClassName);
+
+    // only the initial container (WorkFulfillment worker) should start an additional ExecutionWorker worker
+    if (isExecutionWorkerContainer) {
+      return;
+    }
+
+    logger.info("Starting additional ExecutionWorker in initial container");
+
+    String namespace = ConfigUtils.getString(clusterConfig, GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_NAMESPACE,
+        GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_NAMESPACE);
+    WorkflowClient client = TemporalWorkflowClientFactory.createClientInstance(
+        managedWorkflowServiceStubs.getWorkflowServiceStubs(), namespace);
+
+    TemporalWorker executionWorker = GobblinConstructorUtils.invokeLongestConstructor(
+        (Class<TemporalWorker>)Class.forName(GobblinTemporalConfigurationKeys.EXECUTION_WORKER_CLASS),
+        clusterConfig, client);
+    executionWorker.start();
+    workers.add(executionWorker);
+    logger.info("Worker started for class: {}", GobblinTemporalConfigurationKeys.EXECUTION_WORKER_CLASS);
   }
 
   private void initMetricReporter() {
