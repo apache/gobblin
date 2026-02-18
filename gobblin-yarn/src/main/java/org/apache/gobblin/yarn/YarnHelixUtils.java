@@ -210,9 +210,9 @@ public class YarnHelixUtils {
 
   /**
    * Calculate the path of a jar cache on HDFS, which is retained on a semi-monthly basis (twice per month).
-   * directory lock threshold. Each month is split into two periods:
-   * - Period 1: Days 1-15 (suffix: yyyy-MM-1)
-   * - Period 2: Days 16-end (suffix: yyyy-MM-2)
+   * Each month is split into two periods:
+   * - Period 1: Days 1-15 (suffix: yyyy-MM.1)
+   * - Period 2: Days 16-end (suffix: yyyy-MM.2)
    *
    * Should be used in conjunction with {@link #retainKLatestJarCachePaths(Path, int, FileSystem)} to clean up the cache on a periodic basis.
    *
@@ -235,16 +235,16 @@ public class YarnHelixUtils {
 
     // Partition by 15th of month: days 1-15 = period 1, days 16-end = period 2
     String periodSuffix = dayOfMonth <= 15 ? "1" : "2";
-    String cacheSuffix = yearMonth + "-" + periodSuffix;
+    String cacheSuffix = yearMonth + "." + periodSuffix;
 
     return new Path(baseCacheDir, cacheSuffix);
   }
 
   /**
    * Retain the latest k jar cache paths that are children of the parent cache path.
-   * Handles both old monthly format (yyyy-MM) and new semi-monthly format (yyyy-MM-1, yyyy-MM-2).
+   * Handles both old monthly format (yyyy-MM) and new semi-monthly format (yyyy-MM.1, yyyy-MM.2).
    * During migration, old monthly directories are treated as belonging to the first half of the month
-   * for sorting purposes (equivalent to yyyy-MM-1), ensuring they are cleaned up before newer semi-monthly periods.
+   * for sorting purposes (equivalent to yyyy-MM.1), ensuring they are cleaned up before newer semi-monthly periods.
    *
    * @param parentCachePath the parent directory containing jar cache subdirectories
    * @param k the number of latest jar cache paths to retain
@@ -261,7 +261,7 @@ public class YarnHelixUtils {
     FileStatus[] allDirs = fs.listStatus(parentCachePath);
 
     // Sort by normalized path name for proper chronological ordering
-    // Old format (yyyy-MM) is treated as yyyy-MM-1 for sorting
+    // Old format (yyyy-MM) is treated as yyyy-MM.1 for sorting
     List<FileStatus> jarDirs = Arrays.stream(allDirs)
         .sorted((a, b) -> {
           String nameA = normalizeDirectoryNameForSorting(a.getPath().getName());
@@ -283,21 +283,21 @@ public class YarnHelixUtils {
 
   /**
    * Normalizes directory names for sorting to handle migration from monthly to semi-monthly format.
-   * Converts old monthly format (yyyy-MM) to yyyy-MM-1 for consistent chronological sorting.
+   * Converts old monthly format (yyyy-MM) to yyyy-MM.1 for consistent chronological sorting.
    * This ensures old directories are cleaned up before newer semi-monthly periods in the same month.
    *
-   * @param dirName the directory name (e.g., "2024-09" or "2024-09-1")
-   * @return normalized name for sorting (e.g., "2024-09-1" or "2024-09-2")
+   * @param dirName the directory name (e.g., "2024-09" or "2024-09.1")
+   * @return normalized name for sorting (e.g., "2024-09.1" or "2024-09.2")
    */
   @VisibleForTesting
   static String normalizeDirectoryNameForSorting(String dirName) {
-    // Pattern: yyyy-MM or yyyy-MM-{1,2}
-    // If it's old format (yyyy-MM without period suffix), treat as yyyy-MM-1
+    // Pattern: yyyy-MM or yyyy-MM.{1,2}
+    // If it's old format (yyyy-MM without period suffix), treat as yyyy-MM.1
     if (dirName.matches("\\d{4}-\\d{2}$")) {
       // Old monthly format - treat as first half of month for aggressive cleanup
-      return dirName + "-1";
+      return dirName + ".1";
     }
-    // Already in new format (yyyy-MM-1 or yyyy-MM-2) or unrecognized format
+    // Already in new format (yyyy-MM.1 or yyyy-MM.2) or unrecognized format
     return dirName;
   }
 

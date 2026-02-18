@@ -80,8 +80,8 @@ public class YarnHelixUtilsTest {
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
     Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config, mockFs);
 
-    // Sept 11 is in first half (1-15), so expect yyyy-MM-1 format
-    Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09-1"));
+    // Sept 11 is in first half (1-15), so expect yyyy-MM.1 format
+    Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09.1"));
   }
 
   @Test
@@ -94,8 +94,8 @@ public class YarnHelixUtilsTest {
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
     Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config, mockFs);
 
-    // Sept 17 is in second half (16-end), so expect yyyy-MM-2 format
-    Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09-2"));
+    // Sept 17 is in second half (16-end), so expect yyyy-MM.2 format
+    Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09.2"));
   }
 
   @Test
@@ -109,7 +109,7 @@ public class YarnHelixUtilsTest {
     Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config, mockFs);
 
     // Sept 15 is the last day of first half
-    Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09-1"));
+    Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09.1"));
   }
 
   @Test
@@ -123,7 +123,7 @@ public class YarnHelixUtilsTest {
     Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config, mockFs);
 
     // Sept 16 is the first day of second half
-    Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09-2"));
+    Assert.assertEquals(jarCachePath, new Path("/tmp/2024-09.2"));
   }
 
   @Test
@@ -135,21 +135,21 @@ public class YarnHelixUtilsTest {
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
     Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config, fs);
     fs.mkdirs(jarCachePath);
-    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08-2"));
-    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08-1"));
-    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-07-2"));
-    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-07-1"));
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08.2"));
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08.1"));
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-07.2"));
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-07.1"));
 
     // Retain 3 latest periods (current + 2 previous)
     YarnHelixUtils.retainKLatestJarCachePaths(jarCachePath.getParent(), 3, fs);
 
     // Should keep the 3 latest
-    Assert.assertTrue(fs.exists(new Path(this.tempDir, "tmp/2024-09-1")));
-    Assert.assertTrue(fs.exists(new Path(this.tempDir, "tmp/2024-08-2")));
-    Assert.assertTrue(fs.exists(new Path(this.tempDir, "tmp/2024-08-1")));
+    Assert.assertTrue(fs.exists(new Path(this.tempDir, "tmp/2024-09.1")));
+    Assert.assertTrue(fs.exists(new Path(this.tempDir, "tmp/2024-08.2")));
+    Assert.assertTrue(fs.exists(new Path(this.tempDir, "tmp/2024-08.1")));
     // Should be cleaned up
-    Assert.assertFalse(fs.exists(new Path(this.tempDir, "tmp/2024-07-2")));
-    Assert.assertFalse(fs.exists(new Path(this.tempDir, "tmp/2024-07-1")));
+    Assert.assertFalse(fs.exists(new Path(this.tempDir, "tmp/2024-07.2")));
+    Assert.assertFalse(fs.exists(new Path(this.tempDir, "tmp/2024-07.1")));
   }
 
   @Test
@@ -187,15 +187,15 @@ public class YarnHelixUtilsTest {
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_DIR, ConfigValueFactory.fromAnyRef(this.tempDir + "/tmp-mixed"))
         .withValue(GobblinYarnConfigurationKeys.JAR_CACHE_ENABLED, ConfigValueFactory.fromAnyRef(true));
     Path jarCachePath = YarnHelixUtils.calculatePerMonthJarCachePath(config, fs);
-    // Current path is 2024-09-2
+    // Current path is 2024-09.2
     fs.mkdirs(jarCachePath);
 
     // Create mix of old monthly and new semi-monthly formats
-    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-09-1"));  // New format
-    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-09"));    // Old format (treated as 2024-09-1)
-    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08-2"));  // New format
-    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08"));    // Old format (treated as 2024-08-1)
-    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08-1"));  // New format
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-09.1"));  // New format
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-09"));    // Old format (treated as 2024-09.1)
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08.2"));  // New format
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08"));    // Old format (treated as 2024-08.1)
+    fs.mkdirs(new Path(jarCachePath.getParent(), "2024-08.1"));  // New format
     fs.mkdirs(new Path(jarCachePath.getParent(), "2024-07"));    // Old format (should be deleted)
 
     // Retain 3 latest periods
@@ -203,26 +203,26 @@ public class YarnHelixUtilsTest {
 
     // Expected retention (keeping 3 latest):
     // After normalization and sorting, the order is:
-    // 1. 2024-07 (normalized to 2024-07-1)
-    // 2. 2024-08 (normalized to 2024-08-1)
-    // 3. 2024-08-1 (normalized to 2024-08-1)
-    // 4. 2024-08-2 (normalized to 2024-08-2)
-    // 5. 2024-09 (normalized to 2024-09-1)
-    // 6. 2024-09-1 (normalized to 2024-09-1)
-    // 7. 2024-09-2 (normalized to 2024-09-2)
+    // 1. 2024-07 (normalized to 2024-07.1)
+    // 2. 2024-08 (normalized to 2024-08.1)
+    // 3. 2024-08.1 (normalized to 2024-08.1)
+    // 4. 2024-08.2 (normalized to 2024-08.2)
+    // 5. 2024-09 (normalized to 2024-09.1)
+    // 6. 2024-09.1 (normalized to 2024-09.1)
+    // 7. 2024-09.2 (normalized to 2024-09.2)
     //
     // Keeping k=3 latest means we keep entries 5, 6, 7:
-    // Keep: 2024-09 (old), 2024-09-1, 2024-09-2
+    // Keep: 2024-09 (old), 2024-09.1, 2024-09.2
     // Delete: Everything from August and July
 
-    Assert.assertTrue("Current period 2024-09-2 should be kept", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-09-2")));
-    Assert.assertTrue("2024-09-1 should be kept", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-09-1")));
-    Assert.assertTrue("Old format 2024-09 should be kept (sorts same as 2024-09-1)", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-09")));
+    Assert.assertTrue("Current period 2024-09.2 should be kept", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-09.2")));
+    Assert.assertTrue("2024-09.1 should be kept", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-09.1")));
+    Assert.assertTrue("Old format 2024-09 should be kept (sorts same as 2024-09.1)", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-09")));
 
     // All August and July directories should be cleaned up
-    Assert.assertFalse("2024-08-2 should be deleted", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-08-2")));
+    Assert.assertFalse("2024-08.2 should be deleted", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-08.2")));
     Assert.assertFalse("Old format 2024-08 should be deleted", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-08")));
-    Assert.assertFalse("2024-08-1 should be deleted", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-08-1")));
+    Assert.assertFalse("2024-08.1 should be deleted", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-08.1")));
     Assert.assertFalse("Old format 2024-07 should be deleted", fs.exists(new Path(this.tempDir, "tmp-mixed/2024-07")));
   }
 
@@ -233,7 +233,7 @@ public class YarnHelixUtilsTest {
     Path testDir = new Path(this.tempDir, "tmp-early-migration");
 
     // Create mostly old format with one new semi-monthly (simulating first deployment)
-    fs.mkdirs(new Path(testDir, "2024-10-1"));  // NEW: First semi-monthly period created
+    fs.mkdirs(new Path(testDir, "2024-10.1"));  // NEW: First semi-monthly period created
     fs.mkdirs(new Path(testDir, "2024-09"));    // OLD: Previous monthly
     fs.mkdirs(new Path(testDir, "2024-08"));    // OLD
     fs.mkdirs(new Path(testDir, "2024-07"));    // OLD
@@ -242,16 +242,16 @@ public class YarnHelixUtilsTest {
     // Retain 3 latest periods
     YarnHelixUtils.retainKLatestJarCachePaths(testDir, 3, fs);
 
-    // After sorting with normalization (old format treated as -1):
-    // 2024-06 -> 2024-06-1
-    // 2024-07 -> 2024-07-1
-    // 2024-08 -> 2024-08-1
-    // 2024-09 -> 2024-09-1
-    // 2024-10-1 -> 2024-10-1 (stays)
+    // After sorting with normalization (old format treated as .1):
+    // 2024-06 -> 2024-06.1
+    // 2024-07 -> 2024-07.1
+    // 2024-08 -> 2024-08.1
+    // 2024-09 -> 2024-09.1
+    // 2024-10.1 -> 2024-10.1 (stays)
     //
-    // Keep last 3: 2024-08, 2024-09, 2024-10-1
+    // Keep last 3: 2024-08, 2024-09, 2024-10.1
 
-    Assert.assertTrue("New format 2024-10-1 should be kept", fs.exists(new Path(testDir, "2024-10-1")));
+    Assert.assertTrue("New format 2024-10.1 should be kept", fs.exists(new Path(testDir, "2024-10.1")));
     Assert.assertTrue("Old format 2024-09 should be kept", fs.exists(new Path(testDir, "2024-09")));
     Assert.assertTrue("Old format 2024-08 should be kept", fs.exists(new Path(testDir, "2024-08")));
 
