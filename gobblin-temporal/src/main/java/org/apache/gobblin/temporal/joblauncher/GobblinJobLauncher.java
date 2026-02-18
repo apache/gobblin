@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -287,9 +288,31 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
 
     if (Boolean.parseBoolean(this.jobProps.getProperty(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
         GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED))) {
-      Path workDirRootPath = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
-      log.info("Cleaning up work directory : {} for job : {}", workDirRootPath, this.jobContext.getJobId());
-      this.fs.delete(workDirRootPath, true);
+
+      // First, check if we have the work dir paths from GenerateWorkUnits
+      if (this.jobContext.getJobState().contains(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE)) {
+        Set<String> pathsToDelete = this.jobContext.getJobState()
+            .getPropAsSet(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE);
+        log.info("Cleaning up {} work directories from GenerateWorkUnits for job : {}",
+            pathsToDelete.size(), this.jobContext.getJobId());
+        for (String pathStr : pathsToDelete) {
+          Path path = new Path(pathStr);
+          log.info("Deleting work directory: {}", path);
+          this.fs.delete(path, true);
+        }
+      } else {
+        // Fallback to the old approach if paths not available
+        Path workDirRootPath = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
+        log.info("Cleaning up work directory : {} for job : {}", workDirRootPath, this.jobContext.getJobId());
+        this.fs.delete(workDirRootPath, true);
+      }
+    }
+
+    // Clean up writer staging and output directories
+    try {
+      org.apache.gobblin.util.JobLauncherUtils.cleanJobStagingData(this.jobContext.getJobState(), log);
+    } catch (IOException e) {
+      log.error("Failed to clean up staging/output directories for job " + this.jobContext.getJobId(), e);
     }
   }
 }

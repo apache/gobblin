@@ -29,21 +29,22 @@ import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 
 
 /**
  * Unit tests for {@link GobblinTemporalApplicationMaster}, in particular the config-based
- * staging/output cleanup used in the shutdown hook.
+ * work directory cleanup used in the shutdown hook.
  */
 @Test(groups = { "gobblin.temporal" })
 public class GobblinTemporalApplicationMasterTest {
 
   /**
-   * Verifies that {@link GobblinTemporalApplicationMaster#cleanupStagingAndOutputDirsFromConfig(Config)}
-   * deletes writer.staging.dir and writer.output.dir when they exist and are set in config.
+   * Verifies that {@link GobblinTemporalApplicationMaster#cleanupWorkDirsFromConfig(Config)}
+   * deletes work directories when cleanup is enabled.
    */
   @Test
-  public void testCleanupStagingAndOutputDirsFromConfigDeletesDirs() throws Exception {
+  public void testCleanupWorkDirsFromConfigDeletesDirs() throws Exception {
     Path baseDir = Files.createTempDirectory("GobblinTemporalAMTest");
     try {
       Path stagingDir = baseDir.resolve("staging");
@@ -54,11 +55,12 @@ public class GobblinTemporalApplicationMasterTest {
       Assert.assertTrue(Files.exists(outputDir));
 
       Config config = ConfigFactory.empty()
-          .withValue(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigValueFactory.fromAnyRef("file:///"))
+          .withValue(ConfigurationKeys.FS_URI_KEY, ConfigValueFactory.fromAnyRef("file:///"))
           .withValue(ConfigurationKeys.WRITER_STAGING_DIR, ConfigValueFactory.fromAnyRef(stagingDir.toAbsolutePath().toString()))
-          .withValue(ConfigurationKeys.WRITER_OUTPUT_DIR, ConfigValueFactory.fromAnyRef(outputDir.toAbsolutePath().toString()));
+          .withValue(ConfigurationKeys.WRITER_OUTPUT_DIR, ConfigValueFactory.fromAnyRef(outputDir.toAbsolutePath().toString()))
+          .withValue(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, ConfigValueFactory.fromAnyRef("true"));
 
-      GobblinTemporalApplicationMaster.cleanupStagingAndOutputDirsFromConfig(config);
+      GobblinTemporalApplicationMaster.cleanupWorkDirsFromConfig(config);
 
       Assert.assertFalse(Files.exists(stagingDir), "Staging dir should be deleted");
       Assert.assertFalse(Files.exists(outputDir), "Output dir should be deleted");
@@ -68,17 +70,18 @@ public class GobblinTemporalApplicationMasterTest {
   }
 
   /**
-   * Verifies that cleanup is a no-op when neither writer.staging.dir nor writer.output.dir is set.
+   * Verifies that cleanup is a no-op when neither paths nor work dir is set.
    */
   @Test
-  public void testCleanupStagingAndOutputDirsFromConfigNoPaths() throws Exception {
+  public void testCleanupWorkDirsFromConfigNoPaths() throws Exception {
     Path baseDir = Files.createTempDirectory("GobblinTemporalAMTest");
     try {
       Config config = ConfigFactory.empty()
-          .withValue(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigValueFactory.fromAnyRef("file:///"));
-      // No WRITER_STAGING_DIR or WRITER_OUTPUT_DIR
+          .withValue(ConfigurationKeys.FS_URI_KEY, ConfigValueFactory.fromAnyRef("file:///"))
+          .withValue(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, ConfigValueFactory.fromAnyRef("true"));
+      // No WRITER_STAGING_DIR or WRITER_OUTPUT_DIR or job info
 
-      GobblinTemporalApplicationMaster.cleanupStagingAndOutputDirsFromConfig(config);
+      GobblinTemporalApplicationMaster.cleanupWorkDirsFromConfig(config);
 
       // Base dir should still exist (we didn't pass it in config)
       Assert.assertTrue(Files.exists(baseDir));
@@ -91,7 +94,7 @@ public class GobblinTemporalApplicationMasterTest {
    * Verifies that cleanup only deletes the paths that exist; non-existent paths are skipped.
    */
   @Test
-  public void testCleanupStagingAndOutputDirsFromConfigSkipsNonExistent() throws Exception {
+  public void testCleanupWorkDirsFromConfigSkipsNonExistent() throws Exception {
     Path baseDir = Files.createTempDirectory("GobblinTemporalAMTest");
     try {
       Path stagingDir = baseDir.resolve("staging");
@@ -100,14 +103,38 @@ public class GobblinTemporalApplicationMasterTest {
       // Do not create outputDir
 
       Config config = ConfigFactory.empty()
-          .withValue(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigValueFactory.fromAnyRef("file:///"))
+          .withValue(ConfigurationKeys.FS_URI_KEY, ConfigValueFactory.fromAnyRef("file:///"))
           .withValue(ConfigurationKeys.WRITER_STAGING_DIR, ConfigValueFactory.fromAnyRef(stagingDir.toAbsolutePath().toString()))
-          .withValue(ConfigurationKeys.WRITER_OUTPUT_DIR, ConfigValueFactory.fromAnyRef(outputDir.toAbsolutePath().toString()));
+          .withValue(ConfigurationKeys.WRITER_OUTPUT_DIR, ConfigValueFactory.fromAnyRef(outputDir.toAbsolutePath().toString()))
+          .withValue(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, ConfigValueFactory.fromAnyRef("true"));
 
-      GobblinTemporalApplicationMaster.cleanupStagingAndOutputDirsFromConfig(config);
+      GobblinTemporalApplicationMaster.cleanupWorkDirsFromConfig(config);
 
       Assert.assertFalse(Files.exists(stagingDir), "Staging dir should be deleted");
       Assert.assertFalse(Files.exists(outputDir), "Output dir should still not exist");
+    } finally {
+      FileUtils.deleteDirectory(baseDir.toFile());
+    }
+  }
+
+  /**
+   * Verifies that cleanup is disabled when GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED is false.
+   */
+  @Test
+  public void testCleanupWorkDirsFromConfigDisabled() throws Exception {
+    Path baseDir = Files.createTempDirectory("GobblinTemporalAMTest");
+    try {
+      Path stagingDir = baseDir.resolve("staging");
+      Files.createDirectories(stagingDir);
+
+      Config config = ConfigFactory.empty()
+          .withValue(ConfigurationKeys.FS_URI_KEY, ConfigValueFactory.fromAnyRef("file:///"))
+          .withValue(ConfigurationKeys.WRITER_STAGING_DIR, ConfigValueFactory.fromAnyRef(stagingDir.toAbsolutePath().toString()))
+          .withValue(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, ConfigValueFactory.fromAnyRef("false"));
+
+      GobblinTemporalApplicationMaster.cleanupWorkDirsFromConfig(config);
+
+      Assert.assertTrue(Files.exists(stagingDir), "Staging dir should still exist when cleanup is disabled");
     } finally {
       FileUtils.deleteDirectory(baseDir.toFile());
     }
