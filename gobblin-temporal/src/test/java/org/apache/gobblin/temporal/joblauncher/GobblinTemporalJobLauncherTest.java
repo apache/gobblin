@@ -82,12 +82,6 @@ public class GobblinTemporalJobLauncherTest {
       this.workflowId = "someWorkflowId";
     }
 
-    // Expose protected method for testing
-    @Override
-    public void cleanupWorkingDirectory() throws java.io.IOException {
-      super.cleanupWorkingDirectory();
-    }
-
     // Expose jobContext for testing
     public org.apache.gobblin.runtime.JobContext getJobContext() {
       return this.jobContext;
@@ -219,7 +213,7 @@ public class GobblinTemporalJobLauncherTest {
   }
 
   @Test
-  public void testCleanupWorkingDirectoryWithPathsToDelete() throws Exception {
+  public void testCleanupStagingDirectoryWithPathsToDelete() throws Exception {
     // Create temp directories to simulate work directories
     File tmpDir = Files.createTempDir();
     File stagingDir = new File(tmpDir, "staging");
@@ -238,7 +232,7 @@ public class GobblinTemporalJobLauncherTest {
     assertTrue(outputDir.exists(), "Output directory should exist before cleanup");
 
     // Execute cleanup
-    jobLauncher.cleanupWorkingDirectory();
+    jobLauncher.cleanupStagingDirectory(jobState);
 
     // Verify directories are deleted
     assertFalse(stagingDir.exists(), "Staging directory should be deleted after cleanup");
@@ -249,24 +243,17 @@ public class GobblinTemporalJobLauncherTest {
   }
 
   @Test
-  public void testCleanupWorkingDirectoryFallbackWithoutPaths() throws Exception {
-    // Set up job state WITHOUT WORK_DIR_PATHS_TO_DELETE to test fallback
+  public void testCleanupStagingDirectoryWithoutPaths() throws Exception {
+    // Set up job state WITHOUT WORK_DIR_PATHS_TO_DELETE
     JobState jobState = jobLauncher.getJobContext().getJobState();
     jobState.setProp(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, "true");
 
-    // This should use the fallback mechanism (old behavior)
-    // Just verify it doesn't throw an exception
-    try {
-      jobLauncher.cleanupWorkingDirectory();
-    } catch (Exception e) {
-      // Expected to fail since the work dir root may not exist, but we're testing the code path
-      assertTrue(e.getMessage().contains("does not exist") || e instanceof java.io.FileNotFoundException,
-          "Expected FileNotFoundException or 'does not exist' message");
-    }
+    // Should not throw exception when no paths configured
+    jobLauncher.cleanupStagingDirectory(jobState);
   }
 
   @Test
-  public void testCleanupWorkingDirectoryWithCleanupDisabled() throws Exception {
+  public void testCleanupStagingDirectoryWithCleanupDisabled() throws Exception {
     // Create temp directories
     File tmpDir = Files.createTempDir();
     File stagingDir = new File(tmpDir, "staging");
@@ -279,7 +266,7 @@ public class GobblinTemporalJobLauncherTest {
     jobState.setProp(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, "false");
 
     // Execute cleanup
-    jobLauncher.cleanupWorkingDirectory();
+    jobLauncher.cleanupStagingDirectory(jobState);
 
     // Verify directory still exists (cleanup was disabled)
     assertTrue(stagingDir.exists(), "Staging directory should still exist when cleanup is disabled");

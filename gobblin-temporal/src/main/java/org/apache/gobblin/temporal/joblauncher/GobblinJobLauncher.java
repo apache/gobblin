@@ -62,7 +62,6 @@ import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.ParallelRunner;
-import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 
 /**
@@ -115,6 +114,8 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
     this.eventBus = eventbus;
 
+    registerCleanupShutdownHook();
+
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
             new URI(appWorkDir.toUri().getScheme(), null, appWorkDir.toUri().getHost(), appWorkDir.toUri().getPort(),
@@ -135,13 +136,46 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("GobblinJobLauncher")));
   }
 
+  /**
+   * Registers a JVM shutdown hook that runs cleanup methods in parallel.
+   */
+  private void registerCleanupShutdownHook() {
+    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      try {
+        log.info("Shutdown hook: performing cleanup for job {}", this.jobContext.getJobId());
+        JobState jobState = this.jobContext.getJobState();
+
+        // Run both cleanups in parallel
+        java.util.concurrent.CompletableFuture<Void> stagingCleanup =
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+              try {
+                cleanupStagingDirectory(jobState);
+              } catch (Exception e) {
+                log.debug("Shutdown hook: staging cleanup failed: {}", e.getMessage());
+              }
+            });
+
+        java.util.concurrent.CompletableFuture<Void> workDirCleanup =
+            java.util.concurrent.CompletableFuture.runAsync(() -> {
+              try {
+                cleanupWorkingDirectory(jobState);
+              } catch (Exception e) {
+                log.debug("Shutdown hook: working directory cleanup failed: {}", e.getMessage());
+              }
+            });
+
+        // Wait for both to complete
+        java.util.concurrent.CompletableFuture.allOf(stagingCleanup, workDirCleanup)
+            .get(60, java.util.concurrent.TimeUnit.SECONDS);
+      } catch (Exception e) {
+        log.debug("Shutdown hook: cleanup failed for job {}: {}", this.jobContext.getJobId(), e.getMessage());
+      }
+    }, "GobblinJobLauncher-Cleanup-" + this.jobContext.getJobId()));
+  }
+
   @Override
   public void close() throws IOException {
-    try {
-      cleanupWorkingDirectory();
-    } finally {
-      super.close();
-    }
+    super.close();
   }
 
   public String getJobId() {
@@ -184,7 +218,6 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
 
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
       this.taskStateCollectorService.stopAsync().awaitTerminated();
-      cleanupWorkingDirectory();
     }
   }
 
@@ -267,52 +300,43 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   }
 
   /**
+   * Delete writer staging and output directories using paths from JobState.
+   */
+  @VisibleForTesting
+  protected void cleanupStagingDirectory(JobState jobState) throws IOException {
+    if (!jobState.getPropAsBoolean(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
+        Boolean.parseBoolean(GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED))) {
+      return;
+    }
+
+    if (jobState.contains(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE)) {
+      Set<String> pathsToDelete = jobState.getPropAsSet(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE);
+      log.info("Cleaning up {} work directories for job: {}", pathsToDelete.size(), this.jobContext.getJobId());
+      for (String pathStr : pathsToDelete) {
+        Path path = new Path(pathStr);
+        log.info("Deleting work directory: {}", path);
+        this.fs.delete(path, true);
+      }
+    }
+  }
+
+  /**
    * Delete persisted {@link WorkUnit}s and {@link JobState} upon job completion.
    */
-  protected void cleanupWorkingDirectory() throws IOException {
+  @VisibleForTesting
+  protected void cleanupWorkingDirectory(JobState jobState) throws IOException {
     log.info("Deleting persisted work units for job " + this.jobContext.getJobId());
     stateStores.getWuStateStore().delete(this.jobContext.getJobId());
 
-    // delete the directory that stores the task state files
     stateStores.getTaskStateStore().delete(outputTaskStateDir.getName());
 
     log.info("Deleting job state file for job " + this.jobContext.getJobId());
-
     if (this.stateStores.haveJobStateStore()) {
       this.stateStores.getJobStateStore().delete(this.jobContext.getJobId());
     } else {
       Path jobStateFilePath =
           GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
       this.fs.delete(jobStateFilePath, false);
-    }
-
-    if (Boolean.parseBoolean(this.jobProps.getProperty(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
-        GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED))) {
-
-      // First, check if we have the work dir paths from GenerateWorkUnits
-      if (this.jobContext.getJobState().contains(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE)) {
-        Set<String> pathsToDelete = this.jobContext.getJobState()
-            .getPropAsSet(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE);
-        log.info("Cleaning up {} work directories from GenerateWorkUnits for job : {}",
-            pathsToDelete.size(), this.jobContext.getJobId());
-        for (String pathStr : pathsToDelete) {
-          Path path = new Path(pathStr);
-          log.info("Deleting work directory: {}", path);
-          this.fs.delete(path, true);
-        }
-      } else {
-        // Fallback to the old approach if paths not available
-        Path workDirRootPath = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
-        log.info("Cleaning up work directory : {} for job : {}", workDirRootPath, this.jobContext.getJobId());
-        this.fs.delete(workDirRootPath, true);
-      }
-    }
-
-    // Clean up writer staging and output directories
-    try {
-      org.apache.gobblin.util.JobLauncherUtils.cleanJobStagingData(this.jobContext.getJobState(), log);
-    } catch (IOException e) {
-      log.error("Failed to clean up staging/output directories for job " + this.jobContext.getJobId(), e);
     }
   }
 }
