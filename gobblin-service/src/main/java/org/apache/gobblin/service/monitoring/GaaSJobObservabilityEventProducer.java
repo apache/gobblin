@@ -301,6 +301,9 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
       return;
     }
     if (value instanceof Number) {
+      // OpenTelemetry attributes support numeric types, but for this metric we standardize all numeric
+      // dimension values as a LONG attribute for consistency (dimensions are expected to be discrete).
+      // Note: if a floating-point value (e.g., Double) ever shows up here, the fractional part will be truncated.
       builder.put(mdmDimensionKey, ((Number) value).longValue());
       return;
     }
