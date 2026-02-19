@@ -178,9 +178,24 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
    */
   private FileSystem createNonCachedFileSystem() throws IOException {
     URI fsUri = URI.create(this.jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+    return createNonCachedFileSystem(fsUri);
+  }
+
+  /**
+   * Creates a FileSystem instance for the given URI with caching disabled.
+   */
+  private FileSystem createNonCachedFileSystem(URI fsUri) throws IOException {
+    Configuration conf = createNonCachedConfiguration();
+    return FileSystem.get(fsUri, conf);
+  }
+
+  /**
+   * Creates a Hadoop Configuration with FileSystem caching disabled.
+   */
+  private Configuration createNonCachedConfiguration() {
     Configuration conf = new Configuration();
     conf.set("fs.hdfs.impl.disable.cache", "true");
-    return FileSystem.get(fsUri, conf);
+    return conf;
   }
 
   /**
@@ -237,14 +252,14 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   }
 
   /**
-   * Closes the FileSystem quietly, logging any errors at debug level.
+   * Closes the FileSystem quietly, logging any errors
    */
   private void closeFileSystemQuietly(FileSystem fs) {
     if (fs != null) {
       try {
         fs.close();
       } catch (Exception e) {
-        log.debug("Failed to close shutdown FileSystem: {}", e.getMessage());
+        log.error("Failed to close shutdown FileSystem: {}", e.getMessage());
       }
     }
   }
@@ -406,73 +421,104 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
    */
   @VisibleForTesting
   protected void cleanupStagingDirectory(JobState jobState) throws IOException {
-    if (!jobState.getPropAsBoolean(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
-        Boolean.parseBoolean(GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED))) {
+    if (!isCleanupEnabled(jobState)) {
       return;
     }
 
-    if (!jobState.contains(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE)) {
-      log.info("No work dir paths to delete configured in JobState");
-      return;
-    }
-
-    Set<String> pathsToDelete = jobState.getPropAsSet(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE);
+    Set<String> pathsToDelete = getPathsToDelete(jobState);
     if (pathsToDelete.isEmpty()) {
       return;
     }
 
     log.info("Cleaning up {} work directories for job: {}", pathsToDelete.size(), this.jobContext.getJobId());
 
-    // Get number of branches to handle multi-branch cases
-    int numBranches = jobState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
-
-    // Create FileSystems for each branch's writer destination
-    java.util.List<FileSystem> writerFileSystems = new java.util.ArrayList<>();
+    java.util.List<FileSystem> writerFileSystems = createWriterFileSystems(jobState);
     try {
-      for (int branchId = 0; branchId < numBranches; branchId++) {
-        String writerFsUri = jobState.getProp(
-            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
-            ConfigurationKeys.LOCAL_FS_URI);
-        URI fsUri = URI.create(writerFsUri);
-        Configuration conf = new Configuration();
-        conf.set("fs.hdfs.impl.disable.cache", "true");
-        FileSystem writerFs = FileSystem.get(fsUri, conf);
-        writerFileSystems.add(writerFs);
-      }
-
-      // Delete paths using the appropriate writer filesystem
-      for (String pathStr : pathsToDelete) {
-        try {
-          Path path = new Path(pathStr);
-          // Try each writer filesystem to find the one that can access this path
-          boolean deleted = false;
-          for (FileSystem writerFs : writerFileSystems) {
-            try {
-              if (writerFs.exists(path)) {
-                log.info("Deleting work directory: {}", path);
-                writerFs.delete(path, true);
-                deleted = true;
-                break;
-              }
-            } catch (Exception e) {
-              // Try next filesystem
-            }
-          }
-          if (!deleted) {
-            log.info("Work directory does not exist or not accessible: {}", path);
-          }
-        } catch (Exception e) {
-          log.error("Failed to delete work directory {}: {}", pathStr, e.getMessage(), e);
-        }
-      }
+      deletePathsUsingFileSystems(pathsToDelete, writerFileSystems);
     } finally {
-      // Close all writer filesystems
-      for (FileSystem writerFs : writerFileSystems) {
-        try {
-          writerFs.close();
-        } catch (Exception e) {
-          log.debug("Failed to close writer FileSystem: {}", e.getMessage());
+      closeFileSystems(writerFileSystems);
+    }
+  }
+
+  /**
+   * Checks if work directory cleanup is enabled in JobState.
+   */
+  private boolean isCleanupEnabled(JobState jobState) {
+    return jobState.getPropAsBoolean(
+        GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
+        Boolean.parseBoolean(GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED));
+  }
+
+  /**
+   * Retrieves the set of paths to delete from JobState.
+   */
+  private Set<String> getPathsToDelete(JobState jobState) {
+    if (!jobState.contains(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE)) {
+      log.info("No work dir paths to delete configured in JobState");
+      return java.util.Collections.emptySet();
+    }
+    return jobState.getPropAsSet(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE);
+  }
+
+  /**
+   * Creates FileSystems for each branch's writer destination with caching disabled.
+   */
+  private java.util.List<FileSystem> createWriterFileSystems(JobState jobState) throws IOException {
+    int numBranches = jobState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+    java.util.List<FileSystem> writerFileSystems = new java.util.ArrayList<>();
+
+    for (int branchId = 0; branchId < numBranches; branchId++) {
+      String writerFsUri = jobState.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
+          ConfigurationKeys.LOCAL_FS_URI);
+
+      FileSystem writerFs = createNonCachedFileSystem(URI.create(writerFsUri));
+      writerFileSystems.add(writerFs);
+    }
+
+    return writerFileSystems;
+  }
+
+  /**
+   * Deletes paths using the appropriate writer filesystem.
+   */
+  private void deletePathsUsingFileSystems(Set<String> pathsToDelete, java.util.List<FileSystem> writerFileSystems) {
+    for (String pathStr : pathsToDelete) {
+      try {
+        deleteSinglePath(new Path(pathStr), writerFileSystems);
+      } catch (Exception e) {
+        log.error("Failed to delete work directory {}: {}", pathStr, e.getMessage(), e);
+      }
+    }
+  }
+
+  /**
+   * Attempts to delete a single path by trying each filesystem until successful.
+   */
+  private void deleteSinglePath(Path path, java.util.List<FileSystem> writerFileSystems) {
+    for (FileSystem writerFs : writerFileSystems) {
+      try {
+        if (writerFs.exists(path)) {
+          log.info("Deleting work directory: {}", path);
+          writerFs.delete(path, true);
+          return;
         }
+      } catch (Exception e) {
+        // Try next filesystem
+      }
+    }
+    log.info("Work directory does not exist or not accessible: {}", path);
+  }
+
+  /**
+   * Closes all FileSystems in the list, suppressing exceptions.
+   */
+  private void closeFileSystems(java.util.List<FileSystem> fileSystems) {
+    for (FileSystem fs : fileSystems) {
+      try {
+        fs.close();
+      } catch (Exception e) {
+        log.debug("Failed to close writer FileSystem: {}", e.getMessage());
       }
     }
   }
