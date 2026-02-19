@@ -45,6 +45,7 @@ import io.temporal.serviceclient.WorkflowServiceStubs;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.example.simplejson.SimpleJsonSource;
+import org.apache.gobblin.runtime.JobState;
 import org.apache.gobblin.runtime.locks.FileBasedJobLock;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
@@ -56,11 +57,13 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertTrue;
 
 
 public class GobblinTemporalJobLauncherTest {
 
-  private GobblinTemporalJobLauncher jobLauncher;
+  private GobblinTemporalJobLauncherForTest jobLauncher;
   private MockedStatic<TemporalWorkflowClientFactory> mockWorkflowClientFactory;
   private WorkflowServiceStubs mockServiceStubs;
   private WorkflowClient mockClient;
@@ -77,6 +80,11 @@ public class GobblinTemporalJobLauncherTest {
     protected void submitJob(List<WorkUnit> workUnits)
         throws Exception {
       this.workflowId = "someWorkflowId";
+    }
+
+    // Expose jobContext for testing
+    public org.apache.gobblin.runtime.JobContext getJobContext() {
+      return this.jobContext;
     }
   }
 
@@ -202,5 +210,69 @@ public class GobblinTemporalJobLauncherTest {
     jobLauncher.executeCancellation();
 
     verify(mockStub, times(1)).terminate("Job cancel invoked");
+  }
+
+  @Test
+  public void testCleanupStagingDirectoryWithPathsToDelete() throws Exception {
+    // Create temp directories to simulate work directories
+    File tmpDir = Files.createTempDir();
+    File stagingDir = new File(tmpDir, "staging");
+    File outputDir = new File(tmpDir, "output");
+    stagingDir.mkdirs();
+    outputDir.mkdirs();
+
+    // Set up job state with WORK_DIR_PATHS_TO_DELETE
+    JobState jobState = jobLauncher.getJobContext().getJobState();
+    String pathsToDelete = stagingDir.getAbsolutePath() + "," + outputDir.getAbsolutePath();
+    jobState.setProp(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE, pathsToDelete);
+    jobState.setProp(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, "true");
+
+    // Verify directories exist before cleanup
+    assertTrue(stagingDir.exists(), "Staging directory should exist before cleanup");
+    assertTrue(outputDir.exists(), "Output directory should exist before cleanup");
+
+    // Execute cleanup
+    jobLauncher.cleanupStagingDirectory(jobState);
+
+    // Verify directories are deleted
+    assertFalse(stagingDir.exists(), "Staging directory should be deleted after cleanup");
+    assertFalse(outputDir.exists(), "Output directory should be deleted after cleanup");
+
+    // Cleanup test directory
+    tmpDir.delete();
+  }
+
+  @Test
+  public void testCleanupStagingDirectoryWithoutPaths() throws Exception {
+    // Set up job state WITHOUT WORK_DIR_PATHS_TO_DELETE
+    JobState jobState = jobLauncher.getJobContext().getJobState();
+    jobState.setProp(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, "true");
+
+    // Should not throw exception when no paths configured
+    jobLauncher.cleanupStagingDirectory(jobState);
+  }
+
+  @Test
+  public void testCleanupStagingDirectoryWithCleanupDisabled() throws Exception {
+    // Create temp directories
+    File tmpDir = Files.createTempDir();
+    File stagingDir = new File(tmpDir, "staging");
+    stagingDir.mkdirs();
+
+    // Set up job state with cleanup disabled
+    JobState jobState = jobLauncher.getJobContext().getJobState();
+    String pathsToDelete = stagingDir.getAbsolutePath();
+    jobState.setProp(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE, pathsToDelete);
+    jobState.setProp(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, "false");
+
+    // Execute cleanup
+    jobLauncher.cleanupStagingDirectory(jobState);
+
+    // Verify directory still exists (cleanup was disabled)
+    assertTrue(stagingDir.exists(), "Staging directory should still exist when cleanup is disabled");
+
+    // Cleanup
+    stagingDir.delete();
+    tmpDir.delete();
   }
 }

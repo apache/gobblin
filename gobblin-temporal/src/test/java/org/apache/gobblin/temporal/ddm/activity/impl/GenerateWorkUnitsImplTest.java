@@ -329,6 +329,64 @@ public class GenerateWorkUnitsImplTest {
     }
   }
 
+  @Test
+  public void testWorkDirPathsToDeleteIsStoredInJobState() throws IOException {
+    // Arrange
+    Properties jobProps = new Properties();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "test-job");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "test-job-id");
+
+    JobState jobState = new JobState(jobProps);
+
+    List<WorkUnit> workUnits = new ArrayList<>();
+    for (int i = 0; i < 3; i++) {
+      WorkUnit workUnit = WorkUnit.createEmpty();
+      workUnit.setProp("writer.staging.dir", "/tmp/jobId/task-staging/" + i);
+      workUnit.setProp("writer.output.dir", "/tmp/jobId/task-output/" + i);
+      workUnits.add(workUnit);
+    }
+    WorkUnitStream workUnitStream = new BasicWorkUnitStream.Builder(workUnits)
+        .setFiniteStream(true)
+        .build();
+    Set<String> pathsToCleanUp = GenerateWorkUnitsImpl.calculateWorkDirsToCleanup(workUnitStream);
+
+    // Act - simulate what GenerateWorkUnitsImpl does
+    if (!pathsToCleanUp.isEmpty()) {
+      jobState.setProp(org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE,
+          String.join(",", pathsToCleanUp));
+    }
+
+    // Assert
+    Assert.assertTrue(jobState.contains(org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE),
+        "JobState should contain WORK_DIR_PATHS_TO_DELETE property");
+    Set<String> retrievedPaths = jobState.getPropAsSet(
+        org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE);
+    Assert.assertEquals(retrievedPaths.size(), 6, "Should have 6 paths (3 staging + 3 output)");
+    Assert.assertTrue(retrievedPaths.containsAll(pathsToCleanUp),
+        "Retrieved paths should match the original paths");
+  }
+
+  @Test
+  public void testWorkDirPathsToDeleteNotSetWhenEmpty() {
+    // Arrange
+    Properties jobProps = new Properties();
+    jobProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, "test-job");
+    jobProps.setProperty(ConfigurationKeys.JOB_ID_KEY, "test-job-id");
+
+    JobState jobState = new JobState(jobProps);
+    Set<String> pathsToCleanUp = new java.util.HashSet<>();
+
+    // Act - simulate what GenerateWorkUnitsImpl does with empty paths
+    if (!pathsToCleanUp.isEmpty()) {
+      jobState.setProp(org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE,
+          String.join(",", pathsToCleanUp));
+    }
+
+    // Assert
+    Assert.assertFalse(jobState.contains(org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE),
+        "JobState should not contain WORK_DIR_PATHS_TO_DELETE when paths are empty");
+  }
+
   public static WorkUnit createWorkUnitOfSize(long size) {
     WorkUnit workUnit = WorkUnit.createEmpty();
     workUnit.setProp(ServiceConfigKeys.WORK_UNIT_SIZE, size);

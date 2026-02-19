@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
@@ -60,6 +61,7 @@ import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
@@ -96,6 +98,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   protected JobListener jobListener;
   protected volatile boolean jobSubmitted = false;
   private final ExecutorService executor;
+  private final long shutdownCleanupTimeoutSeconds;
 
   public GobblinJobLauncher(Properties jobProps, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap, EventBus eventbus)
@@ -132,15 +135,164 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
             this.stateStores.getTaskStateStore(), this.outputTaskStateDir, this.getIssueRepository());
     this.executor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("GobblinJobLauncher")));
+
+    this.shutdownCleanupTimeoutSeconds = Long.parseLong(jobProps.getProperty(
+        GobblinTemporalConfigurationKeys.SHUTDOWN_CLEANUP_TIMEOUT_SECONDS,
+        GobblinTemporalConfigurationKeys.DEFAULT_SHUTDOWN_CLEANUP_TIMEOUT_SECONDS));
+
+    registerCleanupShutdownHook();
+  }
+
+  /**
+   * Registers a JVM shutdown hook that loads JobState from file and runs cleanup methods in parallel.
+   */
+  private void registerCleanupShutdownHook() {
+    Runtime.getRuntime().addShutdownHook(
+        new Thread(this::performShutdownCleanup, "GobblinJobLauncher-Cleanup-" + this.jobContext.getJobId()));
+  }
+
+  /**
+   * Performs cleanup operations during JVM shutdown.
+   * Creates a dedicated FileSystem instance, loads JobState, and executes cleanup tasks in parallel.
+   */
+  private void performShutdownCleanup() {
+    log.info("Shutdown hook: performing cleanup for job {}", this.jobContext.getJobId());
+
+    FileSystem shutdownFs = null;
+    try {
+      shutdownFs = createNonCachedFileSystem();
+      JobState jobState = loadJobStateWithFallback(shutdownFs);
+      executeParallelCleanup(jobState, shutdownFs);
+
+      log.info("Shutdown hook: cleanup completed for job {}", this.jobContext.getJobId());
+    } catch (Exception e) {
+      log.error("Shutdown hook: cleanup failed for job {}: {}", this.jobContext.getJobId(), e.getMessage(), e);
+    } finally {
+      closeFileSystemQuietly(shutdownFs);
+    }
+  }
+
+  /**
+   * Creates a new FileSystem instance with caching disabled to avoid issues
+   * with shared filesystem instances being closed before shutdown hook executes.
+   */
+  private FileSystem createNonCachedFileSystem() throws IOException {
+    URI fsUri = URI.create(this.jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+    return createNonCachedFileSystem(fsUri);
+  }
+
+  /**
+   * Creates a FileSystem instance for the given URI with caching disabled.
+   */
+  private FileSystem createNonCachedFileSystem(URI fsUri) throws IOException {
+    Configuration conf = createNonCachedConfiguration();
+    return FileSystem.get(fsUri, conf);
+  }
+
+  /**
+   * Creates a Hadoop Configuration with FileSystem caching disabled.
+   */
+  private Configuration createNonCachedConfiguration() {
+    Configuration conf = new Configuration();
+    conf.set("fs.hdfs.impl.disable.cache", "true");
+    return conf;
+  }
+
+  /**
+   * Loads JobState from persisted file with fallback to in-memory state.
+   * @param fs FileSystem to use for loading JobState
+   * @return JobState loaded from file, or in-memory JobState if file loading fails
+   */
+  private JobState loadJobStateWithFallback(FileSystem fs) {
+    JobState jobState = loadJobStateFromFile(fs);
+    if (jobState == null) {
+      log.warn("Shutdown hook: could not load JobState from file, trying using in-memory state");
+      jobState = this.jobContext.getJobState();
+    }
+    return jobState;
+  }
+
+  /**
+   * Executes staging and working directory cleanup tasks in parallel.
+   * @param jobState JobState containing cleanup configuration and paths
+   * @throws Exception if cleanup tasks fail or timeout
+   */
+  private void executeParallelCleanup(JobState jobState, FileSystem fs) throws Exception {
+    java.util.concurrent.CompletableFuture<Void> stagingCleanup = createStagingCleanupTask(jobState);
+    java.util.concurrent.CompletableFuture<Void> workDirCleanup = createWorkDirCleanupTask(fs);
+
+    java.util.concurrent.CompletableFuture.allOf(stagingCleanup, workDirCleanup)
+        .get(this.shutdownCleanupTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
+  }
+
+  /**
+   * Creates an asynchronous task for staging directory cleanup.
+   */
+  private java.util.concurrent.CompletableFuture<Void> createStagingCleanupTask(JobState jobState) {
+    return java.util.concurrent.CompletableFuture.runAsync(() -> {
+      try {
+        cleanupStagingDirectory(jobState);
+      } catch (Exception e) {
+        log.warn("Shutdown hook: staging cleanup failed: {}", e.getMessage(), e);
+      }
+    });
+  }
+
+  /**
+   * Creates an asynchronous task for working directory cleanup.
+   */
+  private java.util.concurrent.CompletableFuture<Void> createWorkDirCleanupTask(FileSystem fs) {
+    return java.util.concurrent.CompletableFuture.runAsync(() -> {
+      try {
+        cleanupWorkingDirectory(fs);
+      } catch (Exception e) {
+        log.warn("Shutdown hook: working directory cleanup failed: {}", e.getMessage(), e);
+      }
+    });
+  }
+
+  /**
+   * Closes the FileSystem quietly, logging any errors
+   */
+  private void closeFileSystemQuietly(FileSystem fs) {
+    if (fs != null) {
+      try {
+        fs.close();
+      } catch (Exception e) {
+        log.error("Failed to close shutdown FileSystem: {}", e.getMessage());
+      }
+    }
+  }
+
+  /**
+   * Loads JobState from the persisted file written by GenerateWorkUnits.
+   * Returns null if JobState cannot be loaded.
+   */
+  private JobState loadJobStateFromFile(FileSystem fs) {
+    try {
+      Path workDirRoot = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
+      Path jobStateFile = new Path(workDirRoot, "job.state");
+
+      if (!fs.exists(jobStateFile)) {
+        log.error("JobState file does not exist at {}", jobStateFile);
+        return null;
+      }
+
+      JobState jobState = new JobState();
+      try (java.io.DataInputStream dis = new java.io.DataInputStream(fs.open(jobStateFile))) {
+        jobState.readFields(dis);
+        log.info("Successfully loaded JobState from {}", jobStateFile);
+        return jobState;
+      }
+    } catch (Exception e) {
+      log.error("Failed to load JobState from file: ", e);
+      return null;
+    }
   }
 
   @Override
   public void close() throws IOException {
-    try {
-      cleanupWorkingDirectory();
-    } finally {
-      super.close();
-    }
+    super.close();
   }
 
   public String getJobId() {
@@ -183,7 +335,6 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
 
       // The last iteration of output TaskState collecting will run when the collector service gets stopped
       this.taskStateCollectorService.stopAsync().awaitTerminated();
-      cleanupWorkingDirectory();
     }
   }
 
@@ -266,9 +417,116 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   }
 
   /**
+   * Delete writer staging and output directories using paths from JobState.
+   */
+  @VisibleForTesting
+  protected void cleanupStagingDirectory(JobState jobState) throws IOException {
+    if (!isCleanupEnabled(jobState)) {
+      return;
+    }
+
+    Set<String> pathsToDelete = getPathsToDelete(jobState);
+    if (pathsToDelete.isEmpty()) {
+      return;
+    }
+
+    log.info("Cleaning up {} work directories for job: {}", pathsToDelete.size(), this.jobContext.getJobId());
+
+    java.util.List<FileSystem> writerFileSystems = createWriterFileSystems(jobState);
+    try {
+      deletePathsUsingFileSystems(pathsToDelete, writerFileSystems);
+    } finally {
+      closeFileSystems(writerFileSystems);
+    }
+  }
+
+  /**
+   * Checks if work directory cleanup is enabled in JobState.
+   */
+  private boolean isCleanupEnabled(JobState jobState) {
+    return jobState.getPropAsBoolean(
+        GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
+        Boolean.parseBoolean(GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED));
+  }
+
+  /**
+   * Retrieves the set of paths to delete from JobState.
+   */
+  private Set<String> getPathsToDelete(JobState jobState) {
+    if (!jobState.contains(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE)) {
+      log.info("No work dir paths to delete configured in JobState");
+      return java.util.Collections.emptySet();
+    }
+    return jobState.getPropAsSet(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE);
+  }
+
+  /**
+   * Creates FileSystems for each branch's writer destination with caching disabled.
+   */
+  private java.util.List<FileSystem> createWriterFileSystems(JobState jobState) throws IOException {
+    int numBranches = jobState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+    java.util.List<FileSystem> writerFileSystems = new java.util.ArrayList<>();
+
+    for (int branchId = 0; branchId < numBranches; branchId++) {
+      String writerFsUri = jobState.getProp(
+          ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
+          ConfigurationKeys.LOCAL_FS_URI);
+
+      FileSystem writerFs = createNonCachedFileSystem(URI.create(writerFsUri));
+      writerFileSystems.add(writerFs);
+    }
+
+    return writerFileSystems;
+  }
+
+  /**
+   * Deletes paths using the appropriate writer filesystem.
+   */
+  private void deletePathsUsingFileSystems(Set<String> pathsToDelete, java.util.List<FileSystem> writerFileSystems) {
+    for (String pathStr : pathsToDelete) {
+      try {
+        deleteSinglePath(new Path(pathStr), writerFileSystems);
+      } catch (Exception e) {
+        log.error("Failed to delete work directory {}: {}", pathStr, e.getMessage(), e);
+      }
+    }
+  }
+
+  /**
+   * Attempts to delete a single path by trying each filesystem until successful.
+   */
+  private void deleteSinglePath(Path path, java.util.List<FileSystem> writerFileSystems) {
+    for (FileSystem writerFs : writerFileSystems) {
+      try {
+        if (writerFs.exists(path)) {
+          log.info("Deleting work directory: {}", path);
+          writerFs.delete(path, true);
+          return;
+        }
+      } catch (Exception e) {
+        // Try next filesystem
+      }
+    }
+    log.info("Work directory does not exist or not accessible: {}", path);
+  }
+
+  /**
+   * Closes all FileSystems in the list, suppressing exceptions.
+   */
+  private void closeFileSystems(java.util.List<FileSystem> fileSystems) {
+    for (FileSystem fs : fileSystems) {
+      try {
+        fs.close();
+      } catch (Exception e) {
+        log.debug("Failed to close writer FileSystem: {}", e.getMessage());
+      }
+    }
+  }
+
+  /**
    * Delete persisted {@link WorkUnit}s and {@link JobState} upon job completion.
    */
-  protected void cleanupWorkingDirectory() throws IOException {
+  protected void cleanupWorkingDirectory(FileSystem fs) throws IOException {
     log.info("Deleting persisted work units for job " + this.jobContext.getJobId());
     stateStores.getWuStateStore().delete(this.jobContext.getJobId());
 
@@ -282,14 +540,14 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
     } else {
       Path jobStateFilePath =
           GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
-      this.fs.delete(jobStateFilePath, false);
+      fs.delete(jobStateFilePath, false);
     }
 
     if (Boolean.parseBoolean(this.jobProps.getProperty(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
         GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED))) {
       Path workDirRootPath = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
       log.info("Cleaning up work directory : {} for job : {}", workDirRootPath, this.jobContext.getJobId());
-      this.fs.delete(workDirRootPath, true);
+      fs.delete(workDirRootPath, true);
     }
   }
 }
