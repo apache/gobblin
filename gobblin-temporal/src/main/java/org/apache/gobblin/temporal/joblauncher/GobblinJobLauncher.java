@@ -61,6 +61,7 @@ import org.apache.gobblin.runtime.util.StateStores;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.ExecutorsUtils;
+import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.util.ParallelRunner;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
@@ -142,11 +143,18 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
    */
   private void registerCleanupShutdownHook() {
     Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+      FileSystem shutdownFs = null;
       try {
         log.info("Shutdown hook: performing cleanup for job {}", this.jobContext.getJobId());
 
+        // Create a new FileSystem instance for shutdown hook since this.fs may be closed
+        URI fsUri = URI.create(this.jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+        Configuration conf = new Configuration();
+        conf.set("fs.hdfs.impl.disable.cache", "true");
+        shutdownFs = FileSystem.get(fsUri, conf);
+
         // Load JobState from persisted file during shutdown hook execution
-        JobState jobState = loadJobStateFromFile();
+        JobState jobState = loadJobStateFromFile(shutdownFs);
         if (jobState == null) {
           log.warn("Shutdown hook: could not load JobState from file, skipping staging cleanup");
           jobState = this.jobContext.getJobState(); // Fallback to in-memory state for work dir cleanup
@@ -179,6 +187,14 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
         log.info("Shutdown hook: cleanup completed for job {}", this.jobContext.getJobId());
       } catch (Exception e) {
         log.error("Shutdown hook: cleanup failed for job {}: {}", this.jobContext.getJobId(), e.getMessage(), e);
+      } finally {
+        if (shutdownFs != null) {
+          try {
+            shutdownFs.close();
+          } catch (Exception e) {
+            log.debug("Failed to close shutdown FileSystem: {}", e.getMessage());
+          }
+        }
       }
     }, "GobblinJobLauncher-Cleanup-" + this.jobContext.getJobId()));
   }
@@ -187,18 +203,18 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
    * Loads JobState from the persisted file written by GenerateWorkUnits.
    * Returns null if JobState cannot be loaded.
    */
-  private JobState loadJobStateFromFile() {
+  private JobState loadJobStateFromFile(FileSystem fs) {
     try {
       Path workDirRoot = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
       Path jobStateFile = new Path(workDirRoot, "job.state");
 
-      if (!this.fs.exists(jobStateFile)) {
+      if (!fs.exists(jobStateFile)) {
         log.info("JobState file does not exist at {}", jobStateFile);
         return null;
       }
 
       JobState jobState = new JobState();
-      try (java.io.DataInputStream dis = new java.io.DataInputStream(this.fs.open(jobStateFile))) {
+      try (java.io.DataInputStream dis = new java.io.DataInputStream(fs.open(jobStateFile))) {
         jobState.readFields(dis);
         log.info("Successfully loaded JobState from {}", jobStateFile);
         return jobState;
@@ -357,18 +373,56 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
 
     log.info("Cleaning up {} work directories for job: {}", pathsToDelete.size(), this.jobContext.getJobId());
 
-    for (String pathStr : pathsToDelete) {
-      try {
-        Path path = new Path(pathStr);
-        if (this.fs.exists(path)) {
-          log.info("Deleting work directory: {}", path);
-          this.fs.delete(path, true);
-        } else {
-          log.info("Work directory does not exist, skipping: {}", path);
+    // Get number of branches to handle multi-branch cases
+    int numBranches = jobState.getPropAsInt(ConfigurationKeys.FORK_BRANCHES_KEY, 1);
+
+    // Create FileSystems for each branch's writer destination
+    java.util.List<FileSystem> writerFileSystems = new java.util.ArrayList<>();
+    try {
+      for (int branchId = 0; branchId < numBranches; branchId++) {
+        String writerFsUri = jobState.getProp(
+            ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, numBranches, branchId),
+            ConfigurationKeys.LOCAL_FS_URI);
+        URI fsUri = URI.create(writerFsUri);
+        Configuration conf = new Configuration();
+        conf.set("fs.hdfs.impl.disable.cache", "true");
+        FileSystem writerFs = FileSystem.get(fsUri, conf);
+        writerFileSystems.add(writerFs);
+      }
+
+      // Delete paths using the appropriate writer filesystem
+      for (String pathStr : pathsToDelete) {
+        try {
+          Path path = new Path(pathStr);
+          // Try each writer filesystem to find the one that can access this path
+          boolean deleted = false;
+          for (FileSystem writerFs : writerFileSystems) {
+            try {
+              if (writerFs.exists(path)) {
+                log.info("Deleting work directory: {}", path);
+                writerFs.delete(path, true);
+                deleted = true;
+                break;
+              }
+            } catch (Exception e) {
+              // Try next filesystem
+            }
+          }
+          if (!deleted) {
+            log.info("Work directory does not exist or not accessible: {}", path);
+          }
+        } catch (Exception e) {
+          log.error("Failed to delete work directory {}: {}", pathStr, e.getMessage(), e);
         }
-      } catch (Exception e) {
-        log.error("Failed to delete work directory {}: {}", pathStr, e.getMessage(), e);
-        // Continue with other paths even if one fails
+      }
+    } finally {
+      // Close all writer filesystems
+      for (FileSystem writerFs : writerFileSystems) {
+        try {
+          writerFs.close();
+        } catch (Exception e) {
+          log.debug("Failed to close writer FileSystem: {}", e.getMessage());
+        }
       }
     }
   }
