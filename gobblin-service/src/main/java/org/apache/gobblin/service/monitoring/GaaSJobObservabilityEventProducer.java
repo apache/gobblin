@@ -21,16 +21,21 @@ import java.io.Closeable;
 import java.io.IOException;
 import java.lang.reflect.Type;
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Properties;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.StringUtils;
 
 import com.codahale.metrics.MetricRegistry;
+import com.google.common.base.Splitter;
 import com.google.gson.reflect.TypeToken;
+import org.apache.avro.Schema.Field;
 
 import io.opentelemetry.api.common.Attributes;
+import io.opentelemetry.api.common.AttributesBuilder;
 import io.opentelemetry.api.metrics.ObservableLongMeasurement;
 import lombok.extern.slf4j.Slf4j;
 
@@ -77,6 +82,55 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
   public static final String GAAS_OBSERVABILITY_METRICS_GROUPNAME = GAAS_JOB_OBSERVABILITY_EVENT_PRODUCER_PREFIX + "metrics";
   public static final String GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME = "jobSucceeded";
   private static final String DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE = "-";
+  private static final Splitter COMMA_SPLITTER = Splitter.on(',').omitEmptyStrings().trimResults();
+
+  /**
+   * JSON map config: {@code <mdm_dim_key>: <gaas_obs_event_field_key>}.
+   * This comes from orchestrator configs. This serves as default set of dimensions to emit.
+   */
+  public static final String JOB_SUCCEEDED_DIMENSIONS_MAP_KEY =
+          "metrics.reporting.opentelemetry.jobSucceeded.dimensionsMap";
+
+  /**
+   * This comes from orchestrator configs.
+   * Flag to enable/disable per-run extra dimensions for {@link #GAAS_OBSERVABILITY_JOB_SUCCEEDED_METRIC_NAME}.
+   */
+  public static final String JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY =
+          "metrics.reporting.opentelemetry.jobSucceeded.extraDimensions.enabled";
+
+  /**
+   * This comes from common.properties
+   * Job property (passed by template(/user)) listing extra dimension keys (comma-separated).
+   */
+  public static final String JOB_SUCCEEDED_EXTRA_DIMENSIONS_KEYS_JOBPROP =
+          "metrics.reporting.opentelemetry.jobSucceeded.extraDimensions.keys";
+
+  /**
+   * This comes from orchestrator configs.
+   * Maximum number of dimensions to emit for {@code jobSucceeded}. Defaults to 20.
+   */
+  public static final String JOB_SUCCEEDED_MAX_DIMENSIONS_KEY =
+          "metrics.reporting.opentelemetry.jobSucceeded.maxDimensions";
+  private static final int DEFAULT_JOB_SUCCEEDED_MAX_DIMENSIONS = 20;
+
+  /**
+   * Baseline dimensions for the {@code jobSucceeded} metric. These should always be present for backward compatibility,
+   * even if the orchestrator-provided {@link #JOB_SUCCEEDED_DIMENSIONS_MAP_KEY} is incomplete.
+   *
+   * <p>Map values are Avro field names on {@link GaaSJobObservabilityEvent} (strict).</p>
+   */
+  private static final Map<String, String> JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP = createJobSucceededBaselineDimensionsMap();
+
+  private static Map<String, String> createJobSucceededBaselineDimensionsMap() {
+    Map<String, String> baseline = new LinkedHashMap<>();
+    baseline.put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, "flowName");
+    baseline.put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, "flowGroup");
+    baseline.put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, "jobName");
+    baseline.put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, "flowExecutionId");
+    baseline.put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, "executorId");
+    baseline.put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, "flowEdgeId");
+    return baseline;
+  }
 
   protected MetricContext metricContext;
   protected State state;
@@ -138,15 +192,221 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
     this.eventCollector.add(event);
   }
 
+  /**
+   * Creates dimensions for the OpenTelemetry event based on the configured mapping of MDM dimension keys to GaaS observability event field keys.
+   * If the config is not present or fails to parse, falls back to a default set of dimensions using hardcoded mappings.
+   * The dimension values are read from the GaaS observability event.
+   * If a value is missing or cannot be read, it defaults to "NA".
+   * @param event
+   * @return
+   */
   public Attributes getEventAttributes(GaaSJobObservabilityEvent event) {
-    Attributes tags = Attributes.builder().put(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD, getOrDefault(event.getFlowName(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE))
-        .put(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD, getOrDefault(event.getFlowGroup(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE))
-        .put(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, getOrDefault(event.getJobName(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE))
-        .put(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD, event.getFlowExecutionId())
-        .put(TimingEvent.FlowEventConstants.SPEC_EXECUTOR_FIELD, getOrDefault(event.getExecutorId(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE))
-        .put(TimingEvent.FlowEventConstants.FLOW_EDGE_FIELD, getOrDefault(event.getFlowEdgeId(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE))
-        .build();
-    return tags;
+    int maxDimensions = getMaxJobSucceededDimensions();
+    Map<String, String> configuredMap = getConfiguredJobSucceededDimensionsMap(this.state);
+    if (configuredMap == null || configuredMap.isEmpty()) {
+      // Backward-compatible fallback: always emit the baseline dimensions.
+      // If the extra-dimensions gate is enabled, honor per-run dimensions from job properties.
+      AttributesBuilder builder = Attributes.builder();
+      for (Map.Entry<String, String> entry : JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP.entrySet()) {
+        addObsEventFieldAttribute(builder, entry.getKey(), entry.getValue(), event);
+      }
+      addExtraDimensionsFromJobProperties(builder, JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP, event, maxDimensions);
+      return builder.build();
+    }
+
+    // Ensure baseline dimensions are always emitted, even if orchestrator config is missing some keys.
+    Map<String, String> effectiveMap = new LinkedHashMap<>(configuredMap);
+    for (Map.Entry<String, String> baselineEntry : JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP.entrySet()) {
+      effectiveMap.putIfAbsent(baselineEntry.getKey(), baselineEntry.getValue());
+    }
+
+    // If orchestrator config would push us past the cap, drop orchestrator dimensions (keep baseline only).
+    if (effectiveMap.size() > maxDimensions) {
+      log.warn("jobSucceeded would emit {} baseline+orchestrator dimensions which exceeds maxDimensions={} (`{}`); dropping orchestrator dimensions",
+          effectiveMap.size(), maxDimensions, JOB_SUCCEEDED_MAX_DIMENSIONS_KEY);
+      effectiveMap = new LinkedHashMap<>(JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP);
+    }
+
+    AttributesBuilder builder = Attributes.builder();
+    for (Map.Entry<String, String> entry : effectiveMap.entrySet()) {
+      String mdmDimensionKey = entry.getKey();
+      String obsEventFieldKey = entry.getValue();
+      addObsEventFieldAttribute(builder, mdmDimensionKey, obsEventFieldKey, event);
+    }
+
+    addExtraDimensionsFromJobProperties(builder, effectiveMap, event, maxDimensions);
+
+    return builder.build();
+  }
+
+  private int getMaxJobSucceededDimensions() {
+    int jobSucceededMaxDimensions = DEFAULT_JOB_SUCCEEDED_MAX_DIMENSIONS;
+    try {
+      jobSucceededMaxDimensions = this.state.getPropAsInt(JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, DEFAULT_JOB_SUCCEEDED_MAX_DIMENSIONS);
+    } catch (Exception e) {
+      log.warn("Invalid `{}` value; using default {}", JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, DEFAULT_JOB_SUCCEEDED_MAX_DIMENSIONS, e);
+    }
+    int baselineSize = JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP.size();
+    if (jobSucceededMaxDimensions < baselineSize) {
+      log.warn("Configured `{}`={} is less than baseline dimension count {}; using {} instead",
+          JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, jobSucceededMaxDimensions, baselineSize, baselineSize);
+      return baselineSize;
+    }
+    return jobSucceededMaxDimensions;
+  }
+
+  /**
+   * Reads the JSON string config for job succeeded dimensions map, which is expected to be in the format of
+   *  {@code <mdm_dim_key>: <gaas_obs_event_field_key>}.
+   * @param state
+   * @return
+   */
+  static Map<String, String> getConfiguredJobSucceededDimensionsMap(State state) {
+    String raw = state.getProp(JOB_SUCCEEDED_DIMENSIONS_MAP_KEY, "");
+    if (StringUtils.isBlank(raw)) {
+      return null;
+    }
+    try {
+      Type type = new TypeToken<Map<String, String>>() {}.getType();
+      Map<String, String> parsed = GsonUtils.GSON.fromJson(raw, type);
+      if (parsed == null || parsed.isEmpty()) {
+        return null;
+      }
+      // Normalize into a deterministic insertion-order map.
+      return new LinkedHashMap<>(parsed);
+    } catch (Exception e) {
+      log.warn("Failed parsing jobSucceeded dimensionsMap config `{}`; falling back to hardcoded defaults. Raw value: {}",
+              JOB_SUCCEEDED_DIMENSIONS_MAP_KEY, raw, e);
+      return null;
+    }
+  }
+
+  /**
+   * Adds an attribute to the OpenTelemetry event builder based on the mapping of MDM dimension key to GaaS observability event field key.
+   * @param builder
+   * @param mdmDimensionKey
+   * @param obsEventFieldKey
+   * @param event
+   */
+  private void addObsEventFieldAttribute(AttributesBuilder builder, String mdmDimensionKey, String obsEventFieldKey,
+                                         GaaSJobObservabilityEvent event) {
+    if (StringUtils.isBlank(mdmDimensionKey) || StringUtils.isBlank(obsEventFieldKey)) {
+      return;
+    }
+    String normalizedEventKey = obsEventFieldKey.trim();
+
+    Object value = getObsEventFieldValue(normalizedEventKey, event);
+    if (value == null) {
+      builder.put(mdmDimensionKey, DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE);
+      return;
+    }
+    if (value instanceof Number) {
+      // OpenTelemetry attributes support numeric types, but for this metric we standardize all numeric
+      // dimension values as a LONG attribute for consistency (dimensions are expected to be discrete).
+      // Note: if a floating-point value (e.g., Double) ever shows up here, the fractional part will be truncated.
+      builder.put(mdmDimensionKey, ((Number) value).longValue());
+      return;
+    }
+    if (value instanceof CharSequence) {
+      builder.put(mdmDimensionKey, getOrDefault(value.toString(), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE));
+      return;
+    }
+    builder.put(mdmDimensionKey, getOrDefault(String.valueOf(value), DEFAULT_OPENTELEMETRY_ATTRIBUTE_VALUE));
+  }
+
+  /**
+   * Generic getter for {@link GaaSJobObservabilityEvent} fields used for dimension resolution.
+   *
+   * <p>Reads values by field name from the Avro schema (SpecificRecord {@code getSchema()/get(int)}),
+   */
+  private static Object getObsEventFieldValue(String obsEventFieldKey, GaaSJobObservabilityEvent event) {
+    try {
+      Field field = event.getSchema().getField(obsEventFieldKey);
+      if (field == null) {
+        return null;
+      }
+      return event.get(field.pos());
+    } catch (Exception e) {
+      return null;
+    }
+  }
+
+  /**
+   * Reads extra dimension keys from job properties, and adds them as attributes if they are not already present in the default dimensions.
+   * The value for the extra dimension is read from job properties using the same key.
+   * This allows users to specify additional dimensions on a per-job basis without needing to change the service configuration.
+   * @param builder
+   * @param defaultDims
+   * @param event
+   */
+  private void addExtraDimensionsFromJobProperties(AttributesBuilder builder, Map<String, String> defaultDims,
+                                                   GaaSJobObservabilityEvent event, int maxDimensions) {
+    if (!this.state.getPropAsBoolean(JOB_SUCCEEDED_EXTRA_DIMENSIONS_ENABLED_KEY, false)) {
+      return;
+    }
+
+    Map<String, String> extraDims = getExtraDimensionsFromJobProperties(defaultDims, event);
+    if (extraDims.isEmpty()) {
+      return;
+    }
+
+    int total = defaultDims.size() + extraDims.size();
+    if (total > maxDimensions) {
+      log.warn("jobSucceeded extra dimensions would exceed maxDimensions={} (`{}`): default={} + extra={} => {}; skipping all extra dimensions",
+          maxDimensions, JOB_SUCCEEDED_MAX_DIMENSIONS_KEY, defaultDims.size(), extraDims.size(), total);
+      return;
+    }
+
+    for (Map.Entry<String, String> entry : extraDims.entrySet()) {
+      builder.put(entry.getKey(), entry.getValue());
+    }
+  }
+
+  private static Map<String, String> getExtraDimensionsFromJobProperties(Map<String, String> defaultDims,
+      GaaSJobObservabilityEvent event) {
+    Map<String, String> jobProps = parseJobPropertiesJson(event);
+    if (jobProps == null || jobProps.isEmpty()) {
+      return new LinkedHashMap<>();
+    }
+    String extraDimensionKeys = jobProps.getOrDefault(JOB_SUCCEEDED_EXTRA_DIMENSIONS_KEYS_JOBPROP, "");
+    if (StringUtils.isBlank(extraDimensionKeys)) {
+      return new LinkedHashMap<>();
+    }
+
+    Map<String, String> extras = new LinkedHashMap<>();
+    for (String key : COMMA_SPLITTER.split(extraDimensionKeys)) {
+      if (StringUtils.isBlank(key)) {
+        continue;
+      }
+      // Do not override service-default keys (map keys are the emitted OTel keys)
+      if (defaultDims.containsKey(key)) {
+        continue;
+      }
+      String value = jobProps.get(key);
+      if (StringUtils.isBlank(value)) {
+        continue;
+      }
+      extras.put(key, value);
+    }
+    return extras;
+  }
+
+  /**
+   * Parses the job properties JSON string from the event into a Map. Returns null if the raw string is blank or if parsing fails.
+   * @param event
+   * @return
+   */
+  private static Map<String, String> parseJobPropertiesJson(GaaSJobObservabilityEvent event) {
+    try {
+      String raw = event.getJobProperties();
+      if (StringUtils.isBlank(raw)) {
+        return null;
+      }
+      Type type = new TypeToken<Map<String, String>>() {}.getType();
+      return GsonUtils.GSON.fromJson(raw, type);
+    } catch (Exception e) {
+      return null;
+    }
   }
 
   /**
