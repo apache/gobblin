@@ -98,6 +98,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   protected JobListener jobListener;
   protected volatile boolean jobSubmitted = false;
   private final ExecutorService executor;
+  private final long shutdownCleanupTimeoutSeconds;
 
   public GobblinJobLauncher(Properties jobProps, Path appWorkDir,
       List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap, EventBus eventbus)
@@ -115,8 +116,6 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
     this.stateSerDeRunnerThreads = Integer.parseInt(jobProps.getProperty(ParallelRunner.PARALLEL_RUNNER_THREADS_KEY,
         Integer.toString(ParallelRunner.DEFAULT_PARALLEL_RUNNER_THREADS)));
     this.eventBus = eventbus;
-
-    registerCleanupShutdownHook();
 
     Config stateStoreJobConfig = ConfigUtils.propertiesToConfig(jobProps)
         .withValue(ConfigurationKeys.STATE_STORE_FS_URI_KEY, ConfigValueFactory.fromAnyRef(
@@ -136,67 +135,118 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
             this.stateStores.getTaskStateStore(), this.outputTaskStateDir, this.getIssueRepository());
     this.executor = Executors.newSingleThreadScheduledExecutor(
         ExecutorsUtils.newThreadFactory(Optional.of(log), Optional.of("GobblinJobLauncher")));
+
+    this.shutdownCleanupTimeoutSeconds = Long.parseLong(jobProps.getProperty(
+        GobblinTemporalConfigurationKeys.SHUTDOWN_CLEANUP_TIMEOUT_SECONDS,
+        GobblinTemporalConfigurationKeys.DEFAULT_SHUTDOWN_CLEANUP_TIMEOUT_SECONDS));
+
+    registerCleanupShutdownHook();
   }
 
   /**
    * Registers a JVM shutdown hook that loads JobState from file and runs cleanup methods in parallel.
    */
   private void registerCleanupShutdownHook() {
-    Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-      FileSystem shutdownFs = null;
+    Runtime.getRuntime().addShutdownHook(
+        new Thread(this::performShutdownCleanup, "GobblinJobLauncher-Cleanup-" + this.jobContext.getJobId()));
+  }
+
+  /**
+   * Performs cleanup operations during JVM shutdown.
+   * Creates a dedicated FileSystem instance, loads JobState, and executes cleanup tasks in parallel.
+   */
+  private void performShutdownCleanup() {
+    log.info("Shutdown hook: performing cleanup for job {}", this.jobContext.getJobId());
+
+    FileSystem shutdownFs = null;
+    try {
+      shutdownFs = createNonCachedFileSystem();
+      JobState jobState = loadJobStateWithFallback(shutdownFs);
+      executeParallelCleanup(jobState);
+
+      log.info("Shutdown hook: cleanup completed for job {}", this.jobContext.getJobId());
+    } catch (Exception e) {
+      log.error("Shutdown hook: cleanup failed for job {}: {}", this.jobContext.getJobId(), e.getMessage(), e);
+    } finally {
+      closeFileSystemQuietly(shutdownFs);
+    }
+  }
+
+  /**
+   * Creates a new FileSystem instance with caching disabled to avoid issues
+   * with shared filesystem instances being closed before shutdown hook executes.
+   */
+  private FileSystem createNonCachedFileSystem() throws IOException {
+    URI fsUri = URI.create(this.jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
+    Configuration conf = new Configuration();
+    conf.set("fs.hdfs.impl.disable.cache", "true");
+    return FileSystem.get(fsUri, conf);
+  }
+
+  /**
+   * Loads JobState from persisted file with fallback to in-memory state.
+   * @param fs FileSystem to use for loading JobState
+   * @return JobState loaded from file, or in-memory JobState if file loading fails
+   */
+  private JobState loadJobStateWithFallback(FileSystem fs) {
+    JobState jobState = loadJobStateFromFile(fs);
+    if (jobState == null) {
+      log.warn("Shutdown hook: could not load JobState from file, trying using in-memory state");
+      jobState = this.jobContext.getJobState();
+    }
+    return jobState;
+  }
+
+  /**
+   * Executes staging and working directory cleanup tasks in parallel.
+   * @param jobState JobState containing cleanup configuration and paths
+   * @throws Exception if cleanup tasks fail or timeout
+   */
+  private void executeParallelCleanup(JobState jobState) throws Exception {
+    java.util.concurrent.CompletableFuture<Void> stagingCleanup = createStagingCleanupTask(jobState);
+    java.util.concurrent.CompletableFuture<Void> workDirCleanup = createWorkDirCleanupTask();
+
+    java.util.concurrent.CompletableFuture.allOf(stagingCleanup, workDirCleanup)
+        .get(this.shutdownCleanupTimeoutSeconds, java.util.concurrent.TimeUnit.SECONDS);
+  }
+
+  /**
+   * Creates an asynchronous task for staging directory cleanup.
+   */
+  private java.util.concurrent.CompletableFuture<Void> createStagingCleanupTask(JobState jobState) {
+    return java.util.concurrent.CompletableFuture.runAsync(() -> {
       try {
-        log.info("Shutdown hook: performing cleanup for job {}", this.jobContext.getJobId());
-
-        // Create a new FileSystem instance for shutdown hook since this.fs may be closed
-        URI fsUri = URI.create(this.jobProps.getProperty(ConfigurationKeys.FS_URI_KEY, ConfigurationKeys.LOCAL_FS_URI));
-        Configuration conf = new Configuration();
-        conf.set("fs.hdfs.impl.disable.cache", "true");
-        shutdownFs = FileSystem.get(fsUri, conf);
-
-        // Load JobState from persisted file during shutdown hook execution
-        JobState jobState = loadJobStateFromFile(shutdownFs);
-        if (jobState == null) {
-          log.warn("Shutdown hook: could not load JobState from file, skipping staging cleanup");
-          jobState = this.jobContext.getJobState(); // Fallback to in-memory state for work dir cleanup
-        }
-
-        final JobState finalJobState = jobState;
-
-        // Run both cleanups in parallel
-        java.util.concurrent.CompletableFuture<Void> stagingCleanup =
-            java.util.concurrent.CompletableFuture.runAsync(() -> {
-              try {
-                cleanupStagingDirectory(finalJobState);
-              } catch (Exception e) {
-                log.warn("Shutdown hook: staging cleanup failed: {}", e.getMessage(), e);
-              }
-            });
-
-        java.util.concurrent.CompletableFuture<Void> workDirCleanup =
-            java.util.concurrent.CompletableFuture.runAsync(() -> {
-              try {
-                cleanupWorkingDirectory();
-              } catch (Exception e) {
-                log.warn("Shutdown hook: working directory cleanup failed: {}", e.getMessage(), e);
-              }
-            });
-
-        // Wait for both to complete
-        java.util.concurrent.CompletableFuture.allOf(stagingCleanup, workDirCleanup)
-            .get(60, java.util.concurrent.TimeUnit.SECONDS);
-        log.info("Shutdown hook: cleanup completed for job {}", this.jobContext.getJobId());
+        cleanupStagingDirectory(jobState);
       } catch (Exception e) {
-        log.error("Shutdown hook: cleanup failed for job {}: {}", this.jobContext.getJobId(), e.getMessage(), e);
-      } finally {
-        if (shutdownFs != null) {
-          try {
-            shutdownFs.close();
-          } catch (Exception e) {
-            log.debug("Failed to close shutdown FileSystem: {}", e.getMessage());
-          }
-        }
+        log.warn("Shutdown hook: staging cleanup failed: {}", e.getMessage(), e);
       }
-    }, "GobblinJobLauncher-Cleanup-" + this.jobContext.getJobId()));
+    });
+  }
+
+  /**
+   * Creates an asynchronous task for working directory cleanup.
+   */
+  private java.util.concurrent.CompletableFuture<Void> createWorkDirCleanupTask() {
+    return java.util.concurrent.CompletableFuture.runAsync(() -> {
+      try {
+        cleanupWorkingDirectory();
+      } catch (Exception e) {
+        log.warn("Shutdown hook: working directory cleanup failed: {}", e.getMessage(), e);
+      }
+    });
+  }
+
+  /**
+   * Closes the FileSystem quietly, logging any errors at debug level.
+   */
+  private void closeFileSystemQuietly(FileSystem fs) {
+    if (fs != null) {
+      try {
+        fs.close();
+      } catch (Exception e) {
+        log.debug("Failed to close shutdown FileSystem: {}", e.getMessage());
+      }
+    }
   }
 
   /**
@@ -209,7 +259,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
       Path jobStateFile = new Path(workDirRoot, "job.state");
 
       if (!fs.exists(jobStateFile)) {
-        log.info("JobState file does not exist at {}", jobStateFile);
+        log.error("JobState file does not exist at {}", jobStateFile);
         return null;
       }
 
@@ -220,7 +270,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
         return jobState;
       }
     } catch (Exception e) {
-      log.warn("Failed to load JobState from file: {}", e.getMessage(), e);
+      log.error("Failed to load JobState from file: ", e);
       return null;
     }
   }

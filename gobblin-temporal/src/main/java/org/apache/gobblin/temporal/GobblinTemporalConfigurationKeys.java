@@ -53,6 +53,8 @@ public interface GobblinTemporalConfigurationKeys {
   String GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED = PREFIX + "work.dir.cleanup.enabled";
   String DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED = "true";
   String WORK_DIR_PATHS_TO_DELETE = PREFIX + "work.dir.paths.to.delete";
+  String SHUTDOWN_CLEANUP_TIMEOUT_SECONDS = PREFIX + "shutdown.cleanup.timeout.seconds";
+  String DEFAULT_SHUTDOWN_CLEANUP_TIMEOUT_SECONDS = "600";
 
   String GOBBLIN_TEMPORAL_CONTAINER_METRICS_PREFIX = PREFIX + "container.metrics.";
   String GOBBLIN_TEMPORAL_CONTAINER_METRICS_APPLICATION_NAME = GOBBLIN_TEMPORAL_CONTAINER_METRICS_PREFIX + "application.name";
