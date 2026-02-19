@@ -170,4 +170,17 @@ public class ServiceConfigKeys {
   public static final String ERROR_CLASSIFICATION_DEFAULT_PRIORITY_KEY = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "errorClassification.defaultPriorityValue";
   public static final int DEFAULT_PRIORITY_VALUE = Integer.MAX_VALUE;
   public static final String ERROR_PATTERN_STORE_DEFAULT_CATEGORY_KEY = GOBBLIN_SERVICE_PREFIX + "errorPatternStore.defaultCategory";
+
+  // Service Layer Troubleshooter Keys
+  public static final String SERVICE_LAYER_TROUBLESHOOTER_ENABLED =
+      GOBBLIN_SERVICE_PREFIX + "serviceLayerTroubleshooter.enabled";
+  public static final boolean DEFAULT_SERVICE_LAYER_TROUBLESHOOTER_ENABLED = true;
+
+  /**
+   * Maximum number of issues to capture per DagProc execution.
+   * Prevents memory issues if a single execution generates excessive errors.
+   */
+  public static final String SERVICE_LAYER_TROUBLESHOOTER_MAX_ISSUES_PER_EXECUTION =
+      GOBBLIN_SERVICE_PREFIX + "serviceLayerTroubleshooter.maxIssuesPerExecution";
+  public static final int DEFAULT_SERVICE_LAYER_TROUBLESHOOTER_MAX_ISSUES_PER_EXECUTION = 10;
 }
