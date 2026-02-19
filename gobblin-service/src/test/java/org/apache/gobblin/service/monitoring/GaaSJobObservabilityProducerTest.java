@@ -461,14 +461,14 @@ public class GaaSJobObservabilityProducerTest {
   }
 
   @Test
-  public void testMockProduceMetrics_dimensionsMapDuplicateObsFieldIgnored() throws Exception {
-    String flowGroup = "testFlowGroupDupObsField";
-    String flowName = "testFlowNameDupObsField";
-    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobNameDupObsField");
+  public void testMockProduceMetrics_dimensionsMapDuplicateObsFieldAllowed() throws Exception {
+    String flowGroup = "testFlowGroupDupObsFieldAllowed";
+    String flowName = "testFlowNameDupObsFieldAllowed";
+    String jobName = String.format("%s_%s_%s", flowGroup, flowName, "testJobNameDupObsFieldAllowed");
 
     State producerState = new State();
     producerState.setProp(ConfigurationKeys.METRICS_REPORTING_OPENTELEMETRY_ENABLED, "true");
-    // Attempt to capture a baseline field (flowEdgeId) under a different key; should be ignored.
+    // Map baseline source fields under additional keys; these should be allowed (multiple dimension keys may map to the same event field).
     producerState.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_DIMENSIONS_MAP_KEY,
         "{\"edgeId\":\"flowEdgeId\",\"executor\":\"executorId\"}");
 
@@ -496,9 +496,9 @@ public class GaaSJobObservabilityProducerTest {
       Assert.assertEquals(datapoints.size(), 1);
       Map<AttributeKey<?>, Object> attrs = datapoints.get(0).getAttributes().asMap();
 
-      // Duplicate mappings for baseline source fields should be ignored.
-      Assert.assertNull(attrs.get(AttributeKey.stringKey("edgeId")));
-      Assert.assertNull(attrs.get(AttributeKey.stringKey("executor")));
+      // Orchestrator configured keys present.
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("edgeId")), "flowEdge");
+      Assert.assertEquals(attrs.get(AttributeKey.stringKey("executor")), "specExecutor");
 
       // Baseline keys still present.
       Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowEdge")), "flowEdge");
@@ -694,6 +694,41 @@ public class GaaSJobObservabilityProducerTest {
       Assert.assertNull(attrs.get(AttributeKey.stringKey("status")));
       Assert.assertEquals(attrs.get(AttributeKey.stringKey("flowName")), flowName);
     }
+  }
+
+  @Test
+  public void testGetConfiguredJobSucceededDimensionsMap_validJson() {
+    State state = new State();
+    state.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_DIMENSIONS_MAP_KEY, "{\"status\":\"jobStatus\",\"executor\":\"executorId\"}");
+
+    Map<String, String> result = GaaSJobObservabilityEventProducer.getConfiguredJobSucceededDimensionsMap(state);
+
+    Assert.assertNotNull(result);
+    Assert.assertEquals(result.size(), 2);
+    Assert.assertEquals(result.get("status"), "jobStatus");
+    Assert.assertEquals(result.get("executor"), "executorId");
+  }
+
+  @Test
+  public void testGetConfiguredJobSucceededDimensionsMap_blankConfig() {
+    State state = new State();
+    state.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_DIMENSIONS_MAP_KEY, "");
+
+    Map<String, String> result = GaaSJobObservabilityEventProducer.getConfiguredJobSucceededDimensionsMap(state);
+
+    Assert.assertNull(result);
+  }
+
+  @Test
+  public void testGetConfiguredJobSucceededDimensionsMap_invalidJson() {
+    State state = new State();
+    // Invalid JSON - malformed content (missing closing brace)
+    state.setProp(GaaSJobObservabilityEventProducer.JOB_SUCCEEDED_DIMENSIONS_MAP_KEY, "{a:b,c:d");
+
+    Map<String, String> result = GaaSJobObservabilityEventProducer.getConfiguredJobSucceededDimensionsMap(state);
+
+    // Should return null and log warning on parse failure
+    Assert.assertNull(result);
   }
 
   private Issue createTestIssue(String summary, String code, IssueSeverity severity) {

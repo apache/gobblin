@@ -214,12 +214,8 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
       return builder.build();
     }
 
-    // Drop orchestrator dimensions that point to the same event field as a baseline dimension.
-    // This prevents capturing the same source field under multiple dimension keys.
-    Map<String, String> filteredConfiguredMap = dropDuplicateObsEventFieldMappings(configuredMap, JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP);
-
     // Ensure baseline dimensions are always emitted, even if orchestrator config is missing some keys.
-    Map<String, String> effectiveMap = new LinkedHashMap<>(filteredConfiguredMap);
+    Map<String, String> effectiveMap = new LinkedHashMap<>(configuredMap);
     for (Map.Entry<String, String> baselineEntry : JOB_SUCCEEDED_BASELINE_DIMENSIONS_MAP.entrySet()) {
       effectiveMap.putIfAbsent(baselineEntry.getKey(), baselineEntry.getValue());
     }
@@ -259,52 +255,13 @@ public abstract class GaaSJobObservabilityEventProducer implements Closeable {
     return jobSucceededMaxDimensions;
   }
 
-  private static Map<String, String> dropDuplicateObsEventFieldMappings(Map<String, String> configuredMap,
-      Map<String, String> baselineMap) {
-    Map<String, String> baselineObsFieldToKey = new LinkedHashMap<>();
-    for (Map.Entry<String, String> entry : baselineMap.entrySet()) {
-      if (StringUtils.isNotBlank(entry.getValue())) {
-        baselineObsFieldToKey.put(entry.getValue().trim(), entry.getKey());
-      }
-    }
-
-    Map<String, String> seenObsFieldToKey = new LinkedHashMap<>();
-    Map<String, String> filtered = new LinkedHashMap<>();
-    for (Map.Entry<String, String> entry : configuredMap.entrySet()) {
-      String dimensionKey = entry.getKey();
-      String obsFieldKey = entry.getValue();
-      if (StringUtils.isBlank(dimensionKey) || StringUtils.isBlank(obsFieldKey)) {
-        continue;
-      }
-      String normalizedObsFieldKey = obsFieldKey.trim();
-
-      String baselineKey = baselineObsFieldToKey.get(normalizedObsFieldKey);
-      if (baselineKey != null && !baselineKey.equals(dimensionKey)) {
-        log.warn("Ignoring jobSucceeded dimension mapping `{}` -> `{}` because field `{}` is already captured under baseline dimension `{}`",
-            dimensionKey, obsFieldKey, normalizedObsFieldKey, baselineKey);
-        continue;
-      }
-
-      String previousKey = seenObsFieldToKey.get(normalizedObsFieldKey);
-      if (previousKey != null && !previousKey.equals(dimensionKey)) {
-        log.warn("Ignoring duplicate jobSucceeded dimension mapping `{}` -> `{}` because field `{}` is already captured under dimension `{}`",
-            dimensionKey, obsFieldKey, normalizedObsFieldKey, previousKey);
-        continue;
-      }
-
-      seenObsFieldToKey.put(normalizedObsFieldKey, dimensionKey);
-      filtered.put(dimensionKey, obsFieldKey);
-    }
-    return filtered;
-  }
-
   /**
    * Reads the JSON string config for job succeeded dimensions map, which is expected to be in the format of
    *  {@code <mdm_dim_key>: <gaas_obs_event_field_key>}.
    * @param state
    * @return
    */
-  private static Map<String, String> getConfiguredJobSucceededDimensionsMap(State state) {
+  static Map<String, String> getConfiguredJobSucceededDimensionsMap(State state) {
     String raw = state.getProp(JOB_SUCCEEDED_DIMENSIONS_MAP_KEY, "");
     if (StringUtils.isBlank(raw)) {
       return null;
