@@ -153,7 +153,7 @@ public class GenerateWorkUnitsImpl implements GenerateWorkUnits {
     emitMetrics(jobState);
 
     int heartBeatInterval = JobStateUtils.getHeartBeatInterval(jobState);
-    heartBeatExecutor.scheduleAtFixedRate(() -> activityExecutionContext.heartbeat("Running GenerateWorkUnits"),
+    heartBeatExecutor.scheduleAtFixedRate(ExecutorsUtils.safeRunnable(() -> activityExecutionContext.heartbeat("Running GenerateWorkUnits")),
         heartBeatInterval, heartBeatInterval, TimeUnit.MINUTES);
 
     Path workDirRoot = JobStateUtils.getWorkDirRoot(jobState);
