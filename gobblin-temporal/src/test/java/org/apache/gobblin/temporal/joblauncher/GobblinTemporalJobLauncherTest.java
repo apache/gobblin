@@ -18,6 +18,7 @@
 package org.apache.gobblin.temporal.joblauncher;
 
 import java.io.File;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -57,6 +58,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
+import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
 import static org.testng.Assert.assertTrue;
 
@@ -72,6 +74,8 @@ public class GobblinTemporalJobLauncherTest {
   private Properties jobProperties;
 
   class GobblinTemporalJobLauncherForTest extends GobblinTemporalJobLauncher {
+    int cleanupStagingDirectoryCallCount = 0;
+
     public GobblinTemporalJobLauncherForTest(Properties jobProperties, Path appWorkDir) throws Exception {
       super(jobProperties, appWorkDir, new ArrayList<>(), new ConcurrentHashMap<>(), null);
     }
@@ -80,6 +84,12 @@ public class GobblinTemporalJobLauncherTest {
     protected void submitJob(List<WorkUnit> workUnits)
         throws Exception {
       this.workflowId = "someWorkflowId";
+    }
+
+    @Override
+    protected void cleanupStagingDirectory(JobState jobState) throws IOException {
+      cleanupStagingDirectoryCallCount++;
+      super.cleanupStagingDirectory(jobState);
     }
 
     // Expose jobContext for testing
@@ -273,6 +283,45 @@ public class GobblinTemporalJobLauncherTest {
 
     // Cleanup
     stagingDir.delete();
+    tmpDir.delete();
+  }
+
+  @Test
+  public void testCloseTriggersCleanup() throws Exception {
+    File tmpDir = Files.createTempDir();
+    File stagingDir = new File(tmpDir, "staging");
+    stagingDir.mkdirs();
+
+    JobState jobState = jobLauncher.getJobContext().getJobState();
+    jobState.setProp(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE, stagingDir.getAbsolutePath());
+    jobState.setProp(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, "true");
+
+    assertTrue(stagingDir.exists(), "Staging directory should exist before close()");
+
+    jobLauncher.close();
+
+    assertFalse(stagingDir.exists(), "close() should trigger cleanup and delete the staging directory");
+    tmpDir.delete();
+  }
+
+  @Test
+  public void testCleanupRunsOnlyOnce() throws Exception {
+    File tmpDir = Files.createTempDir();
+    File stagingDir = new File(tmpDir, "staging");
+    stagingDir.mkdirs();
+
+    JobState jobState = jobLauncher.getJobContext().getJobState();
+    jobState.setProp(GobblinTemporalConfigurationKeys.WORK_DIR_PATHS_TO_DELETE, stagingDir.getAbsolutePath());
+    jobState.setProp(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED, "true");
+
+    // First cleanup - triggered by close()
+    jobLauncher.close();
+    assertEquals(jobLauncher.cleanupStagingDirectoryCallCount, 1, "Cleanup should run exactly once after close()");
+
+    // Second trigger - simulates the shutdown hook firing after close() already ran
+    jobLauncher.triggerCleanupForTest();
+    assertEquals(jobLauncher.cleanupStagingDirectoryCallCount, 1, "Cleanup should not run a second time");
+
     tmpDir.delete();
   }
 }
