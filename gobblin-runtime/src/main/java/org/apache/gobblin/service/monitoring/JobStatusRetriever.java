@@ -35,6 +35,8 @@ import com.typesafe.config.ConfigFactory;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
+
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
@@ -189,7 +191,7 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
    */
   protected static final long getJobExecutionId(State jobState) {
     String jobExecId = jobState.getProp(ConfigurationKeys.GAAS_JOB_EXEC_ID_HASH, "0");
-    if (jobExecId != null && !jobExecId.isEmpty()) {
+    if (StringUtils.isNotBlank(jobExecId)) {
       try {
         return Long.parseLong(jobExecId);
       } catch (NumberFormatException e) {
