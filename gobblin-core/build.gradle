@@ -85,6 +85,12 @@ configurations {
   all*.exclude group: "org.pentaho"
 }
 
+jar {
+  manifest {
+    attributes("Premain-class": "org.apache.gobblin.writer.test.InstrumentationAgent")
+  }
+}
+
 test {
   workingDir rootProject.rootDir
 }

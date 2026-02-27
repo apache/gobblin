@@ -49,6 +49,8 @@ public class GobblinTestEventBusWriterTest {
       asserter.assertNextValueEq("event3");
 
       Assert.assertEquals(writer.recordsWritten(), 3);
+      // A string object in java needs 12 (object header) + 4 (char[] reference) + 4 * 2 (int) = 24 bytes
+      Assert.assertEquals(writer.bytesWritten(), 72);
     }
   }
 
@@ -73,6 +75,7 @@ public class GobblinTestEventBusWriterTest {
       asserter.assertNextValueEq("event2");
 
       Assert.assertEquals(writer.recordsWritten(), 2);
+      Assert.assertEquals(writer.bytesWritten(), 48);
     }
   }
 
