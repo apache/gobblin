@@ -492,22 +492,25 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   protected void cleanupWorkingDirectory(FileSystem fs) throws IOException {
     long startTimeMs = System.currentTimeMillis();
     try {
-      log.info("Deleting persisted work units for job " + this.jobContext.getJobId());
-      stateStores.getWuStateStore().delete(this.jobContext.getJobId());
+      try {
+        log.info("Deleting persisted work units for job " + this.jobContext.getJobId());
+        stateStores.getWuStateStore().delete(this.jobContext.getJobId());
 
-      // delete the directory that stores the task state files
-      stateStores.getTaskStateStore().delete(outputTaskStateDir.getName());
+        // delete the directory that stores the task state files
+        stateStores.getTaskStateStore().delete(outputTaskStateDir.getName());
 
-      log.info("Deleting job state file for job " + this.jobContext.getJobId());
+        log.info("Deleting job state file for job " + this.jobContext.getJobId());
 
-      if (this.stateStores.haveJobStateStore()) {
-        this.stateStores.getJobStateStore().delete(this.jobContext.getJobId());
-      } else {
-        Path jobStateFilePath =
-            GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
-        fs.delete(jobStateFilePath, false);
+        if (this.stateStores.haveJobStateStore()) {
+          this.stateStores.getJobStateStore().delete(this.jobContext.getJobId());
+        } else {
+          Path jobStateFilePath =
+              GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
+          fs.delete(jobStateFilePath, false);
+        }
+      } catch (Exception e){
+        log.error("Failed to cleanup state store for job {}: {}", this.jobContext.getJobId(), e.getMessage(), e);
       }
-
       if (Boolean.parseBoolean(this.jobProps.getProperty(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
           GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED))) {
         Path workDirRootPath = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
