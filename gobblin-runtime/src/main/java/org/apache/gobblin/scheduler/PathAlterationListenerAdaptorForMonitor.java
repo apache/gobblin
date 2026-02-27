@@ -46,7 +46,7 @@ import org.apache.gobblin.util.filesystem.PathAlterationListenerAdaptor;
  */
 public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListenerAdaptor {
 
-  private static final Logger LOG = LoggerFactory.getLogger(JobScheduler.class);
+  private static final Logger LOG = LoggerFactory.getLogger(PathAlterationListenerAdaptorForMonitor.class);
 
   Path jobConfigFileDirPath;
   JobScheduler jobScheduler;
@@ -70,72 +70,60 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
         jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY));
   }
 
-  public void loadNewJobConfigAndHandleNewJob(Path path, JobScheduler.Action action) {
-    // Load the new job configuration and schedule the new job
-
-    String customizedInfo = "";
+  public void handleNewJob(Properties jobProps, JobScheduler.Action action) {
     try {
-      Properties jobProps =
-          SchedulerUtils.loadGenericJobConfig(this.jobScheduler.properties, path, jobConfigFileDirPath, this.jobSpecResolver);
-      LOG.debug("Loaded job properties: {}", jobProps);
-      switch (action) {
-        case SCHEDULE:
-          boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-          customizedInfo = "schedule";
-          addToJobNameMap(jobProps);
-          jobScheduler.scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
-          break;
-        case RESCHEDULE:
-          customizedInfo = "reschedule";
-          rescheduleJob(jobProps);
-          break;
-        case UNSCHEDULE:
-          throw new RuntimeException("Should not call loadNewJobConfigAndHandleNewJob for unscheduling jobs.");
-        default:
-          break;
+      String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
+      Path jobPath = getJobPath(jobProps);
+
+      if (action.equals(JobScheduler.Action.UNSCHEDULE)) {
+        throw new RuntimeException("Should not call loadNewCommonConfigAndHandleNewJob to unschedule the jobs: " + jobName);
       }
+
+      if (action.equals(JobScheduler.Action.RESCHEDULE)) {
+        // prep for re-scheduling: unschedule and delete the old job first
+        if (this.jobNameMap.containsKey(jobPath)) {
+          jobScheduler.unscheduleJob(this.jobNameMap.get(jobPath));
+          this.jobNameMap.remove(jobPath);
+        }
+      }
+
+      // Schedule the job
+      boolean runOnce = Boolean.parseBoolean(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
+      if(runOnce){
+        Runnable jobToRun = jobScheduler.new NonScheduledJobRunner(jobProps, new RunOnceJobListener());
+        jobScheduler.submitRunnableToExecutor(jobToRun);
+        LOG.debug("[JobScheduler] The new job " + jobName + " is submitted to run once.");
+      }else{
+        // schedule the job with the new job configuration
+        jobScheduler.scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
+        addToJobNameMap(jobProps);
+        LOG.debug("[JobScheduler] The new job " + jobName + " is scheduled.");
+      }
+    } catch (JobException je) {
+      LOG.error("Failed to " + action.name().toLowerCase() + " new job loaded from job configuration file " + jobProps.getProperty(
+              ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), je);
+    }
+  }
+
+  public void loadNewJobConfigAndHandleNewJob(Path path, JobScheduler.Action action) {
+    try {
+      Properties jobProps = SchedulerUtils.loadGenericJobConfig(this.jobScheduler.properties, path, jobConfigFileDirPath, this.jobSpecResolver);
+      LOG.debug("Loaded job properties: {}", jobProps);
+      handleNewJob(jobProps, action);
     } catch (ConfigurationException | IOException e) {
       LOG.error("Failed to load from job configuration file " + path.toString(), e);
-    } catch (JobException je) {
-      LOG.error("Failed to " + customizedInfo + " new job loaded from job configuration file " + path.toString(), je);
     }
   }
 
   public void loadNewCommonConfigAndHandleNewJob(Path path, JobScheduler.Action action) {
-    String customizedInfoAction = "";
-    String customizedInfoResult = "";
     try {
       for (Properties jobProps : SchedulerUtils.loadGenericJobConfigs(jobScheduler.properties, path,
           jobConfigFileDirPath, this.jobSpecResolver)) {
-        try {
-          switch (action) {
-            case SCHEDULE:
-              boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-              customizedInfoAction = "schedule";
-              customizedInfoResult = "creation or equivalent action";
-              addToJobNameMap(jobProps);
-              jobScheduler.scheduleJob(jobProps,
-                  runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
-              break;
-            case RESCHEDULE:
-              customizedInfoAction = "reschedule";
-              customizedInfoResult = "change";
-              rescheduleJob(jobProps);
-              break;
-            case UNSCHEDULE:
-              throw new RuntimeException("Should not call loadNewCommonConfigAndHandleNewJob for unscheduling jobs.");
-            default:
-              break;
-          }
-        } catch (JobException je) {
-          LOG.error(
-              "Failed to " + customizedInfoAction + " job reloaded from job configuration file " + jobProps.getProperty(
-                  ConfigurationKeys.JOB_CONFIG_FILE_PATH_KEY), je);
-        }
+          handleNewJob(jobProps, action);
       }
     } catch (ConfigurationException | IOException e) {
       LOG.error(
-          "Failed to reload job configuration files affected by " + customizedInfoResult + " to " + path.toString(), e);
+          "Failed to reload job configuration files  while " + action.toString() + "ing for job:" + path.toString(), e);
     }
   }
 
@@ -154,13 +142,13 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
       }
       LOG.info("Detected creation of common properties file" + path.toString());
       // New .properties file founded with some new attributes, reschedule jobs.
-      loadNewCommonConfigAndHandleNewJob(path, JobScheduler.Action.RESCHEDULE);
+      loadNewCommonConfigAndHandleNewJob(path, JobScheduler.Action.SCHEDULE);
       return;
     }
     if (!jobScheduler.jobConfigFileExtensions.contains(fileExtension)) {
       return;
     }
-    LOG.info("Detected new job configuration file " + path.toString());
+    LOG.info("Detected creation of new job configuration file: " + path.toString());
 
     loadNewJobConfigAndHandleNewJob(path, JobScheduler.Action.SCHEDULE);
   }
@@ -223,22 +211,6 @@ public class PathAlterationListenerAdaptorForMonitor extends PathAlterationListe
     } catch (JobException je) {
       LOG.error("Could not unschedule job " + this.jobNameMap.get(path));
     }
-  }
-
-  private void rescheduleJob(Properties jobProps)
-      throws JobException {
-    String jobName = jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY);
-    Path jobPath = getJobPath(jobProps);
-    // First unschedule and delete the old job
-    if (this.jobNameMap.containsKey(jobPath)) {
-      jobScheduler.unscheduleJob(this.jobNameMap.get(jobPath));
-      this.jobNameMap.remove(jobPath);
-    }
-    boolean runOnce = Boolean.valueOf(jobProps.getProperty(ConfigurationKeys.JOB_RUN_ONCE_KEY, "false"));
-    // Reschedule the job with the new job configuration
-    jobScheduler.scheduleJob(jobProps, runOnce ? new RunOnceJobListener() : new EmailNotificationJobListener());
-    addToJobNameMap(jobProps);
-    LOG.debug("[JobScheduler] The new job " + jobName + " is rescheduled.");
   }
 
   /**
