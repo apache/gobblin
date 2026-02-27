@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration.proc;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.Collections;
@@ -55,6 +56,7 @@ import org.apache.gobblin.service.modules.spec.SerializationConstants;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.slf4j.MDC;
 
 import static org.apache.gobblin.service.ExecutionStatus.*;
 
@@ -102,6 +104,17 @@ public class DagProcUtils {
 
     String specExecutorUri = DagUtils.getSpecExecutorUri(dagNode);
 
+    // Set MDC jobName for this job execution scope
+    String jobName = DagUtils.getJobName(dagNode);
+    MDC.put(ConfigurationKeys.JOB_NAME_KEY, jobName);
+
+    submitJobToExecutorInternal(dagManagementStateStore, dagNode, dagId, jobExecutionPlan, jobSpec,
+        jobMetadata, specExecutorUri);
+  }
+
+  private static void submitJobToExecutorInternal(DagManagementStateStore dagManagementStateStore,
+      Dag.DagNode<JobExecutionPlan> dagNode, Dag.DagId dagId, JobExecutionPlan jobExecutionPlan,
+      JobSpec jobSpec, Map<String, String> jobMetadata, String specExecutorUri) {
     // Run this spec on selected executor
     SpecProducer<Spec> producer;
     try {
