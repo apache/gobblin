@@ -26,8 +26,8 @@ import java.util.Map;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.JsonNode;
+import org.fasterxml.jackson.map.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
 
