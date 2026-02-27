@@ -1,4 +1,4 @@
 gobblin.template.uri="FS:///multihop/jobTemplates/distcp.template"
 job.class=org.apache.gobblin.runtime.local.LocalJobLauncher
-launcher.type=LOCAL
+job.launcher.type=LOCAL
 type=java
