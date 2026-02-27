@@ -35,6 +35,7 @@ import org.slf4j.LoggerFactory;
 import com.google.common.base.Optional;
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.google.common.util.concurrent.MoreExecutors;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigException;
 
@@ -110,7 +111,7 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
   public FlowCatalog(Config config, Optional<Logger> log, Optional<MetricContext> parentMetricContext, boolean instrumentationEnabled) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-    this.listeners = new SpecCatalogListenersList(log);
+    this.listeners = new SpecCatalogListenersList(Optional.of(MoreExecutors.newDirectExecutorService()), log);
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
