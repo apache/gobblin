@@ -107,10 +107,6 @@ public abstract class JobStatusRetrieverTest {
     Pair<State, KafkaJobStatusMonitor.NewState> updatedJobStatus = KafkaJobStatusMonitor.recalcJobStatus(jobStatus, this.jobStatusRetriever.getStateStore());
     jobStatus = updatedJobStatus.getLeft();
     KafkaJobStatusMonitor.modifyStateIfRetryRequired(jobStatus);
-    // Ensure GAAS_JOB_EXEC_ID_HASH is set before put so it survives merge/retrieve in all state stores (e.g. MySQL)
-    if (!jobName.equals(JobStatusRetriever.NA_KEY)) {
-      jobStatus.setProp(ConfigurationKeys.GAAS_JOB_EXEC_ID_HASH, String.valueOf(JOB_EXECUTION_ID));
-    }
     this.jobStatusRetriever.getStateStore().put(
         KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName),
         KafkaJobStatusMonitor.jobStatusTableName(flowExecutionId, jobGroup, jobName),
