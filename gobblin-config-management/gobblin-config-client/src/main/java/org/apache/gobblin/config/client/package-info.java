@@ -19,7 +19,3 @@
  * This package contains the config config client implementation for Gobblin config management.
  */
 package org.apache.gobblin.config.client;
-
-//TODO: Remove once we commit any other classes
-class DummyClassForJavadoc {
-}
