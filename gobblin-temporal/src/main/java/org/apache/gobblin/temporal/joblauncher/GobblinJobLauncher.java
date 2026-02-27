@@ -31,6 +31,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 
+import org.apache.gobblin.util.WriterUtils;
 import org.apache.hadoop.conf.Configuration;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
@@ -427,7 +428,7 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
 
     String writerFsUri = jobState.getProp(ConfigurationKeys.WRITER_FILE_SYSTEM_URI, ConfigurationKeys.LOCAL_FS_URI);
     String fsScheme = URI.create(writerFsUri).getScheme();
-    FileSystem writerFs = FileSystem.newInstance(URI.create(writerFsUri), new Configuration());
+    FileSystem writerFs = FileSystem.newInstance(URI.create(writerFsUri), WriterUtils.getFsConfiguration(jobState));
     long startTimeMs = System.currentTimeMillis();
     try {
       for (String pathStr : pathsToDelete) {
