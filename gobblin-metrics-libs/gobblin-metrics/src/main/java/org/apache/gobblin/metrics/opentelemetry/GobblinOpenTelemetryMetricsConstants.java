@@ -22,6 +22,7 @@ public class GobblinOpenTelemetryMetricsConstants {
   public static class DimensionKeys {
     public static final String STATE = "state";
     public static final String CURR_STATE = "currState";
+    public static final String FS_SCHEME = "fsScheme";
   }
 
   public static class DimensionValues {
