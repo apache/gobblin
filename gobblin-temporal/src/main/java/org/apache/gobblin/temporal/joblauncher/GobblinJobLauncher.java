@@ -492,6 +492,23 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
   protected void cleanupWorkingDirectory(FileSystem fs) throws IOException {
     long startTimeMs = System.currentTimeMillis();
     try {
+      cleanupStateStore(fs);
+      if (Boolean.parseBoolean(this.jobProps.getProperty(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
+          GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED))) {
+        Path workDirRootPath = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
+        log.info("Cleaning up work directory : {} for job : {}", workDirRootPath, this.jobContext.getJobId());
+        fs.delete(workDirRootPath, true);
+      }
+    } catch (Exception e){
+      log.error("Failed to cleanup working directory for job {}: {}", this.jobContext.getJobId(), e.getMessage(), e);
+    }
+    finally {
+      emitLatencyMetric(GobblinOpenTelemetryMetrics.GOBBLIN_WORK_DIRECTORY_CLEANUP_LATENCY, startTimeMs, fs.getUri().getScheme());
+    }
+  }
+
+  private void cleanupStateStore(FileSystem fs) {
+    try {
       log.info("Deleting persisted work units for job " + this.jobContext.getJobId());
       stateStores.getWuStateStore().delete(this.jobContext.getJobId());
 
@@ -503,19 +520,11 @@ public abstract class GobblinJobLauncher extends AbstractJobLauncher {
       if (this.stateStores.haveJobStateStore()) {
         this.stateStores.getJobStateStore().delete(this.jobContext.getJobId());
       } else {
-        Path jobStateFilePath =
-            GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
+        Path jobStateFilePath = GobblinClusterUtils.getJobStateFilePath(false, this.appWorkDir, this.jobContext.getJobId());
         fs.delete(jobStateFilePath, false);
       }
-
-      if (Boolean.parseBoolean(this.jobProps.getProperty(GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED,
-          GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED))) {
-        Path workDirRootPath = JobStateUtils.getWorkDirRoot(this.jobContext.getJobState());
-        log.info("Cleaning up work directory : {} for job : {}", workDirRootPath, this.jobContext.getJobId());
-        fs.delete(workDirRootPath, true);
-      }
-    } finally {
-      emitLatencyMetric(GobblinOpenTelemetryMetrics.GOBBLIN_WORK_DIRECTORY_CLEANUP_LATENCY, startTimeMs, fs.getUri().getScheme());
+    } catch (Exception e){
+      log.error("Failed to cleanup state store for job {}: {}", this.jobContext.getJobId(), e.getMessage(), e);
     }
   }
 }
