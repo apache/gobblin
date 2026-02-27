@@ -1,0 +1,14 @@
+plugins {
+    id 'application'
+}
+
+application {
+    mainClass = 'com.trivago.de.kubernetes.javarunner.App'
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+}
