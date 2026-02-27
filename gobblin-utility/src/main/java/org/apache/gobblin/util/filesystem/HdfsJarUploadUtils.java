@@ -32,7 +32,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class HdfsJarUploadUtils {
 
-  private static final long WAITING_TIME_ON_INCOMPLETE_UPLOAD_MILLIS = 3000;
+  private static final long WAITING_TIME_ON_INCOMPLETE_UPLOAD_MILLIS = 10000;
 
   /**
    * Calculate the target filePath of the jar file to be copied on HDFS,
