@@ -121,6 +121,7 @@ public class ZipFileConfigStore implements ConfigStore {
         }
 
       }
+      files.close();
       return children;
     } catch (IOException e) {
       throw new RuntimeException(String.format("Error while getting children for configKey: \"%s\"", configKey), e);
