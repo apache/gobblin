@@ -35,7 +35,10 @@ import com.typesafe.config.ConfigFactory;
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.extern.slf4j.Slf4j;
+import org.apache.commons.lang.StringUtils;
 
+
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.instrumented.Instrumented;
 import org.apache.gobblin.metastore.StateStore;
@@ -182,8 +185,20 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     return jobState.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD);
   }
 
+  /**
+   * Resolves job execution id from job state. Used {@link ConfigurationKeys#GAAS_JOB_EXEC_ID_HASH} when present
+   * or returns 0 as default.
+   */
   protected static final long getJobExecutionId(State jobState) {
-    return Long.parseLong(jobState.getProp(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, "0"));
+    String jobExecId = jobState.getProp(ConfigurationKeys.GAAS_JOB_EXEC_ID_HASH, "0");
+    if (StringUtils.isNotBlank(jobExecId)) {
+      try {
+        return Long.parseLong(jobExecId);
+      } catch (NumberFormatException e) {
+        log.error("gaas.job.executionid.hash is not numeric, deriving long from string: {}", jobExecId, e);
+      }
+    }
+    return 0;
   }
 
   protected Iterator<JobStatus> asJobStatuses(List<State> jobStatusStates) {
