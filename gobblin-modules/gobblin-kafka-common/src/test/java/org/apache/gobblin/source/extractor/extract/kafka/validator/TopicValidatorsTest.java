@@ -67,6 +67,19 @@ public class TopicValidatorsTest {
     Assert.assertEquals(validTopics.get(0).getName(), "topic2");
   }
 
+  @Test
+  public void testValidatorThrowingException() {
+    List<String> allTopics = Arrays.asList("topic1", "topic2");
+    List<KafkaTopic> topics = buildKafkaTopics(allTopics);
+    State state = new State();
+    state.setProp(TopicValidators.VALIDATOR_CLASSES_KEY, ValidatorThrowingException.class.getName());
+    List<KafkaTopic> validTopics = new TopicValidators(state).validate(topics);
+
+    Assert.assertEquals(validTopics.size(), 2); // validator throws exceptions, so all topics are treated as valid
+    Assert.assertTrue(validTopics.stream().anyMatch(topic -> topic.getName().equals("topic1")));
+    Assert.assertTrue(validTopics.stream().anyMatch(topic -> topic.getName().equals("topic2")));
+  }
+
   private List<KafkaTopic> buildKafkaTopics(List<String> topics) {
     return topics.stream()
         .map(topicName -> new KafkaTopic(topicName, Collections.emptyList()))
@@ -107,6 +120,17 @@ public class TopicValidatorsTest {
         throw new RuntimeException(e);
       }
       return false;
+    }
+  }
+
+  public static class ValidatorThrowingException extends TopicValidatorBase {
+    public ValidatorThrowingException(State state) {
+      super(state);
+    }
+
+    @Override
+    public boolean validate(KafkaTopic topic) throws Exception {
+      throw new Exception("Always throw exception");
     }
   }
 }
