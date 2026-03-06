@@ -32,12 +32,9 @@ import org.slf4j.MDC;
 
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
-import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.troubleshooter.InMemoryMultiContextIssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
-import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
@@ -73,10 +70,7 @@ public class DagProcServiceLayerIssueIntegrationTest {
     mockDagManagementStateStore = Mockito.mock(DagManagementStateStore.class);
     mockMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
 
-    // Enable service-layer troubleshooter
-    config = ConfigFactory.empty()
-        .withValue(ServiceConfigKeys.SERVICE_LAYER_TROUBLESHOOTER_ENABLED,
-            ConfigValueFactory.fromAnyRef(true));
+    config = ConfigFactory.empty();
 
     MDC.clear();
   }

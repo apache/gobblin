@@ -27,6 +27,7 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
@@ -63,6 +64,10 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // one of the reason this could arise is when the MALA leasing doesn't work cleanly and another DagProc::process
       // has cleaned up the Dag, yet did not complete the lease before this current one acquired its own
       log.error("DagNode or its job status not found for a Reevaluate DagAction with dag node id {}", this.dagNodeId);
+      ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(),
+          this.dagNodeId != null ? this.dagNodeId.getJobName() : "unknown",
+          IssueSeverity.ERROR, "SVC-REEVAL-NODE-MISSING",
+          "DagNode or its job status not found for reevaluate action with dag node id " + this.dagNodeId, "");
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       return;
     }
@@ -86,10 +91,13 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
 
     if (!isRetry && !FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
       // this may happen if adding job status in the store failed/delayed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
-      throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action should have been "
+      String message = String.format("Job status for dagNode %s is %s. Re-evaluate dag action should have been "
               + "created only for finished status - %s. This may happen if reevaluate dag action launched reevaluate dag "
               + "proc before job status is updated in the store in KafkaJobStatusMonitor", dagNodeId, executionStatus,
-          FlowStatusGenerator.FINISHED_STATUSES));
+          FlowStatusGenerator.FINISHED_STATUSES);
+      ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), this.dagNodeId.getJobName(),
+          IssueSeverity.ERROR, "SVC-REEVAL-BAD-STATUS", message, "");
+      throw new RuntimeException(message);
     }
 
     // get the dag after updating dag node status
@@ -159,6 +167,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dag.setMessage("Flow failed because job " + jobName + " failed");
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_FAILED);
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorFailed(dagNode);
+        ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), jobName,
+            IssueSeverity.ERROR, "SVC-JOB-FAILED",
+            "Flow failed because job " + jobName + " failed", "");
         break;
       case CANCELLED:
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);

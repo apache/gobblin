@@ -153,6 +153,11 @@ public class DagProcUtils {
     } catch (Exception e) {
       String message = "Cannot submit job " + DagUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
       log.error(message, e);
+      ServiceLayerIssueEmitter.emitJobIssue(DagProc.eventSubmitter, dagId.getFlowGroup(), dagId.getFlowName(),
+          String.valueOf(dagId.getFlowExecutionId()), DagUtils.getJobName(dagNode),
+          org.apache.gobblin.runtime.troubleshooter.IssueSeverity.ERROR, "SVC-JOB-SUBMIT-FAIL",
+          message + " due to " + e.getMessage(),
+          org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(e));
       // Only mark the job as failed in case of non transient exceptions
       if (!DagProcessingEngine.isTransientException(e)) {
         TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
