@@ -50,6 +50,9 @@ public class IcebergPartitionCopyableFile extends CopyableFile {
         copyableFile.getAncestorsOwnerAndPermission(), copyableFile.getChecksum(), copyableFile.getPreserve(),
         copyableFile.getFileSet(), copyableFile.getOriginTimestamp(), copyableFile.getUpstreamTimestamp(),
         copyableFile.getAdditionalMetadata(), copyableFile.datasetOutputPath, copyableFile.getDataFileVersionStrategy());
+    // Ensure that the source and destination data are set in the new copyable file for lineage
+    this.setSourceData(copyableFile.getSourceData());
+    this.setDestinationData(copyableFile.getDestinationData());
     this.base64EncodedDataFile = SerializationUtil.serializeToBase64(dataFile);
   }
 
