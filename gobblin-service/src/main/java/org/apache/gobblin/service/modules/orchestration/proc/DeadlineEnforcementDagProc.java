@@ -24,6 +24,7 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
@@ -65,6 +66,9 @@ abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<Jo
     if (!dag.isPresent()) {
       log.error("Dag not present when validating {}. It may already have cancelled/finished. Dag {}",
           getDagId(), dagAction);
+      ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.WARN,
+          "SVC-DEADLINE-DAG-MISSING",
+          "DAG not present during deadline check. It may already have cancelled/finished: " + getDagId(), "");
       return false;
     }
 

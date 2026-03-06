@@ -40,11 +40,13 @@ import org.apache.gobblin.metrics.MetricContext;
 import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flow.SpecCompiler;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.proc.ServiceLayerIssueEmitter;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.TimingEventUtils;
@@ -161,6 +163,12 @@ public class FlowCompilationValidationHelper {
       flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Unable to compile flowSpec to produce non-empty "
           + "jobExecutionPlanDag.");
       new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
+      String flowExecutionId = flowMetadata.getOrDefault(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
+          String.valueOf(System.currentTimeMillis()));
+      ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, flowGroup, flowName, flowExecutionId,
+          IssueSeverity.ERROR, "SVC-COMPILE-EMPTY",
+          "Unable to compile flowSpec to produce non-empty jobExecutionPlanDag for "
+              + flowGroup + "/" + flowName, "");
       return Optional.absent();
     }
     addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
@@ -184,6 +192,11 @@ public class FlowCompilationValidationHelper {
       flowMetadata.put(TimingEvent.METADATA_MESSAGE, "Flow failed because another instance is running and concurrent "
           + "executions are disabled. Set flow.allowConcurrentExecution to true in the flowSpec to change this behaviour.");
       new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
+      ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, flowGroup, flowName,
+          flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD),
+          IssueSeverity.WARN, "SVC-CONCURRENT-BLOCKED",
+          "Flow failed because another instance is running and concurrent executions are disabled for "
+              + flowGroup + "/" + flowName, "");
       return Optional.absent();
     }
   }
@@ -297,6 +310,12 @@ public class FlowCompilationValidationHelper {
     flowMetadata.put(TimingEvent.METADATA_MESSAGE, message);
 
     new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_COMPILE_FAILED).stop(flowMetadata);
+
+    ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter,
+        flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
+        flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD),
+        flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD),
+        IssueSeverity.ERROR, "SVC-COMPILE-FAILED", message, "");
   }
 
   /**

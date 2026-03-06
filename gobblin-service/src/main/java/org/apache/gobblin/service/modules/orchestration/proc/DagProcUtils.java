@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.modules.orchestration.proc;
 
+import java.io.Closeable;
 import java.io.IOException;
 import java.sql.SQLIntegrityConstraintViolationException;
 import java.util.Collections;
@@ -55,6 +56,7 @@ import org.apache.gobblin.service.modules.spec.SerializationConstants;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
+import org.slf4j.MDC;
 
 import static org.apache.gobblin.service.ExecutionStatus.*;
 
@@ -102,6 +104,17 @@ public class DagProcUtils {
 
     String specExecutorUri = DagUtils.getSpecExecutorUri(dagNode);
 
+    // Set MDC jobName for this job execution scope
+    String jobName = DagUtils.getJobName(dagNode);
+    MDC.put(ConfigurationKeys.JOB_NAME_KEY, jobName);
+
+    submitJobToExecutorInternal(dagManagementStateStore, dagNode, dagId, jobExecutionPlan, jobSpec,
+        jobMetadata, specExecutorUri);
+  }
+
+  private static void submitJobToExecutorInternal(DagManagementStateStore dagManagementStateStore,
+      Dag.DagNode<JobExecutionPlan> dagNode, Dag.DagId dagId, JobExecutionPlan jobExecutionPlan,
+      JobSpec jobSpec, Map<String, String> jobMetadata, String specExecutorUri) {
     // Run this spec on selected executor
     SpecProducer<Spec> producer;
     try {
@@ -140,6 +153,11 @@ public class DagProcUtils {
     } catch (Exception e) {
       String message = "Cannot submit job " + DagUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
       log.error(message, e);
+      ServiceLayerIssueEmitter.emitJobIssue(DagProc.eventSubmitter, dagId.getFlowGroup(), dagId.getFlowName(),
+          String.valueOf(dagId.getFlowExecutionId()), DagUtils.getJobName(dagNode),
+          org.apache.gobblin.runtime.troubleshooter.IssueSeverity.ERROR, "SVC-JOB-SUBMIT-FAIL",
+          message + " due to " + e.getMessage(),
+          org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(e));
       // Only mark the job as failed in case of non transient exceptions
       if (!DagProcessingEngine.isTransientException(e)) {
         TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
