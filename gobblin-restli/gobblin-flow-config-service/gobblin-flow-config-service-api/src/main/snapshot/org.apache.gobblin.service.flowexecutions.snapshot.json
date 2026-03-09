@@ -258,14 +258,6 @@
         }
       },
       "doc" : "Status of jobs belonging to the flow"
-    }, {
-      "name" : "issues",
-      "type" : {
-        "type" : "array",
-        "items" : "Issue"
-      },
-      "doc" : "Collection of flow-level issues from the orchestration layer.\nPopulated when errors occur before any job starts (e.g., compilation failures)\nor when an error affects the entire flow (e.g., flow SLA exceeded).",
-      "default" : [ ]
     } ]
   }, "org.apache.gobblin.service.FlowId", "org.apache.gobblin.service.FlowStatistics", "org.apache.gobblin.service.FlowStatusId", "org.apache.gobblin.service.Issue", "org.apache.gobblin.service.IssueSeverity", "org.apache.gobblin.service.JobId", "org.apache.gobblin.service.JobState", "org.apache.gobblin.service.JobStatistics", "org.apache.gobblin.service.JobStatus", "org.apache.gobblin.service.Timestamp" ],
   "schema" : {
