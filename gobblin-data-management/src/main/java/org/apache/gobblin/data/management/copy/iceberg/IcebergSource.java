@@ -381,7 +381,7 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
         datePartitionColumn, startDateTime, lookbackHours, partitionFormatter);
     } else {
       Preconditions.checkArgument(lookbackDays >= 1,
-        "iceberg.lookback.days must be >= 1, got: %d", lookbackDays);
+        "iceberg.lookback.days must be >= 1, got: %s", lookbackDays);
       log.info("Daily lookback: {} day(s) for column '{}' starting at {}",
         lookbackDays, datePartitionColumn, startDateTime);
       filterResult = IcebergPartitionFilterGenerator.forDays(
