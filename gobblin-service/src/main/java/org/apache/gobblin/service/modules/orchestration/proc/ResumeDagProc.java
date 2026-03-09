@@ -67,8 +67,7 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       log.error("Dag " + dagId + " was not found in dag state store");
       ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
-          "SVC-RESUME-DAG-MISSING",
-          "Failed DAG not found in state store for resume: " + dagId, "");
+          "Failed DAG not found in state store for resume: " + dagId);
       return;
     }
 

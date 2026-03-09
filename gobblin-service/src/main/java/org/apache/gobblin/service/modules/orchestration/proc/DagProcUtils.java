@@ -36,6 +36,8 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -44,6 +46,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -153,11 +156,9 @@ public class DagProcUtils {
     } catch (Exception e) {
       String message = "Cannot submit job " + DagUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
       log.error(message, e);
-      ServiceLayerIssueEmitter.emitJobIssue(DagProc.eventSubmitter, dagId.getFlowGroup(), dagId.getFlowName(),
-          String.valueOf(dagId.getFlowExecutionId()), DagUtils.getJobName(dagNode),
-          org.apache.gobblin.runtime.troubleshooter.IssueSeverity.ERROR, "SVC-JOB-SUBMIT-FAIL",
-          message + " due to " + e.getMessage(),
-          org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(e));
+      ServiceLayerIssueEmitter.emitJobIssue(DagProc.eventSubmitter, dagId, DagUtils.getJobName(dagNode),
+          IssueSeverity.ERROR, message + " due to " + e.getMessage(),
+          ExceptionUtils.getStackTrace(e));
       // Only mark the job as failed in case of non transient exceptions
       if (!DagProcessingEngine.isTransientException(e)) {
         TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);

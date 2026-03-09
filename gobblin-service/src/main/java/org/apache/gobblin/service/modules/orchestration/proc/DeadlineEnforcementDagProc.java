@@ -67,8 +67,7 @@ abstract public class DeadlineEnforcementDagProc extends DagProc<Optional<Dag<Jo
       log.error("Dag not present when validating {}. It may already have cancelled/finished. Dag {}",
           getDagId(), dagAction);
       ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.WARN,
-          "SVC-DEADLINE-DAG-MISSING",
-          "DAG not present during deadline check. It may already have cancelled/finished: " + getDagId(), "");
+          "DAG not present during deadline check. It may already have cancelled/finished: " + getDagId());
       return false;
     }
 

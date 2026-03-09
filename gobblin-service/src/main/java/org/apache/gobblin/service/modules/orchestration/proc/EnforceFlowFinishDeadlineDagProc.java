@@ -64,17 +64,15 @@ public class EnforceFlowFinishDeadlineDagProc extends DeadlineEnforcementDagProc
       dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
       dag.setMessage("Flow killed due to exceeding SLA of " + flowFinishDeadline + " ms");
       ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
-          "SVC-FLOW-DEADLINE",
-          "Flow killed due to exceeding SLA of " + flowFinishDeadline + " ms", "");
+          "Flow killed due to exceeding SLA of " + flowFinishDeadline + " ms");
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
       DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
     } else {
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
       log.error("EnforceFlowFinishDeadline dagAction received before due time. flowStartTime {}, flowFinishDeadline {} ", flowStartTime, flowFinishDeadline);
       ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.WARN,
-          "SVC-FLOW-DEADLINE-EARLY",
           "EnforceFlowFinishDeadline dagAction received before due time. flowStartTime "
-              + flowStartTime + ", flowFinishDeadline " + flowFinishDeadline, "");
+              + flowStartTime + ", flowFinishDeadline " + flowFinishDeadline);
     }
   }
 }

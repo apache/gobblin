@@ -66,8 +66,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       log.error("DagNode or its job status not found for a Reevaluate DagAction with dag node id {}", this.dagNodeId);
       ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(),
           this.dagNodeId != null ? this.dagNodeId.getJobName() : "unknown",
-          IssueSeverity.ERROR, "SVC-REEVAL-NODE-MISSING",
-          "DagNode or its job status not found for reevaluate action with dag node id " + this.dagNodeId, "");
+          IssueSeverity.ERROR, "DagNode or its job status not found for reevaluate action with dag node id " + this.dagNodeId);
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       return;
     }
@@ -96,7 +95,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
               + "proc before job status is updated in the store in KafkaJobStatusMonitor", dagNodeId, executionStatus,
           FlowStatusGenerator.FINISHED_STATUSES);
       ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), this.dagNodeId.getJobName(),
-          IssueSeverity.ERROR, "SVC-REEVAL-BAD-STATUS", message, "");
+          IssueSeverity.ERROR, message);
       throw new RuntimeException(message);
     }
 
@@ -168,8 +167,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_FAILED);
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorFailed(dagNode);
         ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), jobName,
-            IssueSeverity.ERROR, "SVC-JOB-FAILED",
-            "Flow failed because job " + jobName + " failed", "");
+            IssueSeverity.ERROR, "Flow failed because job " + jobName + " failed");
         break;
       case CANCELLED:
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);

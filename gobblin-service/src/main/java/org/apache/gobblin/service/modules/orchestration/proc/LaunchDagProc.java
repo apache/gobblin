@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Optional;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
+
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
@@ -74,9 +76,8 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       return dag;
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException | IOException e) {
       ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
-          "SVC-LAUNCH-INIT-FAIL",
           "Flow launch initialization failed: " + e.getClass().getSimpleName() + " - " + e.getMessage(),
-          org.apache.commons.lang3.exception.ExceptionUtils.getStackTrace(e));
+          ExceptionUtils.getStackTrace(e));
       throw new RuntimeException(e);
     }
   }
@@ -87,7 +88,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     if (!dag.isPresent()) {
       log.warn("Dag with id " + getDagId() + " could not be compiled.");
       ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
-          "SVC-LAUNCH-NO-DAG", "DAG could not be compiled for " + getDagId(), "");
+          "DAG could not be compiled for " + getDagId());
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
     } else {
       DagProcUtils.submitNextNodes(dagManagementStateStore, dag.get(), getDagId());

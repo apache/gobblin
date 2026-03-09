@@ -166,9 +166,8 @@ public class FlowCompilationValidationHelper {
       String flowExecutionId = flowMetadata.getOrDefault(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD,
           String.valueOf(System.currentTimeMillis()));
       ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, flowGroup, flowName, flowExecutionId,
-          IssueSeverity.ERROR, "SVC-COMPILE-EMPTY",
-          "Unable to compile flowSpec to produce non-empty jobExecutionPlanDag for "
-              + flowGroup + "/" + flowName, "");
+          IssueSeverity.ERROR, "Unable to compile flowSpec to produce non-empty jobExecutionPlanDag for "
+              + flowGroup + "/" + flowName);
       return Optional.absent();
     }
     addFlowExecutionIdIfAbsent(flowMetadata, jobExecutionPlanDag);
@@ -194,9 +193,8 @@ public class FlowCompilationValidationHelper {
       new TimingEvent(eventSubmitter, TimingEvent.FlowTimings.FLOW_FAILED).stop(flowMetadata);
       ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, flowGroup, flowName,
           flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD),
-          IssueSeverity.WARN, "SVC-CONCURRENT-BLOCKED",
-          "Flow failed because another instance is running and concurrent executions are disabled for "
-              + flowGroup + "/" + flowName, "");
+          IssueSeverity.WARN, "Flow failed because another instance is running and concurrent executions are disabled for "
+              + flowGroup + "/" + flowName);
       return Optional.absent();
     }
   }
@@ -315,7 +313,7 @@ public class FlowCompilationValidationHelper {
         flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_GROUP_FIELD),
         flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_NAME_FIELD),
         flowMetadata.get(TimingEvent.FlowEventConstants.FLOW_EXECUTION_ID_FIELD),
-        IssueSeverity.ERROR, "SVC-COMPILE-FAILED", message, "");
+        IssueSeverity.ERROR, message);
   }
 
   /**
