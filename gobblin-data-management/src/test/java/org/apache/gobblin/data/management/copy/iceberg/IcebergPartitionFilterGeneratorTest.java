@@ -231,8 +231,8 @@ public class IcebergPartitionFilterGeneratorTest {
   public void testBuildOrExpressionEmptyListReturnsAlwaysFalse() {
     Expression expr = IcebergPartitionFilterGenerator.buildOrExpression(
         PARTITION_COL, Collections.emptyList());
-    // Iceberg's alwaysFalse() is a singleton — compare by class name to stay decoupled
-    Assert.assertEquals(expr.getClass().getSimpleName(), "False",
+    // Iceberg's alwaysFalse() is a singleton — compare by identity for robustness
+    Assert.assertSame(expr, Expressions.alwaysFalse(),
         "Empty values should produce alwaysFalse() expression");
   }
 
