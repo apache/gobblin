@@ -170,9 +170,9 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
           flowMessage = queriedJobStatus.getMessage();
         }
         if (includeIssues) {
-          flowIssues = queriedJobStatus.getIssues().get().stream()
+          flowIssues.addAll(queriedJobStatus.getIssues().get().stream()
               .map(FlowExecutionResource::convertIssueToRestApiObject)
-              .collect(Collectors.toList());
+              .collect(Collectors.toList()));
         }
         continue;
       }
