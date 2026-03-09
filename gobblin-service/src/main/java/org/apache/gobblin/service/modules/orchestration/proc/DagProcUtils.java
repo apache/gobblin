@@ -156,9 +156,6 @@ public class DagProcUtils {
     } catch (Exception e) {
       String message = "Cannot submit job " + DagUtils.getFullyQualifiedJobName(dagNode) + " on executor " + specExecutorUri;
       log.error(message, e);
-      ServiceLayerIssueEmitter.emitJobIssue(DagProc.eventSubmitter, dagId, DagUtils.getJobName(dagNode),
-          IssueSeverity.ERROR, message + " due to " + e.getMessage(),
-          ExceptionUtils.getStackTrace(e));
       // Only mark the job as failed in case of non transient exceptions
       if (!DagProcessingEngine.isTransientException(e)) {
         TimingEvent jobFailedTimer = DagProc.eventSubmitter.getTimingEvent(TimingEvent.LauncherTimings.JOB_FAILED);
@@ -167,6 +164,11 @@ public class DagProcUtils {
           jobFailedTimer.stop(jobMetadata);
         }
       }
+      // Emit issue after JOB_FAILED event so the error classifier in KafkaJobStatusMonitor
+      // does not pick it up and produce a duplicate T0000 "ErrorCategory: UNKNOWN" issue
+      ServiceLayerIssueEmitter.emitJobIssue(DagProc.eventSubmitter, dagId, DagUtils.getJobName(dagNode),
+          IssueSeverity.ERROR, message + " due to " + e.getMessage(),
+          ExceptionUtils.getStackTrace(e));
       try {
         // when there is no exception, quota will be released in job status monitor or re-evaluate dag proc
         dagManagementStateStore.releaseQuota(dagNode);
