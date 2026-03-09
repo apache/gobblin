@@ -58,7 +58,7 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.binpacking.FieldWeighter;
 import org.apache.gobblin.util.binpacking.WorstFitDecreasingBinPacking;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.iceberg.expressions.Expression;
+
 import org.apache.iceberg.expressions.Expressions;
 
 import static org.apache.gobblin.configuration.ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR;
