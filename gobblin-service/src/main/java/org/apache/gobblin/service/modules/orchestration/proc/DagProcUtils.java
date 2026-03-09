@@ -164,8 +164,6 @@ public class DagProcUtils {
           jobFailedTimer.stop(jobMetadata);
         }
       }
-      // Emit issue after JOB_FAILED event so the error classifier in KafkaJobStatusMonitor
-      // does not pick it up and produce a duplicate T0000 "ErrorCategory: UNKNOWN" issue
       ServiceLayerIssueEmitter.emitJobIssue(DagProc.eventSubmitter, dagId, DagUtils.getJobName(dagNode),
           IssueSeverity.ERROR, message + " due to " + e.getMessage(),
           ExceptionUtils.getStackTrace(e));

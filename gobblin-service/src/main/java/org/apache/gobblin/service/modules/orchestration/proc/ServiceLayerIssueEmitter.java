@@ -35,18 +35,12 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 
 /**
- * Utility for emitting orchestration/service-layer issues as {@link IssueEventBuilder} events.
+ * Emits orchestration-layer issues through the existing issue pipeline:
+ * {@link IssueEventBuilder} -> Kafka -> {@link org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler}
+ * -> {@link org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository}.
  *
- * <p>Issues emitted here flow through the existing pipeline:
- * {@link IssueEventBuilder} → Kafka → {@link org.apache.gobblin.runtime.troubleshooter.JobIssueEventHandler}
- * → {@link org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository}
- *
- * <p>Issue codes are auto-generated with {@code S} prefix + 6-char hex hash, consistent with the
- * previous {@code ServiceLayerLog4j2Appender} convention. Executor-side issues use {@code T} prefix.
- *
- * <p>Thread safety: Each call creates its own {@link Issue} and {@link IssueEventBuilder} objects
- * on the stack. No shared mutable state. The {@link EventSubmitter} is thread-safe.
- * Flow/job context is passed explicitly (not read from MDC), preventing cross-flow contamination.
+ * Issue codes use {@code S} prefix + 6-char hex hash (service-layer), matching the executor-side {@code T} prefix convention.
+ * Thread-safe: no shared mutable state; flow/job context passed explicitly to prevent cross-flow contamination.
  */
 @Slf4j
 public final class ServiceLayerIssueEmitter {
@@ -57,68 +51,44 @@ public final class ServiceLayerIssueEmitter {
   private ServiceLayerIssueEmitter() {
   }
 
-  /**
-   * Emit a flow-level issue (jobName = "NA"). Use for errors where no job exists yet
-   * (e.g., compilation failures) or errors affecting the entire flow (e.g., flow SLA exceeded).
-   */
+  /** Emit a flow-level issue (jobName = "NA") for errors before job creation or affecting the entire flow. */
   public static void emitFlowIssue(EventSubmitter eventSubmitter, Dag.DagId dagId,
       IssueSeverity severity, String summary) {
     emit(eventSubmitter, dagId.getFlowGroup(), dagId.getFlowName(),
-        String.valueOf(dagId.getFlowExecutionId()), JobStatusRetriever.NA_KEY,
-        severity, summary, "");
+        String.valueOf(dagId.getFlowExecutionId()), JobStatusRetriever.NA_KEY, severity, summary, "");
   }
 
-  /**
-   * Emit a flow-level issue with details.
-   */
   public static void emitFlowIssue(EventSubmitter eventSubmitter, Dag.DagId dagId,
       IssueSeverity severity, String summary, String details) {
     emit(eventSubmitter, dagId.getFlowGroup(), dagId.getFlowName(),
-        String.valueOf(dagId.getFlowExecutionId()), JobStatusRetriever.NA_KEY,
-        severity, summary, details);
+        String.valueOf(dagId.getFlowExecutionId()), JobStatusRetriever.NA_KEY, severity, summary, details);
   }
 
-  /**
-   * Emit a flow-level issue using string identifiers (for callers without a DagId, e.g. FlowCompilationValidationHelper).
-   */
+  /** Emit a flow-level issue using string identifiers (for callers without a DagId). */
   public static void emitFlowIssue(EventSubmitter eventSubmitter, String flowGroup, String flowName,
       String flowExecutionId, IssueSeverity severity, String summary) {
-    emit(eventSubmitter, flowGroup, flowName, flowExecutionId, JobStatusRetriever.NA_KEY,
-        severity, summary, "");
+    emit(eventSubmitter, flowGroup, flowName, flowExecutionId, JobStatusRetriever.NA_KEY, severity, summary, "");
   }
 
-  /**
-   * Emit a job-level issue for a specific job. Use for errors tied to a particular job
-   * (e.g., job submission failure, job start deadline exceeded).
-   */
+  /** Emit a job-level issue tied to a specific job. */
   public static void emitJobIssue(EventSubmitter eventSubmitter, Dag.DagId dagId, String jobName,
       IssueSeverity severity, String summary) {
     emit(eventSubmitter, dagId.getFlowGroup(), dagId.getFlowName(),
-        String.valueOf(dagId.getFlowExecutionId()), jobName,
-        severity, summary, "");
+        String.valueOf(dagId.getFlowExecutionId()), jobName, severity, summary, "");
   }
 
-  /**
-   * Emit a job-level issue with details.
-   */
   public static void emitJobIssue(EventSubmitter eventSubmitter, Dag.DagId dagId, String jobName,
       IssueSeverity severity, String summary, String details) {
     emit(eventSubmitter, dagId.getFlowGroup(), dagId.getFlowName(),
-        String.valueOf(dagId.getFlowExecutionId()), jobName,
-        severity, summary, details);
+        String.valueOf(dagId.getFlowExecutionId()), jobName, severity, summary, details);
   }
 
-  /**
-   * Generates an issue code using S prefix + 6-char hex hash, consistent with the previous
-   * ServiceLayerLog4j2Appender convention. The hash is based on the summary to enable deduplication.
-   */
   static String generateIssueCode(String summary) {
     return HASH_PREFIX + DigestUtils.sha256Hex(summary).substring(0, HASH_LENGTH).toUpperCase();
   }
 
   private static void emit(EventSubmitter eventSubmitter, String flowGroup, String flowName,
-      String flowExecutionId, String jobName, IssueSeverity severity,
-      String summary, String details) {
+      String flowExecutionId, String jobName, IssueSeverity severity, String summary, String details) {
     try {
       Issue issue = Issue.builder()
           .time(ZonedDateTime.now(ZoneOffset.UTC))
@@ -139,9 +109,6 @@ public final class ServiceLayerIssueEmitter {
       eventBuilder.addMetadata("issueSource", "service-layer");
 
       eventSubmitter.submit(eventBuilder);
-
-      log.debug("Emitted service-layer issue: code={}, severity={}, jobName={}, summary={}",
-          issue.getCode(), severity, jobName, summary);
     } catch (Exception e) {
       log.error("Failed to emit service-layer issue: summary={}", summary, e);
     }
