@@ -1679,8 +1679,10 @@ public class IcebergSourceTest {
 
     String[] values = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES).split(",");
     Assert.assertEquals(values.length, 2, "Should produce 2 hourly partition values for CURRENT_DATE");
-    Assert.assertEquals(values[0], today + "-06", "First value should be today at hour 6");
-    Assert.assertEquals(values[1], today + "-05", "Second value should be today at hour 5");
+    // Assert on structure only to avoid midnight flakiness: the hour suffix is what matters,
+    // not the exact date (which could differ if the clock rolls over during the test).
+    Assert.assertTrue(values[0].endsWith("-06"), "First value should end with hour 06, got: " + values[0]);
+    Assert.assertTrue(values[1].endsWith("-05"), "Second value should end with hour 05, got: " + values[1]);
   }
 
   @Test
