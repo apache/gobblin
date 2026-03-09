@@ -27,8 +27,11 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
+import io.temporal.failure.ApplicationFailure;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.hdfs.protocol.DSQuotaExceededException;
+import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
 
 import com.google.common.collect.Lists;
 import io.temporal.activity.Activity;
@@ -91,7 +94,16 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobState.getProperties());
       troubleshooter.start();
       return execute(workUnits, wu, jobState, fs, troubleshooter.getIssueRepository(), jobState.getProperties());
-    } catch (IOException | InterruptedException e) {
+    } catch (IOException e) {
+      Throwable cause = e.getCause();
+      if (cause instanceof DSQuotaExceededException || cause instanceof NSQuotaExceededException) {
+        String errMsg = String.format("%s - failed due to quota exceeded (%s): %s",
+            correlator, cause.getClass().getSimpleName(), cause.getMessage());
+        log.error(errMsg, e);
+        throw ApplicationFailure.newNonRetryableFailure(errMsg, cause.getClass().getSimpleName(), cause);
+      }
+      throw new RuntimeException(e);
+    } catch (InterruptedException e) {
       throw new RuntimeException(e);
     } finally {
       Help.finalizeTroubleshooting(troubleshooter, eventSubmitter, log, correlator);

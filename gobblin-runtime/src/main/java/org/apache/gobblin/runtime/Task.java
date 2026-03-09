@@ -136,6 +136,8 @@ public class Task implements TaskIFace {
   private static final String TASK_STATE = "taskState";
   private static final String FAILED_TASK_EVENT = "failedTask";
 
+  private volatile Throwable taskFailureException;
+
   private final String jobId;
   private final String taskId;
   private final String taskKey;
@@ -617,6 +619,7 @@ public class Task implements TaskIFace {
 
   protected void failTask(Throwable t) {
     Throwable cleanedException = ExceptionUtils.removeEmptyWrappers(t);
+    this.taskFailureException = cleanedException;
 
     LOG.error(String.format("Task %s failed", this.taskId), cleanedException);
     this.taskState.setWorkingState(WorkUnitState.WorkingState.FAILED);
@@ -632,6 +635,10 @@ public class Task implements TaskIFace {
       failureEvent.addAdditionalMetadata(this.taskEventMetadataGenerator.getMetadata(this.taskState, failureEvent.getName()));
       failureEvent.submit(taskContext.getTaskMetrics().getMetricContext());
     }
+  }
+
+  public Throwable getTaskFailureException() {
+    return taskFailureException;
   }
 
   /**
