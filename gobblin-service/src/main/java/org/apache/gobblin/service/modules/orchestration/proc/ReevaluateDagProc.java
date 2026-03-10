@@ -37,6 +37,7 @@ import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatus;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 
 /**
@@ -65,7 +66,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // has cleaned up the Dag, yet did not complete the lease before this current one acquired its own
       log.error("DagNode or its job status not found for a Reevaluate DagAction with dag node id {}", this.dagNodeId);
       ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(),
-          this.dagNodeId != null ? this.dagNodeId.getJobName() : "unknown",
+          this.dagNodeId != null ? this.dagNodeId.getJobName() : JobStatusRetriever.NA_KEY,
           IssueSeverity.ERROR, "DagNode or its job status not found for reevaluate action with dag node id " + this.dagNodeId);
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       return;
