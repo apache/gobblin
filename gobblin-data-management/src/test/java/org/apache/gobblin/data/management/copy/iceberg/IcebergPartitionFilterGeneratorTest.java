@@ -51,6 +51,9 @@ public class IcebergPartitionFilterGeneratorTest {
     Assert.assertEquals(result.getPartitionValues(),
         Arrays.asList("2025-04-03", "2025-04-02", "2025-04-01"),
         "Daily format should produce plain date values, most-recent first");
+    // forDays uses startsWith so "2025-04-03" matches all hours of that day at the catalogue level
+    Assert.assertEquals(result.getFilterExpression().op().toString(), "OR",
+        "Three daily values should produce an OR of startsWith predicates");
     Assert.assertNotNull(result.getFilterExpression(), "Filter expression must not be null");
   }
 
@@ -224,7 +227,57 @@ public class IcebergPartitionFilterGeneratorTest {
   }
 
   // ---------------------------------------------------------------------------
-  // buildOrExpression — raw expression builder
+  // buildStartsWithOrExpression — prefix expression builder (used by forDays)
+  // ---------------------------------------------------------------------------
+
+  @Test
+  public void testBuildStartsWithOrExpressionEmptyListReturnsAlwaysFalse() {
+    Expression expr = IcebergPartitionFilterGenerator.buildStartsWithOrExpression(
+        PARTITION_COL, Collections.emptyList());
+    Assert.assertSame(expr, Expressions.alwaysFalse(),
+        "Empty values should produce alwaysFalse() expression");
+  }
+
+  @Test
+  public void testBuildStartsWithOrExpressionSingleValue() {
+    Expression expr = IcebergPartitionFilterGenerator.buildStartsWithOrExpression(
+        PARTITION_COL, Collections.singletonList("2025-04-01"));
+    Assert.assertNotNull(expr);
+    // Single value → startsWith(...) — no OR wrapping
+    Assert.assertEquals(expr.op().toString(), "STARTS_WITH");
+  }
+
+  @Test
+  public void testBuildStartsWithOrExpressionMultipleValues() {
+    List<String> values = Arrays.asList("2025-04-03", "2025-04-02", "2025-04-01");
+    Expression expr = IcebergPartitionFilterGenerator.buildStartsWithOrExpression(PARTITION_COL, values);
+    Assert.assertNotNull(expr);
+    // Three values → or(or(startsWith,startsWith),startsWith) — top-level op is "OR"
+    Assert.assertEquals(expr.op().toString(), "OR");
+  }
+
+  @Test
+  public void testForDaysExpressionUsesStartsWith() {
+    // forDays must use startsWith so "2025-04-03" matches "2025-04-03-00".."2025-04-03-23"
+    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+    FilterResult result = IcebergPartitionFilterGenerator.forDays(
+        PARTITION_COL, LocalDateTime.of(2025, 4, 1, 0, 0), 1, fmt);
+    Assert.assertEquals(result.getFilterExpression().op().toString(), "STARTS_WITH",
+        "Single-day forDays should produce a startsWith expression, not equals");
+  }
+
+  @Test
+  public void testForHoursExpressionUsesEqual() {
+    // forHours must use equal for precise clock-hour matching
+    DateTimeFormatter fmt = DateTimeFormatter.ofPattern("yyyy-MM-dd-HH");
+    FilterResult result = IcebergPartitionFilterGenerator.forHours(
+        PARTITION_COL, LocalDateTime.of(2025, 4, 1, 5, 0), 1, fmt);
+    Assert.assertEquals(result.getFilterExpression().op().toString(), "EQ",
+        "Single-hour forHours should produce an equals expression");
+  }
+
+  // ---------------------------------------------------------------------------
+  // buildOrExpression — raw expression builder (exact equality, used by forHours)
   // ---------------------------------------------------------------------------
 
   @Test
