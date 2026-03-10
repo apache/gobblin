@@ -151,7 +151,7 @@ public class DagProcUtils {
           jobFailedTimer.stop(jobMetadata);
         }
       }
-      ServiceLayerIssueEmitter.emitJobIssue(DagProc.eventSubmitter, dagId, DagUtils.getJobName(dagNode),
+      OrchestratorIssueEmitter.emitJobIssue(DagProc.eventSubmitter, dagId, DagUtils.getJobName(dagNode),
           IssueSeverity.ERROR, message + " due to " + e.getMessage(),
           ExceptionUtils.getStackTrace(e));
       try {

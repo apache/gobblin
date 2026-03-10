@@ -60,7 +60,7 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
       // this should never happen; a job for which DEADLINE_ENFORCEMENT dag action is created must have a dag node in store
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       log.error("Dag node {} not found for EnforceJobStartDeadlineDagProc", getDagNodeId());
-      ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), getDagNodeId().getJobName(),
+      OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), getDagNodeId().getJobName(),
           IssueSeverity.ERROR, "Dag node not found for EnforceJobStartDeadlineDagProc: " + getDagNodeId());
       return;
     }
@@ -71,7 +71,7 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
     if (!jobStatus.isPresent()) {
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       log.error("Some job status should be present for dag node {} that this EnforceJobStartDeadlineDagProc belongs.", getDagNodeId());
-      ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), getDagNodeId().getJobName(),
+      OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), getDagNodeId().getJobName(),
           IssueSeverity.ERROR, "Job status missing for EnforceJobStartDeadlineDagProc: " + getDagNodeId());
       return;
     }
@@ -86,7 +86,7 @@ public class EnforceJobStartDeadlineDagProc extends DeadlineEnforcementDagProc {
       DagProcUtils.cancelDagNode(dagNode, dagManagementStateStore);
       dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_START_DEADLINE_EXCEEDED);
       dag.setMessage("Flow killed because no update received for " + timeOutForJobStart + " ms after orchestration");
-      ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), DagUtils.getJobName(dagNode),
+      OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), DagUtils.getJobName(dagNode),
           IssueSeverity.ERROR, "Job exceeded the job start deadline of " + timeOutForJobStart
               + " ms after orchestration. Job: " + DagUtils.getJobName(dagNode));
     }

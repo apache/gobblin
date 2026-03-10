@@ -65,7 +65,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // one of the reason this could arise is when the MALA leasing doesn't work cleanly and another DagProc::process
       // has cleaned up the Dag, yet did not complete the lease before this current one acquired its own
       log.error("DagNode or its job status not found for a Reevaluate DagAction with dag node id {}", this.dagNodeId);
-      ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(),
+      OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(),
           this.dagNodeId != null ? this.dagNodeId.getJobName() : JobStatusRetriever.NA_KEY,
           IssueSeverity.ERROR, "DagNode or its job status not found for reevaluate action with dag node id " + this.dagNodeId);
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
@@ -95,7 +95,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
               + "created only for finished status - %s. This may happen if reevaluate dag action launched reevaluate dag "
               + "proc before job status is updated in the store in KafkaJobStatusMonitor", dagNodeId, executionStatus,
           FlowStatusGenerator.FINISHED_STATUSES);
-      ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), this.dagNodeId.getJobName(),
+      OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), this.dagNodeId.getJobName(),
           IssueSeverity.ERROR, message);
       throw new RuntimeException(message);
     }
@@ -167,7 +167,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dag.setMessage("Flow failed because job " + jobName + " failed");
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_FAILED);
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorFailed(dagNode);
-        ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), jobName,
+        OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), jobName,
             IssueSeverity.ERROR, "Flow failed because job " + jobName + " failed");
         break;
       case CANCELLED:

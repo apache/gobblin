@@ -317,7 +317,7 @@ public class ReevaluateDagProcTest {
     doReturn(new ImmutablePair<>(Optional.empty(), Optional.empty()))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
 
-    try (MockedStatic<ServiceLayerIssueEmitter> emitterMock = Mockito.mockStatic(ServiceLayerIssueEmitter.class)) {
+    try (MockedStatic<OrchestratorIssueEmitter> emitterMock = Mockito.mockStatic(OrchestratorIssueEmitter.class)) {
       ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(
           new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
               DagActionStore.DagActionType.REEVALUATE), null,
@@ -325,7 +325,7 @@ public class ReevaluateDagProcTest {
       reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
       // Verify that a service-layer issue was emitted for dag node not found
-      emitterMock.verify(() -> ServiceLayerIssueEmitter.emitJobIssue(
+      emitterMock.verify(() -> OrchestratorIssueEmitter.emitJobIssue(
           any(), any(), anyString(), eq(IssueSeverity.ERROR), anyString()));
     }
   }

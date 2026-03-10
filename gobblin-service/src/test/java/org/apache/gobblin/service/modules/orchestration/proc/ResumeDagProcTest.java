@@ -82,14 +82,14 @@ public class ResumeDagProcTest {
     String flowName = "fn-missing";
     doReturn(java.util.Optional.empty()).when(dagManagementStateStore).getFailedDag(any());
 
-    try (MockedStatic<ServiceLayerIssueEmitter> emitterMock = Mockito.mockStatic(ServiceLayerIssueEmitter.class)) {
+    try (MockedStatic<OrchestratorIssueEmitter> emitterMock = Mockito.mockStatic(OrchestratorIssueEmitter.class)) {
       ResumeDagProc resumeDagProc = new ResumeDagProc(new ResumeDagTask(new DagActionStore.DagAction(flowGroup, flowName,
           flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.RESUME),
           null, this.dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
       resumeDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
 
       // Verify that a service-layer issue was emitted for failed dag not found
-      emitterMock.verify(() -> ServiceLayerIssueEmitter.emitFlowIssue(
+      emitterMock.verify(() -> OrchestratorIssueEmitter.emitFlowIssue(
           any(), any(Dag.DagId.class), eq(IssueSeverity.ERROR), anyString()));
     }
   }

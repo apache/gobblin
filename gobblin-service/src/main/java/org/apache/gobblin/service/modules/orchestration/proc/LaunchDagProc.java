@@ -75,7 +75,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       }
       return dag;
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException | IOException e) {
-      ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
+      OrchestratorIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
           "Flow launch initialization failed: " + e.getClass().getSimpleName() + " - " + e.getMessage(),
           ExceptionUtils.getStackTrace(e));
       throw new RuntimeException(e);
@@ -87,7 +87,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     if (!dag.isPresent()) {
       log.warn("Dag with id " + getDagId() + " could not be compiled.");
-      ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
+      OrchestratorIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
           "DAG could not be compiled for " + getDagId());
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
     } else {

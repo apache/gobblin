@@ -148,7 +148,7 @@ public class EnforceDeadlineDagProcsTest {
     dagManagementStateStore.addDag(dag);
     dagManagementStateStore.addDagAction(dagAction);
 
-    try (MockedStatic<ServiceLayerIssueEmitter> emitterMock = Mockito.mockStatic(ServiceLayerIssueEmitter.class)) {
+    try (MockedStatic<OrchestratorIssueEmitter> emitterMock = Mockito.mockStatic(OrchestratorIssueEmitter.class)) {
       EnforceJobStartDeadlineDagProc enforceJobStartDeadlineDagProc = new EnforceJobStartDeadlineDagProc(
           new EnforceJobStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
               "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null,
@@ -156,7 +156,7 @@ public class EnforceDeadlineDagProcsTest {
       enforceJobStartDeadlineDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
       // Verify that a service-layer issue was emitted for job start deadline exceeded
-      emitterMock.verify(() -> ServiceLayerIssueEmitter.emitJobIssue(
+      emitterMock.verify(() -> OrchestratorIssueEmitter.emitJobIssue(
           any(EventSubmitter.class), any(Dag.DagId.class), anyString(), eq(IssueSeverity.ERROR), anyString()));
     }
   }

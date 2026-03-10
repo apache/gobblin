@@ -61,7 +61,7 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     if (!dag.isPresent()) {
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       log.error("Did not find Dag with id {}, it might be already cancelled/finished and thus cleaned up from the store.", getDagId());
-      ServiceLayerIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.WARN,
+      OrchestratorIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.WARN,
           "DAG not found for kill request. It might be already cancelled/finished: " + getDagId());
       return;
     }
@@ -76,7 +76,7 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       } else {
         dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
         log.error("Did not find Dag node with id {}, it might be already cancelled/finished and thus cleaned up from the store.", getDagNodeId());
-        ServiceLayerIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), getDagNodeId().getJobName(),
+        OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), getDagNodeId().getJobName(),
             IssueSeverity.WARN, "DagNode not found for kill request. It might be already cancelled/finished: " + getDagNodeId());
       }
     } else {

@@ -43,12 +43,12 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
  * Thread-safe: no shared mutable state; flow/job context passed explicitly to prevent cross-flow contamination.
  */
 @Slf4j
-public final class ServiceLayerIssueEmitter {
+public final class OrchestratorIssueEmitter {
 
   private static final int HASH_LENGTH = 6;
   private static final String HASH_PREFIX = "S";
 
-  private ServiceLayerIssueEmitter() {
+  private OrchestratorIssueEmitter() {
   }
 
   /** Emit a flow-level issue (jobName = "NA") for errors before job creation or affecting the entire flow. */
@@ -96,7 +96,7 @@ public final class ServiceLayerIssueEmitter {
           .code(generateIssueCode(summary))
           .summary(summary)
           .details(details != null ? details : "")
-          .sourceClass(ServiceLayerIssueEmitter.class.getName())
+          .sourceClass(OrchestratorIssueEmitter.class.getName())
           .properties(Collections.emptyMap())
           .build();
 

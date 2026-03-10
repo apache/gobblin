@@ -32,28 +32,28 @@ import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 
 /**
- * Tests for {@link ServiceLayerIssueEmitter} issue emission.
+ * Tests for {@link OrchestratorIssueEmitter} issue emission.
  */
 public class DagProcServiceLayerIssueIntegrationTest {
 
   @Test
   public void testGenerateIssueCodeIsDeterministic() {
-    String code1 = ServiceLayerIssueEmitter.generateIssueCode("Flow failed because job X failed");
-    String code2 = ServiceLayerIssueEmitter.generateIssueCode("Flow failed because job X failed");
+    String code1 = OrchestratorIssueEmitter.generateIssueCode("Flow failed because job X failed");
+    String code2 = OrchestratorIssueEmitter.generateIssueCode("Flow failed because job X failed");
     Assert.assertEquals(code1, code2, "Same summary should produce same issue code");
   }
 
   @Test
   public void testGenerateIssueCodeHasCorrectPrefix() {
-    String code = ServiceLayerIssueEmitter.generateIssueCode("test summary");
+    String code = OrchestratorIssueEmitter.generateIssueCode("test summary");
     Assert.assertTrue(code.startsWith("S"), "Issue code should start with S prefix");
     Assert.assertEquals(code.length(), 7, "Issue code should be S + 6 hex chars");
   }
 
   @Test
   public void testDifferentSummariesProduceDifferentCodes() {
-    String code1 = ServiceLayerIssueEmitter.generateIssueCode("Flow failed because job X failed");
-    String code2 = ServiceLayerIssueEmitter.generateIssueCode("DAG not found for kill request");
+    String code1 = OrchestratorIssueEmitter.generateIssueCode("Flow failed because job X failed");
+    String code2 = OrchestratorIssueEmitter.generateIssueCode("DAG not found for kill request");
     Assert.assertNotEquals(code1, code2, "Different summaries should produce different codes");
   }
 
@@ -64,7 +64,7 @@ public class DagProcServiceLayerIssueIntegrationTest {
 
     Dag.DagId dagId = new Dag.DagId("test-group", "test-flow", 12345L);
 
-    ServiceLayerIssueEmitter.emitFlowIssue(spySubmitter, dagId, IssueSeverity.ERROR, "Test flow issue");
+    OrchestratorIssueEmitter.emitFlowIssue(spySubmitter, dagId, IssueSeverity.ERROR, "Test flow issue");
 
     ArgumentCaptor<GobblinEventBuilder> captor = ArgumentCaptor.forClass(GobblinEventBuilder.class);
     Mockito.verify(spySubmitter).submit(captor.capture());
@@ -84,7 +84,7 @@ public class DagProcServiceLayerIssueIntegrationTest {
 
     Dag.DagId dagId = new Dag.DagId("test-group", "test-flow", 12345L);
 
-    ServiceLayerIssueEmitter.emitJobIssue(spySubmitter, dagId, "my-job",
+    OrchestratorIssueEmitter.emitJobIssue(spySubmitter, dagId, "my-job",
         IssueSeverity.ERROR, "Job submission failed");
 
     ArgumentCaptor<GobblinEventBuilder> captor = ArgumentCaptor.forClass(GobblinEventBuilder.class);
@@ -101,7 +101,7 @@ public class DagProcServiceLayerIssueIntegrationTest {
     EventSubmitter spySubmitter = Mockito.spy(
         new EventSubmitter.Builder(RootMetricContext.get(), "org.apache.gobblin.service").build());
 
-    ServiceLayerIssueEmitter.emitFlowIssue(spySubmitter, "fg", "fn", "99999",
+    OrchestratorIssueEmitter.emitFlowIssue(spySubmitter, "fg", "fn", "99999",
         IssueSeverity.WARN, "Concurrent execution blocked");
 
     ArgumentCaptor<GobblinEventBuilder> captor = ArgumentCaptor.forClass(GobblinEventBuilder.class);
@@ -116,7 +116,7 @@ public class DagProcServiceLayerIssueIntegrationTest {
   @Test
   public void testEmitDoesNotThrowOnNullEventSubmitter() {
     // Should not throw - emit catches all exceptions internally
-    ServiceLayerIssueEmitter.emitFlowIssue(null, "fg", "fn", "123",
+    OrchestratorIssueEmitter.emitFlowIssue(null, "fg", "fn", "123",
         IssueSeverity.ERROR, "test");
   }
 }
