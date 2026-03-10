@@ -107,7 +107,7 @@ public class DagProcServiceLayerIssueIntegrationTest {
 
     @Override
     protected void act(DagManagementStateStore dagManagementStateStore,
-        org.apache.commons.lang3.tuple.Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> state,
+        Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> state,
         DagProcessingEngineMetrics metrics) throws IOException {
       // Log error before throwing exception
       log.error("Test error in act() for flow integration test", new RuntimeException("Act failed"));
@@ -174,7 +174,7 @@ public class DagProcServiceLayerIssueIntegrationTest {
 
     // Mock successful initialize for second proc
     when(mockDagManagementStateStore.getDagNodeWithJobStatus(any()))
-        .thenReturn(org.apache.commons.lang3.tuple.Pair.of(Optional.empty(), Optional.empty()));
+        .thenReturn(Pair.of(Optional.empty(), Optional.empty()));
 
     try {
       dagProc2.process(mockDagManagementStateStore, mockMetrics);
@@ -204,19 +204,19 @@ public class DagProcServiceLayerIssueIntegrationTest {
 
     ReevaluateDagProc dagProc = new ReevaluateDagProc(task, config) {
       @Override
-      protected org.apache.commons.lang3.tuple.Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(
+      protected Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(
           DagManagementStateStore store) throws IOException {
         // Capture MDC values during execution
         capturedFlowGroup[0] = MDC.get(ConfigurationKeys.FLOW_GROUP_KEY);
         capturedFlowName[0] = MDC.get(ConfigurationKeys.FLOW_NAME_KEY);
         capturedFlowExecutionId[0] = MDC.get(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
         capturedJobName[0] = MDC.get(ConfigurationKeys.JOB_NAME_KEY);
-        return org.apache.commons.lang3.tuple.Pair.of(Optional.empty(), Optional.empty());
+        return Pair.of(Optional.empty(), Optional.empty());
       }
     };
 
     when(mockDagManagementStateStore.getDagNodeWithJobStatus(any()))
-        .thenReturn(org.apache.commons.lang3.tuple.Pair.of(Optional.empty(), Optional.empty()));
+        .thenReturn(Pair.of(Optional.empty(), Optional.empty()));
 
     dagProc.process(mockDagManagementStateStore, mockMetrics);
 
