@@ -23,7 +23,6 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
-import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;

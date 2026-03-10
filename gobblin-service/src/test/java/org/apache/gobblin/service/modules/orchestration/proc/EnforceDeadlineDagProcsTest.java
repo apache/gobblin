@@ -53,7 +53,6 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
 import org.apache.gobblin.metrics.event.EventSubmitter;
-import org.apache.gobblin.service.modules.flowgraph.Dag;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
