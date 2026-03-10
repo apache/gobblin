@@ -24,6 +24,8 @@ import java.util.concurrent.TimeUnit;
 import org.apache.commons.lang3.tuple.Pair;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
+
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.testng.annotations.AfterClass;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -50,7 +52,12 @@ import org.apache.gobblin.service.modules.orchestration.task.EnforceJobStartDead
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.service.modules.flowgraph.Dag;
+
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
@@ -114,6 +121,45 @@ public class EnforceDeadlineDagProcsTest {
     Mockito.verify(specProducers.get(0), Mockito.times(1)).cancelJob(any(), any());
     specProducers.stream().skip(expectedNumOfDeleteDagNodeStates) // separately verified `specProducers.get(0)`
         .forEach(sp -> Mockito.verify(sp, Mockito.never()).cancelJob(any(), any()));
+  }
+
+  @Test
+  public void enforceJobStartDeadlineEmitsIssue() throws Exception {
+    String flowGroup = "fg";
+    String flowName = "fn";
+    long flowExecutionId = System.currentTimeMillis();
+    MySqlDagManagementStateStore dagManagementStateStore = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(this.testMetastoreDatabase));
+    LaunchDagProcTest.mockDMSSCommonBehavior(dagManagementStateStore);
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
+        DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId, DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(),
+        5, "user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME_UNIT, ConfigValueFactory.fromAnyRef(TimeUnit.MILLISECONDS.name()))
+            .withValue(ConfigurationKeys.GOBBLIN_JOB_START_DEADLINE_TIME, ConfigValueFactory.fromAnyRef(1L))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    JobStatus jobStatus = JobStatus.builder().flowName(flowName).flowGroup(flowGroup).jobGroup(flowGroup).jobName("job0").flowExecutionId(flowExecutionId).
+        message("Test message").eventName(ExecutionStatus.ORCHESTRATED.name()).startTime(flowExecutionId).shouldRetry(false).orchestratedTime(flowExecutionId).build();
+
+    doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
+    doReturn(Pair.of(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+
+    dagManagementStateStore.addDag(dag);
+    dagManagementStateStore.addDagAction(dagAction);
+
+    try (MockedStatic<ServiceLayerIssueEmitter> emitterMock = Mockito.mockStatic(ServiceLayerIssueEmitter.class)) {
+      EnforceJobStartDeadlineDagProc enforceJobStartDeadlineDagProc = new EnforceJobStartDeadlineDagProc(
+          new EnforceJobStartDeadlineDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
+              "job0", DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE), null,
+              dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+      enforceJobStartDeadlineDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
+
+      // Verify that a service-layer issue was emitted for job start deadline exceeded
+      emitterMock.verify(() -> ServiceLayerIssueEmitter.emitJobIssue(
+          any(EventSubmitter.class), any(Dag.DagId.class), anyString(), eq(IssueSeverity.ERROR), anyString()));
+    }
   }
 
   /*

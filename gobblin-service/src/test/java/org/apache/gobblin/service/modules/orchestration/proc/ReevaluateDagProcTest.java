@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.apache.gobblin.metrics.event.EventSubmitter;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -53,8 +54,11 @@ import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
@@ -306,6 +310,25 @@ public class ReevaluateDagProcTest {
     Mockito.verify(dagManagementStateStore, Mockito.never()).deleteDag(any());
     Mockito.verify(dagManagementStateStore, Mockito.never()).addJobDagAction(any(), any(), anyLong(), any(),
         eq(DagActionStore.DagActionType.REEVALUATE));
+  }
+
+  @Test
+  public void testDagNodeNotFoundEmitsIssue() throws Exception {
+    String flowName = "fn-missing";
+    doReturn(new ImmutablePair<>(Optional.empty(), Optional.empty()))
+        .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+
+    try (MockedStatic<ServiceLayerIssueEmitter> emitterMock = Mockito.mockStatic(ServiceLayerIssueEmitter.class)) {
+      ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(
+          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
+              DagActionStore.DagActionType.REEVALUATE), null,
+          dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+      reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
+
+      // Verify that a service-layer issue was emitted for dag node not found
+      emitterMock.verify(() -> ServiceLayerIssueEmitter.emitJobIssue(
+          any(), any(), anyString(), eq(IssueSeverity.ERROR), anyString()));
+    }
   }
 
   public static List<SpecProducer<Spec>> getDagSpecProducers(Dag<JobExecutionPlan> dag) {

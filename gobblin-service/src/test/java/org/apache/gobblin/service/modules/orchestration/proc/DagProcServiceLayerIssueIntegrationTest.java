@@ -17,232 +17,106 @@
 
 package org.apache.gobblin.service.modules.orchestration.proc;
 
-import java.io.IOException;
-import java.util.Optional;
-
-import org.apache.commons.lang3.tuple.Pair;
 import org.testng.Assert;
-import org.testng.annotations.AfterMethod;
-import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
+
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.slf4j.MDC;
 
-import com.typesafe.config.Config;
-import com.typesafe.config.ConfigFactory;
-
-import org.apache.gobblin.configuration.ConfigurationKeys;
-import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
+import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.metrics.event.EventSubmitter;
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
-import org.apache.gobblin.service.modules.orchestration.DagActionStore;
-import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
-import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
-import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
-import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
-import org.apache.gobblin.service.monitoring.JobStatus;
-
-import static org.mockito.Mockito.*;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 
 /**
- * Integration tests for service-layer issue capture in DagProc.
- *
- * <p>These tests verify that:
- * <ul>
- *   <li>Service-layer exceptions are captured as Issues</li>
- *   <li>Issues are correctly attributed to the right flow/job</li>
- *   <li>MDC is properly cleaned up between executions</li>
- *   <li>Feature flag correctly enables/disables troubleshooter</li>
- * </ul>
+ * Tests for {@link ServiceLayerIssueEmitter} issue emission.
  */
 public class DagProcServiceLayerIssueIntegrationTest {
 
-  private static final Logger log = LoggerFactory.getLogger(DagProcServiceLayerIssueIntegrationTest.class);
-
-  private DagManagementStateStore mockDagManagementStateStore;
-  private DagProcessingEngineMetrics mockMetrics;
-  private Config config;
-
-  @BeforeMethod
-  public void setUp() {
-    mockDagManagementStateStore = Mockito.mock(DagManagementStateStore.class);
-    mockMetrics = Mockito.mock(DagProcessingEngineMetrics.class);
-
-    config = ConfigFactory.empty();
-
-    MDC.clear();
-  }
-
-  @AfterMethod
-  public void tearDown() {
-    MDC.clear();
-  }
-
-  /**
-   * Custom DagProc implementation for testing that throws an exception in initialize().
-   */
-  private static class TestFailingInitDagProc extends ReevaluateDagProc {
-    public TestFailingInitDagProc(ReevaluateDagTask task, Config config) {
-      super(task, config);
-    }
-
-    @Override
-    protected Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(
-        DagManagementStateStore dagManagementStateStore) throws IOException {
-      // Log error before throwing exception
-      log.error("Test error in initialize() for flow integration test", new RuntimeException("Initialize failed"));
-      throw new IOException("Initialization failed for testing");
-    }
-  }
-
-  /**
-   * Custom DagProc implementation for testing that throws an exception in act().
-   */
-  private static class TestFailingActDagProc extends ReevaluateDagProc {
-    public TestFailingActDagProc(ReevaluateDagTask task, Config config) {
-      super(task, config);
-    }
-
-    @Override
-    protected void act(DagManagementStateStore dagManagementStateStore,
-        Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> state,
-        DagProcessingEngineMetrics metrics) throws IOException {
-      // Log error before throwing exception
-      log.error("Test error in act() for flow integration test", new RuntimeException("Act failed"));
-      throw new IOException("Act failed for testing");
-    }
+  @Test
+  public void testGenerateIssueCodeIsDeterministic() {
+    String code1 = ServiceLayerIssueEmitter.generateIssueCode("Flow failed because job X failed");
+    String code2 = ServiceLayerIssueEmitter.generateIssueCode("Flow failed because job X failed");
+    Assert.assertEquals(code1, code2, "Same summary should produce same issue code");
   }
 
   @Test
-  public void testServiceLayerExceptionCapturedInInitialize() throws Exception {
-    // Create ReevaluateDagTask
-    DagActionStore.DagAction dagAction = DagActionStore.DagAction.forFlow(
-        "test-group", "test-flow", 123456L, DagActionStore.DagActionType.REEVALUATE);
-    dagAction = new DagActionStore.DagAction(
-        dagAction.getFlowGroup(),
-        dagAction.getFlowName(),
-        dagAction.getFlowExecutionId(),
-        "test-job",
-        dagAction.getDagActionType()
-    );
-    ReevaluateDagTask task = new ReevaluateDagTask(dagAction, null, mockDagManagementStateStore, mockMetrics);
-
-    // Create DagProc that will fail in initialize()
-    TestFailingInitDagProc dagProc = new TestFailingInitDagProc(task, config);
-
-    // Process should throw exception
-    try {
-      dagProc.process(mockDagManagementStateStore, mockMetrics);
-      Assert.fail("Expected IOException to be thrown");
-    } catch (IOException e) {
-      // Expected
-      Assert.assertTrue(e.getMessage().contains("Initialization failed"), "Exception message should match");
-    }
-
-    // Verify MDC is cleared
-    Assert.assertNull(MDC.get(ConfigurationKeys.FLOW_GROUP_KEY), "MDC should be cleared after processing");
+  public void testGenerateIssueCodeHasCorrectPrefix() {
+    String code = ServiceLayerIssueEmitter.generateIssueCode("test summary");
+    Assert.assertTrue(code.startsWith("S"), "Issue code should start with S prefix");
+    Assert.assertEquals(code.length(), 7, "Issue code should be S + 6 hex chars");
   }
 
   @Test
-  public void testMdcCleanedUpBetweenExecutions() throws Exception {
-    // Create first DagAction
-    DagActionStore.DagAction dagAction1 = new DagActionStore.DagAction(
-        "group-A", "flow-A", 111L, "job-A", DagActionStore.DagActionType.REEVALUATE);
-    ReevaluateDagTask task1 = new ReevaluateDagTask(dagAction1, null, mockDagManagementStateStore, mockMetrics);
-
-    // Create DagProc that will fail
-    TestFailingInitDagProc dagProc1 = new TestFailingInitDagProc(task1, config);
-
-    try {
-      dagProc1.process(mockDagManagementStateStore, mockMetrics);
-    } catch (IOException e) {
-      // Expected
-    }
-
-    // Verify MDC is cleared after first execution
-    Assert.assertNull(MDC.get(ConfigurationKeys.FLOW_GROUP_KEY), "MDC should be cleared after first execution");
-    Assert.assertNull(MDC.get(ConfigurationKeys.FLOW_NAME_KEY), "MDC should be cleared after first execution");
-
-    // Create second DagAction (different flow)
-    DagActionStore.DagAction dagAction2 = new DagActionStore.DagAction(
-        "group-B", "flow-B", 222L, "job-B", DagActionStore.DagActionType.REEVALUATE);
-    ReevaluateDagTask task2 = new ReevaluateDagTask(dagAction2, null, mockDagManagementStateStore, mockMetrics);
-
-    TestFailingActDagProc dagProc2 = new TestFailingActDagProc(task2, config);
-
-    // Mock successful initialize for second proc
-    when(mockDagManagementStateStore.getDagNodeWithJobStatus(any()))
-        .thenReturn(Pair.of(Optional.empty(), Optional.empty()));
-
-    try {
-      dagProc2.process(mockDagManagementStateStore, mockMetrics);
-    } catch (IOException e) {
-      // Expected
-    }
-
-    // Verify MDC is cleared after second execution
-    Assert.assertNull(MDC.get(ConfigurationKeys.FLOW_GROUP_KEY), "MDC should be cleared after second execution");
-
-    // This test verifies that Flow B's errors won't be attributed to Flow A
-    // because MDC is properly cleaned up between executions
+  public void testDifferentSummariesProduceDifferentCodes() {
+    String code1 = ServiceLayerIssueEmitter.generateIssueCode("Flow failed because job X failed");
+    String code2 = ServiceLayerIssueEmitter.generateIssueCode("DAG not found for kill request");
+    Assert.assertNotEquals(code1, code2, "Different summaries should produce different codes");
   }
 
   @Test
-  public void testMdcContextSetCorrectly() throws Exception {
-    // Create a special DagProc that captures MDC values during execution
-    final String[] capturedFlowGroup = new String[1];
-    final String[] capturedFlowName = new String[1];
-    final String[] capturedFlowExecutionId = new String[1];
-    final String[] capturedJobName = new String[1];
+  public void testEmitFlowIssueWithDagId() {
+    EventSubmitter spySubmitter = Mockito.spy(
+        new EventSubmitter.Builder(RootMetricContext.get(), "org.apache.gobblin.service").build());
 
-    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(
-        "test-group-123", "test-flow-456", 789L, "test-job-abc",
-        DagActionStore.DagActionType.REEVALUATE);
-    ReevaluateDagTask task = new ReevaluateDagTask(dagAction, null, mockDagManagementStateStore, mockMetrics);
+    Dag.DagId dagId = new Dag.DagId("test-group", "test-flow", 12345L);
 
-    ReevaluateDagProc dagProc = new ReevaluateDagProc(task, config) {
-      @Override
-      protected Pair<Optional<Dag.DagNode<JobExecutionPlan>>, Optional<JobStatus>> initialize(
-          DagManagementStateStore store) throws IOException {
-        // Capture MDC values during execution
-        capturedFlowGroup[0] = MDC.get(ConfigurationKeys.FLOW_GROUP_KEY);
-        capturedFlowName[0] = MDC.get(ConfigurationKeys.FLOW_NAME_KEY);
-        capturedFlowExecutionId[0] = MDC.get(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
-        capturedJobName[0] = MDC.get(ConfigurationKeys.JOB_NAME_KEY);
-        return Pair.of(Optional.empty(), Optional.empty());
-      }
-    };
+    ServiceLayerIssueEmitter.emitFlowIssue(spySubmitter, dagId, IssueSeverity.ERROR, "Test flow issue");
 
-    when(mockDagManagementStateStore.getDagNodeWithJobStatus(any()))
-        .thenReturn(Pair.of(Optional.empty(), Optional.empty()));
+    ArgumentCaptor<GobblinEventBuilder> captor = ArgumentCaptor.forClass(GobblinEventBuilder.class);
+    Mockito.verify(spySubmitter).submit(captor.capture());
 
-    dagProc.process(mockDagManagementStateStore, mockMetrics);
-
-    // Verify MDC was set correctly during execution
-    Assert.assertEquals(capturedFlowGroup[0], "test-group-123", "Flow group should match");
-    Assert.assertEquals(capturedFlowName[0], "test-flow-456", "Flow name should match");
-    Assert.assertEquals(capturedFlowExecutionId[0], "789", "Flow execution ID should match");
-    Assert.assertEquals(capturedJobName[0], "test-job-abc", "Job name should match");
-
-    // Verify MDC is cleared after execution
-    Assert.assertNull(MDC.get(ConfigurationKeys.FLOW_GROUP_KEY), "MDC should be cleared after execution");
+    GobblinEventBuilder captured = captor.getValue();
+    Assert.assertEquals(captured.getMetadata().get("flowGroup"), "test-group");
+    Assert.assertEquals(captured.getMetadata().get("flowName"), "test-flow");
+    Assert.assertEquals(captured.getMetadata().get("flowExecutionId"), "12345");
+    Assert.assertEquals(captured.getMetadata().get("jobName"), JobStatusRetriever.NA_KEY);
+    Assert.assertEquals(captured.getMetadata().get("issueSource"), "service-layer");
   }
 
   @Test
-  public void testContextIdFormatMatchesExecutorSide() {
-    // Verify context ID format is consistent with executor side
-    String flowGroup = "pipelines";
-    String flowName = "daily-etl";
-    String flowExecutionId = "1770226800011";
-    String jobName = "extract-job";
+  public void testEmitJobIssueWithDagId() {
+    EventSubmitter spySubmitter = Mockito.spy(
+        new EventSubmitter.Builder(RootMetricContext.get(), "org.apache.gobblin.service").build());
 
-    String contextId = TroubleshooterUtils.getContextIdForJob(
-        flowGroup, flowName, flowExecutionId, jobName);
+    Dag.DagId dagId = new Dag.DagId("test-group", "test-flow", 12345L);
 
-    // Should be: flowGroup:flowName:flowExecutionId:jobName
-    Assert.assertEquals(contextId, "pipelines:daily-etl:1770226800011:extract-job",
-        "Context ID format should match executor side");
+    ServiceLayerIssueEmitter.emitJobIssue(spySubmitter, dagId, "my-job",
+        IssueSeverity.ERROR, "Job submission failed");
+
+    ArgumentCaptor<GobblinEventBuilder> captor = ArgumentCaptor.forClass(GobblinEventBuilder.class);
+    Mockito.verify(spySubmitter).submit(captor.capture());
+
+    GobblinEventBuilder captured = captor.getValue();
+    Assert.assertEquals(captured.getMetadata().get("flowGroup"), "test-group");
+    Assert.assertEquals(captured.getMetadata().get("flowName"), "test-flow");
+    Assert.assertEquals(captured.getMetadata().get("jobName"), "my-job");
+  }
+
+  @Test
+  public void testEmitFlowIssueWithStringIds() {
+    EventSubmitter spySubmitter = Mockito.spy(
+        new EventSubmitter.Builder(RootMetricContext.get(), "org.apache.gobblin.service").build());
+
+    ServiceLayerIssueEmitter.emitFlowIssue(spySubmitter, "fg", "fn", "99999",
+        IssueSeverity.WARN, "Concurrent execution blocked");
+
+    ArgumentCaptor<GobblinEventBuilder> captor = ArgumentCaptor.forClass(GobblinEventBuilder.class);
+    Mockito.verify(spySubmitter).submit(captor.capture());
+
+    GobblinEventBuilder captured = captor.getValue();
+    Assert.assertEquals(captured.getMetadata().get("flowGroup"), "fg");
+    Assert.assertEquals(captured.getMetadata().get("flowName"), "fn");
+    Assert.assertEquals(captured.getMetadata().get("flowExecutionId"), "99999");
+  }
+
+  @Test
+  public void testEmitDoesNotThrowOnNullEventSubmitter() {
+    // Should not throw - emit catches all exceptions internally
+    ServiceLayerIssueEmitter.emitFlowIssue(null, "fg", "fn", "123",
+        IssueSeverity.ERROR, "test");
   }
 }
