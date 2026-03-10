@@ -30,6 +30,7 @@ import org.testng.annotations.Test;
 
 import com.google.common.collect.ImmutableList;
 
+import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
@@ -87,6 +88,7 @@ public abstract class JobStatusRetrieverTest {
     properties.setProperty(TimingEvent.FlowEventConstants.JOB_NAME_FIELD, jobName);
     if (!jobName.equals(JobStatusRetriever.NA_KEY)) {
       jobGroup = MY_JOB_GROUP;
+      properties.setProperty(ConfigurationKeys.GAAS_JOB_EXEC_ID_HASH, String.valueOf(JOB_EXECUTION_ID));
       properties.setProperty(TimingEvent.FlowEventConstants.JOB_EXECUTION_ID_FIELD, String.valueOf(JOB_EXECUTION_ID));
       properties.setProperty(TimingEvent.METADATA_MESSAGE, MESSAGE);
     } else {

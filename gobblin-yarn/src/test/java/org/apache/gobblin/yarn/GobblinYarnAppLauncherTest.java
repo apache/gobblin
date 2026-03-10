@@ -39,8 +39,11 @@ import org.apache.curator.framework.CuratorFramework;
 import org.apache.curator.test.TestingServer;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.yarn.api.records.ApplicationAttemptId;
+import org.apache.hadoop.yarn.api.records.ApplicationAttemptReport;
 import org.apache.hadoop.yarn.api.records.ApplicationId;
+import org.apache.hadoop.yarn.api.records.ApplicationReport;
 import org.apache.hadoop.yarn.api.records.ContainerId;
+import org.apache.hadoop.yarn.api.records.SignalContainerCommand;
 import org.apache.hadoop.yarn.api.records.YarnApplicationState;
 import org.apache.hadoop.yarn.client.api.YarnClient;
 import org.apache.hadoop.yarn.conf.YarnConfiguration;
@@ -89,7 +92,10 @@ import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
 import org.apache.gobblin.testing.AssertWithBackoff;
 import org.apache.gobblin.yarn.helix.HelixMessageSubTypes;
 
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 
@@ -493,6 +499,78 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     } finally {
       FileUtils.deleteDirectory(tmpTestDir);
     }
+  }
+
+  /**
+   * Test that {@link GobblinYarnAppLauncher#isApplicationCompleted(ApplicationReport)} returns true for
+   * FINISHED, FAILED, KILLED and false for RUNNING and NEW.
+   */
+  @Test
+  public void testIsApplicationCompleted() throws Exception {
+    ApplicationReport reportFinished = Mockito.mock(ApplicationReport.class);
+    when(reportFinished.getYarnApplicationState()).thenReturn(YarnApplicationState.FINISHED);
+    Assert.assertTrue(GobblinYarnAppLauncher.isApplicationCompleted(reportFinished));
+
+    ApplicationReport reportFailed = Mockito.mock(ApplicationReport.class);
+    when(reportFailed.getYarnApplicationState()).thenReturn(YarnApplicationState.FAILED);
+    Assert.assertTrue(GobblinYarnAppLauncher.isApplicationCompleted(reportFailed));
+
+    ApplicationReport reportKilled = Mockito.mock(ApplicationReport.class);
+    when(reportKilled.getYarnApplicationState()).thenReturn(YarnApplicationState.KILLED);
+    Assert.assertTrue(GobblinYarnAppLauncher.isApplicationCompleted(reportKilled));
+
+    ApplicationReport reportRunning = Mockito.mock(ApplicationReport.class);
+    when(reportRunning.getYarnApplicationState()).thenReturn(YarnApplicationState.RUNNING);
+    Assert.assertFalse(GobblinYarnAppLauncher.isApplicationCompleted(reportRunning));
+
+    ApplicationReport reportNew = Mockito.mock(ApplicationReport.class);
+    when(reportNew.getYarnApplicationState()).thenReturn(YarnApplicationState.NEW);
+    Assert.assertFalse(GobblinYarnAppLauncher.isApplicationCompleted(reportNew));
+  }
+
+  /**
+   * Test that when stop() triggers graceful shutdown, the launcher sends GRACEFUL_SHUTDOWN to the AM
+   * container and polls until terminal state. Uses a mock YarnClient and reflection to invoke
+   * signalGracefulShutdownAndWaitForTerminal().
+   */
+  @Test(dependsOnMethods = "testCreateHelixCluster")
+  public void testGracefulShutdownSendsSignalAndPolls() throws Exception {
+    Config gracefulConfig = this.config
+        .withValue(GobblinYarnConfigurationKeys.GRACEFUL_SHUTDOWN_WAIT_TIME_MINUTES_KEY, ConfigValueFactory.fromAnyRef(1))
+        .withValue(GobblinYarnConfigurationKeys.GRACEFUL_SHUTDOWN_POLL_INTERVAL_SECONDS_KEY, ConfigValueFactory.fromAnyRef(1));
+    GobblinYarnAppLauncher launcher = new GobblinYarnAppLauncher(gracefulConfig, clusterConf);
+    launcher.initializeYarnClients(gracefulConfig);
+
+    ApplicationId appId = ApplicationId.newInstance(0, 1);
+    ApplicationAttemptId attemptId = ApplicationAttemptId.newInstance(appId, 1);
+    ContainerId containerId = ContainerId.newInstance(attemptId, 0);
+
+    ApplicationReport appReport = Mockito.mock(ApplicationReport.class);
+    when(appReport.getApplicationId()).thenReturn(appId);
+    when(appReport.getCurrentApplicationAttemptId()).thenReturn(attemptId);
+    when(appReport.getYarnApplicationState()).thenReturn(YarnApplicationState.FINISHED);
+
+    ApplicationAttemptReport attemptReport = Mockito.mock(ApplicationAttemptReport.class);
+    when(attemptReport.getAMContainerId()).thenReturn(containerId);
+
+    YarnClient mockYarnClient = Mockito.mock(YarnClient.class);
+    when(mockYarnClient.getApplicationReport(any(ApplicationId.class))).thenReturn(appReport);
+    when(mockYarnClient.getApplicationAttemptReport(any(ApplicationAttemptId.class))).thenReturn(attemptReport);
+
+    Field yarnClientField = GobblinYarnAppLauncher.class.getDeclaredField("yarnClient");
+    yarnClientField.setAccessible(true);
+    yarnClientField.set(launcher, mockYarnClient);
+
+    Field applicationIdField = GobblinYarnAppLauncher.class.getDeclaredField("applicationId");
+    applicationIdField.setAccessible(true);
+    applicationIdField.set(launcher, com.google.common.base.Optional.of(appId));
+
+    launcher.signalGracefulShutdownAndWaitForTerminal();
+
+    verify(mockYarnClient, times(1)).signalToContainer(eq(containerId), eq(SignalContainerCommand.GRACEFUL_SHUTDOWN));
+    // getApplicationReport: once in getAmContainerId(), once in pollForApplicationCompletionUntil() when checking terminal state
+    verify(mockYarnClient, times(2)).getApplicationReport(appId);
+    verify(mockYarnClient, times(1)).getApplicationAttemptReport(attemptId);
   }
 
   @Test
