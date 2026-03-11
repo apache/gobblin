@@ -117,6 +117,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     if (jobStatus.isShouldRetry()) {
       log.info("Retrying job: {}, current attempts: {}, max attempts: {}",
           DagUtils.getFullyQualifiedJobName(dagNode), jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+      OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), DagUtils.getFullyQualifiedJobName(dagNode),
+          IssueSeverity.WARN, "Job " + DagUtils.getFullyQualifiedJobName(dagNode) + " is being retried. "
+              + "Attempt " + jobStatus.getCurrentAttempts() + " of " + jobStatus.getMaxAttempts());
       // todo - be careful when unsetting this, it is possible that this is set to FAILED because some other job in the
       // dag failed and is also not retryable. in that case if this job's retry passes, overall status of the dag can be
       // set to PASS, which would be incorrect.
