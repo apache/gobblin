@@ -33,6 +33,7 @@ import org.apache.hadoop.fs.Path;
 import com.google.common.collect.Lists;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.failure.ApplicationFailure;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -59,6 +60,7 @@ import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.temporal.ddm.util.NonRetryableExceptions;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -91,7 +93,17 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       troubleshooter = AutomaticTroubleshooterFactory.createForJob(jobState.getProperties());
       troubleshooter.start();
       return execute(workUnits, wu, jobState, fs, troubleshooter.getIssueRepository(), jobState.getProperties());
-    } catch (IOException | InterruptedException e) {
+    } catch (IOException e) {
+      Optional<Throwable> nonRetryable = NonRetryableExceptions.matchNonRetryable(e);
+      if (nonRetryable.isPresent()) {
+        Throwable cause = nonRetryable.get();
+        String errMsg = String.format("%s - non-retryable failure (%s): %s",
+            correlator, cause.getClass().getSimpleName(), cause.getMessage());
+        log.error(errMsg, e);
+        throw ApplicationFailure.newNonRetryableFailure(errMsg, cause.getClass().getSimpleName(), cause);
+      }
+      throw new RuntimeException(e);
+    } catch (InterruptedException e) {
       throw new RuntimeException(e);
     } finally {
       Help.finalizeTroubleshooting(troubleshooter, eventSubmitter, log, correlator);
