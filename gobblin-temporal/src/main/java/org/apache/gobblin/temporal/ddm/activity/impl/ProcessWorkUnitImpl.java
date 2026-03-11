@@ -94,7 +94,7 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       troubleshooter.start();
       return execute(workUnits, wu, jobState, fs, troubleshooter.getIssueRepository(), jobState.getProperties());
     } catch (IOException e) {
-      Optional<Throwable> nonRetryable = NonRetryableExceptions.matchNonRetryable(e.getCause());
+      Optional<Throwable> nonRetryable = NonRetryableExceptions.matchNonRetryable(e);
       if (nonRetryable.isPresent()) {
         Throwable cause = nonRetryable.get();
         String errMsg = String.format("%s - non-retryable failure (%s): %s",

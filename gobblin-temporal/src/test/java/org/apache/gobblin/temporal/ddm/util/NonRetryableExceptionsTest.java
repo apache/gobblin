@@ -35,11 +35,25 @@ public class NonRetryableExceptionsTest {
     DSQuotaExceededException dsEx = new DSQuotaExceededException("ds quota exceeded");
     Assert.assertTrue(NonRetryableExceptions.matchNonRetryable(dsEx).isPresent());
     Assert.assertSame(NonRetryableExceptions.matchNonRetryable(dsEx).get(), dsEx);
+
+    IOException ioEx = new IOException(dsEx);
+    Assert.assertTrue(NonRetryableExceptions.matchNonRetryable(ioEx).isPresent());
+    Assert.assertSame(NonRetryableExceptions.matchNonRetryable(ioEx).get(), dsEx);
+
+    IOException ioEx2 = new IOException(ioEx);
+    Assert.assertTrue(NonRetryableExceptions.matchNonRetryable(ioEx2).isPresent());
+    Assert.assertSame(NonRetryableExceptions.matchNonRetryable(ioEx2).get(), dsEx);
+
+    IOException ioEx3 = new IOException(ioEx2);
+    Assert.assertTrue(NonRetryableExceptions.matchNonRetryable(ioEx3).isPresent());
+    Assert.assertSame(NonRetryableExceptions.matchNonRetryable(ioEx3).get(), dsEx);
   }
 
   @Test
   public void testDoesNotMatchArbitraryException() {
     Assert.assertFalse(NonRetryableExceptions.matchNonRetryable(new IOException("some error")).isPresent());
+
+    Assert.assertFalse(NonRetryableExceptions.matchNonRetryable(new IOException(new IOException("some error"))).isPresent());
   }
 
   @Test

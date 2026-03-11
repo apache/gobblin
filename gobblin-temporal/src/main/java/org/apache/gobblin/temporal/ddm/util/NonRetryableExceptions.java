@@ -43,18 +43,19 @@ public class NonRetryableExceptions {
   }
 
   /**
-   * Checks whether the given throwable matches a known non-retryable exception type.
+   * Checks whether the given throwable has a cause that matches a known non-retryable exception type.
    * @return an {@link Optional} containing the matched throwable if it is non-retryable, empty otherwise.
    */
   public static Optional<Throwable> matchNonRetryable(Throwable throwable) {
-    if (throwable == null) {
-      return Optional.empty();
-    }
-    for (Class<? extends Exception> exClass : EXCEPTIONS) {
-      if (exClass.isInstance(throwable)) {
-        return Optional.of(throwable);
+    while (throwable != null) {
+      for (Class<? extends Exception> exClass : EXCEPTIONS) {
+        if (exClass.isInstance(throwable)) {
+          return Optional.of(throwable);
+        }
       }
+      throwable = throwable.getCause();
     }
+
     return Optional.empty();
   }
 }
