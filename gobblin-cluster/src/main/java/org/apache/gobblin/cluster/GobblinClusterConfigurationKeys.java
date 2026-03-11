@@ -154,6 +154,8 @@ public class GobblinClusterConfigurationKeys {
 
   public static final String HELIX_JOB_STOP_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "helix.job.stopTimeoutSeconds";
   public static final long DEFAULT_HELIX_JOB_STOP_TIMEOUT_SECONDS = 10L;
+  public static final String TASK_STATE_MODEL_FACTORY_SHUTDOWN_TIMEOUT_SECONDS = GOBBLIN_CLUSTER_PREFIX + "taskStateModelFactory.shutdownTimeoutSeconds";
+  public static final long DEFAULT_TASK_STATE_MODEL_FACTORY_SHUTDOWN_TIMEOUT_SECONDS = 300L;
   public static final String TASK_RUNNER_SUITE_BUILDER = GOBBLIN_CLUSTER_PREFIX + "taskRunnerSuite.builder";
 
   public static final String HELIX_JOB_NAME_KEY = GOBBLIN_CLUSTER_PREFIX + "helixJobName";

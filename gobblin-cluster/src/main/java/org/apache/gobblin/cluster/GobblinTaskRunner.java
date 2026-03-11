@@ -177,6 +177,7 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
   protected final String applicationId;
   private final boolean isMetricReportingFailureFatal;
   private final boolean isEventReportingFailureFatal;
+  private final long taskStateModelFactoryShutdownTimeoutSeconds;
 
   public GobblinTaskRunner(String applicationName,
       String helixInstanceName,
@@ -212,6 +213,10 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     this.isEventReportingFailureFatal = ConfigUtils.getBoolean(this.clusterConfig,
         ConfigurationKeys.GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL,
         ConfigurationKeys.DEFAULT_GOBBLIN_TASK_EVENT_REPORTING_FAILURE_FATAL);
+
+    this.taskStateModelFactoryShutdownTimeoutSeconds = ConfigUtils.getLong(this.clusterConfig,
+        GobblinClusterConfigurationKeys.TASK_STATE_MODEL_FACTORY_SHUTDOWN_TIMEOUT_SECONDS,
+        GobblinClusterConfigurationKeys.DEFAULT_TASK_STATE_MODEL_FACTORY_SHUTDOWN_TIMEOUT_SECONDS);
 
     logger.info("Configured GobblinTaskRunner work dir to: {}", this.appWorkPath.toString());
 
@@ -415,20 +420,43 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
 
     logger.info("Stopping the Gobblin Task runner");
 
-    // Stop metric reporting
-    if (this.containerMetrics.isPresent()) {
-      this.containerMetrics.get().stopMetricsReporting();
-    }
-
     try {
-      stopServices();
+      try {
+        stopServices();
+      } finally {
+        logger.info("All services are stopped.");
+        shutdownTaskStateModelFactory();
+        disconnectHelixManager();
+      }
     } finally {
-      logger.info("All services are stopped.");
-      this.taskStateModelFactory.shutdown();
-      disconnectHelixManager();
+      // Stop metric reporting only after tasks have completed and emitted their final GTEs.
+      // Placed in an outer finally to guarantee execution even if shutdownTaskStateModelFactory()
+      // or disconnectHelixManager() throws an unexpected runtime exception.
+      if (this.containerMetrics.isPresent()) {
+        this.containerMetrics.get().stopMetricsReporting();
+      }
+      this.isStopped = true;
     }
+  }
 
-    this.isStopped = true;
+  private void shutdownTaskStateModelFactory() {
+    this.taskStateModelFactory.shutdown();
+    long timeoutMs = TimeUnit.SECONDS.toMillis(this.taskStateModelFactoryShutdownTimeoutSeconds);
+    long startTime = System.currentTimeMillis();
+    while (!this.taskStateModelFactory.isTerminated()
+        && System.currentTimeMillis() - startTime < timeoutMs) {
+      try {
+        Thread.sleep(1000);
+      } catch (InterruptedException e) {
+        Thread.currentThread().interrupt();
+        logger.warn("Interrupted while waiting for task state model factory to terminate");
+        break;
+      }
+    }
+    if (!this.taskStateModelFactory.isTerminated()) {
+      logger.warn("Task state model factory did not terminate within {} seconds",
+          this.taskStateModelFactoryShutdownTimeoutSeconds);
+    }
   }
 
   private void stopServices() {
