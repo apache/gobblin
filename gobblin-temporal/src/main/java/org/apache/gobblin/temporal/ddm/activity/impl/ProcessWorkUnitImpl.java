@@ -27,7 +27,6 @@ import java.util.concurrent.TimeUnit;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-import io.temporal.failure.ApplicationFailure;
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
 import org.apache.hadoop.hdfs.protocol.DSQuotaExceededException;
@@ -36,6 +35,7 @@ import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
 import com.google.common.collect.Lists;
 import io.temporal.activity.Activity;
 import io.temporal.activity.ActivityExecutionContext;
+import io.temporal.failure.ApplicationFailure;
 
 import lombok.extern.slf4j.Slf4j;
 
