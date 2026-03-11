@@ -65,6 +65,9 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.service.monitoring.JobStatus;
 
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
+import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyMap;
 import static org.mockito.ArgumentMatchers.argThat;
@@ -170,6 +173,21 @@ public class KillDagProcTest {
         .submit(eq(TimingEvent.LauncherTimings.JOB_CANCEL), anyMap());
     Mockito.verify(this.mockedEventSubmitter, Mockito.times(numOfCancelledFlows))
         .submit(eq(TimingEvent.FlowTimings.FLOW_CANCELLED), anyMap());
+  }
+
+  @Test
+  public void killDagNotFoundEmitsIssue() throws IOException, URISyntaxException, InterruptedException {
+    long flowExecutionId = System.currentTimeMillis();
+    doReturn(Optional.empty()).when(dagManagementStateStore).getDag(any());
+
+    KillDagProc killDagProc = new KillDagProc(new KillDagTask(new DagActionStore.DagAction("fg", "flow-missing",
+        flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.KILL),
+        null, this.dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+    killDagProc.process(this.dagManagementStateStore, this.mockedDagProcEngineMetrics);
+
+    // Verify that a service-layer issue was emitted for dag not found
+    Mockito.verify(this.mockedEventSubmitter, Mockito.atLeastOnce())
+        .submit((GobblinEventBuilder) argThat(builder -> builder instanceof IssueEventBuilder));
   }
 
   @Test

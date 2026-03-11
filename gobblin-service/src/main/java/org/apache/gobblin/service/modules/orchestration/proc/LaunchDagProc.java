@@ -21,6 +21,8 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Optional;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
+
 import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
@@ -29,6 +31,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
@@ -72,6 +75,9 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       }
       return dag;
     } catch (URISyntaxException | SpecNotFoundException | InterruptedException | IOException e) {
+      OrchestratorIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
+          "Flow launch initialization failed: " + e.getClass().getSimpleName() + " - " + e.getMessage(),
+          ExceptionUtils.getStackTrace(e));
       throw new RuntimeException(e);
     }
   }
@@ -81,6 +87,8 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       DagProcessingEngineMetrics dagProcEngineMetrics) throws IOException {
     if (!dag.isPresent()) {
       log.warn("Dag with id " + getDagId() + " could not be compiled.");
+      OrchestratorIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
+          "DAG could not be compiled for " + getDagId());
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
     } else {
       DagProcUtils.submitNextNodes(dagManagementStateStore, dag.get(), getDagId());

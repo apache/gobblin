@@ -27,6 +27,7 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
@@ -36,6 +37,7 @@ import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatusGenerator;
 import org.apache.gobblin.service.monitoring.JobStatus;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 
 /**
@@ -63,6 +65,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // one of the reason this could arise is when the MALA leasing doesn't work cleanly and another DagProc::process
       // has cleaned up the Dag, yet did not complete the lease before this current one acquired its own
       log.error("DagNode or its job status not found for a Reevaluate DagAction with dag node id {}", this.dagNodeId);
+      OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(),
+          this.dagNodeId != null ? this.dagNodeId.getJobName() : JobStatusRetriever.NA_KEY,
+          IssueSeverity.ERROR, "DagNode or its job status not found for reevaluate action with dag node id " + this.dagNodeId);
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       return;
     }
@@ -86,10 +91,13 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
 
     if (!isRetry && !FlowStatusGenerator.FINISHED_STATUSES.contains(executionStatus.name())) {
       // this may happen if adding job status in the store failed/delayed after adding a ReevaluateDagAction in KafkaJobStatusMonitor
-      throw new RuntimeException(String.format("Job status for dagNode %s is %s. Re-evaluate dag action should have been "
+      String message = String.format("Job status for dagNode %s is %s. Re-evaluate dag action should have been "
               + "created only for finished status - %s. This may happen if reevaluate dag action launched reevaluate dag "
               + "proc before job status is updated in the store in KafkaJobStatusMonitor", dagNodeId, executionStatus,
-          FlowStatusGenerator.FINISHED_STATUSES));
+          FlowStatusGenerator.FINISHED_STATUSES);
+      OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), this.dagNodeId.getJobName(),
+          IssueSeverity.ERROR, message);
+      throw new RuntimeException(message);
     }
 
     // get the dag after updating dag node status
@@ -109,6 +117,9 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
     if (jobStatus.isShouldRetry()) {
       log.info("Retrying job: {}, current attempts: {}, max attempts: {}",
           DagUtils.getFullyQualifiedJobName(dagNode), jobStatus.getCurrentAttempts(), jobStatus.getMaxAttempts());
+      OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), DagUtils.getFullyQualifiedJobName(dagNode),
+          IssueSeverity.WARN, "Job " + DagUtils.getFullyQualifiedJobName(dagNode) + " is being retried. "
+              + "Attempt " + jobStatus.getCurrentAttempts() + " of " + jobStatus.getMaxAttempts());
       // todo - be careful when unsetting this, it is possible that this is set to FAILED because some other job in the
       // dag failed and is also not retryable. in that case if this job's retry passes, overall status of the dag can be
       // set to PASS, which would be incorrect.
@@ -159,6 +170,8 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
         dag.setMessage("Flow failed because job " + jobName + " failed");
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_FAILED);
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorFailed(dagNode);
+        OrchestratorIssueEmitter.emitJobIssue(eventSubmitter, getDagId(), jobName,
+            IssueSeverity.ERROR, "Flow failed because job " + jobName + " failed");
         break;
       case CANCELLED:
         dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_CANCELLED);

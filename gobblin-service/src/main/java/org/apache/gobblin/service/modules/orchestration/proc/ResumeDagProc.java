@@ -27,6 +27,7 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
@@ -65,6 +66,8 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     if (!failedDag.isPresent()) {
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
       log.error("Dag " + dagId + " was not found in dag state store");
+      OrchestratorIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
+          "Failed DAG not found in state store for resume: " + dagId);
       return;
     }
 

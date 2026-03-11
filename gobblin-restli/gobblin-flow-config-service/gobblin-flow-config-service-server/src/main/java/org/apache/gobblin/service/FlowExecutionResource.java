@@ -19,6 +19,7 @@ package org.apache.gobblin.service;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.Iterator;
 import java.util.List;
@@ -157,6 +158,7 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
     long flowEndTime = 0L;
     long maxJobEndTime = Long.MIN_VALUE;
     String flowMessage = "";
+    List<org.apache.gobblin.service.Issue> flowIssues = new ArrayList<>();
 
     while (jobStatusIter.hasNext()) {
       org.apache.gobblin.service.monitoring.JobStatus queriedJobStatus = jobStatusIter.next();
@@ -166,6 +168,11 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
         flowEndTime = queriedJobStatus.getEndTime();
         if (queriedJobStatus.getMessage() != null) {
           flowMessage = queriedJobStatus.getMessage();
+        }
+        if (includeIssues && queriedJobStatus.getIssues() != null) {
+          flowIssues.addAll(queriedJobStatus.getIssues().get().stream()
+              .map(FlowExecutionResource::convertIssueToRestApiObject)
+              .collect(Collectors.toList()));
         }
         continue;
       }
@@ -220,7 +227,8 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
             .setExecutionEndTime(flowEndTime))
         .setMessage(flowMessage)
         .setExecutionStatus(monitoringFlowStatus.getFlowExecutionStatus())
-        .setJobStatuses(jobStatusArray);
+        .setJobStatuses(jobStatusArray)
+        .setIssues(new IssueArray(flowIssues));
   }
 
   private static org.apache.gobblin.service.Issue convertIssueToRestApiObject(

@@ -70,9 +70,13 @@ import org.apache.gobblin.service.modules.spec.JobExecutionPlanDagFactory;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
 import org.apache.gobblin.util.ConfigUtils;
 
+import org.apache.gobblin.metrics.event.GobblinEventBuilder;
+import org.apache.gobblin.runtime.troubleshooter.IssueEventBuilder;
+
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyBoolean;
 import static org.mockito.ArgumentMatchers.anyLong;
+import static org.mockito.ArgumentMatchers.argThat;
 import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 import static org.powermock.reflect.Whitebox.setInternalState;
@@ -182,6 +186,26 @@ public class LaunchDagProcTest {
         .submit(eq(TimingEvent.FlowTimings.FLOW_RUNNING), anyMap());
 
     Assert.assertFalse(DagProcUtils.isDagFinished(this.dagManagementStateStore.getDag(dagId).get()));
+  }
+
+  @Test
+  public void launchDagCompilationFailureEmitsIssue() throws IOException, InterruptedException, URISyntaxException {
+    String flowGroup = "fg";
+    String flowName = "fn-fail";
+    long flowExecutionId = 12345L;
+    FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
+    doReturn(com.google.common.base.Optional.absent()).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
+    LaunchDagProc launchDagProc = new LaunchDagProc(
+        new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
+            DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore,
+            this.mockedDagProcEngineMetrics),
+        flowCompilationValidationHelper, ConfigFactory.empty());
+
+    launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
+
+    // Verify that a service-layer issue was emitted for the compilation failure
+    Mockito.verify(this.mockedEventSubmitter, Mockito.atLeastOnce())
+        .submit((GobblinEventBuilder) argThat(builder -> builder instanceof IssueEventBuilder));
   }
 
   // This creates a dag like this
