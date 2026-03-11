@@ -29,8 +29,6 @@ import java.util.stream.Collectors;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
-import org.apache.hadoop.hdfs.protocol.DSQuotaExceededException;
-import org.apache.hadoop.hdfs.protocol.NSQuotaExceededException;
 
 import com.google.common.collect.Lists;
 import io.temporal.activity.Activity;
@@ -62,6 +60,7 @@ import org.apache.gobblin.runtime.troubleshooter.IssueRepository;
 import org.apache.gobblin.source.workunit.WorkUnit;
 import org.apache.gobblin.temporal.ddm.activity.ProcessWorkUnit;
 import org.apache.gobblin.temporal.ddm.util.JobStateUtils;
+import org.apache.gobblin.temporal.ddm.util.NonRetryableExceptions;
 import org.apache.gobblin.temporal.ddm.work.WorkUnitClaimCheck;
 import org.apache.gobblin.temporal.ddm.work.assistance.Help;
 import org.apache.gobblin.util.ExecutorsUtils;
@@ -95,9 +94,10 @@ public class ProcessWorkUnitImpl implements ProcessWorkUnit {
       troubleshooter.start();
       return execute(workUnits, wu, jobState, fs, troubleshooter.getIssueRepository(), jobState.getProperties());
     } catch (IOException e) {
-      Throwable cause = e.getCause();
-      if (cause instanceof DSQuotaExceededException || cause instanceof NSQuotaExceededException) {
-        String errMsg = String.format("%s - failed due to quota exceeded (%s): %s",
+      Optional<Throwable> nonRetryable = NonRetryableExceptions.matchNonRetryable(e.getCause());
+      if (nonRetryable.isPresent()) {
+        Throwable cause = nonRetryable.get();
+        String errMsg = String.format("%s - non-retryable failure (%s): %s",
             correlator, cause.getClass().getSimpleName(), cause.getMessage());
         log.error(errMsg, e);
         throw ApplicationFailure.newNonRetryableFailure(errMsg, cause.getClass().getSimpleName(), cause);
