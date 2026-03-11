@@ -421,22 +421,25 @@ public class GobblinTaskRunner implements StandardMetricsBridge {
     logger.info("Stopping the Gobblin Task runner");
 
     try {
-      stopServices();
+      try {
+        stopServices();
+      } finally {
+        logger.info("All services are stopped.");
+        shutdownTaskStateModelFactory();
+        disconnectHelixManager();
+      }
     } finally {
-      logger.info("All services are stopped.");
-      shutdownTaskStateModelFactory();
-      disconnectHelixManager();
+      // Stop metric reporting only after tasks have completed and emitted their final GTEs.
+      // Placed in an outer finally to guarantee execution even if shutdownTaskStateModelFactory()
+      // or disconnectHelixManager() throws an unexpected runtime exception.
+      if (this.containerMetrics.isPresent()) {
+        this.containerMetrics.get().stopMetricsReporting();
+      }
+      this.isStopped = true;
     }
-
-    // Stop metric reporting only after tasks have completed and emitted their final GTEs
-    if (this.containerMetrics.isPresent()) {
-      this.containerMetrics.get().stopMetricsReporting();
-    }
-
-    this.isStopped = true;
   }
 
-  void shutdownTaskStateModelFactory() {
+  private void shutdownTaskStateModelFactory() {
     this.taskStateModelFactory.shutdown();
     long timeoutMs = TimeUnit.SECONDS.toMillis(this.taskStateModelFactoryShutdownTimeoutSeconds);
     long startTime = System.currentTimeMillis();
