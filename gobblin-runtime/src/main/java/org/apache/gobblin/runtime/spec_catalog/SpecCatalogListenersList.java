@@ -44,7 +44,11 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
   }
 
   public SpecCatalogListenersList(Optional<Logger> log) {
-    _disp = new CallbacksDispatcher<>(Optional.<ExecutorService>absent(), log);
+    this(Optional.<ExecutorService>absent(), log);
+  }
+
+  public SpecCatalogListenersList(Optional<ExecutorService> executorService, Optional<Logger> log) {
+    _disp = new CallbacksDispatcher<>(executorService, log);
   }
 
   public Logger getLog() {
