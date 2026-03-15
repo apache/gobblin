@@ -114,7 +114,7 @@ public class IcebergPartitionFilterGenerator {
       log.info("Including daily partition: {}={}", partitionColumn, val);
     }
     return new FilterResult(Collections.unmodifiableList(values),
-        buildStartsWithOrExpression(partitionColumn, values));
+        buildOrExpression(partitionColumn, values));
   }
 
   /**
@@ -150,47 +150,22 @@ public class IcebergPartitionFilterGenerator {
   }
 
   /**
-   * Build an Iceberg OR expression matching any of {@code values} for {@code column} using
-   * exact equality predicates ({@code equal}).
-   *
-   * <p>Used by {@link #forHours} where a specific clock-hour must be matched precisely.
-   * Prefer {@link #buildStartsWithOrExpression} for daily granularity so that all
-   * intra-day partitions (e.g. every hour of a day) are captured by a single prefix scan.
+   * Build an Iceberg OR expression matching any of {@code values} for {@code column}.
    *
    * <p>Returns {@link Expressions#alwaysFalse()} when {@code values} is empty.
    *
+   * <p>This method is exposed as {@code public static} so callers that already have a
+   * pre-computed list of partition values can build an expression without going through
+   * {@link #forDays} or {@link #forHours}.
+   *
    * @param column  partition column name used in each equality predicate
    * @param values  partition value strings; order does not affect the expression semantics
-   * @return combined Iceberg OR expression using equality predicates
+   * @return combined Iceberg OR expression
    */
   public static Expression buildOrExpression(String column, List<String> values) {
     Expression expr = null;
     for (String val : values) {
       Expression e = Expressions.equal(column, val);
-      expr = (expr == null) ? e : Expressions.or(expr, e);
-    }
-    return (expr != null) ? expr : Expressions.alwaysFalse();
-  }
-
-  /**
-   * Build an Iceberg OR expression matching any of {@code values} as a prefix for {@code column}
-   * using {@code startsWith} predicates.
-   *
-   * <p>Used by {@link #forDays} so that a daily partition value (e.g. {@code "2025-04-03"})
-   * matches all intra-day sub-partitions (e.g. {@code "2025-04-03-00"} through
-   * {@code "2025-04-03-23"}) in a single Iceberg predicate pushed down to the catalogue.
-   * This avoids enumerating every hour when the intent is to scan a full calendar day.
-   *
-   * <p>Returns {@link Expressions#alwaysFalse()} when {@code values} is empty.
-   *
-   * @param column  partition column name used in each startsWith predicate
-   * @param values  partition value prefix strings; order does not affect the expression semantics
-   * @return combined Iceberg OR expression using startsWith predicates
-   */
-  public static Expression buildStartsWithOrExpression(String column, List<String> values) {
-    Expression expr = null;
-    for (String val : values) {
-      Expression e = Expressions.startsWith(column, val);
       expr = (expr == null) ? e : Expressions.or(expr, e);
     }
     return (expr != null) ? expr : Expressions.alwaysFalse();
