@@ -570,6 +570,111 @@ public class ManifestBasedDatasetFinderTest {
     }
   }
 
+  /**
+   * Verifies that parallel processing produces the same number of copy entities as the default behavior.
+   */
+  @Test
+  public void testParallelProcessingProducesSameResults() throws Exception {
+    Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/sampleManifest.json").getPath());
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    props.setProperty(ManifestBasedDataset.ENABLE_PARALLEL_PROCESSING, "true");
+
+    try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class)) {
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, true);
+
+      Iterator<FileSet<CopyEntity>> fileSets =
+          new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
+              CopyConfiguration.builder(destFs, props).build());
+      Assert.assertTrue(fileSets.hasNext());
+      FileSet<CopyEntity> fileSet = fileSets.next();
+      Assert.assertEquals(fileSet.getFiles().size(), 4); // 2 files to copy + 1 pre publish step + 1 post publish step
+    }
+  }
+
+  /**
+   * Verifies that sequential processing (parallel disabled) produces the same copy entities.
+   */
+  @Test
+  public void testSequentialProcessingProducesSameResults() throws Exception {
+    Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/sampleManifest.json").getPath());
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    props.setProperty(ManifestBasedDataset.ENABLE_PARALLEL_PROCESSING, "false");
+
+    try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class)) {
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, true);
+
+      Iterator<FileSet<CopyEntity>> fileSets =
+          new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
+              CopyConfiguration.builder(destFs, props).build());
+      Assert.assertTrue(fileSets.hasNext());
+      FileSet<CopyEntity> fileSet = fileSets.next();
+      Assert.assertEquals(fileSet.getFiles().size(), 4); // 2 files to copy + 1 pre publish step + 1 post publish step
+      Assert.assertTrue(((PrePublishStep) fileSet.getFiles().get(2)).getStep() instanceof CreateDirectoryWithPermissionsCommitStep);
+    }
+  }
+
+  /**
+   * Verifies fail-fast behavior in parallel mode: a single file failure causes the entire operation to throw IOException.
+   */
+  @Test
+  public void testParallelProcessingFailsFastOnError() throws Exception {
+    Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/sampleManifest.json").getPath());
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    props.setProperty(ManifestBasedDataset.ENABLE_PARALLEL_PROCESSING, "true");
+
+    try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class)) {
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, true);
+      // Inject a failure for one specific file
+      Mockito.when(sourceFs.getFileStatus(new Path("/tmp/dataset/test1.txt")))
+          .thenThrow(new IOException("Simulated IO failure for test1.txt"));
+
+      try {
+        new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props)
+            .getFileSetIterator(destFs, CopyConfiguration.builder(destFs, props).build());
+        Assert.fail("Expected IOException to be thrown due to file processing failure");
+      } catch (IOException e) {
+        // Expected: the failure propagated and aborted the operation
+      }
+    }
+  }
+
+  /**
+   * Verifies fail-fast behavior in sequential mode: a single file failure causes the entire operation to throw IOException.
+   */
+  @Test
+  public void testSequentialProcessingFailsFastOnError() throws Exception {
+    Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/sampleManifest.json").getPath());
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    props.setProperty(ManifestBasedDataset.ENABLE_PARALLEL_PROCESSING, "false");
+
+    try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class)) {
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, true);
+      // Inject a failure for one specific file
+      Mockito.when(sourceFs.getFileStatus(new Path("/tmp/dataset/test1.txt")))
+          .thenThrow(new IOException("Simulated IO failure for test1.txt"));
+
+      try {
+        new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props)
+            .getFileSetIterator(destFs, CopyConfiguration.builder(destFs, props).build());
+        Assert.fail("Expected IOException to be thrown due to file processing failure");
+      } catch (IOException e) {
+        // Expected: the failure propagated and aborted the operation
+      }
+    }
+  }
+
   private void setSourceAndDestFsMocks(FileSystem sourceFs, FileSystem destFs, Path manifestPath, FileSystem manifestReadFs, boolean setFileStatusMock) throws IOException, URISyntaxException {
     URI SRC_FS_URI = new URI("source", "the.source.org", "/", null);
     URI MANIFEST_READ_FS_URI = new URI("manifest-read", "the.manifest-source.org", "/", null);
