@@ -36,7 +36,19 @@ public enum GobblinOpenTelemetryMetrics {
    * Metric to track the latency of each Gobblin Job state (GenerateWorkUnit, ProcessWorkUnit, CommitStep).
    * Metric Unit: seconds (s) represents the time taken for each state.
    * */
-  GOBBLIN_JOB_STATE_LATENCY("gobblin.job.state.latency", "Gobblin job state latency", "s", OpenTelemetryMetricType.DOUBLE_HISTOGRAM);
+  GOBBLIN_JOB_STATE_LATENCY("gobblin.job.state.latency", "Gobblin job state latency", "s", OpenTelemetryMetricType.DOUBLE_HISTOGRAM),
+
+  /**
+   * Metric to track the time taken to delete staging directories during cleanup, broken down by filesystem scheme.
+   * Metric Unit: seconds (s).
+   * */
+  GOBBLIN_STAGING_CLEANUP_LATENCY("gobblin.staging.cleanup.latency", "Gobblin staging directory cleanup latency", "s", OpenTelemetryMetricType.DOUBLE_HISTOGRAM),
+
+  /**
+   * Metric to track the time taken to delete working directories (work units, task states, job state) during cleanup, broken down by filesystem scheme.
+   * Metric Unit: seconds (s).
+   * */
+  GOBBLIN_WORK_DIRECTORY_CLEANUP_LATENCY("gobblin.work.directory.cleanup.latency", "Gobblin working directory cleanup latency", "s", OpenTelemetryMetricType.DOUBLE_HISTOGRAM);
 
   private final String metricName;
   private final String metricDescription;

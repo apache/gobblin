@@ -25,6 +25,11 @@ import com.google.gson.GsonBuilder;
 public final class GsonUtils {
 
   /**
+   * Plain GSON serializer for general-purpose JSON parsing where no special adapters are needed.
+   */
+  public static final Gson GSON = new Gson();
+
+  /**
    * GSON serializer that can convert Java 8 date and time types to ISO standard representation.
    */
   public static final Gson GSON_WITH_DATE_HANDLING = createGsonSerializerWithDateHandling();

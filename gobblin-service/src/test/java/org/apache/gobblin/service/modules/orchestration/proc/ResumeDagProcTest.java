@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration.proc;
 import java.io.IOException;
 import java.net.URISyntaxException;
 
+import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.AfterClass;
@@ -45,7 +46,12 @@ import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngine
 import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
+
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doReturn;
 import static org.mockito.Mockito.spy;
 
 
@@ -66,6 +72,25 @@ public class ResumeDagProcTest {
   public void tearDown() throws Exception {
     if (testDb != null) {
       testDb.close();
+    }
+  }
+
+  @Test
+  public void resumeDagNotFoundEmitsIssue() throws IOException, URISyntaxException {
+    long flowExecutionId = 12345L;
+    String flowGroup = "fg";
+    String flowName = "fn-missing";
+    doReturn(java.util.Optional.empty()).when(dagManagementStateStore).getFailedDag(any());
+
+    try (MockedStatic<OrchestratorIssueEmitter> emitterMock = Mockito.mockStatic(OrchestratorIssueEmitter.class)) {
+      ResumeDagProc resumeDagProc = new ResumeDagProc(new ResumeDagTask(new DagActionStore.DagAction(flowGroup, flowName,
+          flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.RESUME),
+          null, this.dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+      resumeDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
+
+      // Verify that a service-layer issue was emitted for failed dag not found
+      emitterMock.verify(() -> OrchestratorIssueEmitter.emitFlowIssue(
+          any(), any(Dag.DagId.class), eq(IssueSeverity.ERROR), anyString()));
     }
   }
 

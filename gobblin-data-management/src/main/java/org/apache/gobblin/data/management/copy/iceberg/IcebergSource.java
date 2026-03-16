@@ -590,6 +590,7 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
 
       source.addMetadata("catalog.uri", catalogUri);
       source.addMetadata("table.location", getTableLocation(table));
+      source.addMetadata(DatasetConstants.FS_URI, sourceState.getProp(ConfigurationKeys.FS_URI_KEY));
 
       this.lineageInfo.get().setSource(source, workUnit);
     }

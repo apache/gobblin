@@ -25,6 +25,7 @@ import com.typesafe.config.Config;
 import lombok.extern.slf4j.Slf4j;
 
 import org.apache.gobblin.metrics.event.TimingEvent;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
@@ -62,11 +63,16 @@ public class EnforceFlowFinishDeadlineDagProc extends DeadlineEnforcementDagProc
 
       dag.setFlowEvent(TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
       dag.setMessage("Flow killed due to exceeding SLA of " + flowFinishDeadline + " ms");
+      OrchestratorIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.ERROR,
+          "Flow killed due to exceeding SLA of " + flowFinishDeadline + " ms");
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
       DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag, TimingEvent.FlowTimings.FLOW_RUN_DEADLINE_EXCEEDED);
     } else {
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
       log.error("EnforceFlowFinishDeadline dagAction received before due time. flowStartTime {}, flowFinishDeadline {} ", flowStartTime, flowFinishDeadline);
+      OrchestratorIssueEmitter.emitFlowIssue(eventSubmitter, getDagId(), IssueSeverity.WARN,
+          "EnforceFlowFinishDeadline dagAction received before due time. flowStartTime "
+              + flowStartTime + ", flowFinishDeadline " + flowFinishDeadline);
     }
   }
 }

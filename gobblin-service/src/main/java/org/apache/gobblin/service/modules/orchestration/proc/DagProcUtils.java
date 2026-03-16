@@ -35,6 +35,8 @@ import com.typesafe.config.Config;
 
 import lombok.extern.slf4j.Slf4j;
 
+import org.apache.commons.lang3.exception.ExceptionUtils;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinTrackingEvent;
 import org.apache.gobblin.metrics.event.EventSubmitter;
@@ -43,6 +45,7 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.runtime.api.SpecProducer;
+import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
@@ -148,6 +151,9 @@ public class DagProcUtils {
           jobFailedTimer.stop(jobMetadata);
         }
       }
+      OrchestratorIssueEmitter.emitJobIssue(DagProc.eventSubmitter, dagId, DagUtils.getJobName(dagNode),
+          IssueSeverity.ERROR, message + " due to " + e.getMessage(),
+          ExceptionUtils.getStackTrace(e));
       try {
         // when there is no exception, quota will be released in job status monitor or re-evaluate dag proc
         dagManagementStateStore.releaseQuota(dagNode);
