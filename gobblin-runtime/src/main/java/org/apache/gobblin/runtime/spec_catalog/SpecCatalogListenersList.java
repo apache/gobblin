@@ -47,6 +47,10 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
     _disp = new CallbacksDispatcher<>(Optional.<ExecutorService>absent(), log);
   }
 
+  public SpecCatalogListenersList(Optional<Logger> log, ExecutorService executorService) {
+    _disp = new CallbacksDispatcher<>(Optional.of(executorService), log);
+  }
+
   public Logger getLog() {
     return _disp.getLog();
   }
@@ -66,7 +70,7 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
   }
 
   @Override
-  public synchronized AddSpecResponse onAddSpec(Spec addedSpec) {
+  public AddSpecResponse onAddSpec(Spec addedSpec) {
     Preconditions.checkNotNull(addedSpec);
     try {
       return new AddSpecResponse<>(_disp.execCallbacks(new AddSpecCallback(addedSpec)));

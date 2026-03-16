@@ -27,6 +27,8 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
@@ -62,6 +64,7 @@ import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.ExponentialBackoff;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
@@ -110,7 +113,12 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
   public FlowCatalog(Config config, Optional<Logger> log, Optional<MetricContext> parentMetricContext, boolean instrumentationEnabled) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-    this.listeners = new SpecCatalogListenersList(log);
+    int numListenerThreads = ConfigUtils.getInt(config,
+        ServiceConfigKeys.NUM_SPEC_CATALOG_LISTENER_THREADS_KEY,
+        ServiceConfigKeys.DEFAULT_NUM_SPEC_CATALOG_LISTENER_THREADS);
+    ExecutorService listenerExecutor = Executors.newFixedThreadPool(numListenerThreads,
+        ExecutorsUtils.newThreadFactory(log, Optional.of("SpecCatalogListenerThread-%d")));
+    this.listeners = new SpecCatalogListenersList(log, listenerExecutor);
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));
