@@ -115,6 +115,11 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
   public FlowCatalog(Config config, Optional<Logger> log, Optional<MetricContext> parentMetricContext, boolean instrumentationEnabled) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
+    // Flow compilation on the submission path was previously serialized by a synchronized block in
+    // SpecCatalogListenersList.onAddSpec() and a single-thread executor in CallbacksDispatcher.
+    // Since the execution path (DagProcessingEngine) already compiles flows concurrently on a thread pool
+    // of size 3, compileFlow() is proven thread-safe. We use a bounded ThreadPoolExecutor here to allow
+    // parallel compilation across flows during submission, with CallerRunsPolicy for backpressure under load.
     int numListenerThreads = ConfigUtils.getInt(config,
         ServiceConfigKeys.NUM_SPEC_CATALOG_LISTENER_THREADS_KEY,
         ServiceConfigKeys.DEFAULT_NUM_SPEC_CATALOG_LISTENER_THREADS);
