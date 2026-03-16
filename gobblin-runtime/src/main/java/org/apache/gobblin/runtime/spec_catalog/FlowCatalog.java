@@ -28,7 +28,9 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
@@ -116,8 +118,11 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
     int numListenerThreads = ConfigUtils.getInt(config,
         ServiceConfigKeys.NUM_SPEC_CATALOG_LISTENER_THREADS_KEY,
         ServiceConfigKeys.DEFAULT_NUM_SPEC_CATALOG_LISTENER_THREADS);
-    ExecutorService listenerExecutor = Executors.newFixedThreadPool(numListenerThreads,
-        ExecutorsUtils.newThreadFactory(log, Optional.of("SpecCatalogListenerThread-%d")));
+    ExecutorService listenerExecutor = new ThreadPoolExecutor(numListenerThreads, numListenerThreads,
+        0L, TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue<>(numListenerThreads * 10),
+        ExecutorsUtils.newThreadFactory(log, Optional.of("SpecCatalogListenerThread-%d")),
+        new ThreadPoolExecutor.CallerRunsPolicy());
     this.listeners = new SpecCatalogListenersList(log, listenerExecutor);
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
