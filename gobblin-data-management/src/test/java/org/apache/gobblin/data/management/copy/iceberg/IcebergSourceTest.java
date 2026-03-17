@@ -1111,9 +1111,9 @@ public class IcebergSourceTest {
 
   @Test
   public void testPartitionValueFormatHourlyStandard() throws Exception {
-    // iceberg.partition.value.datetime.format=yyyy-MM-dd-HH with a specific date defaults to midnight (hour 00)
+    // iceberg.partition.value.datetime.format=yyyy-MM-dd-HH — input date must match the pattern
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01-00");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
     sourceState = new SourceState(new State(properties));
@@ -1137,11 +1137,10 @@ public class IcebergSourceTest {
 
   @Test
   public void testPartitionValueFormatReversedDate() throws Exception {
-    // iceberg.partition.value.format=dd-MM-yyyy-HH with default hour → "01-04-2025-00"
+    // iceberg.partition.value.datetime.format=dd-MM-yyyy-HH — input date must match the pattern
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "01-04-2025-00");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "dd-MM-yyyy-HH");
-    // no iceberg.partition.hour set → defaults to hour 0
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
     sourceState = new SourceState(new State(properties));
 
@@ -1164,9 +1163,9 @@ public class IcebergSourceTest {
 
   @Test
   public void testPartitionValueFormatCompact() throws Exception {
-    // iceberg.partition.value.format=yyyyMMdd → "20250401" (no separators, no hour)
+    // iceberg.partition.value.datetime.format=yyyyMMdd — input date must match the pattern
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "20250401");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyyMMdd");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
     sourceState = new SourceState(new State(properties));
@@ -1192,7 +1191,7 @@ public class IcebergSourceTest {
   public void testPartitionValueFormatWithLookback() throws Exception {
     // iceberg.partition.value.datetime.format=dd-MM-yyyy-HH with lookback=3 → 3 reversed-date partitions at midnight
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-03");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "03-04-2025-00");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "dd-MM-yyyy-HH");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "3");
     sourceState = new SourceState(new State(properties));
@@ -1223,10 +1222,10 @@ public class IcebergSourceTest {
 
   @Test
   public void testPartitionValueFormatSupersedeLegacyHourlyFlag() throws Exception {
-    // When iceberg.partition.value.format is set, iceberg.hourly.partition.enabled=false is ignored.
+    // When iceberg.partition.value.datetime.format is set, iceberg.hourly.partition.enabled=false is ignored.
     // Format "yyyy-MM-dd-HH" must still produce hour suffix regardless of the legacy flag.
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01-00");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
     properties.setProperty(IcebergSource.ICEBERG_HOURLY_PARTITION_ENABLED, "false"); // legacy flag — should be ignored
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
@@ -1274,9 +1273,9 @@ public class IcebergSourceTest {
 
   @Test
   public void testPartitionValueFormatCustomColumnName() throws Exception {
-    // Verify that iceberg.partition.column works correctly with iceberg.partition.value.format
+    // Verify that iceberg.partition.column works correctly with iceberg.partition.value.datetime.format
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "20250401");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_COLUMN, "event_date"); // non-default column
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyyMMdd");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
@@ -1307,7 +1306,7 @@ public class IcebergSourceTest {
   public void testLookbackHoursBasic() throws Exception {
     // iceberg.lookback.hours=3 with specific date starts at midnight (00:00), stepping back crosses previous day
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01-00");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_HOURS, "3");
     sourceState = new SourceState(new State(properties));
@@ -1341,7 +1340,7 @@ public class IcebergSourceTest {
   public void testLookbackHoursCrossesDateBoundary() throws Exception {
     // lookbackHours=3 starting at midnight (00:00) crosses into the previous day from step 1
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01-00");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_HOURS, "3");
     sourceState = new SourceState(new State(properties));
@@ -1371,7 +1370,7 @@ public class IcebergSourceTest {
   public void testLookbackHoursTakesPrecedenceOverLookbackDays() throws Exception {
     // When both lookback.hours and lookback.days are set, hours must win
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01-00");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_HOURS, "2");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "5"); // should be ignored
@@ -1402,9 +1401,9 @@ public class IcebergSourceTest {
 
   @Test
   public void testLookbackHoursWithReversedDateFormat() throws Exception {
-    // Hourly lookback with dd-MM-yyyy-HH format; specific date defaults to midnight
+    // Hourly lookback with dd-MM-yyyy-HH format — input date must match the pattern
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "01-04-2025-00");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "dd-MM-yyyy-HH");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_HOURS, "2");
     sourceState = new SourceState(new State(properties));

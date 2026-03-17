@@ -85,7 +85,7 @@ import org.apache.gobblin.commit.CommitStep;
  * # Partition filtering with lookback - Static date
  * iceberg.filter.enabled=true
  * iceberg.partition.column=datepartition         # Optional, defaults to "datepartition"
- * iceberg.filter.date=2025-04-01                 # Input date always in yyyy-MM-dd format
+ * iceberg.filter.date=2025-04-01                 # Input date in the format specified by iceberg.partition.value.datetime.format
  * iceberg.lookback.days=3
  *
  * # Partition filtering - Scheduled flows (dynamic date)
@@ -284,27 +284,27 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
    * (defaults to {@value #DEFAULT_DATE_PARTITION_COLUMN}). The date value is specified separately via
    * {@code iceberg.filter.date} in standard format ({@code yyyy-MM-dd}).
    *
-   * <p><b>Partition Value Format:</b> The output partition value used in the filter expression is controlled by
-   * {@code iceberg.partition.value.format}, a standard {@link java.time.format.DateTimeFormatter} pattern.
-   * The {@code iceberg.filter.date} input is always provided in {@code yyyy-MM-dd} form; the format governs
-   * how it is rendered as a partition value. {@code iceberg.partition.hour} (0-23, default 0) supplies the
-   * hour component when the format includes {@code HH}. Examples:
+   * <p><b>Partition Value Format:</b> Both the input date ({@code iceberg.filter.date}) and the output
+   * partition value use the pattern specified by {@code iceberg.partition.value.datetime.format}
+   * (a standard {@link java.time.format.DateTimeFormatter} pattern).  Use {@code CURRENT_DATE} as the
+   * date value to resolve the reference datetime to {@link java.time.LocalDateTime#now()} automatically,
+   * embedding the current hour when the pattern includes {@code HH}. Examples:
    * <ul>
-   *   <li>{@code yyyy-MM-dd-HH} with hour=5 → {@code 2025-04-01-05}</li>
-   *   <li>{@code dd-MM-yyyy-HH} with hour=0 → {@code 01-04-2025-00}</li>
-   *   <li>{@code yyyyMMdd}              → {@code 20250401}       (daily, compact)</li>
+   *   <li>{@code yyyy-MM-dd-HH} with date {@code 2025-04-01-05} → {@code 2025-04-01-05}</li>
+   *   <li>{@code dd-MM-yyyy-HH} with date {@code 01-04-2025-00} → {@code 01-04-2025-00}</li>
+   *   <li>{@code yyyyMMdd}      with date {@code 20250401}       → {@code 20250401} (compact daily)</li>
    * </ul>
-   * When {@code iceberg.partition.value.format} is set it supersedes {@code iceberg.hourly.partition.enabled}.
-   * When absent, the legacy {@code iceberg.hourly.partition.enabled} / {@code iceberg.partition.hour} behaviour
-   * is preserved for backward compatibility (default: appends {@code -00} suffix).
+   * When {@code iceberg.partition.value.datetime.format} is set it supersedes
+   * {@code iceberg.hourly.partition.enabled}. When absent, the legacy
+   * {@code iceberg.hourly.partition.enabled} behaviour is preserved for backward compatibility.
    *
    * <p><b>Configuration Examples:</b>
    * <ul>
-   * <li>Standard daily: {@code iceberg.partition.value.format=yyyy-MM-dd, iceberg.filter.date=2025-04-03,
+   * <li>Standard daily: {@code iceberg.partition.value.datetime.format=yyyy-MM-dd, iceberg.filter.date=2025-04-03,
    *     iceberg.lookback.days=3} → partitions: {@code 2025-04-03, 2025-04-02, 2025-04-01}</li>
-   * <li>Reversed-date hourly: {@code iceberg.partition.value.format=dd-MM-yyyy-HH, iceberg.partition.hour=5}
-   *     → {@code 03-04-2025-05, 02-04-2025-05, 01-04-2025-05}</li>
-   * <li>Dynamic: {@code iceberg.filter.date=CURRENT_DATE, iceberg.lookback.days=1}
+   * <li>Reversed-date hourly: {@code iceberg.partition.value.datetime.format=dd-MM-yyyy-HH,
+   *     iceberg.filter.date=CURRENT_DATE} → {@code 03-04-2025-14, 02-04-2025-14, 01-04-2025-14}</li>
+   * <li>Dynamic daily: {@code iceberg.filter.date=CURRENT_DATE, iceberg.lookback.days=1}
    *     → today's partition only (resolved at runtime)</li>
    * </ul>
    *
@@ -345,12 +345,22 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
       startDateTime = LocalDateTime.now();
       log.info("Resolved {} placeholder to current datetime: {}", CURRENT_DATE_PLACEHOLDER, startDateTime);
     } else {
+      // When iceberg.partition.value.datetime.format is explicitly set, the input date must match
+      // that pattern (consistent input/output format).  Legacy path keeps accepting yyyy-MM-dd for
+      // backward compatibility.
+      boolean isCustomFormat = state.contains(ICEBERG_PARTITION_VALUE_DATETIME_FORMAT);
+      String patternForError = isCustomFormat
+          ? state.getProp(ICEBERG_PARTITION_VALUE_DATETIME_FORMAT)
+          : (state.getPropAsBoolean(ICEBERG_HOURLY_PARTITION_ENABLED, DEFAULT_HOURLY_PARTITION_ENABLED)
+              ? "yyyy-MM-dd-HH" : "yyyy-MM-dd");
       try {
-        startDateTime = LocalDate.parse(dateValue).atStartOfDay();
+        startDateTime = isCustomFormat
+            ? LocalDate.parse(dateValue, partitionFormatter).atStartOfDay()
+            : LocalDate.parse(dateValue).atStartOfDay();
       } catch (java.time.format.DateTimeParseException e) {
         String errorMsg = String.format(
-          "Invalid date format for '%s': '%s'. Expected format: yyyy-MM-dd. Error: %s",
-          ICEBERG_FILTER_DATE, dateValue, e.getMessage());
+          "Invalid date format for '%s': '%s'. Expected format matching pattern '%s'. Error: %s",
+          ICEBERG_FILTER_DATE, dateValue, patternForError, e.getMessage());
         log.error(errorMsg);
         throw new IllegalArgumentException(errorMsg, e);
       }
@@ -360,6 +370,11 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
     // When iceberg.lookback.hours > 0 it takes precedence over iceberg.lookback.days.
     int lookbackHours = state.getPropAsInt(ICEBERG_LOOKBACK_HOURS, DEFAULT_LOOKBACK_HOURS);
     int lookbackDays  = state.getPropAsInt(ICEBERG_LOOKBACK_DAYS, DEFAULT_LOOKBACK_DAYS);
+
+    if (lookbackHours > 0) {
+      Preconditions.checkArgument(lookbackHours <= 48,
+          "iceberg.lookback.hours must be <= 48 (2 days), got: %s", lookbackHours);
+    }
 
     IcebergPartitionFilterGenerator.FilterResult filterResult;
     if (lookbackHours > 0) {
