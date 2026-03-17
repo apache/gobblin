@@ -27,6 +27,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.TreeMap;
+import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.CopyOnWriteArrayList;
 import java.util.concurrent.TimeUnit;
 
 import org.apache.hadoop.fs.FileStatus;
@@ -66,13 +68,20 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private static final String DELETE_FILE_NOT_EXIST_ON_SOURCE = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".deleteFileNotExistOnSource";
   private static final String COMMON_FILES_PARENT = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".commonFilesParent";
   private static final String PERMISSION_CACHE_TTL_SECONDS = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".permission.cache.ttl.seconds";
+  public static final String SKIP_PERMISSION_CHECK = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".skipPermissionCheck";
 
   // Enable setting permission post publish to reset permission bits, default is true
   private static final String ENABLE_SET_PERMISSION_POST_PUBLISH = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".enableSetPermissionPostPublish";
-  public static final String SKIP_PERMISSION_CHECK = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".skipPermissionCheck";
+
+  // Parallelization configuration: when enabled, all manifest entries are loaded upfront and processed concurrently.
+  // Any single file failure propagates immediately (fail-fast), aborting the entire operation.
+  public static final String ENABLE_PARALLEL_PROCESSING = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".enableParallelProcessing";
+
   private static final String DEFAULT_PERMISSION_CACHE_TTL_SECONDS = "30";
   private static final String DEFAULT_COMMON_FILES_PARENT = "/";
   private static final boolean DEFAULT_SKIP_PERMISSION_CHECK = false;
+  private static final boolean DEFAULT_ENABLE_PARALLEL_PROCESSING = true;
+
   private final FileSystem srcFs;
   private final FileSystem manifestReadFs;
   private final Path manifestPath;
@@ -80,9 +89,9 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private final boolean deleteFileThatNotExistOnSource;
   private final String commonFilesParent;
   private final int permissionCacheTTLSeconds;
-
   private final boolean enableSetPermissionPostPublish;
   private final boolean skipPermissionCheck;
+  private final boolean enableParallelProcessing;
 
   public ManifestBasedDataset(final FileSystem srcFs, final FileSystem manifestReadFs, final Path manifestPath, final Properties properties) {
     this.srcFs = srcFs;
@@ -94,6 +103,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     this.permissionCacheTTLSeconds = Integer.parseInt(properties.getProperty(PERMISSION_CACHE_TTL_SECONDS, DEFAULT_PERMISSION_CACHE_TTL_SECONDS));
     this.enableSetPermissionPostPublish = Boolean.parseBoolean(properties.getProperty(ENABLE_SET_PERMISSION_POST_PUBLISH, "true"));
     this.skipPermissionCheck = Boolean.parseBoolean(properties.getProperty(SKIP_PERMISSION_CHECK, String.valueOf(DEFAULT_SKIP_PERMISSION_CHECK)));
+    this.enableParallelProcessing = Boolean.parseBoolean(properties.getProperty(ENABLE_PARALLEL_PROCESSING, String.valueOf(DEFAULT_ENABLE_PARALLEL_PROCESSING)));
   }
 
   @Override
@@ -115,90 +125,51 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     }
 
     CopyManifest.CopyableUnitIterator manifests = null;
-    List<CopyEntity> copyEntities = Lists.newArrayList();
-    List<FileStatus> toDelete = Lists.newArrayList();
-    // map of paths and permissions sorted by depth of path, so that permissions can be set in order
-    Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissions = new HashMap<>();
-    Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissionsForSetPermissionStep = new HashMap<>();
-    Map<String, OwnerAndPermission> existingDirectoryPermissionsForSetPermissionStep = new HashMap<>();
+    // Use thread-safe collections when parallel processing is enabled
+    List<CopyEntity> copyEntities = enableParallelProcessing ? new CopyOnWriteArrayList<>() : Lists.newArrayList();
+    List<FileStatus> toDelete = enableParallelProcessing ? new CopyOnWriteArrayList<>() : Lists.newArrayList();
+    // Map of paths and permissions sorted by depth of path, so that permissions can be set in order
+    Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissions = enableParallelProcessing ? new ConcurrentHashMap<>() : new HashMap<>();
+    Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissionsForSetPermissionStep = enableParallelProcessing ? new ConcurrentHashMap<>() : new HashMap<>();
+    Map<String, OwnerAndPermission> existingDirectoryPermissionsForSetPermissionStep = enableParallelProcessing ? new ConcurrentHashMap<>() : new HashMap<>();
     TreeMap<String, OwnerAndPermission> flattenedAncestorPermissions = new TreeMap<>(
         Comparator.comparingInt((String o) -> o.split("/").length).thenComparing(o -> o));
     try {
       long startTime = System.currentTimeMillis();
       manifests = CopyManifest.getReadIterator(this.manifestReadFs, this.manifestPath);
-      Cache<String, OwnerAndPermission> permissionMap = CacheBuilder.newBuilder().expireAfterAccess(permissionCacheTTLSeconds, TimeUnit.SECONDS).build();
-      int numFiles = 0;
-      while (manifests.hasNext()) {
-        numFiles++;
-        CopyManifest.CopyableUnit file = manifests.next();
+      Cache<String, OwnerAndPermission> permissionMap =
+          CacheBuilder.newBuilder().expireAfterAccess(permissionCacheTTLSeconds, TimeUnit.SECONDS).build();
+
+      if (enableParallelProcessing) {
         //todo: We can use fileSet to partition the data in case of some softbound issue
         //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
-        Path fileToCopy = new Path(file.fileName);
-        if (srcFs.exists(fileToCopy)) {
-          boolean existOnTarget = targetFs.exists(fileToCopy);
-          if (this.skipPermissionCheck && existOnTarget) {
-            // Skip Permission Check for files that already exist in the target when skipPermissionCheck is true
-            continue;
-          }
-          FileStatus srcFile = srcFs.getFileStatus(fileToCopy);
-          OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(srcFs, srcFile, configuration);
-          if (!existOnTarget || shouldCopy(targetFs, srcFile, targetFs.getFileStatus(fileToCopy), replicatedPermission)) {
-            CopyableFile.Builder copyableFileBuilder =
-                CopyableFile.fromOriginAndDestination(srcFs, srcFile, fileToCopy, configuration)
-                    .fileSet(datasetURN())
-                    .datasetOutputPath(fileToCopy.toString())
-                    .ancestorsOwnerAndPermission(
-                        CopyableFile.resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(srcFs, fileToCopy.getParent(),
-                            new Path(commonFilesParent), configuration, permissionMap))
-                    .destinationOwnerAndPermission(replicatedPermission);
-            CopyableFile copyableFile = copyableFileBuilder.build();
-            copyableFile.setFsDatasets(srcFs, targetFs);
-            copyEntities.add(copyableFile);
-
-            // In case of directory with 000 permission, the permission is changed to 100 due to HadoopUtils::addExecutePermissionToOwner
-            // getting called from CopyDataPublisher::preserveFileAttrInPublisher -> FileAwareInputStreamDataWriter::setPathPermission ->
-            // FileAwareInputStreamDataWriter::setOwnerExecuteBitIfDirectory -> HadoopUtils::addExecutePermissionToOwner
-            // We need to revert this extra permission change in setPermissionStep
-            if (srcFile.isDirectory() && !srcFile.getPermission().getUserAction().implies(FsAction.EXECUTE)
-                && !ancestorOwnerAndPermissionsForSetPermissionStep.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fileToCopy).toString())) {
-              OwnerAndPermission srcFileOwnerPermissionReplicatedForDest = new OwnerAndPermission(copyableFile.getDestinationOwnerAndPermission());
-              if(!targetFs.exists(fileToCopy)) {
-                List<OwnerAndPermission> ancestorsOwnerAndPermissionUpdated = new ArrayList<>();
-                ancestorsOwnerAndPermissionUpdated.add(srcFileOwnerPermissionReplicatedForDest);
-                copyableFile.getAncestorsOwnerAndPermission().forEach(ancestorOwnPerm -> ancestorsOwnerAndPermissionUpdated.add(new OwnerAndPermission(ancestorOwnPerm)));
-                ancestorOwnerAndPermissionsForSetPermissionStep.put(fileToCopy.toString(), ancestorsOwnerAndPermissionUpdated);
-              }
-              else {
-                // If the path exists, update only current directory permission in post publish step and not entire hierarchy.
-                existingDirectoryPermissionsForSetPermissionStep.put(fileToCopy.toString(), srcFileOwnerPermissionReplicatedForDest);
-              }
-            }
-
-            // Always grab the parent since the above permission setting should be setting the permission for a folder itself
-            // {@link CopyDataPublisher#preserveFileAttrInPublisher} will be setting the permission for the empty child dir
-            Path fromPath = fileToCopy.getParent();
-            // Avoid duplicate calculation for the same ancestor
-            if (fromPath != null && !ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString()) && !targetFs.exists(fromPath)) {
-              ancestorOwnerAndPermissions.put(fromPath.toString(), copyableFile.getAncestorsOwnerAndPermission());
-              if (!ancestorOwnerAndPermissionsForSetPermissionStep.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString())) {
-                ancestorOwnerAndPermissionsForSetPermissionStep.put(fromPath.toString(), copyableFile.getAncestorsOwnerAndPermission());
-              }
-            }
-
-            if (existOnTarget && srcFile.isFile()) {
-              // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
-              // todo: Change the publish behavior to support overwrite destination file during rename, instead of relying on this delete step which is needed if we want to support task level publish
-              toDelete.add(targetFs.getFileStatus(fileToCopy));
-            }
-          }
-        } else if (deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)) {
-          toDelete.add(targetFs.getFileStatus(fileToCopy));
+        List<CopyManifest.CopyableUnit> allFiles = new ArrayList<>();
+        while (manifests.hasNext()) {
+          allFiles.add(manifests.next());
         }
+        log.info("Starting parallel processing of {} files from manifest {}", allFiles.size(), this.manifestPath);
+        processFilesInParallel(allFiles, targetFs, configuration, permissionMap, copyEntities, toDelete,
+            ancestorOwnerAndPermissions, ancestorOwnerAndPermissionsForSetPermissionStep,
+            existingDirectoryPermissionsForSetPermissionStep);
+        log.info("Completed parallel processing of {} files in {} ms", allFiles.size(), System.currentTimeMillis() - startTime);
+      } else {
+        //todo: We can use fileSet to partition the data in case of some softbound issue
+        //todo: After partition, change this to directly return iterator so that we can save time if we meet resources limitation
+        int numFiles = 0;
+        while (manifests.hasNext()) {
+          numFiles++;
+          processFile(manifests.next(), targetFs, configuration, permissionMap, copyEntities, toDelete,
+              ancestorOwnerAndPermissions, ancestorOwnerAndPermissionsForSetPermissionStep,
+              existingDirectoryPermissionsForSetPermissionStep);
+        }
+        log.info("Completed sequential processing of {} files in {} ms", numFiles, System.currentTimeMillis() - startTime);
       }
 
       // Precreate the directories to avoid an edge case where recursive rename can create extra directories in the target
-      CommitStep createDirectoryWithPermissionsCommitStep = new CreateDirectoryWithPermissionsCommitStep(targetFs, ancestorOwnerAndPermissions, this.properties);
-      copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), createDirectoryWithPermissionsCommitStep, 1));
+      CommitStep createDirectoryWithPermissionsCommitStep =
+          new CreateDirectoryWithPermissionsCommitStep(targetFs, ancestorOwnerAndPermissions, this.properties);
+      copyEntities.add(
+          new PrePublishStep(datasetURN(), Maps.newHashMap(), createDirectoryWithPermissionsCommitStep, 1));
 
       if (this.enableSetPermissionPostPublish) {
         for (Map.Entry<String, List<OwnerAndPermission>> recursiveParentPermissions : ancestorOwnerAndPermissionsForSetPermissionStep.entrySet()) {
@@ -216,7 +187,8 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
           Path currentPath = new Path(existingDirectoryPermissions.getKey());
           flattenedAncestorPermissions.put(currentPath.toString(), existingDirectoryPermissions.getValue());
         }
-        CommitStep setPermissionCommitStep = new SetPermissionCommitStep(targetFs, flattenedAncestorPermissions, this.properties);
+        CommitStep setPermissionCommitStep =
+            new SetPermissionCommitStep(targetFs, flattenedAncestorPermissions, this.properties);
         copyEntities.add(new PostPublishStep(datasetURN(), Maps.newHashMap(), setPermissionCommitStep, 1));
       }
       if (!toDelete.isEmpty()) {
@@ -224,19 +196,24 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
         CommitStep step = new DeleteFileCommitStep(targetFs, toDelete, this.properties, Optional.<Path>absent());
         copyEntities.add(new PrePublishStep(datasetURN(), Maps.newHashMap(), step, 1));
       }
-      log.info(String.format("Workunits calculation took %s milliseconds to process %s files", System.currentTimeMillis() - startTime, numFiles));
     } catch (JsonIOException | JsonSyntaxException e) {
       //todo: update error message to point to a sample json file instead of schema which is hard to understand
-      log.warn(String.format("Failed to read Manifest path %s on filesystem %s, please make sure it's in correct json format with schema"
-          + " {type:array, items:{type: object, properties:{id:{type:String}, fileName:{type:String}, fileGroup:{type:String}, fileSizeInBytes: {type:Long}}}}",
+      log.warn(String.format(
+          "Failed to read Manifest path %s on filesystem %s, please make sure it's in correct json format with schema"
+              + " {type:array, items:{type: object, properties:{id:{type:String}, fileName:{type:String}, fileGroup:{type:String}, fileSizeInBytes: {type:Long}}}}",
           manifestPath.toString(), manifestReadFs.getUri().toString()), e);
       throw new IOException(e);
     } catch (Exception e) {
-      log.warn(String.format("Failed to process Manifest path %s on filesystem %s, due to", manifestPath.toString(), manifestReadFs.getUri().toString()), e);
+      log.warn(String.format("Failed to process Manifest path %s on filesystem %s, due to", manifestPath.toString(),
+          manifestReadFs.getUri().toString()), e);
       throw new IOException(e);
     } finally {
       if (manifests != null) {
-        manifests.close();
+        try {
+          manifests.close();
+        } catch (Exception e) {
+          log.warn("Failed to close manifest iterator for path {}", manifestPath, e);
+        }
       }
     }
     return Collections.singleton(new FileSet.Builder<>(datasetURN(), this).add(copyEntities).build()).iterator();
@@ -246,5 +223,95 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
       throws IOException {
     // Copy only if source is newer than target or if the owner or permission is different
     return fileInSource.getModificationTime() > fileInTarget.getModificationTime() || !replicatedPermission.hasSameOwnerAndPermission(targetFs, fileInTarget);
+  }
+
+  /**
+   * Processes all files concurrently using a parallel stream. Any single file failure propagates immediately
+   * (fail-fast), causing the entire operation to abort with an exception.
+   */
+  private void processFilesInParallel(List<CopyManifest.CopyableUnit> allFiles, FileSystem targetFs,
+      CopyConfiguration configuration, Cache<String, OwnerAndPermission> permissionMap,
+      List<CopyEntity> copyEntities, List<FileStatus> toDelete,
+      Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissions,
+      Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissionsForSetPermissionStep,
+      Map<String, OwnerAndPermission> existingDirectoryPermissionsForSetPermissionStep) {
+    allFiles.parallelStream().forEach(file -> {
+      try {
+        processFile(file, targetFs, configuration, permissionMap, copyEntities, toDelete,
+            ancestorOwnerAndPermissions, ancestorOwnerAndPermissionsForSetPermissionStep,
+            existingDirectoryPermissionsForSetPermissionStep);
+      } catch (Exception e) {
+        throw new RuntimeException("Failed to process file: " + file.fileName, e);
+      }
+    });
+  }
+
+  private void processFile(CopyManifest.CopyableUnit file, FileSystem targetFs,
+      CopyConfiguration configuration, Cache<String, OwnerAndPermission> permissionMap,
+      List<CopyEntity> copyEntities, List<FileStatus> toDelete,
+      Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissions,
+      Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissionsForSetPermissionStep,
+      Map<String, OwnerAndPermission> existingDirectoryPermissionsForSetPermissionStep) throws Exception {
+    Path fileToCopy = new Path(file.fileName);
+    if (srcFs.exists(fileToCopy)) {
+      boolean existOnTarget = targetFs.exists(fileToCopy);
+      if (this.skipPermissionCheck && existOnTarget) {
+        // Skip permission check for files that already exist in the target when skipPermissionCheck is true
+        return;
+      }
+      FileStatus srcFile = srcFs.getFileStatus(fileToCopy);
+      OwnerAndPermission replicatedPermission = CopyableFile.resolveReplicatedOwnerAndPermission(srcFs, srcFile, configuration);
+      if (!existOnTarget || shouldCopy(targetFs, srcFile, targetFs.getFileStatus(fileToCopy), replicatedPermission)) {
+        CopyableFile copyableFile = CopyableFile.fromOriginAndDestination(srcFs, srcFile, fileToCopy, configuration)
+            .fileSet(datasetURN())
+            .datasetOutputPath(fileToCopy.toString())
+            .ancestorsOwnerAndPermission(
+                CopyableFile.resolveReplicatedOwnerAndPermissionsRecursivelyWithCache(srcFs, fileToCopy.getParent(),
+                    new Path(commonFilesParent), configuration, permissionMap))
+            .destinationOwnerAndPermission(replicatedPermission)
+            .build();
+        copyableFile.setFsDatasets(srcFs, targetFs);
+        copyEntities.add(copyableFile);
+
+        // In case of directory with 000 permission, the permission is changed to 100 due to HadoopUtils::addExecutePermissionToOwner
+        // getting called from CopyDataPublisher::preserveFileAttrInPublisher -> FileAwareInputStreamDataWriter::setPathPermission ->
+        // FileAwareInputStreamDataWriter::setOwnerExecuteBitIfDirectory -> HadoopUtils::addExecutePermissionToOwner
+        // We need to revert this extra permission change in setPermissionStep
+        if (srcFile.isDirectory() && !srcFile.getPermission().getUserAction().implies(FsAction.EXECUTE)
+            && !ancestorOwnerAndPermissionsForSetPermissionStep.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fileToCopy).toString())) {
+          OwnerAndPermission srcFileOwnerPermissionReplicatedForDest = new OwnerAndPermission(copyableFile.getDestinationOwnerAndPermission());
+          if (!targetFs.exists(fileToCopy)) {
+            List<OwnerAndPermission> ancestorsOwnerAndPermissionUpdated = new ArrayList<>();
+            ancestorsOwnerAndPermissionUpdated.add(srcFileOwnerPermissionReplicatedForDest);
+            copyableFile.getAncestorsOwnerAndPermission().forEach(ancestorOwnPerm -> ancestorsOwnerAndPermissionUpdated.add(new OwnerAndPermission(ancestorOwnPerm)));
+            ancestorOwnerAndPermissionsForSetPermissionStep.put(fileToCopy.toString(), ancestorsOwnerAndPermissionUpdated);
+          } else {
+            // If the path exists, update only current directory permission in post publish step and not entire hierarchy.
+            existingDirectoryPermissionsForSetPermissionStep.put(fileToCopy.toString(), srcFileOwnerPermissionReplicatedForDest);
+          }
+        }
+
+        // Always grab the parent since the above permission setting should be setting the permission for a folder itself
+        // {@link CopyDataPublisher#preserveFileAttrInPublisher} will be setting the permission for the empty child dir
+        Path fromPath = fileToCopy.getParent();
+        // Avoid duplicate calculation for the same ancestor
+        if (fromPath != null
+            && !ancestorOwnerAndPermissions.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString())
+            && !targetFs.exists(fromPath)) {
+          ancestorOwnerAndPermissions.put(fromPath.toString(), copyableFile.getAncestorsOwnerAndPermission());
+          if (!ancestorOwnerAndPermissionsForSetPermissionStep.containsKey(PathUtils.getPathWithoutSchemeAndAuthority(fromPath).toString())) {
+            ancestorOwnerAndPermissionsForSetPermissionStep.put(fromPath.toString(), copyableFile.getAncestorsOwnerAndPermission());
+          }
+        }
+
+        if (existOnTarget && srcFile.isFile()) {
+          // this is to match the existing publishing behavior where we won't rewrite the target when it's already existed
+          // todo: Change the publish behavior to support overwrite destination file during rename, instead of relying on this delete step which is needed if we want to support task level publish
+          toDelete.add(targetFs.getFileStatus(fileToCopy));
+        }
+      }
+    } else if (deleteFileThatNotExistOnSource && targetFs.exists(fileToCopy)) {
+      toDelete.add(targetFs.getFileStatus(fileToCopy));
+    }
   }
 }
