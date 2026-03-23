@@ -27,6 +27,10 @@ import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.LinkedBlockingQueue;
+import java.util.concurrent.ThreadPoolExecutor;
+import java.util.concurrent.TimeUnit;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 import org.slf4j.Logger;
@@ -62,6 +66,7 @@ import org.apache.gobblin.runtime.spec_store.FSSpecStore;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ClassAliasResolver;
 import org.apache.gobblin.util.ConfigUtils;
+import org.apache.gobblin.util.ExecutorsUtils;
 import org.apache.gobblin.util.ExponentialBackoff;
 import org.apache.gobblin.util.callbacks.CallbackResult;
 import org.apache.gobblin.util.callbacks.CallbacksDispatcher;
@@ -110,7 +115,20 @@ public class FlowCatalog extends AbstractIdleService implements SpecCatalog, Mut
 
   public FlowCatalog(Config config, Optional<Logger> log, Optional<MetricContext> parentMetricContext, boolean instrumentationEnabled) {
     this.log = log.isPresent() ? log.get() : LoggerFactory.getLogger(getClass());
-    this.listeners = new SpecCatalogListenersList(log);
+    // Flow compilation on the submission path was previously serialized by a synchronized block in
+    // SpecCatalogListenersList.onAddSpec() and a single-thread executor in CallbacksDispatcher.
+    // Since the execution path (DagProcessingEngine) already compiles flows concurrently on a thread pool
+    // of size 3, compileFlow() is proven thread-safe. We use a bounded ThreadPoolExecutor here to allow
+    // parallel compilation across flows during submission, with CallerRunsPolicy for backpressure under load.
+    int numListenerThreads = ConfigUtils.getInt(config,
+        ServiceConfigKeys.NUM_SPEC_CATALOG_LISTENER_THREADS_KEY,
+        ServiceConfigKeys.DEFAULT_NUM_SPEC_CATALOG_LISTENER_THREADS);
+    ExecutorService listenerExecutor = new ThreadPoolExecutor(numListenerThreads, numListenerThreads,
+        0L, TimeUnit.MILLISECONDS,
+        new LinkedBlockingQueue<>(numListenerThreads * 10),
+        ExecutorsUtils.newThreadFactory(log, Optional.of("SpecCatalogListenerThread-%d")),
+        new ThreadPoolExecutor.CallerRunsPolicy());
+    this.listeners = new SpecCatalogListenersList(log, listenerExecutor);
     if (instrumentationEnabled) {
       MetricContext realParentCtx =
           parentMetricContext.or(Instrumented.getMetricContext(new org.apache.gobblin.configuration.State(), getClass()));

@@ -47,6 +47,19 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
     _disp = new CallbacksDispatcher<>(Optional.<ExecutorService>absent(), log);
   }
 
+  /**
+   * Constructor that accepts a custom {@link ExecutorService} for dispatching listener callbacks.
+   * This enables parallel flow compilation on the submission path. Previously, onAddSpec() was
+   * synchronized and used a single-thread executor, serializing all flow compilations. Since the
+   * execution path ({@link org.apache.gobblin.service.modules.orchestration.DagProcessingEngine})
+   * already runs compileFlow() from multiple threads, it is safe to parallelize here as well.
+   * Note: onDeleteSpec and onUpdateSpec remain synchronized as they handle infrequent TopologySpec
+   * mutations that modify shared state.
+   */
+  public SpecCatalogListenersList(Optional<Logger> log, ExecutorService executorService) {
+    _disp = new CallbacksDispatcher<>(Optional.of(executorService), log);
+  }
+
   public Logger getLog() {
     return _disp.getLog();
   }
@@ -66,7 +79,7 @@ public class SpecCatalogListenersList implements SpecCatalogListener, SpecCatalo
   }
 
   @Override
-  public synchronized AddSpecResponse onAddSpec(Spec addedSpec) {
+  public AddSpecResponse onAddSpec(Spec addedSpec) {
     Preconditions.checkNotNull(addedSpec);
     try {
       return new AddSpecResponse<>(_disp.execCallbacks(new AddSpecCallback(addedSpec)));
