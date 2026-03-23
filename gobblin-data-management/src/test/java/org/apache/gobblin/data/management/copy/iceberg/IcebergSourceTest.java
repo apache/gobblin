@@ -1085,7 +1085,7 @@ public class IcebergSourceTest {
 
   @Test
   public void testPartitionValueFormatDaily() throws Exception {
-    // iceberg.partition.value.format=yyyy-MM-dd should produce plain date partitions (no hour)
+    // iceberg.partition.value.datetime.format=yyyy-MM-dd should produce plain date partitions (no hour)
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
     properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
     properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd");
@@ -1334,36 +1334,6 @@ public class IcebergSourceTest {
     Assert.assertEquals(values[0], "2025-04-01-00", "Hour 0: midnight");
     Assert.assertEquals(values[1], "2025-03-31-23", "Hour 1: crosses into previous day");
     Assert.assertEquals(values[2], "2025-03-31-22", "Hour 2: previous day");
-  }
-
-  @Test
-  public void testLookbackHoursCrossesDateBoundary() throws Exception {
-    // lookbackHours=3 starting at midnight (00:00) crosses into the previous day from step 1
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
-    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01-00");
-    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
-    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_HOURS, "3");
-    sourceState = new SourceState(new State(properties));
-
-    List<FilePathWithPartition> files = Arrays.asList(
-      new FilePathWithPartition("/data/f1.parquet", createPartitionMap("datepartition", "2025-04-01-00"), 1000L),
-      new FilePathWithPartition("/data/f2.parquet", createPartitionMap("datepartition", "2025-03-31-23"), 1000L),
-      new FilePathWithPartition("/data/f3.parquet", createPartitionMap("datepartition", "2025-03-31-22"), 1000L)
-    );
-
-    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
-    when(mockTable.getTableId()).thenReturn(tableId);
-    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
-
-    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
-      SourceState.class, IcebergTable.class);
-    m.setAccessible(true);
-    m.invoke(icebergSource, sourceState, mockTable);
-
-    String[] values = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES).split(",");
-    Assert.assertEquals(values[0], "2025-04-01-00");
-    Assert.assertEquals(values[1], "2025-03-31-23", "Should cross midnight into previous day");
-    Assert.assertEquals(values[2], "2025-03-31-22");
   }
 
   @Test

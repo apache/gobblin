@@ -355,7 +355,7 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
               ? "yyyy-MM-dd-HH" : "yyyy-MM-dd");
       try {
         startDateTime = isCustomFormat
-            ? LocalDate.parse(dateValue, partitionFormatter).atStartOfDay()
+            ? LocalDateTime.parse(dateValue, partitionFormatter)
             : LocalDate.parse(dateValue).atStartOfDay();
       } catch (java.time.format.DateTimeParseException e) {
         String errorMsg = String.format(

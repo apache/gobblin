@@ -111,7 +111,7 @@ public class IcebergPartitionFilterGenerator {
     for (int i = 0; i < lookbackDays; i++) {
       String val = start.minusDays(i).format(formatter);
       values.add(val);
-      log.info("Including daily partition: {}={}", partitionColumn, val);
+      log.debug("Including daily partition: {}={}", partitionColumn, val);
     }
     return new FilterResult(Collections.unmodifiableList(values),
         buildOrExpression(partitionColumn, values));
@@ -143,7 +143,7 @@ public class IcebergPartitionFilterGenerator {
     for (int i = 0; i < lookbackHours; i++) {
       String val = start.minusHours(i).format(formatter);
       values.add(val);
-      log.info("Including hourly partition: {}={}", partitionColumn, val);
+      log.debug("Including hourly partition: {}={}", partitionColumn, val);
     }
     return new FilterResult(Collections.unmodifiableList(values),
         buildOrExpression(partitionColumn, values));
