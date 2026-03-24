@@ -22,6 +22,7 @@ import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
 import java.security.KeyStore;
+import java.time.Duration;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
@@ -37,6 +38,7 @@ import io.grpc.netty.shaded.io.grpc.netty.GrpcSslContexts;
 import io.grpc.netty.shaded.io.netty.handler.ssl.SslContext;
 import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowClientOptions;
+import io.temporal.serviceclient.RpcRetryOptions;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 import io.temporal.serviceclient.WorkflowServiceStubsOptions;
 import javax.net.ssl.KeyManagerFactory;
@@ -118,6 +120,7 @@ public class TemporalWorkflowClientFactory {
                 .setEnableHttps(true)
                 .setSslContext(sslContext)
                 .setMetricsScope(metricsScope)
+                .setRpcRetryOptions(buildRpcRetryOptions(config))
                 .build();
         return new ManagedWorkflowServiceStubs(WorkflowServiceStubs.newServiceStubs(options));
     }
@@ -127,6 +130,27 @@ public class TemporalWorkflowClientFactory {
             .setContextPropagators(Collections.singletonList(new MDCContextPropagator()))
             .build();
         return WorkflowClient.newInstance(service, options);
+    }
+
+    private static RpcRetryOptions buildRpcRetryOptions(Config config) {
+        int initialIntervalMillis = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_RPC_RETRY_OPTIONS_INITIAL_INTERVAL_MILLIS,
+            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_INITIAL_INTERVAL_MILLIS);
+        int maximumIntervalSeconds = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_RPC_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS,
+            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS);
+        double backoffCoefficient = ConfigUtils.getDouble(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_RPC_RETRY_OPTIONS_BACKOFF_COEFFICIENT,
+            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_BACKOFF_COEFFICIENT);
+        int maximumAttempts = ConfigUtils.getInt(config,
+            GobblinTemporalConfigurationKeys.TEMPORAL_RPC_RETRY_OPTIONS_MAXIMUM_ATTEMPTS,
+            GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_MAXIMUM_ATTEMPTS);
+        return RpcRetryOptions.newBuilder()
+            .setInitialInterval(Duration.ofMillis(initialIntervalMillis))
+            .setBackoffCoefficient(backoffCoefficient)
+            .setMaximumInterval(Duration.ofSeconds(maximumIntervalSeconds))
+            .setMaximumAttempts(maximumAttempts)
+            .build();
     }
 
     private static InputStream toInputStream(File storeFile)
