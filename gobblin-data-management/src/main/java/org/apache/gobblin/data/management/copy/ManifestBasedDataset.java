@@ -76,11 +76,13 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   // Parallelization configuration: when enabled, all manifest entries are loaded upfront and processed concurrently.
   // Any single file failure propagates immediately (fail-fast), aborting the entire operation.
   public static final String ENABLE_PARALLEL_PROCESSING = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".enableParallelProcessing";
+  public static final String PARALLEL_BATCH_SIZE = ManifestBasedDatasetFinder.CONFIG_PREFIX + ".parallelBatchSize";
 
   private static final String DEFAULT_PERMISSION_CACHE_TTL_SECONDS = "30";
   private static final String DEFAULT_COMMON_FILES_PARENT = "/";
   private static final boolean DEFAULT_SKIP_PERMISSION_CHECK = false;
   private static final boolean DEFAULT_ENABLE_PARALLEL_PROCESSING = true;
+  private static final int DEFAULT_PARALLEL_BATCH_SIZE = 100;
 
   private final FileSystem srcFs;
   private final FileSystem manifestReadFs;
@@ -92,6 +94,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   private final boolean enableSetPermissionPostPublish;
   private final boolean skipPermissionCheck;
   private final boolean enableParallelProcessing;
+  private final int parallelBatchSize;
 
   public ManifestBasedDataset(final FileSystem srcFs, final FileSystem manifestReadFs, final Path manifestPath, final Properties properties) {
     this.srcFs = srcFs;
@@ -104,6 +107,7 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
     this.enableSetPermissionPostPublish = Boolean.parseBoolean(properties.getProperty(ENABLE_SET_PERMISSION_POST_PUBLISH, "true"));
     this.skipPermissionCheck = Boolean.parseBoolean(properties.getProperty(SKIP_PERMISSION_CHECK, String.valueOf(DEFAULT_SKIP_PERMISSION_CHECK)));
     this.enableParallelProcessing = Boolean.parseBoolean(properties.getProperty(ENABLE_PARALLEL_PROCESSING, String.valueOf(DEFAULT_ENABLE_PARALLEL_PROCESSING)));
+    this.parallelBatchSize = Integer.parseInt(properties.getProperty(PARALLEL_BATCH_SIZE, String.valueOf(DEFAULT_PARALLEL_BATCH_SIZE)));
   }
 
   @Override
@@ -226,8 +230,9 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
   }
 
   /**
-   * Processes all files concurrently using a parallel stream. Any single file failure propagates immediately
-   * (fail-fast), causing the entire operation to abort with an exception.
+   * Processes all files concurrently in batches using a parallel stream. Files are divided into batches of
+   * {@code parallelBatchSize} and each batch is processed fully before the next begins. Any single file failure
+   * propagates immediately (fail-fast), aborting the entire operation.
    */
   private void processFilesInParallel(List<CopyManifest.CopyableUnit> allFiles, FileSystem targetFs,
       CopyConfiguration configuration, Cache<String, OwnerAndPermission> permissionMap,
@@ -235,15 +240,22 @@ public class ManifestBasedDataset implements IterableCopyableDataset {
       Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissions,
       Map<String, List<OwnerAndPermission>> ancestorOwnerAndPermissionsForSetPermissionStep,
       Map<String, OwnerAndPermission> existingDirectoryPermissionsForSetPermissionStep) {
-    allFiles.parallelStream().forEach(file -> {
-      try {
-        processFile(file, targetFs, configuration, permissionMap, copyEntities, toDelete,
-            ancestorOwnerAndPermissions, ancestorOwnerAndPermissionsForSetPermissionStep,
-            existingDirectoryPermissionsForSetPermissionStep);
-      } catch (Exception e) {
-        throw new RuntimeException("Failed to process file: " + file.fileName, e);
-      }
-    });
+    List<List<CopyManifest.CopyableUnit>> batches = Lists.partition(allFiles, parallelBatchSize);
+    log.info("Processing {} files in {} batches of up to {} files each", allFiles.size(), batches.size(), parallelBatchSize);
+    int batchNum = 0;
+    for (List<CopyManifest.CopyableUnit> batch : batches) {
+      batchNum++;
+      log.info("Processing batch {}/{} ({} files)", batchNum, batches.size(), batch.size());
+      batch.parallelStream().forEach(file -> {
+        try {
+          processFile(file, targetFs, configuration, permissionMap, copyEntities, toDelete,
+              ancestorOwnerAndPermissions, ancestorOwnerAndPermissionsForSetPermissionStep,
+              existingDirectoryPermissionsForSetPermissionStep);
+        } catch (Exception e) {
+          throw new RuntimeException("Failed to process file: " + file.fileName, e);
+        }
+      });
+    }
   }
 
   private void processFile(CopyManifest.CopyableUnit file, FileSystem targetFs,

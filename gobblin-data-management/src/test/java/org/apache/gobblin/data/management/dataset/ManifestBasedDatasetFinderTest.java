@@ -595,6 +595,34 @@ public class ManifestBasedDatasetFinderTest {
   }
 
   /**
+   * Verifies that parallel processing with a batch size smaller than the file count (forcing multiple batches)
+   * still produces the same results as a single batch.
+   */
+  @Test
+  public void testParallelProcessingWithSmallBatchSize() throws Exception {
+    Path manifestPath = new Path(getClass().getClassLoader().getResource("manifestBasedDistcpTest/sampleManifest.json").getPath());
+    Properties props = new Properties();
+    props.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, "/");
+    props.setProperty(ManifestBasedDataset.ENABLE_PARALLEL_PROCESSING, "true");
+    props.setProperty(ManifestBasedDataset.PARALLEL_BATCH_SIZE, "1"); // 2 files, batch size 1 => 2 batches
+
+    try (FileSystem sourceFs = Mockito.mock(FileSystem.class);
+        FileSystem manifestReadFs = Mockito.mock(FileSystem.class);
+        FileSystem destFs = Mockito.mock(FileSystem.class)) {
+      setSourceAndDestFsMocks(sourceFs, destFs, manifestPath, manifestReadFs, true);
+
+      Iterator<FileSet<CopyEntity>> fileSets =
+          new ManifestBasedDataset(sourceFs, manifestReadFs, manifestPath, props).getFileSetIterator(destFs,
+              CopyConfiguration.builder(destFs, props).build());
+      Assert.assertTrue(fileSets.hasNext());
+      FileSet<CopyEntity> fileSet = fileSets.next();
+      Assert.assertEquals(fileSet.getFiles().size(), 4); // 2 files to copy + 1 pre publish step + 1 post publish step
+      Assert.assertTrue(((PrePublishStep) fileSet.getFiles().get(2)).getStep() instanceof CreateDirectoryWithPermissionsCommitStep);
+      Assert.assertTrue(((PostPublishStep) fileSet.getFiles().get(3)).getStep() instanceof SetPermissionCommitStep);
+    }
+  }
+
+  /**
    * Verifies that sequential processing (parallel disabled) produces the same copy entities.
    */
   @Test
