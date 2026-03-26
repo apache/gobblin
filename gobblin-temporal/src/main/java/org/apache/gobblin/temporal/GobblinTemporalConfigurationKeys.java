@@ -159,19 +159,19 @@ public interface GobblinTemporalConfigurationKeys {
 
   /**
    * RPC retry options for gRPC calls to the Temporal service (e.g. worker status reporting).
-   * Defaults are tuned to tolerate short-lived throttling windows of 1-2 minutes:
-   * with initialInterval=500ms, coefficient=2.0, maximumInterval=30s, the cumulative wait across
-   * 10 attempts is ~151.5s, providing coverage beyond a 2-minute throttle burst.
+   * Defaults are tuned to tolerate throttling windows of up to 10 minutes:
+   * with initialInterval=1s, coefficient=2.0, maximumInterval=60s, the cumulative wait across
+   * 15 attempts is ~603s (~10 min), providing coverage beyond a 10-minute throttle burst.
    */
   String TEMPORAL_RPC_RETRY_OPTIONS = PREFIX + "rpc.retry.options.";
   String TEMPORAL_RPC_RETRY_OPTIONS_INITIAL_INTERVAL_MILLIS = TEMPORAL_RPC_RETRY_OPTIONS + "initial.interval.millis";
-  int DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_INITIAL_INTERVAL_MILLIS = 500;
+  int DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_INITIAL_INTERVAL_MILLIS = 1000;
   String TEMPORAL_RPC_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS = TEMPORAL_RPC_RETRY_OPTIONS + "maximum.interval.seconds";
-  int DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS = 30;
+  int DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_MAXIMUM_INTERVAL_SECONDS = 60;
   String TEMPORAL_RPC_RETRY_OPTIONS_BACKOFF_COEFFICIENT = TEMPORAL_RPC_RETRY_OPTIONS + "backoff.coefficient";
   double DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_BACKOFF_COEFFICIENT = 2.0;
   String TEMPORAL_RPC_RETRY_OPTIONS_MAXIMUM_ATTEMPTS = TEMPORAL_RPC_RETRY_OPTIONS + "maximum.attempts";
-  int DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_MAXIMUM_ATTEMPTS = 10;
+  int DEFAULT_TEMPORAL_RPC_RETRY_OPTIONS_MAXIMUM_ATTEMPTS = 15;
 
   /**
    * Memory allocation for execution worker containers.
