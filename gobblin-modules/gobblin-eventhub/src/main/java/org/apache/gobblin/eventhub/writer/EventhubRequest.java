@@ -18,7 +18,7 @@
 package org.apache.gobblin.eventhub.writer;
 
 
-import org.codehaus.jackson.annotate.JsonProperty;
+import org.fasterxml.jackson.annotate.JsonProperty;
 
 /**
  * The EventhubRequest is a wrapper of given json string
