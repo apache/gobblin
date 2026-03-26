@@ -94,6 +94,12 @@ public class ServiceConfigKeys {
   public static final String FLOW_CONCURRENCY_ALLOWED = GOBBLIN_SERVICE_PREFIX + "flowConcurrencyAllowed";
   public static final Boolean DEFAULT_FLOW_CONCURRENCY_ALLOWED = true;
 
+  // Comma-separated list of flow group prefixes for which concurrent execution defaults to true.
+  // Only used as a fallback when a flow does not have flow.allowConcurrentExecution explicitly set
+  // and the service-level flowConcurrencyAllowed is false.
+  public static final String CONCURRENCY_ALLOWED_FLOWGROUP_PREFIXES =
+      GOBBLIN_SERVICE_PREFIX + "concurrencyAllowedFlowGroupPrefixes";
+
   public static final String LEADER_URL = "leaderUrl";
 
   public static final String QUOTA_MANAGER_CLASS = GOBBLIN_SERVICE_PREFIX + "quotaManager.class";

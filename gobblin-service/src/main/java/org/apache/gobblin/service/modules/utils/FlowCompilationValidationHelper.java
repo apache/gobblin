@@ -19,8 +19,11 @@ package org.apache.gobblin.service.modules.utils;
 
 import java.io.IOException;
 import java.lang.reflect.InvocationTargetException;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
@@ -82,6 +85,7 @@ public class FlowCompilationValidationHelper {
   private final EventSubmitter eventSubmitter;
   private final DagManagementStateStore dagManagementStateStore;
   private final boolean isFlowConcurrencyEnabled;
+  private final List<String> concurrencyAllowedFlowGroupPrefixes;
 
   @Inject
   public FlowCompilationValidationHelper(Config config, SharedFlowMetricsSingleton sharedFlowMetricsSingleton,
@@ -102,6 +106,9 @@ public class FlowCompilationValidationHelper {
     this.dagManagementStateStore = dagManagementStateStore;
     this.isFlowConcurrencyEnabled = ConfigUtils.getBoolean(config, ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED,
         ServiceConfigKeys.DEFAULT_FLOW_CONCURRENCY_ALLOWED);
+    String prefixesCsv = ConfigUtils.getString(config, ServiceConfigKeys.CONCURRENCY_ALLOWED_FLOWGROUP_PREFIXES, "");
+    this.concurrencyAllowedFlowGroupPrefixes = prefixesCsv.isEmpty() ? Collections.emptyList()
+        : Arrays.stream(prefixesCsv.split(",")).map(String::trim).filter(s -> !s.isEmpty()).collect(Collectors.toList());
   }
 
   /**
@@ -148,13 +155,16 @@ public class FlowCompilationValidationHelper {
   /**
    * Checks if flowSpec disallows concurrent executions, and if so then checks if another instance of the flow is
    * already running and emits a FLOW FAILED event. Otherwise, this check passes.
+   * Concurrent execution is resolved in the following order:
+   * 1. Per-flow {@link ConfigurationKeys#FLOW_ALLOW_CONCURRENT_EXECUTION} if explicitly set
+   * 2. Service-level {@link ServiceConfigKeys#FLOW_CONCURRENCY_ALLOWED} (if true, allows concurrency)
+   * 3. Flow group prefix match via {@link ServiceConfigKeys#CONCURRENCY_ALLOWED_FLOWGROUP_PREFIXES}
    * @return Optional<Dag<JobExecutionPlan>> if caller allowed to execute flow and compile flowSpec, else Optional.absent()
    * @throws IOException
    */
   public Optional<Dag<JobExecutionPlan>> validateAndHandleConcurrentExecution(Config flowConfig, FlowSpec flowSpec,
       String flowGroup, String flowName, Map<String,String> flowMetadata) throws IOException {
-    boolean allowConcurrentExecution = Boolean.parseBoolean(ConfigUtils.getString(flowConfig,
-        ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, String.valueOf(this.isFlowConcurrencyEnabled)));
+    boolean allowConcurrentExecution = resolveAllowConcurrentExecution(flowConfig, flowGroup);
 
     Dag<JobExecutionPlan> jobExecutionPlanDag = specCompiler.compileFlow(flowSpec);
 
@@ -210,6 +220,32 @@ public class FlowCompilationValidationHelper {
   private boolean isExecutionPermitted(String flowGroup, String flowName, long flowExecutionId, boolean allowConcurrentExecution)
       throws IOException {
     return allowConcurrentExecution || !isPriorFlowExecutionRunning(flowGroup, flowName, flowExecutionId, dagManagementStateStore);
+  }
+
+  /**
+   * Resolves whether concurrent execution is allowed for a flow. The resolution order is:
+   * 1. Per-flow {@link ConfigurationKeys#FLOW_ALLOW_CONCURRENT_EXECUTION} if explicitly set in the flow config
+   * 2. Service-level {@link ServiceConfigKeys#FLOW_CONCURRENCY_ALLOWED} if true
+   * 3. Flow group prefix match via {@link ServiceConfigKeys#CONCURRENCY_ALLOWED_FLOWGROUP_PREFIXES}
+   */
+  @VisibleForTesting
+  boolean resolveAllowConcurrentExecution(Config flowConfig, String flowGroup) {
+    if (flowConfig.hasPath(ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION)) {
+      return flowConfig.getBoolean(ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION);
+    }
+    if (this.isFlowConcurrencyEnabled) {
+      return true;
+    }
+    return isFlowGroupConcurrencyAllowed(flowGroup);
+  }
+
+  private boolean isFlowGroupConcurrencyAllowed(String flowGroup) {
+    for (String prefix : this.concurrencyAllowedFlowGroupPrefixes) {
+      if (flowGroup.startsWith(prefix)) {
+        return true;
+      }
+    }
+    return false;
   }
 
   /**

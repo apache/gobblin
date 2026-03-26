@@ -41,12 +41,14 @@ import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
 import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagManagerTest;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
+import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.orchestration.proc.LaunchDagProcTest;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.FlowStatus;
@@ -54,6 +56,7 @@ import org.apache.gobblin.service.monitoring.JobStatus;
 import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 import static org.mockito.ArgumentMatchers.anyString;
+import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.spy;
 import static org.mockito.Mockito.when;
 
@@ -205,6 +208,115 @@ public class FlowCompilationValidationHelperTest {
     // flowStartTime = currentFlowExecutionId
     Assert.assertFalse(FlowCompilationValidationHelper.isPriorFlowExecutionRunning(flowGroup, flowName,
         flowStartTime, this.dagManagementStateStore));
+  }
+
+  /**
+   * Helper to build a {@link FlowCompilationValidationHelper} with the given service-level config.
+   */
+  private FlowCompilationValidationHelper buildHelper(Config serviceConfig) throws Exception {
+    ITestMetastoreDatabase db = TestMetastoreDatabaseFactory.get();
+    MySqlDagManagementStateStore dmss = spy(MySqlDagManagementStateStoreTest.getDummyDMSS(db));
+    LaunchDagProcTest.mockDMSSCommonBehavior(dmss);
+    SharedFlowMetricsSingleton sharedFlowMetricsSingleton = new SharedFlowMetricsSingleton(serviceConfig);
+    return new FlowCompilationValidationHelper(serviceConfig, sharedFlowMetricsSingleton,
+        mock(UserQuotaManager.class), dmss);
+  }
+
+  @Test
+  public void testResolveAllowConcurrentExecution_explicitFlowConfigTrue() throws Exception {
+    // Per-flow setting should take precedence even when service-level is false and no prefix match
+    Config serviceConfig = ConfigFactory.empty()
+        .withValue(ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED, ConfigValueFactory.fromAnyRef(false));
+    FlowCompilationValidationHelper helper = buildHelper(serviceConfig);
+
+    Config flowConfig = ConfigFactory.empty()
+        .withValue(ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, ConfigValueFactory.fromAnyRef(true));
+    Assert.assertTrue(helper.resolveAllowConcurrentExecution(flowConfig, "unmatched-group"));
+  }
+
+  @Test
+  public void testResolveAllowConcurrentExecution_explicitFlowConfigFalse() throws Exception {
+    // Per-flow setting of false should take precedence even when service-level is true
+    Config serviceConfig = ConfigFactory.empty()
+        .withValue(ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED, ConfigValueFactory.fromAnyRef(true));
+    FlowCompilationValidationHelper helper = buildHelper(serviceConfig);
+
+    Config flowConfig = ConfigFactory.empty()
+        .withValue(ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, ConfigValueFactory.fromAnyRef(false));
+    Assert.assertFalse(helper.resolveAllowConcurrentExecution(flowConfig, "any-group"));
+  }
+
+  @Test
+  public void testResolveAllowConcurrentExecution_noFlowConfig_serviceLevelTrue() throws Exception {
+    // When flow config is absent and service-level is true, should allow without checking prefixes
+    Config serviceConfig = ConfigFactory.empty()
+        .withValue(ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED, ConfigValueFactory.fromAnyRef(true));
+    FlowCompilationValidationHelper helper = buildHelper(serviceConfig);
+
+    Assert.assertTrue(helper.resolveAllowConcurrentExecution(ConfigFactory.empty(), "unmatched-group"));
+  }
+
+  @Test
+  public void testResolveAllowConcurrentExecution_noFlowConfig_serviceLevelFalse_prefixMatch() throws Exception {
+    // When flow config is absent and service-level is false, should fall back to prefix matching
+    Config serviceConfig = ConfigFactory.empty()
+        .withValue(ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED, ConfigValueFactory.fromAnyRef(false))
+        .withValue(ServiceConfigKeys.CONCURRENCY_ALLOWED_FLOWGROUP_PREFIXES,
+            ConfigValueFactory.fromAnyRef("teamA,teamB-prod"));
+    FlowCompilationValidationHelper helper = buildHelper(serviceConfig);
+
+    Assert.assertTrue(helper.resolveAllowConcurrentExecution(ConfigFactory.empty(), "teamA-pipeline"));
+    Assert.assertTrue(helper.resolveAllowConcurrentExecution(ConfigFactory.empty(), "teamB-prod-etl"));
+  }
+
+  @Test
+  public void testResolveAllowConcurrentExecution_noFlowConfig_serviceLevelFalse_noPrefixMatch() throws Exception {
+    // When flow config is absent, service-level is false, and no prefix matches, should disallow
+    Config serviceConfig = ConfigFactory.empty()
+        .withValue(ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED, ConfigValueFactory.fromAnyRef(false))
+        .withValue(ServiceConfigKeys.CONCURRENCY_ALLOWED_FLOWGROUP_PREFIXES,
+            ConfigValueFactory.fromAnyRef("teamA,teamB-prod"));
+    FlowCompilationValidationHelper helper = buildHelper(serviceConfig);
+
+    Assert.assertFalse(helper.resolveAllowConcurrentExecution(ConfigFactory.empty(), "teamC-pipeline"));
+  }
+
+  @Test
+  public void testResolveAllowConcurrentExecution_noFlowConfig_serviceLevelFalse_noPrefixesConfigured() throws Exception {
+    // When no prefixes are configured at all, should disallow
+    Config serviceConfig = ConfigFactory.empty()
+        .withValue(ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED, ConfigValueFactory.fromAnyRef(false));
+    FlowCompilationValidationHelper helper = buildHelper(serviceConfig);
+
+    Assert.assertFalse(helper.resolveAllowConcurrentExecution(ConfigFactory.empty(), "any-group"));
+  }
+
+  @Test
+  public void testResolveAllowConcurrentExecution_noFlowConfig_serviceLevelFalse_blankPrefixesIgnored() throws Exception {
+    // Blank entries from trailing/double commas should not match all flow groups
+    Config serviceConfig = ConfigFactory.empty()
+        .withValue(ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED, ConfigValueFactory.fromAnyRef(false))
+        .withValue(ServiceConfigKeys.CONCURRENCY_ALLOWED_FLOWGROUP_PREFIXES,
+            ConfigValueFactory.fromAnyRef("teamA,,teamB, "));
+    FlowCompilationValidationHelper helper = buildHelper(serviceConfig);
+
+    Assert.assertTrue(helper.resolveAllowConcurrentExecution(ConfigFactory.empty(), "teamA-pipeline"));
+    Assert.assertTrue(helper.resolveAllowConcurrentExecution(ConfigFactory.empty(), "teamB-pipeline"));
+    Assert.assertFalse(helper.resolveAllowConcurrentExecution(ConfigFactory.empty(), "teamC-pipeline"));
+  }
+
+  @Test
+  public void testResolveAllowConcurrentExecution_explicitFlowConfigFalse_overridesPrefixMatch() throws Exception {
+    // Explicit per-flow false should take precedence even when prefix matches
+    Config serviceConfig = ConfigFactory.empty()
+        .withValue(ServiceConfigKeys.FLOW_CONCURRENCY_ALLOWED, ConfigValueFactory.fromAnyRef(false))
+        .withValue(ServiceConfigKeys.CONCURRENCY_ALLOWED_FLOWGROUP_PREFIXES,
+            ConfigValueFactory.fromAnyRef("teamA"));
+    FlowCompilationValidationHelper helper = buildHelper(serviceConfig);
+
+    Config flowConfig = ConfigFactory.empty()
+        .withValue(ConfigurationKeys.FLOW_ALLOW_CONCURRENT_EXECUTION, ConfigValueFactory.fromAnyRef(false));
+    Assert.assertFalse(helper.resolveAllowConcurrentExecution(flowConfig, "teamA-pipeline"));
   }
 
   private void insertFlowIntoDMSSMock(String flowGroup, String flowName, long flowStartTime, ExecutionStatus executionStatus, Config config)
