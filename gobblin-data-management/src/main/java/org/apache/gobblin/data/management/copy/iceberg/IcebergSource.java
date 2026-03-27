@@ -20,6 +20,8 @@ package org.apache.gobblin.data.management.copy.iceberg;
 import java.io.IOException;
 import java.net.URI;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Map;
 import java.util.Properties;
@@ -56,7 +58,7 @@ import org.apache.gobblin.util.HadoopUtils;
 import org.apache.gobblin.util.binpacking.FieldWeighter;
 import org.apache.gobblin.util.binpacking.WorstFitDecreasingBinPacking;
 import org.apache.gobblin.service.ServiceConfigKeys;
-import org.apache.iceberg.expressions.Expression;
+
 import org.apache.iceberg.expressions.Expressions;
 
 import static org.apache.gobblin.configuration.ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR;
@@ -80,23 +82,39 @@ import org.apache.gobblin.commit.CommitStep;
  * iceberg.table.name=table1
  * iceberg.catalog.uri=ICEBERG_CATALOG_URI
  *
- * # Partition filtering with lookback - Static date (hourly partitions by default)
+ * # Partition filtering with lookback - Static date
  * iceberg.filter.enabled=true
- * iceberg.partition.column=datepartition  # Optional, defaults to "datepartition"
- * iceberg.filter.date=2025-04-01         # Date value (yyyy-MM-dd format)
- * iceberg.lookback.days=3
- * # iceberg.hourly.partition.enabled=true  # Optional, defaults to true; generates yyyy-MM-dd-00 format
- *
- * # Partition filtering with lookback - Scheduled flows (dynamic date)
- * iceberg.filter.enabled=true
- * iceberg.filter.date=CURRENT_DATE       # Uses current date at runtime
+ * iceberg.partition.column=datepartition         # Optional, defaults to "datepartition"
+ * iceberg.filter.date=2025-04-01                 # Input date in the format specified by iceberg.partition.value.datetime.format
  * iceberg.lookback.days=3
  *
- * # Standard daily partitions (disable hourly suffix if table uses yyyy-MM-dd format)
+ * # Partition filtering - Scheduled flows (dynamic date)
  * iceberg.filter.enabled=true
- * iceberg.filter.date=2025-04-01         # Date in yyyy-MM-dd format
- * iceberg.hourly.partition.enabled=false # Set false for non-hourly partitions
+ * iceberg.filter.date=CURRENT_DATE               # Resolved to current date at runtime
  * iceberg.lookback.days=3
+ *
+ * # --- Recommended: configurable partition value format ---
+ * # iceberg.partition.value.datetime.format is a DateTimeFormatter pattern applied to the output
+ * # partition value used in the filter expression.
+ * # When CURRENT_DATE is used, the reference datetime is LocalDateTime.now(), so a pattern
+ * # with HH will embed the current hour automatically — no separate hour config needed.
+ * # When set, it supersedes iceberg.hourly.partition.enabled.
+ *
+ * # Standard hourly partitions (yyyy-MM-dd-HH) — CURRENT_DATE picks up live hour
+ * iceberg.partition.value.datetime.format=yyyy-MM-dd-HH   # → "2025-04-01-14" (current hour)
+ *
+ * # Reversed-date hourly partitions (dd-MM-yyyy-HH)
+ * iceberg.partition.value.datetime.format=dd-MM-yyyy-HH   # → "01-04-2025-00"
+ *
+ * # Compact daily partitions (no separator)
+ * iceberg.partition.value.datetime.format=yyyyMMdd         # → "20250401"
+ *
+ * # Daily partitions (standard)
+ * iceberg.partition.value.datetime.format=yyyy-MM-dd       # → "2025-04-01"
+ *
+ * # --- Legacy: hourly flag (backward compat, used when iceberg.partition.value.datetime.format is absent) ---
+ * iceberg.hourly.partition.enabled=true           # default true → appends -HH suffix
+ * iceberg.hourly.partition.enabled=false          # for plain yyyy-MM-dd partitions
  *
  * # Copy all data (no filtering)
  * iceberg.filter.enabled=false
@@ -121,6 +139,8 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
   public static final String ICEBERG_FILTER_DATE = "iceberg.filter.date"; // Date value (e.g., 2025-04-01 or CURRENT_DATE)
   public static final String ICEBERG_LOOKBACK_DAYS = "iceberg.lookback.days";
   public static final int DEFAULT_LOOKBACK_DAYS = 1;
+  public static final String ICEBERG_LOOKBACK_HOURS = "iceberg.lookback.hours"; // hourly lookback; when > 0 takes precedence over lookback.days
+  public static final int DEFAULT_LOOKBACK_HOURS = 0; // 0 = disabled
   public static final String ICEBERG_PARTITION_COLUMN = "iceberg.partition.column"; // configurable partition column name
   public static final String DEFAULT_DATE_PARTITION_COLUMN = "datepartition"; // default date partition column name
   public static final String CURRENT_DATE_PLACEHOLDER = "CURRENT_DATE"; // placeholder for current date
@@ -129,7 +149,27 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
   public static final String ICEBERG_FILE_PARTITION_PATH = "iceberg.file.partition.path";
   public static final String ICEBERG_HOURLY_PARTITION_ENABLED = "iceberg.hourly.partition.enabled";
   public static final boolean DEFAULT_HOURLY_PARTITION_ENABLED = true;
-  private static final String HOURLY_PARTITION_SUFFIX = "-00";
+  /**
+   * Optional {@link DateTimeFormatter} pattern controlling how the partition value is rendered.
+   *
+   * <p>When {@code iceberg.filter.date=CURRENT_DATE} the reference datetime is
+   * {@link java.time.LocalDateTime#now()}, so a pattern that includes {@code HH} will embed
+   * the current clock-hour automatically — no separate hour config is needed.
+   * For a specific date (e.g. {@code 2025-04-03}), the time defaults to midnight (00:00).
+   *
+   * <p>Examples:
+   * <ul>
+   *   <li>{@code yyyy-MM-dd}      → {@code 2025-04-01}      (daily, no hour)</li>
+   *   <li>{@code yyyy-MM-dd-HH}   → {@code 2025-04-01-14}   (hourly; CURRENT_DATE uses live hour)</li>
+   *   <li>{@code dd-MM-yyyy-HH}   → {@code 01-04-2025-00}   (reversed-date hourly)</li>
+   *   <li>{@code yyyyMMdd}        → {@code 20250401}         (compact daily)</li>
+   * </ul>
+   *
+   * <p>When this property is set it supersedes {@code iceberg.hourly.partition.enabled}.
+   * When absent the legacy {@code iceberg.hourly.partition.enabled} behaviour is preserved
+   * for backward compatibility.
+   */
+  public static final String ICEBERG_PARTITION_VALUE_DATETIME_FORMAT = "iceberg.partition.value.datetime.format";
   private static final String WORK_UNIT_WEIGHT = "iceberg.workUnitWeight";
 
   // Delete configuration - similar to RecursiveCopyableDataset
@@ -244,17 +284,28 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
    * (defaults to {@value #DEFAULT_DATE_PARTITION_COLUMN}). The date value is specified separately via
    * {@code iceberg.filter.date} in standard format ({@code yyyy-MM-dd}).
    *
-   * <p><b>Hourly Partition Support:</b> By default, the {@code -00} suffix is appended to all partition values
-   * for tables using hourly partition format ({@code yyyy-MM-dd-HH}). For tables using standard daily partition
-   * format ({@code yyyy-MM-dd}), set {@code iceberg.hourly.partition.enabled=false}. Users should always provide
-   * dates in standard {@code yyyy-MM-dd} format; the hour suffix is automatically managed.
+   * <p><b>Partition Value Format:</b> Both the input date ({@code iceberg.filter.date}) and the output
+   * partition value use the pattern specified by {@code iceberg.partition.value.datetime.format}
+   * (a standard {@link java.time.format.DateTimeFormatter} pattern).  Use {@code CURRENT_DATE} as the
+   * date value to resolve the reference datetime to {@link java.time.LocalDateTime#now()} automatically,
+   * embedding the current hour when the pattern includes {@code HH}. Examples:
+   * <ul>
+   *   <li>{@code yyyy-MM-dd-HH} with date {@code 2025-04-01-05} → {@code 2025-04-01-05}</li>
+   *   <li>{@code dd-MM-yyyy-HH} with date {@code 01-04-2025-00} → {@code 01-04-2025-00}</li>
+   *   <li>{@code yyyyMMdd}      with date {@code 20250401}       → {@code 20250401} (compact daily)</li>
+   * </ul>
+   * When {@code iceberg.partition.value.datetime.format} is set it supersedes
+   * {@code iceberg.hourly.partition.enabled}. When absent, the legacy
+   * {@code iceberg.hourly.partition.enabled} behaviour is preserved for backward compatibility.
    *
    * <p><b>Configuration Examples:</b>
    * <ul>
-   * <li>Static: {@code iceberg.partition.column=datepartition, iceberg.filter.date=2025-04-03, iceberg.lookback.days=3}
-   * discovers: datepartition=2025-04-03, 2025-04-02, 2025-04-01</li>
-   * <li>Dynamic: {@code iceberg.filter.date=CURRENT_DATE, iceberg.lookback.days=1}
-   * discovers today's partition only (resolved at runtime)</li>
+   * <li>Standard daily: {@code iceberg.partition.value.datetime.format=yyyy-MM-dd, iceberg.filter.date=2025-04-03,
+   *     iceberg.lookback.days=3} → partitions: {@code 2025-04-03, 2025-04-02, 2025-04-01}</li>
+   * <li>Reversed-date hourly: {@code iceberg.partition.value.datetime.format=dd-MM-yyyy-HH,
+   *     iceberg.filter.date=CURRENT_DATE} → {@code 03-04-2025-14, 02-04-2025-14, 01-04-2025-14}</li>
+   * <li>Dynamic daily: {@code iceberg.filter.date=CURRENT_DATE, iceberg.lookback.days=1}
+   *     → today's partition only (resolved at runtime)</li>
    * </ul>
    *
    * @param state source state containing filter configuration
@@ -280,66 +331,120 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
     Preconditions.checkArgument(!StringUtils.isBlank(dateValue),
       "iceberg.filter.date is required when iceberg.filter.enabled=true");
 
-    // Handle CURRENT_DATE placeholder for flows
+    // Resolve the DateTimeFormatter used to render each partition value.
+    // resolvePartitionFormatter normalises both the new iceberg.partition.value.datetime.format
+    // path and the legacy iceberg.hourly.partition.enabled path into a single formatter.
+    DateTimeFormatter partitionFormatter = resolvePartitionFormatter(state);
+
+    // Resolve the reference datetime for the filter.
+    // CURRENT_DATE uses LocalDateTime.now() so a formatter pattern that includes HH will
+    // embed the current clock-hour automatically.  For a specific date (yyyy-MM-dd) the time
+    // defaults to midnight (00:00).
+    LocalDateTime startDateTime;
     if (CURRENT_DATE_PLACEHOLDER.equalsIgnoreCase(dateValue)) {
-      dateValue = LocalDate.now().toString();
-      log.info("Resolved {} placeholder to current date: {}", CURRENT_DATE_PLACEHOLDER, dateValue);
-    }
-
-    // Apply lookback period for date partitions
-    // lookbackDays=1 (default) means copy only the specified date
-    // lookbackDays=3 means copy specified date + 2 previous days (total 3 days)
-    int lookbackDays = state.getPropAsInt(ICEBERG_LOOKBACK_DAYS, DEFAULT_LOOKBACK_DAYS);
-    List<String> values = Lists.newArrayList();
-
-    if (lookbackDays >= 1) {
-      log.info("Applying lookback period of {} days for date partition column '{}': {}", lookbackDays, datePartitionColumn, dateValue);
-
-      // Check if hourly partitioning is enabled
-      boolean isHourlyPartition = state.getPropAsBoolean(ICEBERG_HOURLY_PARTITION_ENABLED, DEFAULT_HOURLY_PARTITION_ENABLED);
-
-      // Parse the date in yyyy-MM-dd format
-      LocalDate start;
+      startDateTime = LocalDateTime.now();
+      log.info("Resolved {} placeholder to current datetime: {}", CURRENT_DATE_PLACEHOLDER, startDateTime);
+    } else {
+      // When iceberg.partition.value.datetime.format is explicitly set, the input date must match
+      // that pattern (consistent input/output format).  Legacy path keeps accepting yyyy-MM-dd for
+      // backward compatibility.
+      boolean isCustomFormat = state.contains(ICEBERG_PARTITION_VALUE_DATETIME_FORMAT);
+      String patternForError = isCustomFormat
+          ? state.getProp(ICEBERG_PARTITION_VALUE_DATETIME_FORMAT)
+          : (state.getPropAsBoolean(ICEBERG_HOURLY_PARTITION_ENABLED, DEFAULT_HOURLY_PARTITION_ENABLED)
+              ? "yyyy-MM-dd-HH" : "yyyy-MM-dd");
       try {
-        start = LocalDate.parse(dateValue);
+        startDateTime = isCustomFormat
+            ? LocalDateTime.parse(dateValue, partitionFormatter)
+            : LocalDate.parse(dateValue).atStartOfDay();
       } catch (java.time.format.DateTimeParseException e) {
         String errorMsg = String.format(
-          "Invalid date format for '%s': '%s'. Expected format: yyyy-MM-dd. Error: %s",
-          ICEBERG_FILTER_DATE, dateValue, e.getMessage());
+          "Invalid date format for '%s': '%s'. Expected format matching pattern '%s'. Error: %s",
+          ICEBERG_FILTER_DATE, dateValue, patternForError, e.getMessage());
         log.error(errorMsg);
         throw new IllegalArgumentException(errorMsg, e);
       }
+    }
 
-      for (int i = 0; i < lookbackDays; i++) {
-        String dateOnly = start.minusDays(i).toString();
-        // Append hour suffix if hourly partitioning is enabled
-        String partitionValue = isHourlyPartition ? dateOnly + HOURLY_PARTITION_SUFFIX : dateOnly;
-        values.add(partitionValue);
-        log.info("Including partition: {}={}", datePartitionColumn, partitionValue);
+    // Delegate partition value list + OR expression to IcebergPartitionFilterGenerator.
+    // When iceberg.lookback.hours > 0 it takes precedence over iceberg.lookback.days.
+    int lookbackHours = state.getPropAsInt(ICEBERG_LOOKBACK_HOURS, DEFAULT_LOOKBACK_HOURS);
+    int lookbackDays  = state.getPropAsInt(ICEBERG_LOOKBACK_DAYS, DEFAULT_LOOKBACK_DAYS);
+
+    if (lookbackHours > 0) {
+      Preconditions.checkArgument(lookbackHours <= 48,
+          "iceberg.lookback.hours must be <= 48 (2 days), got: %s", lookbackHours);
+    }
+
+    IcebergPartitionFilterGenerator.FilterResult filterResult;
+    if (lookbackHours > 0) {
+      if (state.contains(ICEBERG_LOOKBACK_DAYS)) {
+        log.warn("Both {} ({}) and {} ({}) are set; {} takes precedence",
+          ICEBERG_LOOKBACK_HOURS, lookbackHours, ICEBERG_LOOKBACK_DAYS, lookbackDays,
+          ICEBERG_LOOKBACK_HOURS);
       }
+      log.info("Hourly lookback: {} hours for column '{}' starting at {}",
+        lookbackHours, datePartitionColumn, startDateTime);
+      filterResult = IcebergPartitionFilterGenerator.forHours(
+        datePartitionColumn, startDateTime, lookbackHours, partitionFormatter);
     } else {
-      log.error("lookbackDays < 1, cannot apply lookback. lookbackDays={}", lookbackDays);
-      throw new IllegalArgumentException(String.format(
-        "lookback.days must be >= 1, got: %d", lookbackDays));
+      Preconditions.checkArgument(lookbackDays >= 1,
+        "iceberg.lookback.days must be >= 1, got: %s", lookbackDays);
+      log.info("Daily lookback: {} day(s) for column '{}' starting at {}",
+        lookbackDays, datePartitionColumn, startDateTime);
+      filterResult = IcebergPartitionFilterGenerator.forDays(
+        datePartitionColumn, startDateTime, lookbackDays, partitionFormatter);
     }
 
-    // Store partition info on state for downstream use (extractor, destination path mapping)
+    // Store partition info on state for downstream use (extractor, destination path mapping).
     state.setProp(ICEBERG_PARTITION_KEY, datePartitionColumn);
-    state.setProp(ICEBERG_PARTITION_VALUES, String.join(",", values));
+    state.setProp(ICEBERG_PARTITION_VALUES, String.join(",", filterResult.getPartitionValues()));
 
-    // Use Iceberg TableScan API to get only data files (parquet/orc/avro) for specified partitions
-    // TableScan.planFiles() returns DataFiles only - no manifest files or metadata files
-    log.info("Executing TableScan with filter: {}={}", datePartitionColumn, values);
-    Expression icebergExpr = null;
-    for (String val : values) {
-      Expression e = Expressions.equal(datePartitionColumn, val);
-      icebergExpr = (icebergExpr == null) ? e : Expressions.or(icebergExpr, e);
-    }
-
-    List<IcebergTable.FilePathWithPartition> filesWithPartitions = icebergTable.getFilePathsWithPartitionsForFilter(icebergExpr);
-    log.info("Discovered {} data files for partitions: {}", filesWithPartitions.size(), values);
+    log.info("Executing TableScan with filter: {}={}",
+      datePartitionColumn, filterResult.getPartitionValues());
+    List<IcebergTable.FilePathWithPartition> filesWithPartitions =
+      icebergTable.getFilePathsWithPartitionsForFilter(filterResult.getFilterExpression());
+    log.info("Discovered {} data files for partitions: {}",
+      filesWithPartitions.size(), filterResult.getPartitionValues());
 
     return filesWithPartitions;
+  }
+
+  /**
+   * Resolve the {@link DateTimeFormatter} used to render each partition value string.
+   *
+   * <p>Resolution order:
+   * <ol>
+   *   <li>If {@code iceberg.partition.value.datetime.format} is set, parse it as a
+   *       {@link DateTimeFormatter} pattern and return it.  This path supersedes the
+   *       legacy hourly flag.</li>
+   *   <li>Otherwise fall back to the legacy {@code iceberg.hourly.partition.enabled} flag:
+   *       {@code true} (default) → {@code yyyy-MM-dd-HH}; {@code false} → {@code yyyy-MM-dd}.</li>
+   * </ol>
+   *
+   * @param state source state containing configuration properties
+   * @return resolved {@link DateTimeFormatter}
+   * @throws IllegalArgumentException if {@code iceberg.partition.value.datetime.format} contains an
+   *                                  invalid pattern
+   */
+  private DateTimeFormatter resolvePartitionFormatter(SourceState state) {
+    String valueFormat = state.getProp(ICEBERG_PARTITION_VALUE_DATETIME_FORMAT);
+    if (valueFormat != null) {
+      try {
+        DateTimeFormatter formatter = DateTimeFormatter.ofPattern(valueFormat);
+        log.info("Using configurable partition value datetime format='{}'", valueFormat);
+        return formatter;
+      } catch (IllegalArgumentException e) {
+        throw new IllegalArgumentException(
+          String.format("Invalid %s pattern '%s': %s",
+            ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, valueFormat, e.getMessage()), e);
+      }
+    }
+    // Legacy path: iceberg.hourly.partition.enabled drives the pattern.
+    boolean isHourlyPartition = state.getPropAsBoolean(ICEBERG_HOURLY_PARTITION_ENABLED, DEFAULT_HOURLY_PARTITION_ENABLED);
+    String pattern = isHourlyPartition ? "yyyy-MM-dd-HH" : "yyyy-MM-dd";
+    log.info("Using legacy partition mode: hourlyEnabled={}, pattern='{}'", isHourlyPartition, pattern);
+    return DateTimeFormatter.ofPattern(pattern);
   }
 
   /**
