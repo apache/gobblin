@@ -334,39 +334,28 @@ public class IcebergSourceTest {
 
   @Test
   public void testCurrentDatePlaceholder() throws Exception {
-    // Test that CURRENT_DATE placeholder is resolved to current date with hourly suffix (default)
+    // CURRENT_DATE resolves to LocalDateTime.now() so the current hour is embedded automatically.
+    // The default legacy format (hourly.partition.enabled=true) produces yyyy-MM-dd-HH.
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
     properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "CURRENT_DATE");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
     sourceState = new SourceState(new State(properties));
 
-    // Mock today's partition with hourly format
-    String today = java.time.LocalDate.now().toString();
-    String todayHourly = today + "-00";
-    List<FilePathWithPartition> todayFiles = Arrays.asList(
-      new FilePathWithPartition(
-        "/data/file1.parquet", createPartitionMap("datepartition", todayHourly), 1000L)
-    );
-
     TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
     when(mockTable.getTableId()).thenReturn(tableId);
     when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class)))
-      .thenReturn(todayFiles);
+      .thenReturn(new java.util.ArrayList<>());
 
-    // Test discovery
     Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
       SourceState.class, IcebergTable.class);
     m.setAccessible(true);
-    List<FilePathWithPartition> discovered =
-      (List<FilePathWithPartition>) m.invoke(icebergSource, sourceState, mockTable);
+    m.invoke(icebergSource, sourceState, mockTable);
 
-    // Verify today's partition is discovered
-    Assert.assertEquals(discovered.size(), 1, "Should discover today's partition");
-
-    // Verify partition value has hourly format (default behavior)
+    // Assert format rather than exact value to avoid clock-dependent flakiness
     String partitionValues = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES);
     Assert.assertNotNull(partitionValues, "Partition values should be set");
-    Assert.assertEquals(partitionValues, todayHourly, "Should resolve to today's date with -00 suffix");
+    Assert.assertTrue(partitionValues.matches("\\d{4}-\\d{2}-\\d{2}-\\d{2}"),
+        "Should resolve to yyyy-MM-dd-HH format, got: " + partitionValues);
   }
 
   @Test
@@ -1090,6 +1079,349 @@ public class IcebergSourceTest {
       Assert.assertEquals(date.length(), 13, "Date should be in yyyy-MM-dd-00 format (13 chars)");
       Assert.assertTrue(date.matches("\\d{4}-\\d{2}-\\d{2}-00"), "Date should match yyyy-MM-dd-00 pattern");
     }
+  }
+
+  // ---- Tests for iceberg.partition.value.format (generic partition value formatting) ----
+
+  @Test
+  public void testPartitionValueFormatDaily() throws Exception {
+    // iceberg.partition.value.datetime.format=yyyy-MM-dd should produce plain date partitions (no hour)
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
+    sourceState = new SourceState(new State(properties));
+
+    List<FilePathWithPartition> files = Arrays.asList(
+      new FilePathWithPartition("/data/file1.parquet", createPartitionMap("datepartition", "2025-04-01"), 1000L)
+    );
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    m.invoke(icebergSource, sourceState, mockTable);
+
+    Assert.assertEquals(sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES), "2025-04-01",
+      "yyyy-MM-dd format should produce plain date without any hour suffix");
+  }
+
+  @Test
+  public void testPartitionValueFormatHourlyStandard() throws Exception {
+    // iceberg.partition.value.datetime.format=yyyy-MM-dd-HH — input date must match the pattern
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01-00");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
+    sourceState = new SourceState(new State(properties));
+
+    List<FilePathWithPartition> files = Arrays.asList(
+      new FilePathWithPartition("/data/file1.parquet", createPartitionMap("datepartition", "2025-04-01-00"), 1000L)
+    );
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    m.invoke(icebergSource, sourceState, mockTable);
+
+    Assert.assertEquals(sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES), "2025-04-01-00",
+      "yyyy-MM-dd-HH format with specific date defaults to midnight, producing '2025-04-01-00'");
+  }
+
+  @Test
+  public void testPartitionValueFormatReversedDate() throws Exception {
+    // iceberg.partition.value.datetime.format=dd-MM-yyyy-HH — input date must match the pattern
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "01-04-2025-00");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "dd-MM-yyyy-HH");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
+    sourceState = new SourceState(new State(properties));
+
+    List<FilePathWithPartition> files = Arrays.asList(
+      new FilePathWithPartition("/data/file1.parquet", createPartitionMap("datepartition", "01-04-2025-00"), 1000L)
+    );
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    m.invoke(icebergSource, sourceState, mockTable);
+
+    Assert.assertEquals(sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES), "01-04-2025-00",
+      "dd-MM-yyyy-HH format should produce reversed-date partition value");
+  }
+
+  @Test
+  public void testPartitionValueFormatCompact() throws Exception {
+    // iceberg.partition.value.datetime.format=yyyyMMdd — input date must match the pattern
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "20250401");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyyMMdd");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
+    sourceState = new SourceState(new State(properties));
+
+    List<FilePathWithPartition> files = Arrays.asList(
+      new FilePathWithPartition("/data/file1.parquet", createPartitionMap("datepartition", "20250401"), 1000L)
+    );
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    m.invoke(icebergSource, sourceState, mockTable);
+
+    Assert.assertEquals(sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES), "20250401",
+      "yyyyMMdd format should produce compact date without separators");
+  }
+
+  @Test
+  public void testPartitionValueFormatWithLookback() throws Exception {
+    // iceberg.partition.value.datetime.format=dd-MM-yyyy-HH with lookback=3 → 3 reversed-date partitions at midnight
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "03-04-2025-00");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "dd-MM-yyyy-HH");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "3");
+    sourceState = new SourceState(new State(properties));
+
+    List<FilePathWithPartition> files = Arrays.asList(
+      new FilePathWithPartition("/data/f1.parquet", createPartitionMap("datepartition", "03-04-2025-00"), 1000L),
+      new FilePathWithPartition("/data/f2.parquet", createPartitionMap("datepartition", "02-04-2025-00"), 1000L),
+      new FilePathWithPartition("/data/f3.parquet", createPartitionMap("datepartition", "01-04-2025-00"), 1000L)
+    );
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    List<FilePathWithPartition> discovered = (List<FilePathWithPartition>) m.invoke(icebergSource, sourceState, mockTable);
+
+    Assert.assertEquals(discovered.size(), 3, "Should discover 3 days with lookback=3");
+
+    String[] dates = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES).split(",");
+    Assert.assertEquals(dates.length, 3);
+    Assert.assertEquals(dates[0], "03-04-2025-00", "Day 0 should be reversed-date at midnight");
+    Assert.assertEquals(dates[1], "02-04-2025-00", "Day 1 should be reversed-date at midnight");
+    Assert.assertEquals(dates[2], "01-04-2025-00", "Day 2 should be reversed-date at midnight");
+  }
+
+  @Test
+  public void testPartitionValueFormatSupersedeLegacyHourlyFlag() throws Exception {
+    // When iceberg.partition.value.datetime.format is set, iceberg.hourly.partition.enabled=false is ignored.
+    // Format "yyyy-MM-dd-HH" must still produce hour suffix regardless of the legacy flag.
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01-00");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
+    properties.setProperty(IcebergSource.ICEBERG_HOURLY_PARTITION_ENABLED, "false"); // legacy flag — should be ignored
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
+    sourceState = new SourceState(new State(properties));
+
+    List<FilePathWithPartition> files = Arrays.asList(
+      new FilePathWithPartition("/data/file1.parquet", createPartitionMap("datepartition", "2025-04-01-00"), 1000L)
+    );
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    m.invoke(icebergSource, sourceState, mockTable);
+
+    Assert.assertEquals(sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES), "2025-04-01-00",
+      "iceberg.partition.value.format must supersede iceberg.hourly.partition.enabled=false");
+  }
+
+  @Test
+  public void testInvalidPartitionValueFormatThrows() throws Exception {
+    // An invalid DateTimeFormatter pattern should throw IllegalArgumentException immediately
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "not-a-valid-pattern-Q!!");
+    sourceState = new SourceState(new State(properties));
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+
+    try {
+      m.invoke(icebergSource, sourceState, mockTable);
+      Assert.fail("Should throw for invalid DateTimeFormatter pattern");
+    } catch (java.lang.reflect.InvocationTargetException e) {
+      Assert.assertTrue(e.getCause() instanceof IllegalArgumentException,
+        "Should throw IllegalArgumentException for invalid format pattern");
+      Assert.assertTrue(e.getCause().getMessage().contains(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT),
+        "Error message should reference the config key iceberg.partition.value.format");
+    }
+  }
+
+  @Test
+  public void testPartitionValueFormatCustomColumnName() throws Exception {
+    // Verify that iceberg.partition.column works correctly with iceberg.partition.value.datetime.format
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "20250401");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_COLUMN, "event_date"); // non-default column
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyyMMdd");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
+    sourceState = new SourceState(new State(properties));
+
+    List<FilePathWithPartition> files = Arrays.asList(
+      new FilePathWithPartition("/data/file1.parquet", createPartitionMap("event_date", "20250401"), 1000L)
+    );
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    m.invoke(icebergSource, sourceState, mockTable);
+
+    Assert.assertEquals(sourceState.getProp(IcebergSource.ICEBERG_PARTITION_KEY), "event_date",
+      "Custom partition column name should be stored in state");
+    Assert.assertEquals(sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES), "20250401",
+      "Compact date format should be applied to custom partition column");
+  }
+
+  // ---- Tests for iceberg.lookback.hours (hourly lookback via IcebergPartitionFilterGenerator) ----
+
+  @Test
+  public void testLookbackHoursBasic() throws Exception {
+    // iceberg.lookback.hours=3 with specific date starts at midnight (00:00), stepping back crosses previous day
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01-00");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_HOURS, "3");
+    sourceState = new SourceState(new State(properties));
+
+    List<FilePathWithPartition> files = Arrays.asList(
+      new FilePathWithPartition("/data/f1.parquet", createPartitionMap("datepartition", "2025-04-01-00"), 1000L),
+      new FilePathWithPartition("/data/f2.parquet", createPartitionMap("datepartition", "2025-03-31-23"), 1000L),
+      new FilePathWithPartition("/data/f3.parquet", createPartitionMap("datepartition", "2025-03-31-22"), 1000L)
+    );
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    List<FilePathWithPartition> discovered =
+      (List<FilePathWithPartition>) m.invoke(icebergSource, sourceState, mockTable);
+
+    Assert.assertEquals(discovered.size(), 3, "Should discover 3 files for 3 hourly partitions");
+
+    String[] values = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES).split(",");
+    Assert.assertEquals(values.length, 3, "Should have 3 partition values");
+    Assert.assertEquals(values[0], "2025-04-01-00", "Hour 0: midnight");
+    Assert.assertEquals(values[1], "2025-03-31-23", "Hour 1: crosses into previous day");
+    Assert.assertEquals(values[2], "2025-03-31-22", "Hour 2: previous day");
+  }
+
+  @Test
+  public void testLookbackHoursTakesPrecedenceOverLookbackDays() throws Exception {
+    // When both lookback.hours and lookback.days are set, hours must win
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "2025-04-01-00");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_HOURS, "2");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "5"); // should be ignored
+    sourceState = new SourceState(new State(properties));
+
+    // Specific date defaults to midnight: lookback 2 hours from 00:00 → 00:00, 23:00 (prev day)
+    List<FilePathWithPartition> files = Arrays.asList(
+      new FilePathWithPartition("/data/f1.parquet", createPartitionMap("datepartition", "2025-04-01-00"), 500L),
+      new FilePathWithPartition("/data/f2.parquet", createPartitionMap("datepartition", "2025-03-31-23"), 500L)
+    );
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    m.invoke(icebergSource, sourceState, mockTable);
+
+    // Should produce exactly 2 hourly values, not 5 daily values
+    String[] values = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES).split(",");
+    Assert.assertEquals(values.length, 2,
+      "lookback.hours should take precedence, producing 2 values not 5");
+    Assert.assertEquals(values[0], "2025-04-01-00");
+    Assert.assertEquals(values[1], "2025-03-31-23");
+  }
+
+  @Test
+  public void testLookbackHoursWithReversedDateFormat() throws Exception {
+    // Hourly lookback with dd-MM-yyyy-HH format — input date must match the pattern
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "01-04-2025-00");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "dd-MM-yyyy-HH");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_HOURS, "2");
+    sourceState = new SourceState(new State(properties));
+
+    List<FilePathWithPartition> files = Arrays.asList(
+      new FilePathWithPartition("/data/f1.parquet", createPartitionMap("datepartition", "01-04-2025-00"), 1000L),
+      new FilePathWithPartition("/data/f2.parquet", createPartitionMap("datepartition", "31-03-2025-23"), 1000L)
+    );
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class))).thenReturn(files);
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    m.invoke(icebergSource, sourceState, mockTable);
+
+    String[] values = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES).split(",");
+    Assert.assertEquals(values[0], "01-04-2025-00");
+    Assert.assertEquals(values[1], "31-03-2025-23", "Should cross midnight into previous day with reversed format");
+  }
+
+  @Test
+  public void testLookbackHoursWithCurrentDate() throws Exception {
+    // CURRENT_DATE resolves to LocalDateTime.now() so the current hour is embedded automatically
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "CURRENT_DATE");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_HOURS, "2");
+    sourceState = new SourceState(new State(properties));
+
+    when(mockTable.getTableId()).thenReturn(TableIdentifier.of("test_db", "test_table"));
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class)))
+        .thenReturn(new java.util.ArrayList<>());
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    m.invoke(icebergSource, sourceState, mockTable);
+
+    String[] values = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES).split(",");
+    Assert.assertEquals(values.length, 2, "Should produce 2 hourly partition values for CURRENT_DATE");
+    // Assert format only — exact hours depend on the live clock and we don't want test to be flaky
+    Assert.assertTrue(values[0].matches("\\d{4}-\\d{2}-\\d{2}-\\d{2}"),
+        "First value should match yyyy-MM-dd-HH format, got: " + values[0]);
+    Assert.assertTrue(values[1].matches("\\d{4}-\\d{2}-\\d{2}-\\d{2}"),
+        "Second value should match yyyy-MM-dd-HH format, got: " + values[1]);
   }
 
   @Test
