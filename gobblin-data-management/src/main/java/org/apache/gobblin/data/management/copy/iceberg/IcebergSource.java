@@ -354,9 +354,16 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
           : (state.getPropAsBoolean(ICEBERG_HOURLY_PARTITION_ENABLED, DEFAULT_HOURLY_PARTITION_ENABLED)
               ? "yyyy-MM-dd-HH" : "yyyy-MM-dd");
       try {
-        startDateTime = isCustomFormat
-            ? LocalDateTime.parse(dateValue, partitionFormatter)
-            : LocalDate.parse(dateValue).atStartOfDay();
+        if (isCustomFormat) {
+          try {
+            startDateTime = LocalDateTime.parse(dateValue, partitionFormatter);
+          } catch (java.time.format.DateTimeParseException ex) {
+            // Format may be date-only (e.g. yyyyMMdd) — fall back to LocalDate + midnight
+            startDateTime = LocalDate.parse(dateValue, partitionFormatter).atStartOfDay();
+          }
+        } else {
+          startDateTime = LocalDate.parse(dateValue).atStartOfDay();
+        }
       } catch (java.time.format.DateTimeParseException e) {
         String errorMsg = String.format(
           "Invalid date format for '%s': '%s'. Expected format matching pattern '%s'. Error: %s",
