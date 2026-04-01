@@ -358,6 +358,25 @@ public class IcebergTableTest extends HiveMetastoreTest {
     Assert.fail("expected an exception when using table ID '" + tableId + "'");
   }
 
+  /** Verify that getAllSnapshotInfosIterator returns empty iterator for an empty table (no snapshots) */
+  @Test
+  public void testGetAllSnapshotInfosIteratorOnEmptyTable() throws IOException {
+    IcebergTable icebergTable = new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri,
+        catalog.loadTable(tableId));
+    List<IcebergSnapshotInfo> snapshotInfos = Lists.newArrayList(icebergTable.getAllSnapshotInfosIterator());
+    Assert.assertTrue(snapshotInfos.isEmpty(), "expected empty snapshot infos for table with no snapshots");
+  }
+
+  /** Verify that getPartitionSpecificDataFiles returns empty list for an empty table (no snapshots) */
+  @Test
+  public void testGetPartitionSpecificDataFilesOnEmptyTable() throws IOException {
+    IcebergTable icebergTable = new IcebergTable(tableId, catalog.newTableOps(tableId), catalogUri,
+        catalog.loadTable(tableId));
+    Predicate<StructLike> alwaysTruePredicate = partition -> true;
+    List<DataFile> dataFiles = icebergTable.getPartitionSpecificDataFiles(alwaysTruePredicate);
+    Assert.assertTrue(dataFiles.isEmpty(), "expected empty data files for table with no snapshots");
+  }
+
   /** Verify info about all (full) snapshots */
   @Test(dataProvider = "isPosDeleteProvider")
   public void testGetAllSnapshotInfosIterator(boolean isPosDelete) throws IOException {

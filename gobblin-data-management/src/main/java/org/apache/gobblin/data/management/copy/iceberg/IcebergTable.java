@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URI;
 import java.time.Instant;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
@@ -128,7 +129,13 @@ public class IcebergTable {
   /** @return metadata info for all known snapshots, ordered historically, with *most recent last* */
   public Iterator<IcebergSnapshotInfo> getAllSnapshotInfosIterator() throws IOException {
     TableMetadata current = accessTableMetadata();
-    Snapshot currentSnapshot = accessCurrentSnapshot(current);
+    Snapshot currentSnapshot;
+    try {
+      currentSnapshot = accessCurrentSnapshot(current);
+    } catch (NoSnapshotFoundException e) {
+      log.warn("~{}~ No snapshot found, returning empty snapshot info iterator", tableId);
+      return Collections.emptyIterator();
+    }
     long currentSnapshotId = currentSnapshot.snapshotId();
     List<Snapshot> snapshots = current.snapshots();
     return Iterators.transform(snapshots.iterator(), snapshot -> {
@@ -275,9 +282,15 @@ public class IcebergTable {
   public List<DataFile> getPartitionSpecificDataFiles(Predicate<StructLike> icebergPartitionFilterPredicate)
       throws IOException {
     TableMetadata tableMetadata = accessTableMetadata();
-    Snapshot currentSnapshot = accessCurrentSnapshot(tableMetadata);
-    long currentSnapshotId = currentSnapshot.snapshotId();
     List<DataFile> knownDataFiles = new ArrayList<>();
+    Snapshot currentSnapshot;
+    try {
+      currentSnapshot = accessCurrentSnapshot(tableMetadata);
+    } catch (NoSnapshotFoundException e) {
+      log.warn("~{}~ No snapshot found, returning empty data files list", tableId);
+      return knownDataFiles;
+    }
+    long currentSnapshotId = currentSnapshot.snapshotId();
     GrowthMilestoneTracker growthMilestoneTracker = new GrowthMilestoneTracker();
     //TODO: Add support for deleteManifests as well later
     // Currently supporting dataManifests only

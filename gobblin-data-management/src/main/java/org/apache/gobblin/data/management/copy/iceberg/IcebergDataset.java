@@ -148,7 +148,13 @@ public class IcebergDataset implements PrioritizedCopyableDataset {
     String fileSet = this.getFileSetId();
     List<CopyEntity> copyEntities = Lists.newArrayList();
     TableMetadata destTableMetadataBeforeSrcRead = getCurrentDestTableMetadata();
-    GetFilePathsToFileStatusResult atomicGetPathsResult = getFilePathsToFileStatus(targetFs, copyConfig, this.shouldIncludeMetadataPath);
+    GetFilePathsToFileStatusResult atomicGetPathsResult;
+    try {
+      atomicGetPathsResult = getFilePathsToFileStatus(targetFs, copyConfig, this.shouldIncludeMetadataPath);
+    } catch (IcebergTable.NoSnapshotFoundException e) {
+      log.warn("~{}~ source table has no snapshots, nothing to copy", fileSet);
+      return Lists.newArrayList();
+    }
     Map<Path, FileStatus> pathToFileStatus = atomicGetPathsResult.getPathsToFileStatus();
     log.info("~{}~ found {} candidate source paths", fileSet, pathToFileStatus.size());
 
