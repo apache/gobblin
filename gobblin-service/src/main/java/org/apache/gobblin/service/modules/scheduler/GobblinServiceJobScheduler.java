@@ -156,8 +156,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
     this.serviceName = serviceName;
     this.flowCatalog = flowCatalog;
     this.orchestrator = orchestrator;
-    this.scheduledFlowSpecs = Maps.newHashMap();
-    this.lastUpdatedTimeForFlowSpec = Maps.newHashMap();
+    // Must be concurrent maps because onAddSpec is no longer synchronized (GOBBLIN-2257),
+    // so multiple onAddSpec callbacks can concurrently read/write these maps.
+    // NonScheduledJobRunner also removes entries from a separate thread.
+    this.scheduledFlowSpecs = Maps.newConcurrentMap();
+    this.lastUpdatedTimeForFlowSpec = Maps.newConcurrentMap();
     this.loadSpecsBatchSize = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.LOAD_SPEC_BATCH_SIZE, String.valueOf(ConfigurationKeys.DEFAULT_LOAD_SPEC_BATCH_SIZE)));
     this.skipSchedulingFlowsAfterNumDays = Integer.parseInt(ConfigUtils.configToProperties(config).getProperty(ConfigurationKeys.SKIP_SCHEDULING_FLOWS_AFTER_NUM_DAYS, String.valueOf(ConfigurationKeys.DEFAULT_NUM_DAYS_TO_SKIP_AFTER)));
     this.isNominatedDRHandler = config.hasPath(GOBBLIN_SERVICE_SCHEDULER_DR_NOMINATED)
