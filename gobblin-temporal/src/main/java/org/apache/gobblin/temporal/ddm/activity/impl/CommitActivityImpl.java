@@ -102,7 +102,7 @@ public class CommitActivityImpl implements CommitActivity {
     int numDeserializationThreads = DEFAULT_NUM_DESERIALIZATION_THREADS;
     Optional<String> optJobName = Optional.empty();
     AutomaticTroubleshooter troubleshooter = null;
-    try (FileSystem fs = Help.loadFileSystem(workSpec)) {
+    try (FileSystem fs = Help.loadFileSystemForce(workSpec)) {
       JobState jobState = Help.loadJobState(workSpec, fs);
 
       int heartBeatInterval = JobStateUtils.getHeartBeatInterval(jobState);
