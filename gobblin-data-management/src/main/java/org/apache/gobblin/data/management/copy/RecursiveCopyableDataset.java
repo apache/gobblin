@@ -149,6 +149,19 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
 
     for (Path path : toCopy) {
       FileStatus file = filesInSource.get(path);
+
+      // When the source directory is empty, FileListUtils.listFilesToCopyAtPath returns the
+      // directory itself as the item to copy (includeEmptyDirectories=true). Calling
+      // file.getPath().getParent() on it produces a path *above* replacedPrefix, which
+      // inverts the ancestry check in resolveReplicatedOwnerAndPermissionsRecursively and
+      // causes an IOException. Skip directory entries — empty source directories produce no
+      // copy work units.
+      if (file.isDirectory()) {
+        log.warn("Skipping directory entry '{}' in source — empty directories produce no copy work units. "
+            + "If this directory was expected to contain files, verify the source path is populated.", file.getPath());
+        continue;
+      }
+
       Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), replacedPrefix);
       Path thisTargetPath = new Path(replacingPrefix, filePathRelativeToSearchPath);
 
