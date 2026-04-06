@@ -256,11 +256,12 @@ public class RecursiveCopyableDatasetTest {
   /**
    * When source.path points to an empty directory, FileListUtils.listFilesToCopyAtPath (with
    * includeEmptyDirectories=true) returns the directory itself as the sole FileStatus entry.
-   * getCopyableFilesImpl must not crash trying to resolve ancestor permissions for it — instead
-   * it should produce zero copy work units.
+   * getCopyableFilesImpl must replicate the empty directory at the destination without crashing —
+   * calling file.getPath().getParent() on the directory entry goes above the dataset root and
+   * breaks the ancestry check, so ancestor permissions must be set to empty for directory entries.
    */
   @Test
-  public void testEmptySourceDirectoryProducesNoCopyEntities() throws Exception {
+  public void testEmptySourceDirectoryProducesCopyEntityForDirectory() throws Exception {
     Path source = new Path("/source");
     Path target = new Path("/target");
 
@@ -276,37 +277,14 @@ public class RecursiveCopyableDatasetTest {
     Collection<? extends CopyEntity> copyEntities = dataset.getCopyableFiles(FileSystem.getLocal(new Configuration()),
         CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).build());
 
-    Assert.assertEquals(copyEntities.size(), 0,
-        "Empty source directory should produce zero copy entities, not an IOException");
-  }
-
-  /**
-   * When source contains real files mixed with an empty subdirectory entry, only the real files
-   * should produce copy work units; the directory entry must be silently skipped.
-   */
-  @Test
-  public void testMixedSourceWithDirectoryEntrySkipsDirectories() throws Exception {
-    Path source = new Path("/source");
-    Path target = new Path("/target");
-
-    FileStatus realFile = createFileStatus(source, "file1");
-    FileStatus emptySubDir = new FileStatus(0, true, 0, 0, 0, new Path(source, "emptySubDir"));
-    List<FileStatus> sourceFiles = Lists.newArrayList(realFile, emptySubDir);
-    List<FileStatus> targetFiles = Lists.newArrayList();
-
-    Properties properties = new Properties();
-    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, target.toString());
-    RecursiveCopyableDataset dataset = new TestRecursiveCopyableDataset(source, target, sourceFiles, targetFiles, properties);
-
-    Collection<? extends CopyEntity> copyEntities = dataset.getCopyableFiles(FileSystem.getLocal(new Configuration()),
-        CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).build());
-
-    Assert.assertEquals(copyEntities.size(), 1);
+    // The empty directory itself should be replicated at the destination (not silently dropped)
+    Assert.assertEquals(copyEntities.size(), 1,
+        "Empty source directory should produce one copy entity to replicate the directory at the destination");
     ClassifiedFiles classifiedFiles = classifyFiles(copyEntities);
-    Assert.assertTrue(classifiedFiles.getPathsToCopy().containsKey(new Path(source, "file1")),
-        "Real file should be copied");
-    Assert.assertFalse(classifiedFiles.getPathsToCopy().containsKey(new Path(source, "emptySubDir")),
-        "Directory entry should not appear as a copy entity");
+    Assert.assertTrue(classifiedFiles.getPathsToCopy().containsKey(source),
+        "The empty directory itself should be the copy origin");
+    Assert.assertEquals(classifiedFiles.getPathsToCopy().get(source), target,
+        "The empty directory should be mapped to the target path");
   }
 
   @Test
