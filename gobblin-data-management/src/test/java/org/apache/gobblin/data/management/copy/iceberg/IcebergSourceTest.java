@@ -334,10 +334,38 @@ public class IcebergSourceTest {
 
   @Test
   public void testCurrentDatePlaceholder() throws Exception {
-    // CURRENT_DATE resolves to LocalDateTime.now() so the current hour is embedded automatically.
-    // The default legacy format (hourly.partition.enabled=true) produces yyyy-MM-dd-HH.
+    // Legacy path (no iceberg.partition.value.datetime.format set):
+    // CURRENT_DATE resolves to LocalDate.now() at midnight, so the default yyyy-MM-dd-HH
+    // pattern always produces a -00 suffix — preserving pre-PR backward compat.
     properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
     properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "CURRENT_DATE");
+    properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
+    sourceState = new SourceState(new State(properties));
+
+    TableIdentifier tableId = TableIdentifier.of("test_db", "test_table");
+    when(mockTable.getTableId()).thenReturn(tableId);
+    when(mockTable.getFilePathsWithPartitionsForFilter(any(Expression.class)))
+      .thenReturn(new java.util.ArrayList<>());
+
+    Method m = IcebergSource.class.getDeclaredMethod("discoverPartitionFilePaths",
+      SourceState.class, IcebergTable.class);
+    m.setAccessible(true);
+    m.invoke(icebergSource, sourceState, mockTable);
+
+    String partitionValues = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES);
+    Assert.assertNotNull(partitionValues, "Partition values should be set");
+    String expectedToday = java.time.LocalDate.now().toString() + "-00";
+    Assert.assertEquals(partitionValues, expectedToday,
+        "Legacy CURRENT_DATE should produce today's date with -00 suffix (backward compat)");
+  }
+
+  @Test
+  public void testCurrentDatePlaceholderWithCustomFormat() throws Exception {
+    // New path (iceberg.partition.value.datetime.format set to yyyy-MM-dd-HH):
+    // CURRENT_DATE resolves to LocalDateTime.now() so the live clock-hour is embedded.
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_ENABLED, "true");
+    properties.setProperty(IcebergSource.ICEBERG_FILTER_DATE, "CURRENT_DATE");
+    properties.setProperty(IcebergSource.ICEBERG_PARTITION_VALUE_DATETIME_FORMAT, "yyyy-MM-dd-HH");
     properties.setProperty(IcebergSource.ICEBERG_LOOKBACK_DAYS, "1");
     sourceState = new SourceState(new State(properties));
 
@@ -355,7 +383,7 @@ public class IcebergSourceTest {
     String partitionValues = sourceState.getProp(IcebergSource.ICEBERG_PARTITION_VALUES);
     Assert.assertNotNull(partitionValues, "Partition values should be set");
     Assert.assertTrue(partitionValues.matches("\\d{4}-\\d{2}-\\d{2}-\\d{2}"),
-        "Should resolve to yyyy-MM-dd-HH format, got: " + partitionValues);
+        "Custom format CURRENT_DATE should produce yyyy-MM-dd-HH with live hour, got: " + partitionValues);
   }
 
   @Test
