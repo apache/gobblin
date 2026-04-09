@@ -99,11 +99,12 @@ import org.apache.gobblin.commit.CommitStep;
  * # When set, it supersedes iceberg.hourly.partition.enabled.
  * #
  * # CURRENT_DATE behaviour:
- * #   - With iceberg.partition.value.datetime.format set → LocalDateTime.now(), so HH embeds the live clock-hour.
- * #   - Without iceberg.partition.value.datetime.format (legacy) and hourly.partition.enabled=true →
- * #     LocalDate.now() at midnight, HH stays -00 (backward compat).
- * #   - Without iceberg.partition.value.datetime.format (legacy) and hourly.partition.enabled=false →
- * #     LocalDate.now() at midnight, pattern is yyyy-MM-dd (no hour rendered).
+ * #   - iceberg.partition.value.datetime.format set (recommended):
+ * #       LocalDateTime.now() — HH embeds the live clock-hour (e.g. 2025-04-01-14).
+ * #   - iceberg.partition.value.datetime.format absent — falls back to the legacy flag
+ * #     iceberg.hourly.partition.enabled (kept for backward compat only, superseded by the above):
+ * #       hourly.partition.enabled=true  (default) → LocalDate.now() at midnight → -00 suffix preserved.
+ * #       hourly.partition.enabled=false            → LocalDate.now() at midnight → yyyy-MM-dd, no hour.
  *
  * # Standard hourly partitions (yyyy-MM-dd-HH) — CURRENT_DATE picks up live hour
  * iceberg.partition.value.datetime.format=yyyy-MM-dd-HH   # → "2025-04-01-14" (current hour)
@@ -157,19 +158,23 @@ public class IcebergSource extends FileBasedSource<String, FileAwareInputStream>
   /**
    * Optional {@link DateTimeFormatter} pattern controlling how the partition value is rendered.
    *
-   * <p><b>CURRENT_DATE behaviour differs between the two paths:</b>
+   * <p><b>CURRENT_DATE resolution — two paths:</b>
    * <ul>
-   *   <li>When {@code iceberg.partition.value.datetime.format} <em>is</em> set, {@code CURRENT_DATE}
-   *       resolves to {@link java.time.LocalDateTime#now()}, so a pattern that includes {@code HH}
-   *       embeds the live clock-hour automatically — useful for truly hourly-partitioned tables.</li>
-   *   <li>When {@code iceberg.partition.value.datetime.format} is <em>absent</em> (legacy path) and
-   *       {@code iceberg.hourly.partition.enabled=true} (default), {@code CURRENT_DATE} resolves to
-   *       {@link java.time.LocalDate#now()} at midnight (00:00), preserving the pre-PR behaviour
-   *       where the hour suffix was always {@code -00}.  This is the right choice for tables whose
-   *       partitions are daily but formatted as {@code yyyy-MM-dd-00}.</li>
-   *   <li>When {@code iceberg.partition.value.datetime.format} is <em>absent</em> and
-   *       {@code iceberg.hourly.partition.enabled=false}, the pattern is {@code yyyy-MM-dd} and
-   *       the hour is not rendered.</li>
+   *   <li><b>Recommended:</b> when {@code iceberg.partition.value.datetime.format} is set,
+   *       {@code CURRENT_DATE} resolves to {@link java.time.LocalDateTime#now()}, embedding the live
+   *       clock-hour when the pattern includes {@code HH} (e.g. {@code 2025-04-01-14}).</li>
+   *   <li><b>Legacy fallback:</b> when {@code iceberg.partition.value.datetime.format} is absent,
+   *       behaviour is controlled by the legacy flag {@code iceberg.hourly.partition.enabled}
+   *       (superseded by this property; kept only for backward compatibility):
+   *       <ul>
+   *         <li>{@code iceberg.hourly.partition.enabled=true} (default) — {@code CURRENT_DATE}
+   *             resolves to {@link java.time.LocalDate#now()} at midnight, so the
+   *             {@code yyyy-MM-dd-HH} pattern always produces a {@code -00} suffix.</li>
+   *         <li>{@code iceberg.hourly.partition.enabled=false} — {@code CURRENT_DATE} resolves to
+   *             {@link java.time.LocalDate#now()} at midnight with a {@code yyyy-MM-dd} pattern;
+   *             no hour is rendered.</li>
+   *       </ul>
+   *   </li>
    * </ul>
    * For a static date value (e.g. {@code 2025-04-03}), the time always defaults to midnight (00:00)
    * regardless of which path is used.
