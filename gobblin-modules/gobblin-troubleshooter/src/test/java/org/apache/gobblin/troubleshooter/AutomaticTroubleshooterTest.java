@@ -43,16 +43,16 @@ public class AutomaticTroubleshooterTest {
     AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(new Properties());
     try {
       troubleshooter.start();
-      log.warn("Test warning");
+      log.error("Test error");
 
       troubleshooter.refineIssues();
       troubleshooter.logIssueSummary();
 
       String summaryMessage = troubleshooter.getIssueSummaryMessage();
-      assertTrue(summaryMessage.contains("Test warning"));
+      assertTrue(summaryMessage.contains("Test error"));
 
       String detailedMessage = troubleshooter.getIssueDetailsMessage();
-      assertTrue(detailedMessage.contains("Test warning"));
+      assertTrue(detailedMessage.contains("Test error"));
 
       EventSubmitter eventSubmitter = mock(EventSubmitter.class);
       troubleshooter.reportJobIssuesAsEvents(eventSubmitter);
@@ -72,7 +72,7 @@ public class AutomaticTroubleshooterTest {
     AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(properties);
     try {
       troubleshooter.start();
-      log.warn("Test warning");
+      log.error("Test error");
 
       troubleshooter.refineIssues();
       troubleshooter.logIssueSummary();
@@ -81,6 +81,22 @@ public class AutomaticTroubleshooterTest {
 
       assertEquals(0, troubleshooter.getIssueRepository().getAll().size());
       verify(eventSubmitter, never()).submit((GobblinEventBuilder) any());
+    } finally {
+      troubleshooter.stop();
+    }
+  }
+
+  @Test
+  public void warnLogsAreNotCaptured()
+      throws Exception {
+    AutomaticTroubleshooter troubleshooter = AutomaticTroubleshooterFactory.createForJob(new Properties());
+    try {
+      troubleshooter.start();
+      log.warn("Test warning that should be ignored");
+
+      troubleshooter.refineIssues();
+
+      assertEquals(0, troubleshooter.getIssueRepository().getAll().size());
     } finally {
       troubleshooter.stop();
     }
@@ -96,7 +112,7 @@ public class AutomaticTroubleshooterTest {
     try {
       troubleshooter.start();
 
-      log.warn("Test warning");
+      log.error("Test error");
 
       troubleshooter.refineIssues();
       troubleshooter.logIssueSummary();

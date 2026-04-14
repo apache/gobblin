@@ -84,7 +84,7 @@ public class AutomaticTroubleshooterImpl implements AutomaticTroubleshooter {
     org.apache.log4j.Logger rootLogger = LogManager.getRootLogger();
 
     troubleshooterLogger = new AutoTroubleshooterLogAppender(issueRepository);
-    troubleshooterLogger.setThreshold(Level.WARN);
+    troubleshooterLogger.setThreshold(Level.ERROR);
     troubleshooterLogger.activateOptions();
     rootLogger.addAppender(troubleshooterLogger);
 
