@@ -152,9 +152,16 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
       Path filePathRelativeToSearchPath = PathUtils.relativizePath(file.getPath(), replacedPrefix);
       Path thisTargetPath = new Path(replacingPrefix, filePathRelativeToSearchPath);
 
+      // Use the file's parent as the starting point for ancestor permission resolution, unless the
+      // parent is above replacedPrefix (happens when the source root is empty and FileListUtils
+      // returns the root directory itself). In that case use the file's own path so the walk
+      // terminates immediately with an empty ancestors list.
+      Path parentPath = file.getPath().getParent();
+      Path ancestorFromPath = PathUtils.isAncestor(replacedPrefix, parentPath) ? parentPath : file.getPath();
+
       if (this.useNewPreserveLogic) {
         ancestorOwnerAndPermissions.putAll(CopyableFile
-            .resolveReplicatedAncestorOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(),
+            .resolveReplicatedAncestorOwnerAndPermissionsRecursively(this.fs, ancestorFromPath,
                 replacedPrefix, configuration));
       }
 
@@ -163,7 +170,7 @@ public class RecursiveCopyableDataset implements CopyableDataset, FileSystemData
                       .fileSet(datasetURN())
                       .datasetOutputPath(thisTargetPath.toString())
                       .ancestorsOwnerAndPermission(CopyableFile
-                              .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, file.getPath().getParent(),
+                              .resolveReplicatedOwnerAndPermissionsRecursively(this.fs, ancestorFromPath,
                                       replacedPrefix, configuration))
                       .build();
       copyableFile.setFsDatasets(this.fs, targetFs);

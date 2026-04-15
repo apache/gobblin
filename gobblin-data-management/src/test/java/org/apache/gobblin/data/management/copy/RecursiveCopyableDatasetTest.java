@@ -253,6 +253,40 @@ public class RecursiveCopyableDatasetTest {
     Assert.assertEquals(step.getParentDeletionLimit().get(), target);
   }
 
+  /**
+   * When source.path points to an empty directory, FileListUtils.listFilesToCopyAtPath (with
+   * includeEmptyDirectories=true) returns the directory itself as the sole FileStatus entry.
+   * getCopyableFilesImpl must replicate the empty directory at the destination without crashing —
+   * calling file.getPath().getParent() on the directory entry goes above the dataset root and
+   * breaks the ancestry check, so ancestor permissions must be set to empty for directory entries.
+   */
+  @Test
+  public void testEmptySourceDirectoryProducesCopyEntityForDirectory() throws Exception {
+    Path source = new Path("/source");
+    Path target = new Path("/target");
+
+    // Simulate what FileListUtils returns for an empty directory: the directory itself (isDirectory=true)
+    FileStatus emptyDirEntry = new FileStatus(0, true, 0, 0, 0, source);
+    List<FileStatus> sourceFiles = Lists.newArrayList(emptyDirEntry);
+    List<FileStatus> targetFiles = Lists.newArrayList();
+
+    Properties properties = new Properties();
+    properties.setProperty(ConfigurationKeys.DATA_PUBLISHER_FINAL_DIR, target.toString());
+    RecursiveCopyableDataset dataset = new TestRecursiveCopyableDataset(source, target, sourceFiles, targetFiles, properties);
+
+    Collection<? extends CopyEntity> copyEntities = dataset.getCopyableFiles(FileSystem.getLocal(new Configuration()),
+        CopyConfiguration.builder(FileSystem.getLocal(new Configuration()), properties).build());
+
+    // The empty directory itself should be replicated at the destination (not silently dropped)
+    Assert.assertEquals(copyEntities.size(), 1,
+        "Empty source directory should produce one copy entity to replicate the directory at the destination");
+    ClassifiedFiles classifiedFiles = classifyFiles(copyEntities);
+    Assert.assertTrue(classifiedFiles.getPathsToCopy().containsKey(source),
+        "The empty directory itself should be the copy origin");
+    Assert.assertEquals(classifiedFiles.getPathsToCopy().get(source), target,
+        "The empty directory should be mapped to the target path");
+  }
+
   @Test
   public void testCorrectComputationOfTargetPathsWhenUsingGlob() throws Exception {
     Path source = new Path("/source/directory");
