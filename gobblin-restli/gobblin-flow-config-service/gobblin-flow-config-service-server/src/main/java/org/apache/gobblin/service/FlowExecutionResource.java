@@ -220,13 +220,27 @@ public class FlowExecutionResource extends ComplexKeyResourceTemplate<FlowStatus
 
     jobStatusArray.sort(Comparator.comparing((org.apache.gobblin.service.JobStatus js) -> js.getExecutionStatistics().getExecutionStartTime()));
 
+    // $UNKNOWN is a Pegasus in-memory sentinel (not declared in ExecutionStatus.pdl) that arises
+    // when no flow-level (NA/NA) status event was persisted for an execution. This can happen when
+    // the FlowSucceeded/FlowFailed GobblinTrackingEvent is emitted by the orchestrator but
+    // KafkaAvroJobStatusMonitor fails to persist it to the state store (e.g., Kafka consumer
+    // shard-rebalance / checkpoint issues). Serializing $UNKNOWN produces HTTP 500 and poisons the
+    // whole collection response. Coerce to PENDING so the record serializes; polling callers will
+    // keep polling until a terminal state becomes known.
+    ExecutionStatus flowExecutionStatus = monitoringFlowStatus.getFlowExecutionStatus();
+    if (flowExecutionStatus == ExecutionStatus.$UNKNOWN) {
+      log.warn("FlowExecution {}/{}/{} has $UNKNOWN flow status; coercing to PENDING. Check state store for data quality issue.",
+          flowId.getFlowGroup(), flowId.getFlowName(), monitoringFlowStatus.getFlowExecutionId());
+      flowExecutionStatus = ExecutionStatus.PENDING;
+    }
+
     return new FlowExecution()
         .setId(new FlowStatusId().setFlowGroup(flowId.getFlowGroup()).setFlowName(flowId.getFlowName())
             .setFlowExecutionId(monitoringFlowStatus.getFlowExecutionId()))
         .setExecutionStatistics(new FlowStatistics().setExecutionStartTime(getFlowStartTime(monitoringFlowStatus))
             .setExecutionEndTime(flowEndTime))
         .setMessage(flowMessage)
-        .setExecutionStatus(monitoringFlowStatus.getFlowExecutionStatus())
+        .setExecutionStatus(flowExecutionStatus)
         .setJobStatuses(jobStatusArray)
         .setIssues(new IssueArray(flowIssues));
   }
