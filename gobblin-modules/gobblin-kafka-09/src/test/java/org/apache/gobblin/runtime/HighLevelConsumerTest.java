@@ -205,6 +205,43 @@ public class HighLevelConsumerTest extends KafkaTestBase {
     consumer.shutDown();
   }
 
+  /**
+   * Verifies that with auto-commit=false, a RuntimeException from processMessage does not kill the
+   * QueueProcessor: the in-loop try/catch logs and continues with the next record. Before this
+   * change, the exception would propagate out, exit run(), and silently kill the partition's worker.
+   * The failing record is effectively dropped — operators alert on consumerLoopExceptions.
+   */
+  @Test
+  public void testQueueProcessorContinuesAfterExceptionAutoCommitDisabled() throws Exception {
+    Properties consumerProps = new Properties();
+    consumerProps.setProperty(ConfigurationKeys.KAFKA_BROKERS, _kafkaBrokers);
+    consumerProps.setProperty(Kafka09ConsumerClient.GOBBLIN_CONFIG_VALUE_DESERIALIZER_CLASS_KEY, "org.apache.kafka.common.serialization.ByteArrayDeserializer");
+    consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + KAFKA_AUTO_OFFSET_RESET_KEY, "earliest");
+    String consumerGroupId = Joiner.on("-").join(TOPIC, "continue", System.currentTimeMillis());
+    consumerProps.setProperty(SOURCE_KAFKA_CONSUMERCONFIG_KEY_WITH_DOT + HighLevelConsumer.GROUP_ID_KEY, consumerGroupId);
+    consumerProps.setProperty(HighLevelConsumer.ENABLE_AUTO_COMMIT_KEY, "false");
+    consumerProps.put(HighLevelConsumer.OFFSET_COMMIT_TIME_THRESHOLD_SECS_KEY, 1);
+
+    // Throw on the first record only; subsequent records should flow through normally.
+    java.util.concurrent.atomic.AtomicBoolean firstCall = new java.util.concurrent.atomic.AtomicBoolean(true);
+    MockedHighLevelConsumer consumer = new MockedHighLevelConsumer(TOPIC, ConfigUtils.propertiesToConfig(consumerProps), NUM_PARTITIONS) {
+      @Override
+      public void processMessage(DecodeableKafkaRecord<byte[], byte[]> message) {
+        if (firstCall.compareAndSet(true, false)) {
+          throw new RuntimeException("Simulated failure on first record");
+        }
+        super.processMessage(message);
+      }
+    };
+    consumer.startAsync().awaitRunning();
+
+    // One record is dropped (auto-commit=false: inner catch rethrows, outer catches and logs,
+    // offset for the failing record is never added to partitionOffsetsToCommit). Remaining
+    // NUM_MSGS-1 records flow through normally.
+    consumer.awaitExactlyNMessages(NUM_MSGS - 1, 15_000);
+    consumer.shutDown();
+  }
+
   private List<byte[]> createByteArrayMessages() {
     List<byte[]> records = Lists.newArrayList();
 

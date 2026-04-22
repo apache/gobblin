@@ -35,6 +35,7 @@ import java.util.concurrent.atomic.AtomicInteger;
 import org.apache.commons.lang3.reflect.ConstructorUtils;
 
 import com.codahale.metrics.Counter;
+import com.codahale.metrics.Meter;
 import com.google.common.annotations.VisibleForTesting;
 import com.google.common.base.Optional;
 import com.google.common.collect.ImmutableMap;
@@ -97,6 +98,7 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
   @Getter
   private MetricContext metricContext;
   protected Counter messagesRead;
+  protected Meter consumerLoopExceptions;
   @Getter
   private final GobblinKafkaConsumerClient gobblinKafkaConsumerClient;
   protected final ScheduledExecutorService consumerExecutor;
@@ -201,6 +203,8 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     String prefix = getMetricsPrefix();
     this.messagesRead = this.metricContext.counter(prefix +
         RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ);
+    this.consumerLoopExceptions = this.metricContext.meter(prefix +
+        RuntimeMetrics.GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_LOOP_EXCEPTIONS);
     this.queueSizeGauges = new ContextAwareGauge[numThreads];
     for (int i = 0; i < numThreads; i++) {
       // An 'effectively' final variable is needed inside the lambda expression below
@@ -240,10 +244,16 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     buildMetricsContextAndMetrics();
     // Method that starts threads that processes queues
     processQueues();
-    // Main thread that constantly polls messages from kafka
+    // Main thread that constantly polls messages from kafka. Guard with try/catch so an uncaught
+    // exception doesn't kill the poll thread and leave the service in a "server up, consumer down" state.
     consumerExecutor.execute(() -> {
       while (!shutdownRequested) {
-        consume();
+        try {
+          consume();
+        } catch (Throwable t) {
+          log.error("consume() threw; continuing poll loop", t);
+          consumerLoopExceptions.mark();
+        }
       }
     });
   }
@@ -335,24 +345,26 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
     @Override
     public void run() {
       log.info("Starting queue processing.. " + Thread.currentThread().getName());
-      KafkaConsumerRecord record = null;
-      try {
-        while (true) {
+      // Try/catch INSIDE the while so an uncaught exception logs + increments a meter and continues
+      // with the next record, instead of escaping and killing this partition's worker thread. The
+      // failing record is effectively dropped — operators alert on consumerLoopExceptions.
+      while (!Thread.currentThread().isInterrupted()) {
+        KafkaConsumerRecord record = null;
+        try {
           record = queue.take();
           messagesRead.inc();
           try {
             HighLevelConsumer.this.processMessage((DecodeableKafkaRecord) record);
             recordsProcessed.incrementAndGet();
-          }
-          catch (Exception e) {
-            // Rethrow exception in case auto commit is disabled
+          } catch (Exception e) {
+            // Rethrow so the outer catch logs + marks the meter + skips the offset commit below
+            // (preserves the GOBBLIN-2177 watermark invariant: don't commit an offset we failed on).
             if (!HighLevelConsumer.this.enableAutoCommit) {
               throw e;
             }
-            // Continue with processing next records in case auto commit is enabled
+            // auto-commit=true: swallow and continue (pre-existing behavior).
             log.error("Encountered exception while processing record. Record: {} Exception: {}", record, e);
           }
-
           if (!HighLevelConsumer.this.enableAutoCommit) {
             KafkaPartition partition =
                 new KafkaPartition.Builder().withId(record.getPartition()).withTopicName(HighLevelConsumer.this.topic)
@@ -360,12 +372,14 @@ public abstract class HighLevelConsumer<K,V> extends AbstractIdleService {
             // Committed offset should always be the offset of the next record to be read (hence +1)
             partitionOffsetsToCommit.put(partition, record.getOffset() + 1);
           }
+        } catch (InterruptedException e) {
+          log.warn("Thread interrupted while processing queue ", e);
+          Thread.currentThread().interrupt();
+          return;
+        } catch (Throwable t) {
+          log.error("Encountered exception processing record; continuing. Record: {}", record, t);
+          consumerLoopExceptions.mark();
         }
-      } catch(InterruptedException e){
-        log.warn("Thread interrupted while processing queue ", e);
-        Thread.currentThread().interrupt();
-      } catch (Exception e) {
-        log.error("Encountered exception while processing record so stopping queue processing. Record: {} Exception: {}", record, e);
       }
     }
   }

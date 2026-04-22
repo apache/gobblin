@@ -176,10 +176,16 @@ public abstract class DagActionStoreChangeMonitor extends HighLevelConsumer<Stri
     initializeMonitor();
     // Method that starts threads that processes queues
     processQueues();
-    // Main thread that constantly polls messages from kafka
+    // Main thread that constantly polls messages from kafka. Guard with try/catch so an uncaught
+    // exception from consume() doesn't leave the service in a "server up, consumer down" state.
     consumerExecutor.execute(() -> {
       while (!shutdownRequested) {
-        consume();
+        try {
+          consume();
+        } catch (Throwable t) {
+          log.error("consume() threw; continuing poll loop", t);
+          consumerLoopExceptions.mark();
+        }
       }
     });
   }

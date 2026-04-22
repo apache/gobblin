@@ -145,27 +145,35 @@ public class DagProcessingEngine extends AbstractIdleService {
     public void run() {
       log.info("Starting DagProcEngineThread to process dag tasks. Thread id: {}", threadID);
 
-      while (true) {
-        DagTask dagTask = dagTaskStream.next(); // blocking call
-        if (dagTask == null) {
-          //todo - add a metrics to count the times dagTask was null
-          log.warn("Ignoring null dag task!");
-          continue;
-        }
-        DagProc<?> dagProc = dagTask.host(dagProcFactory);
+      while (!Thread.currentThread().isInterrupted()) {
+        // Outer try/catch so exceptions from dagTaskStream.next() or dagTask.host() log + continue
+        // instead of killing the thread — consumer/DAG-processing must stay alive as long as the
+        // service is alive.
         try {
-          dagProc.process(dagManagementStateStore, dagProcEngineMetrics);
-          dagTask.conclude();
-          log.info(dagProc.contextualizeStatus("concluded dagTask"));
-        } catch (Exception e) {
-          log.error("DagProcEngineThread: " + dagProc.contextualizeStatus("error"), e);
-          dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
-          if (!DagProcessingEngine.isTransientException(e)) {
-            log.warn(dagProc.contextualizeStatus("ignoring non-transient exception by concluding so no retries"));
-            dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.mark();
-            dagTask.conclude();
+          DagTask dagTask = dagTaskStream.next(); // blocking call
+          if (dagTask == null) {
+            //todo - add a metrics to count the times dagTask was null
+            log.warn("Ignoring null dag task!");
+            continue;
           }
-          // TODO add the else block for transient exceptions and add conclude task only if retry limit is not breached
+          DagProc<?> dagProc = dagTask.host(dagProcFactory);
+          try {
+            dagProc.process(dagManagementStateStore, dagProcEngineMetrics);
+            dagTask.conclude();
+            log.info(dagProc.contextualizeStatus("concluded dagTask"));
+          } catch (Exception e) {
+            log.error("DagProcEngineThread: " + dagProc.contextualizeStatus("error"), e);
+            dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
+            if (!DagProcessingEngine.isTransientException(e)) {
+              log.warn(dagProc.contextualizeStatus("ignoring non-transient exception by concluding so no retries"));
+              dagManagementStateStore.getDagManagerMetrics().dagProcessingNonRetryableExceptionMeter.mark();
+              dagTask.conclude();
+            }
+            // TODO add the else block for transient exceptions and add conclude task only if retry limit is not breached
+          }
+        } catch (Throwable t) {
+          log.error("DagProcEngineThread iteration failed; continuing. Thread id: {}", threadID, t);
+          dagManagementStateStore.getDagManagerMetrics().dagProcessingExceptionMeter.mark();
         }
       }
     }

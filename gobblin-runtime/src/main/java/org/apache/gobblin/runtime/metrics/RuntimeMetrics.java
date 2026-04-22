@@ -29,6 +29,9 @@ public class RuntimeMetrics {
   public static final String GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_MESSAGES_READ =
       "gobblin.kafka.highLevelConsumer.messagesRead";
   public static final String GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_QUEUE_SIZE_PREFIX = "gobblin.kafka.highLevelConsumer.queueSize";
+  // Wire this metric to on-call paging: rate indicates the consumer loop is repeatedly throwing.
+  public static final String GOBBLIN_KAFKA_HIGH_LEVEL_CONSUMER_LOOP_EXCEPTIONS =
+      "gobblin.kafka.highLevelConsumer.loopExceptions";
   public static final String GOBBLIN_JOB_MONITOR_KAFKA_TOTAL_SPECS = "gobblin.jobMonitor.kafka.totalSpecs";
   public static final String GOBBLIN_JOB_MONITOR_KAFKA_NEW_SPECS = "gobblin.jobMonitor.kafka.newSpecs";
   public static final String GOBBLIN_JOB_MONITOR_KAFKA_UPDATED_SPECS = "gobblin.jobMonitor.kafka.updatedSpecs";
