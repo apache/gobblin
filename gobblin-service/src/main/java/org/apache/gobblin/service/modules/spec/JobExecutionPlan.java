@@ -25,7 +25,6 @@ import java.util.concurrent.Future;
 
 import org.apache.commons.lang3.StringUtils;
 
-import com.google.common.base.Joiner;
 import com.google.common.base.Optional;
 import com.google.common.base.Strings;
 import com.typesafe.config.Config;
@@ -46,7 +45,6 @@ import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.SpecExecutor;
 import org.apache.gobblin.service.ExecutionStatus;
 import org.apache.gobblin.service.modules.flowgraph.DagNodeId;
-import org.apache.gobblin.service.modules.flowgraph.DatasetDescriptorConfigKeys;
 import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
@@ -111,8 +109,6 @@ public class JobExecutionPlan {
       String flowName = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_NAME_KEY, "");
       String flowGroup = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_GROUP_KEY, "");
       String flowFailureOption = ConfigUtils.getString(flowConfig, ConfigurationKeys.FLOW_FAILURE_OPTION, DagProcessingEngine.DEFAULT_FLOW_FAILURE_OPTION);
-      String flowInputPath = ConfigUtils.getString(flowConfig, DatasetDescriptorConfigKeys.FLOW_INPUT_DATASET_DESCRIPTOR_PREFIX
-          + "." + DatasetDescriptorConfigKeys.PATH_KEY, "");
       Long flowModTime = ConfigUtils.getLong(flowConfig, FlowSpec.MODIFICATION_TIME_KEY, 0L);
 
       String jobName = ConfigUtils.getString(jobConfig, ConfigurationKeys.JOB_NAME_KEY, "");
@@ -121,15 +117,9 @@ public class JobExecutionPlan {
       final int gaasJobExecutionIdHash = gaasJobExecutionId.hashCode();  // Passing the hashCode of the uniqueIdentifier to be used as jobExecutionId for backward compatibility
 
       if (!ConfigUtils.getBoolean(jobConfig, JOB_MAINTAIN_JOBNAME, false) || jobName.isEmpty()) {
-        // Modify the job name to include the flow group, flow name, edge id, and a random string to avoid collisions since
-        // job names are assumed to be unique within a dag.
-        int hash = flowInputPath.hashCode();
-        jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName, jobName, edgeId, hash);
-        // jobNames are commonly used as a directory name, which is limited to 255 characters
-        if (jobName.length() >= MAX_JOB_NAME_LENGTH) {
-          // shorten job length to be 128 characters (flowGroup) + (hashed) flowName, hashCode length
-          jobName = Joiner.on(JOB_NAME_COMPONENT_SEPARATION_CHAR).join(flowGroup, flowName.hashCode(), hash);
-        }
+        jobName = gaasJobExecutionId; // Assigning jobName with the value of GaaSJobExecutionId
+        // which is a UUID and unique to avoid collisions
+
       }
       JobSpec.Builder jobSpecBuilder = JobSpec.builder(jobSpecURIGenerator(flowGroup, jobName, flowSpec)).withConfig(jobConfig)
           .withDescription(flowSpec.getDescription()).withVersion(flowSpec.getVersion());
