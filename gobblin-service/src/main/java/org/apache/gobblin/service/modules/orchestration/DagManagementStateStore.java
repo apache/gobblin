@@ -229,4 +229,12 @@ public interface DagManagementStateStore {
    * @throws IOException Exception in retrieving {@link DagActionStore.DagAction}s.
    */
   Collection<DagActionStore.DagAction> getDagActions() throws IOException;
+
+  /**
+   * See {@link DagActionStore#getDagActionInsertTimeMillis(DagActionStore.DagAction)}.
+   * @throws IOException on lookup failure
+   */
+  default Optional<Long> getDagActionInsertTimeMillis(DagActionStore.DagAction dagAction) throws IOException {
+    return Optional.empty();
+  }
 }

@@ -20,6 +20,7 @@ package org.apache.gobblin.service.modules.orchestration;
 import java.io.IOException;
 import java.sql.SQLException;
 import java.util.Collection;
+import java.util.Optional;
 
 import lombok.Data;
 import lombok.RequiredArgsConstructor;
@@ -197,4 +198,21 @@ public interface DagActionStore {
    * @throws IOException Exception in retrieving {@link DagAction}s.
    */
   Collection<DagAction> getDagActions() throws IOException;
+
+  /**
+   * Returns the time the given {@link DagAction} was inserted into the store, in epoch milliseconds, or
+   * {@link Optional#empty()} if the row is not present (e.g. already deleted by retention or post-processing
+   * cleanup). Implementations that cannot supply this information may return {@link Optional#empty()}.
+   *
+   * <p>The returned timestamp is read directly from the underlying store, so it is consistent across all
+   * processes regardless of local clock skew. Note that the underlying column may be persisted at second
+   * precision by some implementations.
+   *
+   * @param dagAction the action to look up
+   * @return the insert time in epoch milliseconds, or empty if unknown
+   * @throws IOException on lookup failure
+   */
+  default Optional<Long> getDagActionInsertTimeMillis(DagAction dagAction) throws IOException {
+    return Optional.empty();
+  }
 }

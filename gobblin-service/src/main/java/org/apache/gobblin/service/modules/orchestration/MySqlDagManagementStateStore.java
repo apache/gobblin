@@ -258,4 +258,9 @@ public class MySqlDagManagementStateStore implements DagManagementStateStore {
   public Collection<DagActionStore.DagAction> getDagActions() throws IOException {
     return this.dagActionStore.getDagActions();
   }
+
+  @Override
+  public Optional<Long> getDagActionInsertTimeMillis(DagActionStore.DagAction dagAction) throws IOException {
+    return this.dagActionStore.getDagActionInsertTimeMillis(dagAction);
+  }
 }

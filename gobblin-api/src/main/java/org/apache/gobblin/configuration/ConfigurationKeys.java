@@ -179,6 +179,14 @@ public class ConfigurationKeys {
   public static final String FLOW_EDGE_ID_KEY = "flow.edgeId";
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
   public static final String FLOW_EXECUTION_ID_KEY = "flow.executionId";
+  /**
+   * Epoch milliseconds at which the LAUNCH {@link org.apache.gobblin.service.modules.orchestration.DagActionStore.DagAction}
+   * for this flow execution was inserted into the {@link org.apache.gobblin.service.modules.orchestration.DagActionStore}.
+   * Set on the {@link org.apache.gobblin.runtime.api.FlowSpec} during {@code LaunchDagProc} initialization so that
+   * downstream {@link org.apache.gobblin.runtime.api.SpecProducer} implementations can compute end-to-end launch latency.
+   * Absent if the underlying store cannot report it.
+   */
+  public static final String DAG_ACTION_INSERT_TIME_MILLIS_KEY = "flow.dagAction.insertTimeMillis";
   public static final String FLOW_FAILURE_OPTION = "flow.failureOption";
   public static final String FLOW_APPLY_RETENTION = "flow.applyRetention";
   public static final String FLOW_APPLY_INPUT_RETENTION = "flow.applyInputRetention";

@@ -24,6 +24,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 import java.util.concurrent.TimeUnit;
 
 import com.google.inject.Inject;
@@ -55,6 +56,7 @@ public class MysqlDagActionStore implements DagActionStore {
       + "VALUES (?, ?, ?, ?, ?)";
   private static final String DELETE_STATEMENT = "DELETE FROM %s WHERE flow_group = ? AND flow_name =? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?";
   private static final String GET_ALL_STATEMENT = "SELECT flow_group, flow_name, flow_execution_id, job_name, dag_action FROM %s";
+  private static final String GET_INSERT_TIME_STATEMENT = "SELECT UNIX_TIMESTAMP(modified_time) * 1000 FROM %s WHERE flow_group = ? AND flow_name = ? AND flow_execution_id = ? AND job_name = ? AND dag_action = ?";
   private static final String CREATE_TABLE_STATEMENT = "CREATE TABLE IF NOT EXISTS %s (" +
   "flow_group varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, flow_name varchar(" + ServiceConfigKeys.MAX_FLOW_GROUP_LENGTH + ") NOT NULL, "
       + "flow_execution_id varchar(" + ServiceConfigKeys.MAX_FLOW_EXECUTION_ID_LENGTH + ") NOT NULL, "
@@ -153,6 +155,24 @@ public class MysqlDagActionStore implements DagActionStore {
         return result;
       } catch (SQLException e) {
         throw new IOException(String.format("Failure get dag actions from table %s ", tableName), e);
+      }
+    }, true);
+  }
+
+  @Override
+  public Optional<Long> getDagActionInsertTimeMillis(DagAction dagAction) throws IOException {
+    return dbStatementExecutor.withPreparedStatement(String.format(GET_INSERT_TIME_STATEMENT, tableName), getStatement -> {
+      fillPreparedStatement(dagAction.getFlowGroup(), dagAction.getFlowName(), dagAction.getFlowExecutionId(),
+          dagAction.getJobName(), dagAction.getDagActionType(), getStatement);
+      try (ResultSet rs = getStatement.executeQuery()) {
+        if (rs.next()) {
+          long millis = rs.getLong(1);
+          return rs.wasNull() ? Optional.<Long>empty() : Optional.of(millis);
+        }
+        return Optional.<Long>empty();
+      } catch (SQLException e) {
+        throw new IOException(String.format("Failure looking up insert time for DagAction: %s in table %s",
+            dagAction, tableName), e);
       }
     }, true);
   }

@@ -69,6 +69,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     try {
       FlowSpec flowSpec = dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(getDagId().getFlowId()));
       flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, getDagId().getFlowExecutionId());
+      stampDagActionInsertTimeOnFlowSpec(flowSpec, dagManagementStateStore);
       Optional<Dag<JobExecutionPlan>> dag = this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
       if (dag.isPresent()) {
         dagManagementStateStore.addDag(dag.get());
@@ -79,6 +80,25 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
           "Flow launch initialization failed: " + e.getClass().getSimpleName() + " - " + e.getMessage(),
           ExceptionUtils.getStackTrace(e));
       throw new RuntimeException(e);
+    }
+  }
+
+  /**
+   * Records the LAUNCH DagAction's persisted insert time (read from the {@link DagManagementStateStore}) onto the
+   * {@link FlowSpec}, so that compiled {@link JobExecutionPlan}s carry it forward for downstream latency
+   * instrumentation in {@code SpecProducer}s. Trigger type (scheduled vs ad-hoc) can be inferred downstream from
+   * the existing {@link ConfigurationKeys#JOB_SCHEDULE_KEY}; no companion key is added here. Best effort: any
+   * lookup failure is logged and swallowed so it cannot break flow launch.
+   */
+  private void stampDagActionInsertTimeOnFlowSpec(FlowSpec flowSpec, DagManagementStateStore dagManagementStateStore) {
+    try {
+      Optional<Long> insertTimeMillis =
+          dagManagementStateStore.getDagActionInsertTimeMillis(getDagTask().getDagAction());
+      insertTimeMillis.ifPresent(millis ->
+          flowSpec.addProperty(ConfigurationKeys.DAG_ACTION_INSERT_TIME_MILLIS_KEY, millis));
+    } catch (Exception e) {
+      log.warn("Failed to stamp DagAction insert time on FlowSpec for dagId {}; latency metric will be skipped",
+          getDagId(), e);
     }
   }
 

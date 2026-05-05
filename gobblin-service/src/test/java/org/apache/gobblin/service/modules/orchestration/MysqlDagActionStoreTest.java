@@ -21,6 +21,7 @@ import java.io.IOException;
 import java.net.URISyntaxException;
 import java.util.Collection;
 import java.util.HashSet;
+import java.util.Optional;
 
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -113,7 +114,40 @@ public class MysqlDagActionStoreTest {
          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.KILL));
      Assert.assertEquals(this.mysqlDagActionStore.getDagActions().size(), 2);
      Assert.assertFalse(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.KILL));
-     Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.RESUME));
      Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId_2, jobName, DagActionStore.DagActionType.KILL));
+     Assert.assertTrue(this.mysqlDagActionStore.exists(flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.RESUME));
+  }
+
+  @Test(dependsOnMethods = "testDeleteAction")
+  public void testGetDagActionInsertTimeMillisReturnsTimestampForExistingRow() throws Exception {
+    long beforeMillis = currentSecondAlignedMillis();
+    this.mysqlDagActionStore.addJobDagAction(flowGroup, flowName, 99999L, jobName, DagActionStore.DagActionType.LAUNCH);
+    long afterMillis = System.currentTimeMillis();
+
+    Optional<Long> insertTimeMillis = this.mysqlDagActionStore.getDagActionInsertTimeMillis(
+        new DagActionStore.DagAction(flowGroup, flowName, 99999L, jobName, DagActionStore.DagActionType.LAUNCH));
+
+    Assert.assertTrue(insertTimeMillis.isPresent(), "Expected insert time to be returned for existing row");
+    long observed = insertTimeMillis.get();
+    // MySQL TIMESTAMP is second precision by default, so allow a 1-second floor.
+    Assert.assertTrue(observed >= beforeMillis - 1000,
+        "Expected " + observed + " to be >= " + (beforeMillis - 1000));
+    Assert.assertTrue(observed <= afterMillis + 1000,
+        "Expected " + observed + " to be <= " + (afterMillis + 1000));
+  }
+
+  @Test(dependsOnMethods = "testDeleteAction")
+  public void testGetDagActionInsertTimeMillisReturnsEmptyForMissingRow() throws Exception {
+    Optional<Long> insertTimeMillis = this.mysqlDagActionStore.getDagActionInsertTimeMillis(
+        new DagActionStore.DagAction("noSuchGroup", "noSuchName", 1L, "noJob",
+            DagActionStore.DagActionType.LAUNCH));
+    Assert.assertFalse(insertTimeMillis.isPresent(), "Expected empty Optional for missing row");
+  }
+
+  // The TIMESTAMP column truncates sub-second precision. Align the lower bound to the start of the current second
+  // so a row inserted at e.g. 12:00:00.700 (rounded to 12:00:00.000) does not register as "before" the test started.
+  private static long currentSecondAlignedMillis() {
+    long now = System.currentTimeMillis();
+    return now - (now % 1000);
   }
 }
