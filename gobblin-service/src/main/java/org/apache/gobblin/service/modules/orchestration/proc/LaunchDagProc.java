@@ -33,6 +33,7 @@ import org.apache.gobblin.runtime.api.FlowSpec;
 import org.apache.gobblin.runtime.api.SpecNotFoundException;
 import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
+import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
@@ -69,6 +70,11 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     try {
       FlowSpec flowSpec = dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(getDagId().getFlowId()));
       flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, getDagId().getFlowExecutionId());
+      long storeInsertTimeMillis = getDagTask().getLeaseParams().getStoreInsertTimeMillis();
+      if (storeInsertTimeMillis != DagActionStore.UNKNOWN_STORE_INSERT_TIME_MILLIS) {
+        flowSpec.addProperty(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY,
+            storeInsertTimeMillis);
+      }
       Optional<Dag<JobExecutionPlan>> dag = this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
       if (dag.isPresent()) {
         dagManagementStateStore.addDag(dag.get());

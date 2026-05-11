@@ -179,6 +179,10 @@ public class ConfigurationKeys {
   public static final String FLOW_EDGE_ID_KEY = "flow.edgeId";
   public static final String FLOW_DESCRIPTION_KEY = "flow.description";
   public static final String FLOW_EXECUTION_ID_KEY = "flow.executionId";
+  // Stamped onto the JobSpec config by LaunchDagProc, carrying the DagAction store row-insert time in millis
+  // (sourced upstream from the CDC binlog event timestamp). Enables downstream executors to measure end-to-end
+  // LAUNCH-to-submission latency including CDC propagation. Absent / -1 when the source timestamp is unknown.
+  public static final String DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY = "dagAction.launch.storeInsertTimeMillis";
   public static final String FLOW_FAILURE_OPTION = "flow.failureOption";
   public static final String FLOW_APPLY_RETENTION = "flow.applyRetention";
   public static final String FLOW_APPLY_INPUT_RETENTION = "flow.applyInputRetention";
