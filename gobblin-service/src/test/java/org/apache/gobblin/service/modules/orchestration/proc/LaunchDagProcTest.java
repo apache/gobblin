@@ -61,6 +61,8 @@ import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
+import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
+import org.apache.gobblin.service.modules.orchestration.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
@@ -132,8 +134,8 @@ public class LaunchDagProcTest {
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     List<SpecProducer<Spec>> specProducers = ReevaluateDagProcTest.getDagSpecProducers(dag);
     LaunchDagProc launchDagProc = new LaunchDagProc(
-        new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
-            DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore,
+        buildLaunchDagTask(flowGroup, flowName, flowExecutionId, "job0",
+            DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS, this.dagManagementStateStore,
             this.mockedDagProcEngineMetrics),
         flowCompilationValidationHelper, ConfigFactory.empty());
 
@@ -170,8 +172,8 @@ public class LaunchDagProcTest {
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     LaunchDagProc launchDagProc = new LaunchDagProc(
-        new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId,
-            "jn", DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore,
+        buildLaunchDagTask(flowGroup, flowName, flowExecutionId, "jn",
+            DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS, this.dagManagementStateStore,
             this.mockedDagProcEngineMetrics),
         flowCompilationValidationHelper, ConfigFactory.empty());
 
@@ -196,8 +198,8 @@ public class LaunchDagProcTest {
     FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
     doReturn(com.google.common.base.Optional.absent()).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
     LaunchDagProc launchDagProc = new LaunchDagProc(
-        new LaunchDagTask(new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
-            DagActionStore.DagActionType.LAUNCH), null, this.dagManagementStateStore,
+        buildLaunchDagTask(flowGroup, flowName, flowExecutionId, "job0",
+            DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS, this.dagManagementStateStore,
             this.mockedDagProcEngineMetrics),
         flowCompilationValidationHelper, ConfigFactory.empty());
 
@@ -206,6 +208,84 @@ public class LaunchDagProcTest {
     // Verify that a service-layer issue was emitted for the compilation failure
     Mockito.verify(this.mockedEventSubmitter, Mockito.atLeastOnce())
         .submit((GobblinEventBuilder) argThat(builder -> builder instanceof IssueEventBuilder));
+  }
+
+  @Test
+  public void launchDagStampsStoreInsertTimeMillisWhenProvided() throws IOException, InterruptedException, URISyntaxException, SpecNotFoundException {
+    String flowGroup = "fg";
+    String flowName = "fn-stamp";
+    long flowExecutionId = 12345L;
+    long storeInsertTimeMillis = 1730000000000L;
+
+    // Override the default getFlowSpec stub with a captured instance so we can inspect the post-initialize config.
+    FlowSpec capturedFlowSpec = FlowSpec.builder("/test/flow/spec").withVersion("1").build();
+    doReturn(capturedFlowSpec).when(this.dagManagementStateStore).getFlowSpec(any());
+
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId,
+        DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 1, "user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
+    doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
+
+    LaunchDagProc launchDagProc = new LaunchDagProc(
+        buildLaunchDagTask(flowGroup, flowName, flowExecutionId, "job0", storeInsertTimeMillis,
+            this.dagManagementStateStore, this.mockedDagProcEngineMetrics),
+        flowCompilationValidationHelper, ConfigFactory.empty());
+
+    launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
+
+    Assert.assertTrue(
+        capturedFlowSpec.getConfig().hasPath(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        "FlowSpec config should carry the storeInsertTimeMillis stamp when LeaseParams provides a non-UNKNOWN value");
+    Assert.assertEquals(
+        capturedFlowSpec.getConfig().getLong(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        storeInsertTimeMillis);
+  }
+
+  @Test
+  public void launchDagSkipsStoreInsertTimeMillisStampWhenUnknown() throws IOException, InterruptedException, URISyntaxException, SpecNotFoundException {
+    String flowGroup = "fg";
+    String flowName = "fn-skip";
+    long flowExecutionId = 12345L;
+
+    FlowSpec capturedFlowSpec = FlowSpec.builder("/test/flow/spec").withVersion("1").build();
+    doReturn(capturedFlowSpec).when(this.dagManagementStateStore).getFlowSpec(any());
+
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId,
+        DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 1, "user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    FlowCompilationValidationHelper flowCompilationValidationHelper = mock(FlowCompilationValidationHelper.class);
+    doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
+
+    LaunchDagProc launchDagProc = new LaunchDagProc(
+        buildLaunchDagTask(flowGroup, flowName, flowExecutionId, "job0",
+            DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS, this.dagManagementStateStore,
+            this.mockedDagProcEngineMetrics),
+        flowCompilationValidationHelper, ConfigFactory.empty());
+
+    launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
+
+    Assert.assertFalse(
+        capturedFlowSpec.getConfig().hasPath(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        "FlowSpec config should NOT carry the storeInsertTimeMillis stamp when LeaseParams carries UNKNOWN");
+  }
+
+  private static LaunchDagTask buildLaunchDagTask(String flowGroup, String flowName, long flowExecutionId,
+      String jobName, long storeInsertTimeMillis, DagManagementStateStore dagManagementStateStore,
+      DagProcessingEngineMetrics dagProcEngineMetrics) {
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName,
+        DagActionStore.DagActionType.LAUNCH);
+    DagActionStore.LeaseParams consensusLeaseParams = new DagActionStore.LeaseParams(
+        dagAction, false, System.currentTimeMillis(), storeInsertTimeMillis);
+    LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus = new LeaseAttemptStatus.LeaseObtainedStatus(
+        consensusLeaseParams, System.currentTimeMillis(), 0L, mock(MultiActiveLeaseArbiter.class));
+    return new LaunchDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore, dagProcEngineMetrics);
   }
 
   // This creates a dag like this
