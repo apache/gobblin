@@ -51,10 +51,10 @@
     "doc" : "type of dag action",
     "compliance" : "NONE"
   }, {
-    "name" : "dbUpdateTimeMillis",
+    "name" : "storeInsertTimeMillis",
     "type" : [ "null", "long" ],
     "default" : null,
-    "doc" : "Source-database row modification time in epoch millis (e.g., MySQL binlog EventTimestamp on the dag_action row INSERT). Distinct from the kafka publish time on changeEventIdentifier — this is the original DB-side timestamp, used by downstream consumers to measure end-to-end CDC+orchestration latency. Null when the producer cannot determine it.",
+    "doc" : "DagAction store row-insert time in epoch millis, sourced upstream from the MySQL binlog EventTimestamp on the dag_action row INSERT. Distinct from the kafka publish time on changeEventIdentifier — this is the original DB-side timestamp, used by downstream consumers to measure end-to-end CDC+orchestration latency. Null when the producer cannot determine it.",
     "compliance" : "NONE"
   } ]
 }

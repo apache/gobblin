@@ -154,6 +154,9 @@ public class DagActionReminderScheduler {
     dataMap.put(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, dagAction.getFlowExecutionId());
     dataMap.put(ReminderJob.FLOW_ACTION_TYPE_KEY, dagAction.getDagActionType());
     dataMap.put(ReminderJob.FLOW_ACTION_EVENT_TIME_KEY, leaseParams.getEventTimeMillis());
+    // Carry the source DagActionStore row-insert time through the Quartz reminder so a host-failure-driven
+    // reattempt still preserves the original timestamp for end-to-end latency instrumentation.
+    dataMap.put(ReminderJob.FLOW_ACTION_STORE_INSERT_TIME_MILLIS_KEY, leaseParams.getStoreInsertTimeMillis());
 
     return JobBuilder.newJob(ReminderJob.class)
         .withIdentity(createJobKey(leaseParams, isDeadlineReminder))
@@ -190,6 +193,7 @@ public class DagActionReminderScheduler {
   public static class ReminderJob implements Job {
     public static final String FLOW_ACTION_TYPE_KEY = "flow.actionType";
     public static final String FLOW_ACTION_EVENT_TIME_KEY = "flow.eventTime";
+    public static final String FLOW_ACTION_STORE_INSERT_TIME_MILLIS_KEY = "flow.storeInsertTimeMillis";
     private final DagManagement dagManagement;
 
     @Override
@@ -202,10 +206,16 @@ public class DagActionReminderScheduler {
       long flowExecutionId = jobDataMap.getLong(ConfigurationKeys.FLOW_EXECUTION_ID_KEY);
       DagActionStore.DagActionType dagActionType = (DagActionStore.DagActionType) jobDataMap.get(FLOW_ACTION_TYPE_KEY);
       long eventTimeMillis = jobDataMap.getLong(FLOW_ACTION_EVENT_TIME_KEY);
+      // Restore the original DagActionStore row-insert time so downstream LaunchDagProc can still stamp
+      // the JobSpec on a reminder-driven reattempt. Defaults to UNKNOWN for reminders scheduled by older
+      // code paths that did not populate the key.
+      long storeInsertTimeMillis = jobDataMap.containsKey(FLOW_ACTION_STORE_INSERT_TIME_MILLIS_KEY)
+          ? jobDataMap.getLong(FLOW_ACTION_STORE_INSERT_TIME_MILLIS_KEY)
+          : DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS;
 
       DagActionStore.LeaseParams reminderLeaseParams = new DagActionStore.LeaseParams(
           new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName, dagActionType),
-          true, eventTimeMillis);
+          true, eventTimeMillis, storeInsertTimeMillis);
       log.info("DagProc reminder triggered for dagAction event: {}", reminderLeaseParams);
 
       try {

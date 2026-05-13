@@ -313,8 +313,9 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         if (isWithinEpsilon) {
          DagActionStore.DagAction updatedDagAction =
               adoptConsensusFlowExecutionId ? leaseParams.updateDagActionFlowExecutionId(dbEventTimestamp.getTime()) : leaseParams.getDagAction();
+         // Preserve storeInsertTimeMillis through consensus so downstream consumers can measure end-to-end latency.
          DagActionStore.LeaseParams updatedLeaseParams = new DagActionStore.LeaseParams(updatedDagAction,
-             dbEventTimestamp.getTime());
+             false, dbEventTimestamp.getTime(), leaseParams.getStoreInsertTimeMillis());
           log.debug("tryAcquireLease for {} - CASE 2: Same event, lease is valid", contextualizeLeasing(updatedLeaseParams));
           // Utilize db timestamp for reminder
           return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedLeaseParams,
@@ -322,8 +323,9 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
         }
         DagActionStore.DagAction updatedDagAction =
             adoptConsensusFlowExecutionId ? leaseParams.getDagAction().updateFlowExecutionId(dbCurrentTimestamp.getTime()) : leaseParams.getDagAction();
+        // Preserve storeInsertTimeMillis through consensus so downstream consumers can measure end-to-end latency.
         DagActionStore.LeaseParams updatedLeaseParams = new DagActionStore.LeaseParams(updatedDagAction,
-            dbCurrentTimestamp.getTime());
+            false, dbCurrentTimestamp.getTime(), leaseParams.getStoreInsertTimeMillis());
         log.debug("tryAcquireLease for {} - CASE 3: Distinct event, lease is valid", contextualizeLeasing(updatedLeaseParams));
         // Utilize db lease acquisition timestamp for wait time and currentTimestamp as the new eventTimestamp
         return new LeaseAttemptStatus.LeasedToAnotherStatus(updatedLeaseParams,
@@ -537,8 +539,11 @@ public class MysqlMultiActiveLeaseArbiter implements MultiActiveLeaseArbiter {
     }
     DagActionStore.DagAction updatedDagAction =
         adoptConsensusFlowExecutionId ? leaseParams.updateDagActionFlowExecutionId(selectInfoResult.eventTimeMillis) : leaseParams.dagAction;
+    // Preserve storeInsertTimeMillis through consensus so downstream LaunchDagProc can stamp the JobSpec
+    // for end-to-end LAUNCH-to-submission latency instrumentation that includes CDC propagation.
     DagActionStore.LeaseParams consensusLeaseParams =
-        new DagActionStore.LeaseParams(updatedDagAction, selectInfoResult.getEventTimeMillis());
+        new DagActionStore.LeaseParams(updatedDagAction, false, selectInfoResult.getEventTimeMillis(),
+            leaseParams.getStoreInsertTimeMillis());
     // If no db current timestamp is present, then use the full db linger value for duration
     long minimumLingerDurationMillis = dbCurrentTimestamp.isPresent() ?
         selectInfoResult.getLeaseAcquisitionTimeMillis().get() + selectInfoResult.getDbLinger()

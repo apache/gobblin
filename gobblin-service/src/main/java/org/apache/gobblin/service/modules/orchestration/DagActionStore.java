@@ -103,13 +103,13 @@ public interface DagActionStore {
    *
    * The `storeInsertTimeMillis` field carries the original DagAction store row-insert time (sourced upstream
    * from the CDC binlog event timestamp) when known. It is independent of `eventTimeMillis`, which the lease
-   * arbiter may rewrite via consensus. A value of {@link #UNKNOWN_STORE_INSERT_TIME_MILLIS} signals "not provided"
+   * arbiter may rewrite via consensus. A value of {@link LeaseParams#UNKNOWN_STORE_INSERT_TIME_MILLIS} signals "not provided"
    * and is the default for callers that do not have access to the source timestamp.
    */
-  long UNKNOWN_STORE_INSERT_TIME_MILLIS = -1L;
-
   @Data
   class LeaseParams {
+    public static final long UNKNOWN_STORE_INSERT_TIME_MILLIS = -1L;
+
     final DagAction dagAction;
     final boolean isReminder;
     final long eventTimeMillis;

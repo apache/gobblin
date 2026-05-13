@@ -71,7 +71,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       FlowSpec flowSpec = dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(getDagId().getFlowId()));
       flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, getDagId().getFlowExecutionId());
       long storeInsertTimeMillis = getDagTask().getLeaseParams().getStoreInsertTimeMillis();
-      if (storeInsertTimeMillis != DagActionStore.UNKNOWN_STORE_INSERT_TIME_MILLIS) {
+      if (storeInsertTimeMillis != DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS) {
         flowSpec.addProperty(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY,
             storeInsertTimeMillis);
       }
