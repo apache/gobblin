@@ -22,6 +22,7 @@ import java.util.Date;
 import java.util.List;
 import java.util.function.Supplier;
 
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.quartz.Job;
 import org.quartz.JobBuilder;
@@ -46,6 +47,7 @@ import org.apache.gobblin.configuration.ConfigurationKeys;
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 
 public class DagActionReminderSchedulerTest {
@@ -102,6 +104,69 @@ public class DagActionReminderSchedulerTest {
     Assert.assertEquals(dataMap.get(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_TYPE_KEY),
         DagActionStore.DagActionType.LAUNCH);
     Assert.assertEquals(dataMap.get(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_EVENT_TIME_KEY), launchLeaseParams.getEventTimeMillis());
+  }
+
+  @Test
+  public void testCreateReminderJobDetailStashesStoreInsertTimeMillis() {
+    long sourceStoreInsertTime = 1700000000000L;
+    DagActionStore.LeaseParams paramsWithStoreInsertTime = new DagActionStore.LeaseParams(
+        launchDagAction, false, eventTimeMillis, sourceStoreInsertTime);
+
+    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(paramsWithStoreInsertTime, false);
+    JobDataMap dataMap = jobDetail.getJobDataMap();
+    Assert.assertEquals(
+        dataMap.getLong(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_STORE_INSERT_TIME_MILLIS_KEY),
+        sourceStoreInsertTime,
+        "Reminder JobDataMap should stash storeInsertTimeMillis so host-failure reattempts preserve it");
+  }
+
+  @Test
+  public void testReminderJobExecuteCarriesStoreInsertTimeMillis() {
+    long sourceStoreInsertTime = 1700000000000L;
+    DagActionStore.LeaseParams paramsWithStoreInsertTime = new DagActionStore.LeaseParams(
+        launchDagAction, false, eventTimeMillis, sourceStoreInsertTime);
+    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(paramsWithStoreInsertTime, false);
+    JobExecutionContext context = mock(JobExecutionContext.class);
+    when(context.getMergedJobDataMap()).thenReturn(jobDetail.getJobDataMap());
+
+    DagManagement capturedDagManagement = mock(DagManagement.class);
+    ArgumentCaptor<DagActionStore.LeaseParams> captor = ArgumentCaptor.forClass(DagActionStore.LeaseParams.class);
+    try {
+      doNothing().when(capturedDagManagement).addDagAction(captor.capture());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    new DagActionReminderScheduler.ReminderJob(capturedDagManagement).execute(context);
+
+    DagActionStore.LeaseParams reconstructed = captor.getValue();
+    Assert.assertEquals(reconstructed.getStoreInsertTimeMillis(), sourceStoreInsertTime,
+        "Reminder fire path should restore storeInsertTimeMillis from JobDataMap");
+    Assert.assertTrue(reconstructed.isReminder(), "Reminder-driven LeaseParams must carry isReminder=true");
+  }
+
+  @Test
+  public void testReminderJobExecuteFallsBackToUnknownWhenKeyAbsent() {
+    // Simulates a reminder scheduled by an older code path that did not stash the storeInsertTimeMillis key.
+    JobDetail jobDetail = DagActionReminderScheduler.createReminderJobDetail(launchLeaseParams, false);
+    JobDataMap dataMap = jobDetail.getJobDataMap();
+    dataMap.remove(DagActionReminderScheduler.ReminderJob.FLOW_ACTION_STORE_INSERT_TIME_MILLIS_KEY);
+    JobExecutionContext context = mock(JobExecutionContext.class);
+    when(context.getMergedJobDataMap()).thenReturn(dataMap);
+
+    DagManagement capturedDagManagement = mock(DagManagement.class);
+    ArgumentCaptor<DagActionStore.LeaseParams> captor = ArgumentCaptor.forClass(DagActionStore.LeaseParams.class);
+    try {
+      doNothing().when(capturedDagManagement).addDagAction(captor.capture());
+    } catch (IOException e) {
+      throw new RuntimeException(e);
+    }
+
+    new DagActionReminderScheduler.ReminderJob(capturedDagManagement).execute(context);
+
+    Assert.assertEquals(captor.getValue().getStoreInsertTimeMillis(),
+        DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS,
+        "Reminders scheduled by older code paths (no key) must fall back to UNKNOWN, not throw");
   }
 
   /*

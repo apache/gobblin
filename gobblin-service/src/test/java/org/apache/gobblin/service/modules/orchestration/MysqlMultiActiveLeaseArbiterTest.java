@@ -470,6 +470,46 @@ public class MysqlMultiActiveLeaseArbiterTest {
   }
 
   /**
+   * Verifies the consensus {@link DagActionStore.LeaseParams} returned by {@code tryAcquireLease} preserves the
+   * caller-supplied {@code storeInsertTimeMillis} across all three internal construction sites:
+   *   - CASE 1 / fresh-lease (selectInfoResult path) on first acquisition
+   *   - CASE 2 (within-epsilon, lease still valid) on repeated acquisition with the same event
+   *   - CASE 3 (distinct event, lease still valid) after sleeping past epsilon
+   * The arbiter consensus rewrites {@code eventTimeMillis} but must NOT clobber {@code storeInsertTimeMillis}.
+   */
+  @Test
+  public void testStoreInsertTimeMillisPreservedThroughConsensus() throws Exception {
+    final long sourceStoreInsertTime = 1700000000000L;
+    DagActionStore.LeaseParams paramsWithStoreInsertTime = new DagActionStore.LeaseParams(
+        getUniqueLaunchDagAction(), false, eventTimeMillis, sourceStoreInsertTime);
+
+    // CASE 1 / fresh-lease: storeInsertTimeMillis should travel onto the consensus LeaseParams
+    LeaseAttemptStatus firstStatus =
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(paramsWithStoreInsertTime, true);
+    Assert.assertTrue(firstStatus instanceof LeaseAttemptStatus.LeaseObtainedStatus,
+        firstStatus.getClass().getSimpleName() + " expected LeaseObtainedStatus");
+    Assert.assertEquals(firstStatus.getConsensusLeaseParams().getStoreInsertTimeMillis(), sourceStoreInsertTime,
+        "Fresh-lease consensus path dropped storeInsertTimeMillis");
+
+    // CASE 2: same event again within epsilon → LeasedToAnotherStatus (within-epsilon branch)
+    LeaseAttemptStatus secondStatus =
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(paramsWithStoreInsertTime, true);
+    Assert.assertTrue(secondStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus,
+        secondStatus.getClass().getSimpleName() + " expected LeasedToAnotherStatus");
+    Assert.assertEquals(secondStatus.getConsensusLeaseParams().getStoreInsertTimeMillis(), sourceStoreInsertTime,
+        "CASE 2 (within-epsilon) dropped storeInsertTimeMillis");
+
+    // CASE 3: distinct event (sleep past epsilon) while lease still valid → LeasedToAnotherStatus (distinct-event branch)
+    Thread.sleep(MORE_THAN_EPSILON);
+    LeaseAttemptStatus thirdStatus =
+        mysqlMultiActiveLeaseArbiter.tryAcquireLease(paramsWithStoreInsertTime, true);
+    Assert.assertTrue(thirdStatus instanceof LeaseAttemptStatus.LeasedToAnotherStatus,
+        thirdStatus.getClass().getSimpleName() + " expected LeasedToAnotherStatus");
+    Assert.assertEquals(thirdStatus.getConsensusLeaseParams().getStoreInsertTimeMillis(), sourceStoreInsertTime,
+        "CASE 3 (distinct event, lease valid) dropped storeInsertTimeMillis");
+  }
+
+  /**
    * Marks the lease associated with the dagAction as completed by fabricating a LeaseObtainedStatus
    * @return SelectInfoResult object containing the event information used to complete the lease
    */

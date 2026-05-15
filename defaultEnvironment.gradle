@@ -24,6 +24,10 @@ subprojects {
     mavenCentral()
     maven {
       url "https://repository.cloudera.com/artifactory/cloudera-repos/"
+      content {
+        // io.grpc artifacts are available from Maven Central. Excluding them here avoids querying the Cloudera
+        excludeGroup "io.grpc"
+      }
     }
 
     // Conjars is a read only repository that hosts older artifacts, necessary for hive 1.0.1 and hadoop 2.10

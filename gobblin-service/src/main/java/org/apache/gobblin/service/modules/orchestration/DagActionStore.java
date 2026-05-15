@@ -100,19 +100,37 @@ public interface DagActionStore {
    * {@link DagAction} along with the time it was requested, denoted by the `eventTimeMillis` field. It also tracks
    * whether it has been previously passed to the {@link MultiActiveLeaseArbiter} to attempt ownership over the flow
    * event, indicated by the 'isReminder' field (true when it has been previously attempted).
+   *
+   * The `storeInsertTimeMillis` field carries the original DagAction store row-insert time (sourced upstream
+   * from the CDC binlog event timestamp) when known. It is independent of `eventTimeMillis`, which the lease
+   * arbiter may rewrite via consensus. A value of {@link LeaseParams#UNKNOWN_STORE_INSERT_TIME_MILLIS} signals "not provided"
+   * and is the default for callers that do not have access to the source timestamp.
    */
   @Data
-  @RequiredArgsConstructor
   class LeaseParams {
+    public static final long UNKNOWN_STORE_INSERT_TIME_MILLIS = -1L;
+
     final DagAction dagAction;
     final boolean isReminder;
     final long eventTimeMillis;
+    final long storeInsertTimeMillis;
+
+    public LeaseParams(DagAction dagAction, boolean isReminder, long eventTimeMillis, long storeInsertTimeMillis) {
+      this.dagAction = dagAction;
+      this.isReminder = isReminder;
+      this.eventTimeMillis = eventTimeMillis;
+      this.storeInsertTimeMillis = storeInsertTimeMillis;
+    }
+
+    public LeaseParams(DagAction dagAction, boolean isReminder, long eventTimeMillis) {
+      this(dagAction, isReminder, eventTimeMillis, UNKNOWN_STORE_INSERT_TIME_MILLIS);
+    }
 
     /**
      * Creates a lease object for a dagAction and eventTimeMillis representing an original event (isReminder is False)
      */
     public LeaseParams(DagAction dagAction, long eventTimeMillis) {
-      this(dagAction, false, eventTimeMillis);
+      this(dagAction, false, eventTimeMillis, UNKNOWN_STORE_INSERT_TIME_MILLIS);
     }
 
     public LeaseParams(DagAction dagAction) {

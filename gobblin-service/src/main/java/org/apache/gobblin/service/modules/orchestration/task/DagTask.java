@@ -42,6 +42,14 @@ public abstract class DagTask {
   private final LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
   private final DagProcessingEngineMetrics dagProcEngineMetrics;
 
+  /**
+   * Returns the consensus {@link DagActionStore.LeaseParams} for this task, exposing the per-event metadata that
+   * the lease arbiter agreed on — including {@code storeInsertTimeMillis} for downstream latency instrumentation.
+   */
+  public DagActionStore.LeaseParams getLeaseParams() {
+    return this.leaseObtainedStatus.getConsensusLeaseParams();
+  }
+
   public DagTask(DagActionStore.DagAction dagAction, LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus,
       DagManagementStateStore dagManagementStateStore, DagProcessingEngineMetrics dagProcEngineMetrics) {
     this.dagAction = dagAction;

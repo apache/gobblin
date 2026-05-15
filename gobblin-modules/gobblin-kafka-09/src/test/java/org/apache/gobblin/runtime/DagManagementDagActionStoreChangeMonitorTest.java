@@ -132,7 +132,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
         new GenericStoreChangeEvent(key, String.valueOf(txidCounter), System.currentTimeMillis(), operationType);
     txidCounter++;
     return new DagActionStoreChangeEvent(genericStoreChangeEvent, flowGroup, flowName, String.valueOf(flowExecutionId),
-        jobName, dagAction);
+        jobName, dagAction, null);
   }
 
   /**

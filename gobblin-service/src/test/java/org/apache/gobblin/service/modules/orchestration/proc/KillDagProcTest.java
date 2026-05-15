@@ -55,9 +55,11 @@ import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
+import org.apache.gobblin.service.modules.orchestration.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.KillDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
@@ -126,9 +128,8 @@ public class KillDagProcTest {
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
 
-    LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow1",
-        flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH),
-        null, this.dagManagementStateStore, mockedDagProcEngineMetrics), flowCompilationValidationHelper, ConfigFactory.empty());
+    LaunchDagProc launchDagProc = new LaunchDagProc(buildLaunchDagTask("flow1", flowExecutionId),
+        flowCompilationValidationHelper, ConfigFactory.empty());
     launchDagProc.process(this.dagManagementStateStore, this.mockedDagProcEngineMetrics);
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
@@ -207,10 +208,8 @@ public class KillDagProcTest {
     doReturn(new ImmutablePair<>(Optional.of(dag.getStartNodes().get(0)), Optional.of(jobStatus))).when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     doReturn(com.google.common.base.Optional.of(dag)).when(flowCompilationValidationHelper).createExecutionPlanIfValid(any());
 
-    LaunchDagProc launchDagProc = new LaunchDagProc(new LaunchDagTask(new DagActionStore.DagAction("fg", "flow2",
-        flowExecutionId, MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH),
-        null, this.dagManagementStateStore, this.mockedDagProcEngineMetrics), flowCompilationValidationHelper,
-        ConfigFactory.empty());
+    LaunchDagProc launchDagProc = new LaunchDagProc(buildLaunchDagTask("flow2", flowExecutionId),
+        flowCompilationValidationHelper, ConfigFactory.empty());
     launchDagProc.process(this.dagManagementStateStore, this.mockedDagProcEngineMetrics);
 
     List<SpecProducer<Spec>> specProducers = dag.getNodes().stream().map(n -> {
@@ -244,5 +243,16 @@ public class KillDagProcTest {
         .submit(eq(TimingEvent.LauncherTimings.JOB_CANCEL), anyMap());
     Mockito.verify(this.mockedEventSubmitter, Mockito.times(numOfCancelledFlows))
         .submit(eq(TimingEvent.FlowTimings.FLOW_CANCELLED), anyMap());
+  }
+
+  private LaunchDagTask buildLaunchDagTask(String flowName, long flowExecutionId) {
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction("fg", flowName, flowExecutionId,
+        MysqlDagActionStore.NO_JOB_NAME_DEFAULT, DagActionStore.DagActionType.LAUNCH);
+    DagActionStore.LeaseParams consensusLeaseParams = new DagActionStore.LeaseParams(
+        dagAction, false, System.currentTimeMillis(), DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS);
+    LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus = new LeaseAttemptStatus.LeaseObtainedStatus(
+        consensusLeaseParams, System.currentTimeMillis(), 0L, mock(MultiActiveLeaseArbiter.class));
+    return new LaunchDagTask(dagAction, leaseObtainedStatus, this.dagManagementStateStore,
+        this.mockedDagProcEngineMetrics);
   }
 }
