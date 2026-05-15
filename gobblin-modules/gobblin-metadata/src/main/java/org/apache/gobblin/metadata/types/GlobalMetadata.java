@@ -26,11 +26,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 
-import org.codehaus.jackson.JsonEncoding;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.annotate.JsonProperty;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.JsonEncoding;
+import org.fasterxml.jackson.JsonFactory;
+import org.fasterxml.jackson.JsonGenerator;
+import org.fasterxml.jackson.annotate.JsonProperty;
+import org.fasterxml.jackson.map.ObjectMapper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 

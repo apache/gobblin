@@ -16,8 +16,8 @@
  */
 package org.apache.gobblin.util.json;
 
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.JsonFactory;
+import org.fasterxml.jackson.map.ObjectMapper;
 
 
 /**
