@@ -62,13 +62,15 @@
         "type": "enum",
         "name": "JobStatus",
         "symbols": [
+          "COMPILED",
+          "RUNNING",
           "SUCCEEDED",
           "COMPILATION_FAILURE",
           "SUBMISSION_FAILURE",
           "EXECUTION_FAILURE",
           "CANCELLED"
         ],
-        "doc": "Final job status for this job in the GaaS flow",
+        "doc": "Job status for this job in the GaaS flow",
         "compliance": "NONE"
       }
     },
