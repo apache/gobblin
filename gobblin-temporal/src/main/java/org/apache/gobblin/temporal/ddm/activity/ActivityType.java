@@ -65,7 +65,9 @@ public enum ActivityType {
   }
 
   public ActivityOptions buildActivityOptions(Properties props, boolean setHeartbeatTimeout) {
-    if (!setHeartbeatTimeout) {
+    if (!setHeartbeatTimeout || !PropertiesUtils.getPropAsBoolean(props,
+        GobblinTemporalConfigurationKeys.TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_ENABLED,
+        GobblinTemporalConfigurationKeys.DEFAULT_TEMPORAL_ACTIVITY_HEARTBEAT_TIMEOUT_ENABLED)) {
       return buildActivityOptionsWithoutHeartBeatTimeout(props);
     }
     return ActivityOptions.newBuilder()
