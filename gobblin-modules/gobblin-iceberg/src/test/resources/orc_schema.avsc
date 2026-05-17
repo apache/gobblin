@@ -1,0 +1,15 @@
+{
+  "namespace": "com.linkedin.orc",
+  "type": "record",
+  "name": "IcebergTest",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int"
+    },
+    {
+      "name": "data",
+      "type": "string"
+    }
+  ]
+}
