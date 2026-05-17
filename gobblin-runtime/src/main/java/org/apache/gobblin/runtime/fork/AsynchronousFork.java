@@ -56,6 +56,8 @@ import org.apache.gobblin.converter.DataConversionException;
 @SuppressWarnings("unchecked")
 public class AsynchronousFork extends Fork {
   private final BoundedBlockingRecordQueue<Object> recordQueue;
+  private int recordsToProcess = 0;
+  private int recordsProcessed = 0;
 
   public AsynchronousFork(TaskContext taskContext, Object schema, int branches, int index, ExecutionModel executionModel)
       throws Exception {
@@ -88,6 +90,9 @@ public class AsynchronousFork extends Fork {
 
   @Override
   protected boolean putRecordImpl(Object record) throws InterruptedException {
+    if (record != Fork.SHUTDOWN_RECORD) {
+      this.recordsToProcess++;
+    }
     return this.recordQueue.put(record);
   }
 
@@ -95,11 +100,15 @@ public class AsynchronousFork extends Fork {
     try {
       Object record = this.recordQueue.get();
       if (record == null || record == Fork.SHUTDOWN_RECORD) {
+        if (record == null) {
+          log.info("Fork received a null record. isParentTaskDone=" + this.isParentTaskDone());
+        }
         // The parent task has already done pulling records so no new record means this fork is done
         if (this.isParentTaskDone()) {
           return false;
         }
       } else {
+        this.recordsProcessed++;
         this.processRecord(record);
       }
     } catch (InterruptedException ie) {
@@ -107,5 +116,11 @@ public class AsynchronousFork extends Fork {
       Throwables.propagate(ie);
     }
     return true;
+  }
+
+  @Override
+  protected void cleanup() {
+    log.info("Fork {} of task {}, recordsToProcess={}, recordsProcessed={}",
+        this.index, this.getTaskId(), recordsToProcess, recordsProcessed);
   }
 }
