@@ -18,8 +18,11 @@
 package org.apache.gobblin.service.modules.orchestration;
 
 import java.io.IOException;
+import java.util.ArrayList;
 import java.util.Date;
+import java.util.List;
 import java.util.Properties;
+import java.util.Set;
 import java.util.function.Supplier;
 
 import org.quartz.Job;
@@ -34,6 +37,7 @@ import org.quartz.Trigger;
 import org.quartz.TriggerBuilder;
 import org.quartz.TriggerKey;
 import org.quartz.impl.StdSchedulerFactory;
+import org.quartz.impl.matchers.GroupMatcher;
 import org.quartz.spi.JobFactory;
 import org.quartz.spi.TriggerFiredBundle;
 
@@ -106,6 +110,49 @@ public class DagActionReminderScheduler {
     if (!quartzScheduler.deleteJob(createJobKey(leaseParams, isDeadlineTrigger))) {
       log.warn("Reminder not found for {}. Possibly the event is received out-of-order.", leaseParams);
     }
+  }
+
+  /**
+   * Clears all reminders whose job-key matches the {@link DagActionStore.DagAction} (any eventTimeMillis) within the
+   * given reminder group (deadline or retry). Used by the DagActionStore DELETE handler, which receives only the
+   * {@link DagActionStore.DagAction} fields and does not have access to the {@code eventTimeMillis} that was baked into
+   * the originally-scheduled key.
+   *
+   * @return number of reminders cleared from the local Quartz scheduler
+   */
+  public int unscheduleRemindersForDagAction(DagActionStore.DagAction dagAction, boolean isDeadlineReminder)
+      throws SchedulerException {
+    String group = isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup;
+    String keyNamePrefix = createDagActionKeyNamePrefix(dagAction);
+    Set<JobKey> jobKeysInGroup = quartzScheduler.getJobKeys(GroupMatcher.jobGroupEquals(group));
+    List<JobKey> toDelete = new ArrayList<>();
+    for (JobKey k : jobKeysInGroup) {
+      if (k.getName().startsWith(keyNamePrefix)) {
+        toDelete.add(k);
+      }
+    }
+    if (toDelete.isEmpty()) {
+      log.debug("No {} reminders to clear for {}.", group, dagAction);
+      return 0;
+    }
+    log.info("Clearing {} {} reminders for {}.", toDelete.size(), group, dagAction);
+    quartzScheduler.deleteJobs(toDelete);
+    return toDelete.size();
+  }
+
+  /**
+   * Returns the job-key-name prefix shared by every reminder scheduled for the given {@link DagActionStore.DagAction},
+   * regardless of {@code eventTimeMillis}. Mirrors the first five segments of {@link #createDagActionReminderKey}
+   * with a trailing separator so prefix matches cannot span unrelated keys.
+   */
+  @VisibleForTesting
+  static String createDagActionKeyNamePrefix(DagActionStore.DagAction dagAction) {
+    return String.join(".",
+        dagAction.getFlowGroup(),
+        dagAction.getFlowName(),
+        String.valueOf(dagAction.getFlowExecutionId()),
+        dagAction.getJobName(),
+        String.valueOf(dagAction.getDagActionType())) + ".";
   }
 
   /**

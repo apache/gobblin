@@ -74,14 +74,14 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
           break;
         case "DELETE":
           log.debug("Deleted dagAction from DagActionStore: {}", dagAction);
-          /* TODO: skip deadline removal for now and let them fire
           if (dagActionType == DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE
               || dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE) {
-            this.dagActionReminderScheduler.unscheduleReminderJob(dagAction, true);
-            // clear any deadline reminders as well as any retry reminders
-            this.dagActionReminderScheduler.unscheduleReminderJob(dagAction, false);
+            // Clear both deadline-group and retry-group reminders for this DagAction. The wildcard variant is required
+            // because the Quartz key embeds the per-lease-attempt eventTimeMillis (added by GOBBLIN-2016) which is not
+            // carried on the DagActionStore change event; see DagActionReminderScheduler#unscheduleRemindersForDagAction.
+            this.dagActionReminderScheduler.unscheduleRemindersForDagAction(dagAction, true);
+            this.dagActionReminderScheduler.unscheduleRemindersForDagAction(dagAction, false);
           }
-           */
           break;
         default:
           log.warn(
