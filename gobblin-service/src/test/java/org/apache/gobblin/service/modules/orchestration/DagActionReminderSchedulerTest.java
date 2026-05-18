@@ -181,6 +181,68 @@ public class DagActionReminderSchedulerTest {
     this.dagActionReminderScheduler.unscheduleReminderJob(launchLeaseParams2, true);
   }
 
+  @Test
+  public void testCreateDagActionKeyNamePrefixSharedAcrossEventTimes() {
+    String prefix = DagActionReminderScheduler.createDagActionKeyNamePrefix(launchDagAction);
+    Assert.assertTrue(DagActionReminderScheduler.createDagActionReminderKey(launchLeaseParams).startsWith(prefix),
+        "Both eventTime-keyed reminder keys for the same DagAction must share the prefix");
+    Assert.assertTrue(DagActionReminderScheduler.createDagActionReminderKey(launchLeaseParams2).startsWith(prefix),
+        "Both eventTime-keyed reminder keys for the same DagAction must share the prefix");
+    Assert.assertTrue(prefix.endsWith("."),
+        "Prefix must end with the segment separator so it cannot match unrelated keys (e.g., LAUNCH vs LAUNCH2)");
+  }
+
+  /*
+  Schedule deadline reminders at two distinct eventTimes for the same DagAction (simulating multiple lease attempts),
+  then assert the wildcard clear removes both — i.e., the DagActionStore DELETE path no longer needs to know the
+  original eventTimeMillis to find the scheduled reminders.
+   */
+  @Test
+  public void testUnscheduleRemindersForDagActionClearsAllEventTimes() throws SchedulerException {
+    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams, 50000, true);
+    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams2, 50000, true);
+    Assert.assertTrue(this.dagActionReminderScheduler.quartzScheduler.checkExists(
+        DagActionReminderScheduler.createJobKey(launchLeaseParams, true)));
+    Assert.assertTrue(this.dagActionReminderScheduler.quartzScheduler.checkExists(
+        DagActionReminderScheduler.createJobKey(launchLeaseParams2, true)));
+
+    int cleared = this.dagActionReminderScheduler.unscheduleRemindersForDagAction(launchDagAction, true);
+    Assert.assertEquals(cleared, 2,
+        "Wildcard clear must remove both eventTime-keyed reminders for the DagAction");
+    Assert.assertFalse(this.dagActionReminderScheduler.quartzScheduler.checkExists(
+        DagActionReminderScheduler.createJobKey(launchLeaseParams, true)));
+    Assert.assertFalse(this.dagActionReminderScheduler.quartzScheduler.checkExists(
+        DagActionReminderScheduler.createJobKey(launchLeaseParams2, true)));
+  }
+
+  /*
+  Reminders scheduled in the deadline group must not be cleared when the wildcard clear is invoked for the retry group,
+  and vice-versa. Guards against the prefix scan accidentally crossing groups.
+   */
+  @Test
+  public void testUnscheduleRemindersForDagActionScopedToGroup() throws SchedulerException {
+    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams, 50000, true);
+    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams2, 50000, false);
+
+    int clearedRetry = this.dagActionReminderScheduler.unscheduleRemindersForDagAction(launchDagAction, false);
+    Assert.assertEquals(clearedRetry, 1, "Should clear only the retry-group reminder");
+    Assert.assertTrue(this.dagActionReminderScheduler.quartzScheduler.checkExists(
+        DagActionReminderScheduler.createJobKey(launchLeaseParams, true)),
+        "Deadline-group reminder must remain after a retry-group clear");
+
+    int clearedDeadline = this.dagActionReminderScheduler.unscheduleRemindersForDagAction(launchDagAction, true);
+    Assert.assertEquals(clearedDeadline, 1, "Should clear the remaining deadline-group reminder");
+  }
+
+  @Test
+  public void testUnscheduleRemindersForDagActionNoopWhenNoneScheduled() throws SchedulerException {
+    DagActionStore.DagAction other = new DagActionStore.DagAction(
+        flowGroup, flowName, flowExecutionId, jobName, DagActionStore.DagActionType.RESUME);
+    int cleared = this.dagActionReminderScheduler.unscheduleRemindersForDagAction(other, true);
+    Assert.assertEquals(cleared, 0,
+        "Clearing reminders for a DagAction that never scheduled any must return 0, not throw");
+  }
+
   // Test multiple schedulers can co-exist and run their jobs of different types
   @Test
   public void testMultipleSchedules() throws SchedulerException, InterruptedException, IOException {

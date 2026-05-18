@@ -45,8 +45,11 @@ import org.apache.gobblin.service.monitoring.OperationType;
 
 import static org.mockito.Mockito.any;
 import static org.mockito.Mockito.anyBoolean;
-import static org.mockito.Mockito.doNothing;
+import static org.mockito.Mockito.doReturn;
+import static org.mockito.Mockito.eq;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 
 /**
@@ -100,12 +103,14 @@ public class DagManagementDagActionStoreChangeMonitorTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    doNothing().when(dagActionReminderScheduler).unscheduleReminderJob(any(), anyBoolean());
-
+    doReturn(0).when(dagActionReminderScheduler).unscheduleRemindersForDagAction(any(), anyBoolean());
   }
 
   /**
-   * Tests process message with a DELETE type message.
+   * Tests that a DELETE for a deadline-type DagAction clears both deadline-group and retry-group reminders for that
+   * DagAction on the local Quartz scheduler. Cross-host clearing follows from the change-monitor's broadcast consumer
+   * group semantics (see DagActionStoreChangeMonitor's UUID-suffixed group id) — every GaaS instance independently
+   * receives the DELETE and runs the same clear against its in-memory RAMJobStore.
    */
   @Test
   public void testProcessMessageWithDelete() throws SchedulerException {
@@ -114,12 +119,10 @@ public class DagManagementDagActionStoreChangeMonitorTest {
     DagActionStore.DagAction dagAction = new DagActionStore.DagAction(FLOW_GROUP, FLOW_NAME, Long.parseLong(FLOW_EXECUTION_ID), JOB_NAME,
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
     mockDagManagementDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
-    /* TODO: skip deadline removal for now and let them fire
     verify(mockDagManagementDagActionStoreChangeMonitor.getDagActionReminderScheduler(), times(1))
-        .unscheduleReminderJob(eq(dagAction), eq(true));
+        .unscheduleRemindersForDagAction(eq(dagAction), eq(true));
     verify(mockDagManagementDagActionStoreChangeMonitor.getDagActionReminderScheduler(), times(1))
-        .unscheduleReminderJob(eq(dagAction), eq(false));
-     */
+        .unscheduleRemindersForDagAction(eq(dagAction), eq(false));
   }
 
   /**
