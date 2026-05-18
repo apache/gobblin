@@ -74,14 +74,14 @@ public class DagManagementDagActionStoreChangeMonitor extends DagActionStoreChan
           break;
         case "DELETE":
           log.debug("Deleted dagAction from DagActionStore: {}", dagAction);
-          /* TODO: skip deadline removal for now and let them fire
+          // Cancel any pending deadline reminder so it does not fire for an action that has already been resolved.
+          // Retry reminders are not unscheduled here because their JobKey includes the lease event time, which is
+          // not carried in the DELETE event payload; orphaned retry reminders fire harmlessly (the lease arbiter
+          // sees the action is gone and drops the work).
           if (dagActionType == DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE
               || dagActionType == DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE) {
-            this.dagActionReminderScheduler.unscheduleReminderJob(dagAction, true);
-            // clear any deadline reminders as well as any retry reminders
-            this.dagActionReminderScheduler.unscheduleReminderJob(dagAction, false);
+            this.dagActionReminderScheduler.unscheduleReminderJob(dagAction);
           }
-           */
           break;
         default:
           log.warn(

@@ -29,6 +29,7 @@ import org.quartz.JobBuilder;
 import org.quartz.JobDataMap;
 import org.quartz.JobDetail;
 import org.quartz.JobExecutionContext;
+import org.quartz.JobKey;
 import org.quartz.Scheduler;
 import org.quartz.SchedulerException;
 import org.quartz.Trigger;
@@ -61,10 +62,18 @@ public class DagActionReminderSchedulerTest {
       DagActionStore.DagActionType.LAUNCH.name(), eventTimeMillis);
   String expectedKey2 =  Joiner.on(".").join(flowGroup, flowName, flowExecutionId, jobName,
       DagActionStore.DagActionType.LAUNCH.name(), eventTimeMillis2);
+  // Deadline reminder keys intentionally omit the lease event time, since the DagActionStore primary key already
+  // guarantees uniqueness over (flowGroup, flowName, flowExecutionId, jobName, dagActionType) for ENFORCE_*_DEADLINE.
+  String expectedDeadlineKey = Joiner.on(".").join(flowGroup, flowName, flowExecutionId, jobName,
+      DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE.name());
   DagActionStore.DagAction launchDagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName,
       DagActionStore.DagActionType.LAUNCH);
+  DagActionStore.DagAction enforceFlowFinishDeadlineDagAction = new DagActionStore.DagAction(flowGroup, flowName,
+      flowExecutionId, jobName, DagActionStore.DagActionType.ENFORCE_FLOW_FINISH_DEADLINE);
   DagActionStore.LeaseParams launchLeaseParams = new DagActionStore.LeaseParams(launchDagAction, eventTimeMillis);
   DagActionStore.LeaseParams launchLeaseParams2 = new DagActionStore.LeaseParams(launchDagAction, eventTimeMillis2);
+  DagActionStore.LeaseParams enforceFlowFinishDeadlineLeaseParams =
+      new DagActionStore.LeaseParams(enforceFlowFinishDeadlineDagAction, eventTimeMillis);
   DagActionReminderScheduler dagActionReminderScheduler;
   DagManagement dagManagement = mock(DagManagement.class);
   private static boolean testJobRan = false;
@@ -77,8 +86,22 @@ public class DagActionReminderSchedulerTest {
 
   @Test
   public void testCreateDagActionReminderKey() {
-    Assert.assertEquals(expectedKey, DagActionReminderScheduler.createDagActionReminderKey(launchLeaseParams));
-    Assert.assertEquals(expectedKey2, DagActionReminderScheduler.createDagActionReminderKey(launchLeaseParams2));
+    // Retry reminders embed the lease event time so multiple events for the same dagAction can coexist.
+    Assert.assertEquals(expectedKey, DagActionReminderScheduler.createDagActionReminderKey(launchLeaseParams, false));
+    Assert.assertEquals(expectedKey2, DagActionReminderScheduler.createDagActionReminderKey(launchLeaseParams2, false));
+  }
+
+  @Test
+  public void testCreateDagActionReminderKeyForDeadlineOmitsEventTime() {
+    // Deadline reminders are uniquely keyed by the dagAction's primary key alone; event time is stripped so the
+    // DELETE-event handler (which has no event time in its payload) can still find and unschedule the reminder.
+    Assert.assertEquals(expectedDeadlineKey,
+        DagActionReminderScheduler.createDagActionReminderKey(enforceFlowFinishDeadlineLeaseParams, true));
+    // The same dagAction with a different event time must produce the same key for deadline reminders.
+    DagActionStore.LeaseParams alternateEventTime =
+        new DagActionStore.LeaseParams(enforceFlowFinishDeadlineDagAction, eventTimeMillis2);
+    Assert.assertEquals(expectedDeadlineKey,
+        DagActionReminderScheduler.createDagActionReminderKey(alternateEventTime, true));
   }
 
   @Test
@@ -170,15 +193,53 @@ public class DagActionReminderSchedulerTest {
   }
 
   /*
-  Add deadline reminders for multiple launches of the same flow and assert no exception is thrown and they can be
-  deleted as well.
+  Schedule retry reminders for multiple distinct events of the same dagAction (the realistic multi-KILL/RESUME case
+  where lease event time differentiates the requests) and assert no exception is thrown and both can be deleted.
    */
   @Test
   public void testRemindersForMultipleFlowExecutions() throws SchedulerException {
-    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams, 50000, true);
-    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams2, 50000, true);
-    this.dagActionReminderScheduler.unscheduleReminderJob(launchLeaseParams, true);
-    this.dagActionReminderScheduler.unscheduleReminderJob(launchLeaseParams2, true);
+    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams, 50000, false);
+    this.dagActionReminderScheduler.scheduleReminder(launchLeaseParams2, 50000, false);
+    this.dagActionReminderScheduler.unscheduleReminderJob(launchLeaseParams, false);
+    this.dagActionReminderScheduler.unscheduleReminderJob(launchLeaseParams2, false);
+  }
+
+  /*
+  Verify deadline reminders are replaced (not double-registered) when the duplicate-insert path causes the same
+  dagAction to schedule a second time before the first reminder has been unscheduled. The pre-existing reminder is
+  silently removed; no ObjectAlreadyExistsException should propagate.
+   */
+  @Test
+  public void testScheduleDeadlineReminderReplacesExistingEntry() throws SchedulerException {
+    JobKey deadlineKey = DagActionReminderScheduler.createJobKey(enforceFlowFinishDeadlineLeaseParams, true);
+    this.dagActionReminderScheduler.scheduleReminder(enforceFlowFinishDeadlineLeaseParams, 50000, true);
+    Assert.assertTrue(this.dagActionReminderScheduler.quartzScheduler.checkExists(deadlineKey));
+
+    // Re-schedule with a different lease event time - this models the duplicate-insert + out-of-order events case.
+    DagActionStore.LeaseParams secondEvent =
+        new DagActionStore.LeaseParams(enforceFlowFinishDeadlineDagAction, eventTimeMillis2);
+    this.dagActionReminderScheduler.scheduleReminder(secondEvent, 50000, true);
+    Assert.assertTrue(this.dagActionReminderScheduler.quartzScheduler.checkExists(deadlineKey));
+
+    this.dagActionReminderScheduler.unscheduleReminderJob(enforceFlowFinishDeadlineDagAction);
+    Assert.assertFalse(this.dagActionReminderScheduler.quartzScheduler.checkExists(deadlineKey));
+  }
+
+  /*
+  Verify the new DagAction-only unschedule overload removes a deadline reminder when called with just the dagAction
+  (matching the DELETE-event path in DagManagementDagActionStoreChangeMonitor, which has no lease event time).
+   */
+  @Test
+  public void testUnscheduleDeadlineReminderByDagAction() throws SchedulerException {
+    JobKey deadlineKey = DagActionReminderScheduler.createJobKey(enforceFlowFinishDeadlineLeaseParams, true);
+    this.dagActionReminderScheduler.scheduleReminder(enforceFlowFinishDeadlineLeaseParams, 50000, true);
+    Assert.assertTrue(this.dagActionReminderScheduler.quartzScheduler.checkExists(deadlineKey));
+
+    this.dagActionReminderScheduler.unscheduleReminderJob(enforceFlowFinishDeadlineDagAction);
+    Assert.assertFalse(this.dagActionReminderScheduler.quartzScheduler.checkExists(deadlineKey));
+
+    // Idempotent: a second unschedule for an already-fired/removed reminder must not throw.
+    this.dagActionReminderScheduler.unscheduleReminderJob(enforceFlowFinishDeadlineDagAction);
   }
 
   // Test multiple schedulers can co-exist and run their jobs of different types

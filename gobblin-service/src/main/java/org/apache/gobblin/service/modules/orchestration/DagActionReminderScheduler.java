@@ -97,6 +97,16 @@ public class DagActionReminderScheduler {
     DagActionStore.DagAction dagAction = leaseParams.getDagAction();
     JobDetail jobDetail = createReminderJobDetail(leaseParams, isDeadlineReminder);
     Trigger trigger = createReminderJobTrigger(leaseParams, reminderDurationMillis, System::currentTimeMillis, isDeadlineReminder);
+    // Deadline reminders are keyed only by the dagAction's primary key (no event time). The DagActionStore enforces
+    // at most one row per that key, so any pre-existing deadline reminder with the same key represents a stale entry
+    // from the duplicate-insert path (delete+reinsert in DagProcUtils.sendEnforce*DeadlineDagAction). If the change
+    // events arrive out of order on the consumer, the new INSERT could otherwise collide with the not-yet-unscheduled
+    // old reminder and throw ObjectAlreadyExistsException, causing the new deadline to be lost. Replace semantics
+    // are safe here because the newly-scheduled reminder is authoritative for that dagAction tuple.
+    if (isDeadlineReminder && quartzScheduler.checkExists(jobDetail.getKey())) {
+      log.info("Replacing pre-existing deadline reminder for {}", dagAction);
+      quartzScheduler.deleteJob(jobDetail.getKey());
+    }
     log.info("Setting reminder for {} in {} ms, isDeadlineTrigger: {}", dagAction, reminderDurationMillis, isDeadlineReminder);
     quartzScheduler.scheduleJob(jobDetail, trigger);
   }
@@ -109,16 +119,44 @@ public class DagActionReminderScheduler {
   }
 
   /**
-   * Creates a key for the reminder job by concatenating all dagAction fields and the eventTime of the dagAction.
-   * <p>
-   * This ensures unique keys for multiple instances of the same action on the same flow execution that originate more
-   * than 'epsilon' apart. {@link MultiActiveLeaseArbiter} uses the eventTime to distinguish these distinct occurrences
-   * of the same action. This is necessary to prevent insertion failures due to previous reminders.
-   * <p>
-   * Applicable only for KILL and RESUME actions; duplication for other actions is an error.
+   * Unschedule a deadline reminder identified solely by its {@link DagActionStore.DagAction}. The deadline reminder
+   * key intentionally omits the lease event time (see {@link #createDagActionReminderKey}), so callers that only
+   * have the dagAction (e.g. a DagActionStore DELETE event, whose payload has no event time) can still remove the
+   * reminder.
    */
-  public static String createDagActionReminderKey(DagActionStore.LeaseParams leaseParams) {
+  public void unscheduleReminderJob(DagActionStore.DagAction dagAction) throws SchedulerException {
+    log.info("Unsetting deadline reminder for {}", dagAction);
+    if (!quartzScheduler.deleteJob(new JobKey(createDeadlineReminderKey(dagAction), DeadlineReminderKeyGroup))) {
+      // Expected on the normal lifecycle: the reminder fires at the deadline, the enforce-deadline task cleans up
+      // via deleteDagAction, and by the time the resulting DELETE event reaches this handler the Quartz job is
+      // already gone. Also benign on cold-start / partition-rebalance, where the reminder was scheduled on a
+      // different host. Logged at debug to avoid flooding warn-level operator views.
+      log.debug("No deadline reminder to unschedule for {} (reminder already fired, or scheduled on a different host).",
+          dagAction);
+    }
+  }
+
+  /**
+   * Creates a key for the reminder job by concatenating all dagAction fields and, for retry reminders only, the
+   * lease event time of the dagAction.
+   * <p>
+   * For retry reminders the event time is required to ensure unique keys for multiple instances of the same action
+   * on the same flow execution that originate more than 'epsilon' apart (applicable to KILL and RESUME).
+   * {@link MultiActiveLeaseArbiter} uses the event time to distinguish these distinct occurrences. Without it,
+   * subsequent reminders for the same action would fail to insert because the Quartz key already exists.
+   * <p>
+   * For deadline reminders ({@code ENFORCE_JOB_START_DEADLINE}, {@code ENFORCE_FLOW_FINISH_DEADLINE}) the event time
+   * is omitted. The DagActionStore enforces a primary key over
+   * {@code (flowGroup, flowName, flowExecutionId, jobName, dagActionType)} (see
+   * {@code DagProcUtils.sendEnforce*DeadlineDagAction}), so at most one deadline reminder exists for that tuple at
+   * any time. Omitting the event time lets the change monitor unschedule the reminder when the dagAction row is
+   * deleted, without needing the original event time (which is not present in the DELETE event payload).
+   */
+  public static String createDagActionReminderKey(DagActionStore.LeaseParams leaseParams, boolean isDeadlineReminder) {
     DagActionStore.DagAction dagAction = leaseParams.getDagAction();
+    if (isDeadlineReminder) {
+      return createDeadlineReminderKey(dagAction);
+    }
     return String.join(".",
         dagAction.getFlowGroup(),
         dagAction.getFlowName(),
@@ -128,16 +166,27 @@ public class DagActionReminderScheduler {
         String.valueOf(leaseParams.getEventTimeMillis()));
   }
 
+  private static String createDeadlineReminderKey(DagActionStore.DagAction dagAction) {
+    return String.join(".",
+        dagAction.getFlowGroup(),
+        dagAction.getFlowName(),
+        String.valueOf(dagAction.getFlowExecutionId()),
+        dagAction.getJobName(),
+        String.valueOf(dagAction.getDagActionType()));
+  }
+
   /**
    * Creates a JobKey object for the reminder job where the name is the DagActionReminderKey from above and the group is
    * the flowGroup
    */
   public static JobKey createJobKey(DagActionStore.LeaseParams leaseParams, boolean isDeadlineReminder) {
-    return new JobKey(createDagActionReminderKey(leaseParams), isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
+    return new JobKey(createDagActionReminderKey(leaseParams, isDeadlineReminder),
+        isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
   }
 
   private static TriggerKey createTriggerKey(DagActionStore.LeaseParams leaseParams, boolean isDeadlineReminder) {
-    return new TriggerKey(createDagActionReminderKey(leaseParams), isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
+    return new TriggerKey(createDagActionReminderKey(leaseParams, isDeadlineReminder),
+        isDeadlineReminder ? DeadlineReminderKeyGroup : RetryReminderKeyGroup);
   }
 
   /**
