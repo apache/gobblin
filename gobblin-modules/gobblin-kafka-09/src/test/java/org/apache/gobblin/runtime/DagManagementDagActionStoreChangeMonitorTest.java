@@ -43,10 +43,12 @@ import org.apache.gobblin.service.monitoring.DagManagementDagActionStoreChangeMo
 import org.apache.gobblin.service.monitoring.GenericStoreChangeEvent;
 import org.apache.gobblin.service.monitoring.OperationType;
 
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.anyBoolean;
 import static org.mockito.Mockito.doNothing;
 import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.times;
+import static org.mockito.Mockito.verify;
 
 
 /**
@@ -100,8 +102,7 @@ public class DagManagementDagActionStoreChangeMonitorTest {
 
   @BeforeClass
   public void setUp() throws Exception {
-    doNothing().when(dagActionReminderScheduler).unscheduleReminderJob(any(), anyBoolean());
-
+    doNothing().when(dagActionReminderScheduler).unscheduleReminderJob(any(DagActionStore.DagAction.class));
   }
 
   /**
@@ -114,12 +115,11 @@ public class DagManagementDagActionStoreChangeMonitorTest {
     DagActionStore.DagAction dagAction = new DagActionStore.DagAction(FLOW_GROUP, FLOW_NAME, Long.parseLong(FLOW_EXECUTION_ID), JOB_NAME,
         DagActionStore.DagActionType.ENFORCE_JOB_START_DEADLINE);
     mockDagManagementDagActionStoreChangeMonitor.processMessageForTest(consumerRecord);
-    /* TODO: skip deadline removal for now and let them fire
+    // DELETE of an ENFORCE_*_DEADLINE row must unschedule the corresponding deadline reminder. Retry reminders are
+    // intentionally not unscheduled here (their JobKey embeds the lease event time, which the DELETE event payload
+    // does not carry); orphaned retries fire harmlessly via the lease arbiter.
     verify(mockDagManagementDagActionStoreChangeMonitor.getDagActionReminderScheduler(), times(1))
-        .unscheduleReminderJob(eq(dagAction), eq(true));
-    verify(mockDagManagementDagActionStoreChangeMonitor.getDagActionReminderScheduler(), times(1))
-        .unscheduleReminderJob(eq(dagAction), eq(false));
-     */
+        .unscheduleReminderJob(eq(dagAction));
   }
 
   /**
