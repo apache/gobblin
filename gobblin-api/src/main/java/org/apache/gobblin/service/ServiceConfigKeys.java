@@ -164,9 +164,9 @@ public class ServiceConfigKeys {
   public static final String GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "dagProcessingEngine.";
   public static final String NUM_DAG_PROC_THREADS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "numThreads";
   public static final String DAG_PROC_ENGINE_NON_RETRYABLE_EXCEPTIONS_KEY = GOBBLIN_SERVICE_DAG_PROCESSING_ENGINE_PREFIX + "nonRetryableExceptions";
-  public static final Integer DEFAULT_NUM_DAG_PROC_THREADS = 3;
+  public static final Integer DEFAULT_NUM_DAG_PROC_THREADS = 150;
   public static final String NUM_SPEC_CATALOG_LISTENER_THREADS_KEY = GOBBLIN_SERVICE_PREFIX + "specCatalogListener.numThreads";
-  public static final int DEFAULT_NUM_SPEC_CATALOG_LISTENER_THREADS = 3;
+  public static final int DEFAULT_NUM_SPEC_CATALOG_LISTENER_THREADS = 150;
   public static final long DEFAULT_FLOW_FINISH_DEADLINE_MILLIS = TimeUnit.HOURS.toMillis(24);
 
   public static final String ERROR_PATTERN_STORE_CLASS = ServiceConfigKeys.GOBBLIN_SERVICE_PREFIX + "errorPatternStore.class";
