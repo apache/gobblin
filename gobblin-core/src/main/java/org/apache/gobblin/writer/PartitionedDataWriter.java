@@ -172,16 +172,22 @@ public class PartitionedDataWriter<S, D> extends WriterWrapper<D> implements Fin
                 new CloseOnFlushWriterWrapper<D>(new Supplier<DataWriter<D>>() {
                   @Override
                   public DataWriter<D> get() {
+                    Future<DataWriter<D>> future = null;
                     try {
                       log.info(String.format("Adding one more writer to loading cache of existing writer "
                           + "with size = %d", partitionWriters.size()));
-                      Future<DataWriter<D>> future = createWriterPool.submit(() -> createPartitionWriter(key));
+                      future = createWriterPool.submit(() -> createPartitionWriter(key));
                       state.setProp(CURRENT_PARTITIONED_WRITERS_COUNTER, partitionWriters.size() + 1);
                       return future.get(writeTimeoutInterval, TimeUnit.SECONDS);
                     } catch (ExecutionException | InterruptedException e) {
                       throw new RuntimeException("Error creating writer", e);
                     } catch (TimeoutException e) {
                       throw new RuntimeException(String.format("Failed to create writer due to timeout. The operation timed out after %s seconds.", writeTimeoutInterval), e);
+                    }
+                    finally {
+                      if (future != null && !future.isDone()) {
+                        future.cancel(true);
+                      }
                     }
                   }
                 }, state), state, key);
