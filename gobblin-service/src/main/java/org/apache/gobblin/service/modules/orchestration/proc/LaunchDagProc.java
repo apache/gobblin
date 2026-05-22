@@ -24,6 +24,7 @@ import java.util.Optional;
 import org.apache.commons.lang3.exception.ExceptionUtils;
 
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -68,13 +69,8 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
   protected Optional<Dag<JobExecutionPlan>> initialize(DagManagementStateStore dagManagementStateStore)
       throws IOException {
     try {
-      FlowSpec flowSpec = dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(getDagId().getFlowId()));
-      flowSpec.addProperty(ConfigurationKeys.FLOW_EXECUTION_ID_KEY, getDagId().getFlowExecutionId());
-      long storeInsertTimeMillis = getDagTask().getLeaseParams().getStoreInsertTimeMillis();
-      if (storeInsertTimeMillis != DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS) {
-        flowSpec.addProperty(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY,
-            storeInsertTimeMillis);
-      }
+      FlowSpec flowSpec = buildLaunchFlowSpec(
+          dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(getDagId().getFlowId())));
       Optional<Dag<JobExecutionPlan>> dag = this.flowCompilationValidationHelper.createExecutionPlanIfValid(flowSpec).toJavaUtil();
       if (dag.isPresent()) {
         dagManagementStateStore.addDag(dag.get());
@@ -86,6 +82,34 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
           ExceptionUtils.getStackTrace(e));
       throw new RuntimeException(e);
     }
+  }
+
+  /**
+   * Creates an execution-local {@link FlowSpec} with per-launch metadata. Scheduled FlowSpecs can be retained and
+   * reused by the scheduler, so this avoids mutating their long-lived catalog definition with run-specific values.
+   */
+  private FlowSpec buildLaunchFlowSpec(FlowSpec sourceFlowSpec) {
+    long storeInsertTimeMillis = getDagTask().getLeaseParams().getStoreInsertTimeMillis();
+    Config launchConfig = sourceFlowSpec.getConfig()
+        .withValue(ConfigurationKeys.FLOW_EXECUTION_ID_KEY,
+            ConfigValueFactory.fromAnyRef(getDagId().getFlowExecutionId()))
+        .withoutPath(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY);
+    if (storeInsertTimeMillis != DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS) {
+      launchConfig = launchConfig.withValue(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY,
+          ConfigValueFactory.fromAnyRef(storeInsertTimeMillis));
+    }
+
+    FlowSpec.Builder builder = FlowSpec.builder(sourceFlowSpec.getUri())
+        .withVersion(sourceFlowSpec.getVersion())
+        .withDescription(sourceFlowSpec.getDescription())
+        .withConfig(launchConfig);
+    if (sourceFlowSpec.getTemplateURIs().isPresent()) {
+      builder.withTemplates(sourceFlowSpec.getTemplateURIs().get());
+    }
+    if (sourceFlowSpec.getChildSpecs().isPresent()) {
+      builder.withChildSpecs(sourceFlowSpec.getChildSpecs().get());
+    }
+    return builder.build();
   }
 
   @Override
