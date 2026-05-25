@@ -97,7 +97,7 @@ public class GobblinConstructorUtils {
    * Utility method to create an instance of <code>clsName</code> using the constructor matching the arguments, <code>args</code>
    *
    * @param superType of <code>clsName</code>. The new instance is cast to superType
-   * @param clsName complete cannonical name of the class to be instantiated
+   * @param clsName complete canonical name of the class to be instantiated
    * @param args constructor args to be used
    *
    * @throws IllegalArgumentException if there was an issue creating the instance due to
