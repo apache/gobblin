@@ -224,7 +224,8 @@ These properties are common properties that are used among different Source impl
 | `source.conn.version` | Version number of communication protocol. This parameter is only used for the Salesforce source. | No | None |
 | `source.conn.timeout` | The timeout set for connecting to the source in milliseconds. | No | 500000 |
 | `source.conn.port` | The value of the port to connect to. | Required for SftpExtractor, MySQLExtractor, OracleExtractor, SQLServerExtractor and TeradataExtractor. | None |
-| `source.conn.sid` | The Oracle System ID (SID) that identifies the database to connect to. | Required for OracleExtractor. | None |
+| `source.conn.sid` | The Oracle System ID (SID) that identifies the database to connect to. | Yes, if source.conn.service.name not set for OracleExtractor. | None |
+| `source.conn.service.name` | The Oracle Service Name that identifies the database to connect to. | Yes, if source.conn.sid not set for OracleExtractor. | None |
 | `extract.table.name` | Table name in Hadoop which is different table name in source. | No | Source table name  |
 | `extract.is.full` | True if this pull should treat the data as a full dump of table from the source, false otherwise. | No | false |
 | `extract.delta.fields` | List of columns that will be used as the delta field for the data. | No | None |
