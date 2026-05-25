@@ -19,11 +19,14 @@ package org.apache.gobblin.source.jdbc;
 
 import java.sql.ResultSet;
 import java.sql.Types;
+import java.util.Arrays;
+import java.util.Collections;
 import java.util.List;
 
 import org.apache.commons.lang.StringUtils;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.configuration.WorkUnitState;
+import org.apache.gobblin.source.extractor.extract.Command;
 import org.apache.gobblin.source.extractor.extract.CommandOutput;
 import org.testng.annotations.BeforeClass;
 import org.testng.annotations.Test;
@@ -130,6 +133,30 @@ public class PostgresqlExtractorTest {
     String res1 = postgresqlExtractor.getTimestampPredicateCondition("my_date", 12061992080809L, "ddMMyyyyhhmmss", ">");
 
     assertEquals(res1, "my_date > '1992-06-12 08:08:09'");
+  }
+
+  @Test
+  public void testGetHighWatermarkMetadata()
+          throws Exception {
+    postgresqlExtractor.setExtractSql("SELECT c FROM public.t");
+    postgresqlExtractor.setOutputColumnProjection("c");
+    List<Command> actual = postgresqlExtractor.getHighWatermarkMetadata(null, null, "c", Collections.emptyList());
+    Command expected = new JdbcCommand().build(Arrays.asList("SELECT max(c) FROM public.t"), JdbcCommand.JdbcCommandType.QUERY);
+    assertEquals(actual.size(), 1);
+    assertEquals(actual.get(0).getParams(), expected.getParams());
+    assertEquals(actual.get(0).getCommandType(), expected.getCommandType());
+  }
+
+  @Test
+  public void testGetCountMetadata()
+      throws Exception {
+    postgresqlExtractor.setExtractSql("SELECT c FROM public.t");
+    postgresqlExtractor.setOutputColumnProjection("c");
+    List<Command> actual = postgresqlExtractor.getCountMetadata(null, null, null, Collections.emptyList());
+    Command expected = new JdbcCommand().build(Arrays.asList("SELECT COUNT(1) FROM (SELECT 1 FROM public.t limit 0)temp"), JdbcCommand.JdbcCommandType.QUERY);
+    assertEquals(actual.size(), 1);
+    assertEquals(actual.get(0).getParams(), expected.getParams());
+    assertEquals(actual.get(0).getCommandType(), expected.getCommandType());
   }
 
   /**
