@@ -47,6 +47,10 @@ public abstract class DagTask {
    * the lease arbiter agreed on — including {@code storeInsertTimeMillis} for downstream latency instrumentation.
    */
   public DagActionStore.LeaseParams getLeaseParams() {
+    if (this.leaseObtainedStatus == null || this.leaseObtainedStatus.getConsensusLeaseParams() == null) {
+      return new DagActionStore.LeaseParams(this.dagAction, false, System.currentTimeMillis(),
+          DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS);
+    }
     return this.leaseObtainedStatus.getConsensusLeaseParams();
   }
 

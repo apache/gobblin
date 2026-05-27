@@ -27,6 +27,7 @@ import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 import org.apache.gobblin.config.ConfigBuilder;
@@ -43,9 +44,11 @@ import org.apache.gobblin.service.modules.flowgraph.FlowGraphConfigurationKeys;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagerMetrics;
+import org.apache.gobblin.service.modules.orchestration.DagUtils;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.commons.lang.StringUtils;
+import org.mockito.ArgumentCaptor;
 import org.mockito.Mockito;
 import org.testng.Assert;
 import org.testng.annotations.BeforeMethod;
@@ -123,6 +126,43 @@ public class DagProcUtilsTest {
     Mockito.verify(metrics, Mockito.times(1)).incrementRunningJobMetrics(dagNode);
     Mockito.verify(metrics, Mockito.times(1)).incrementJobsSentToExecutor(dagNode);
     Mockito.verifyNoMoreInteractions(dagManagementStateStore);
+  }
+
+  @Test
+  public void testSubmitJobToExecutorReplacesStaleStoreInsertTimeMillis()
+      throws URISyntaxException, IOException, ExecutionException, InterruptedException {
+    Dag.DagId dagId = new Dag.DagId("flowGroup3", "flowName3", 2345678);
+    long staleStoreInsertTimeMillis = 1730000000000L;
+    long freshStoreInsertTimeMillis = staleStoreInsertTimeMillis + 60000L;
+    JobExecutionPlan jobExecutionPlan = getJobExecutionPlans().get(2);
+    JobSpec jobSpec = jobExecutionPlan.getJobSpec();
+    Config staleJobConfig = jobSpec.getConfig().withValue(
+        ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY,
+        ConfigValueFactory.fromAnyRef(staleStoreInsertTimeMillis));
+    jobSpec.setConfig(staleJobConfig);
+    jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(staleJobConfig));
+    Dag.DagNode<JobExecutionPlan> dagNode = new Dag.DagNode<>(jobExecutionPlan);
+    DagManagerMetrics metrics = Mockito.mock(DagManagerMetrics.class);
+    Mockito.when(dagManagementStateStore.getDagManagerMetrics()).thenReturn(metrics);
+    SpecProducer<Spec> producer = DagUtils.getSpecProducer(dagNode);
+    Mockito.doReturn(CompletableFuture.completedFuture("urn")).when(producer).addSpec(Mockito.any(Spec.class));
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction("flowGroup3", "flowName3", 2345678, "job1",
+        DagActionStore.DagActionType.REEVALUATE);
+    DagActionStore.LeaseParams leaseParams = new DagActionStore.LeaseParams(dagAction, false,
+        System.currentTimeMillis(), freshStoreInsertTimeMillis);
+
+    DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, dagId, leaseParams);
+
+    ArgumentCaptor<Spec> specCaptor = ArgumentCaptor.forClass(Spec.class);
+    Mockito.verify(producer).addSpec(specCaptor.capture());
+    JobSpec submittedJobSpec = (JobSpec) specCaptor.getValue();
+    Assert.assertEquals(
+        submittedJobSpec.getConfig().getLong(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        freshStoreInsertTimeMillis);
+    Assert.assertEquals(
+        submittedJobSpec.getConfigAsProperties()
+            .getProperty(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        String.valueOf(freshStoreInsertTimeMillis));
   }
 
   @Test(expectedExceptions = RuntimeException.class)

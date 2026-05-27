@@ -79,7 +79,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // but when reevaluate/resume/launch dag proc found multiple parallel jobs to run next, it creates reevaluate
       // dag actions for each of those parallel job and in this scenario there is no job status available.
       // If the job status is not present, this job was never launched, submit it now.
-      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
+      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId(), getDagTask().getLeaseParams());
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);
       return;
     }
@@ -124,7 +124,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       // dag failed and is also not retryable. in that case if this job's retry passes, overall status of the dag can be
       // set to PASS, which would be incorrect.
       dag.setFlowEvent(null);
-      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId());
+      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, getDagId(), getDagTask().getLeaseParams());
     } else if (DagProcUtils.isDagFinished(dag)) {
       String flowEvent = DagProcUtils.calcFlowStatus(dag);
       dag.setFlowEvent(flowEvent);
@@ -179,7 +179,7 @@ public class ReevaluateDagProc extends DagProc<Pair<Optional<Dag.DagNode<JobExec
       case COMPLETE:
         dagManagementStateStore.getDagManagerMetrics().incrementExecutorSuccess(dagNode);
         if (!DagProcUtils.isDagFinished(dag)) { // this may fail when dag failure option is finish_running and some dag node has failed
-          DagProcUtils.submitNextNodes(dagManagementStateStore, dag, getDagId());
+          DagProcUtils.submitNextNodes(dagManagementStateStore, dag, getDagId(), getDagTask().getLeaseParams());
         }
         break;
       default:

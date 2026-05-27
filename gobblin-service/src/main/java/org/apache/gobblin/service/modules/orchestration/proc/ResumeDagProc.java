@@ -97,7 +97,7 @@ public class ResumeDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
     // if it fails here, it will check point the failed dag in the (running) dag store again, which is idempotent
     dagManagementStateStore.deleteFailedDag(getDagId());
 
-    DagProcUtils.submitNextNodes(dagManagementStateStore, failedDag.get(), getDagId());
+    DagProcUtils.submitNextNodes(dagManagementStateStore, failedDag.get(), getDagId(), getDagTask().getLeaseParams());
 
     DagProcUtils.sendEnforceFlowFinishDeadlineDagAction(dagManagementStateStore, getDagTask().getDagAction());
     dagProcEngineMetrics.markDagActionsAct(getDagActionType(), true);

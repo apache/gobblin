@@ -32,6 +32,7 @@ import java.util.stream.Collectors;
 import com.google.common.base.Optional;
 import com.google.common.collect.Maps;
 import com.typesafe.config.Config;
+import com.typesafe.config.ConfigValueFactory;
 
 import lombok.extern.slf4j.Slf4j;
 
@@ -76,10 +77,20 @@ public class DagProcUtils {
    */
   public static void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
       Dag.DagId dagId) throws IOException {
+    submitNextNodes(dagManagementStateStore, dag, dagId, DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS);
+  }
+
+  public static void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
+      Dag.DagId dagId, DagActionStore.LeaseParams leaseParams) throws IOException {
+    submitNextNodes(dagManagementStateStore, dag, dagId, getStoreInsertTimeMillis(leaseParams));
+  }
+
+  private static void submitNextNodes(DagManagementStateStore dagManagementStateStore, Dag<JobExecutionPlan> dag,
+      Dag.DagId dagId, long storeInsertTimeMillis) throws IOException {
     Set<Dag.DagNode<JobExecutionPlan>> nextNodes = DagUtils.getNext(dag);
     if (nextNodes.size() == 1) {
       Dag.DagNode<JobExecutionPlan> dagNode = nextNodes.iterator().next();
-      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, dagId);
+      DagProcUtils.submitJobToExecutor(dagManagementStateStore, dagNode, dagId, storeInsertTimeMillis);
     } else {
       for (Dag.DagNode<JobExecutionPlan> dagNode : nextNodes) {
         JobExecutionPlan jobExecutionPlan = dagNode.getValue();
@@ -98,9 +109,21 @@ public class DagProcUtils {
    */
   public static void submitJobToExecutor(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode,
       Dag.DagId dagId) {
+    submitJobToExecutor(dagManagementStateStore, dagNode, dagId,
+        DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS);
+  }
+
+  public static void submitJobToExecutor(DagManagementStateStore dagManagementStateStore, Dag.DagNode<JobExecutionPlan> dagNode,
+      Dag.DagId dagId, DagActionStore.LeaseParams leaseParams) {
+    submitJobToExecutor(dagManagementStateStore, dagNode, dagId, getStoreInsertTimeMillis(leaseParams));
+  }
+
+  private static void submitJobToExecutor(DagManagementStateStore dagManagementStateStore,
+      Dag.DagNode<JobExecutionPlan> dagNode, Dag.DagId dagId, long storeInsertTimeMillis) {
     DagUtils.incrementJobAttempt(dagNode);
     JobExecutionPlan jobExecutionPlan = DagUtils.getJobExecutionPlan(dagNode);
     JobSpec jobSpec = DagUtils.getJobSpec(dagNode);
+    stampDagActionStoreInsertTimeMillis(jobSpec, storeInsertTimeMillis);
     Map<String, String> jobMetadata = TimingEventUtils.getJobMetadata(Maps.newHashMap(), jobExecutionPlan);
 
     String specExecutorUri = DagUtils.getSpecExecutorUri(dagNode);
@@ -164,6 +187,22 @@ public class DagProcUtils {
     }
 
     log.info("Submitted job {} for dagId {}", DagUtils.getJobName(dagNode), dagId);
+  }
+
+  static void stampDagActionStoreInsertTimeMillis(JobSpec jobSpec, long storeInsertTimeMillis) {
+    Config jobConfig = jobSpec.getConfig().withoutPath(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY);
+    if (storeInsertTimeMillis != DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS) {
+      jobConfig = jobConfig.withValue(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY,
+          ConfigValueFactory.fromAnyRef(storeInsertTimeMillis));
+    }
+    jobSpec.setConfig(jobConfig);
+    jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(jobConfig));
+  }
+
+  private static long getStoreInsertTimeMillis(DagActionStore.LeaseParams leaseParams) {
+    return leaseParams == null
+        ? DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS
+        : leaseParams.getStoreInsertTimeMillis();
   }
 
   public static void cancelDagNode(Dag.DagNode<JobExecutionPlan> dagNodeToCancel, DagManagementStateStore dagManagementStateStore) throws IOException {

@@ -97,7 +97,7 @@ public class LaunchDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
           "DAG could not be compiled for " + getDagId());
       dagProcEngineMetrics.markDagActionsAct(getDagActionType(), false);
     } else {
-      DagProcUtils.submitNextNodes(dagManagementStateStore, dag.get(), getDagId());
+      DagProcUtils.submitNextNodes(dagManagementStateStore, dag.get(), getDagId(), getDagTask().getLeaseParams());
       DagProcUtils.setAndEmitFlowEvent(eventSubmitter, dag.get(), TimingEvent.FlowTimings.FLOW_RUNNING);
       dagManagementStateStore.getDagManagerMetrics().conditionallyMarkFlowAsState(DagUtils.getFlowId(dag.get()),
           Dag.FlowState.RUNNING);
