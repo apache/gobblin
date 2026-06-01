@@ -23,6 +23,7 @@ import java.util.concurrent.ExecutionException;
 import java.util.stream.Collectors;
 
 import org.apache.commons.lang3.tuple.ImmutablePair;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.testng.Assert;
@@ -31,12 +32,14 @@ import org.testng.annotations.BeforeClass;
 import org.testng.annotations.BeforeMethod;
 import org.testng.annotations.Test;
 
+import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 import com.typesafe.config.ConfigValueFactory;
 
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metastore.testing.ITestMetastoreDatabase;
 import org.apache.gobblin.metastore.testing.TestMetastoreDatabaseFactory;
+import org.apache.gobblin.runtime.api.JobSpec;
 import org.apache.gobblin.runtime.api.Spec;
 import org.apache.gobblin.runtime.api.SpecProducer;
 import org.apache.gobblin.service.ExecutionStatus;
@@ -44,14 +47,17 @@ import org.apache.gobblin.service.modules.core.GobblinServiceManager;
 import org.apache.gobblin.service.modules.flowgraph.Dag;
 import org.apache.gobblin.service.modules.orchestration.DagActionStore;
 import org.apache.gobblin.service.modules.orchestration.DagManagementStateStore;
+import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagTestUtils;
 import org.apache.gobblin.service.modules.orchestration.DagUtils;
-import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.LeaseAttemptStatus;
+import org.apache.gobblin.service.modules.orchestration.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStoreTest;
 import org.apache.gobblin.service.modules.orchestration.task.DagProcessingEngineMetrics;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.spec.JobExecutionPlan;
 import org.apache.gobblin.service.monitoring.JobStatus;
+import org.apache.gobblin.util.ConfigUtils;
 
 import org.apache.gobblin.runtime.troubleshooter.IssueSeverity;
 
@@ -118,10 +124,8 @@ public class ReevaluateDagProcTest {
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
     doReturn(Optional.of(dag)). when(dagManagementStateStore).getDag(dagId);
 
-    ReevaluateDagProc
-        reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+    ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(buildReevaluateDagTask(flowName, "job0"),
+        ConfigFactory.empty());
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
     // next job is sent to spec producer
     Mockito.verify(specProducers.get(1), Mockito.times(1)).addSpec(any());
@@ -171,10 +175,8 @@ public class ReevaluateDagProcTest {
 
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
 
-    ReevaluateDagProc
-        reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+    ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(buildReevaluateDagTask(flowName, "job0"),
+        ConfigFactory.empty());
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     // no new job to launch for this one job flow
@@ -205,10 +207,8 @@ public class ReevaluateDagProcTest {
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.empty()))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
 
-    ReevaluateDagProc
-        reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+    ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(buildReevaluateDagTask(flowName, "job0"),
+        ConfigFactory.empty());
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int numOfLaunchedJobs = 1; // only the current job
@@ -223,6 +223,45 @@ public class ReevaluateDagProcTest {
         eq(DagActionStore.DagActionType.REEVALUATE));
 
     Assert.assertFalse(DagProcUtils.isDagFinished(this.dagManagementStateStore.getDag(dagId).get()));
+  }
+
+  @Test
+  public void testCurrentJobToRunReplacesStaleStoreInsertTimeMillis() throws Exception {
+    String flowName = "fn3-stamp";
+    long staleStoreInsertTimeMillis = 1730000000000L;
+    long freshStoreInsertTimeMillis = staleStoreInsertTimeMillis + 60000L;
+    Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId,
+        DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 2, "user5", ConfigFactory.empty()
+            .withValue(ConfigurationKeys.FLOW_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.FLOW_NAME_KEY, ConfigValueFactory.fromAnyRef(flowName))
+            .withValue(ConfigurationKeys.JOB_GROUP_KEY, ConfigValueFactory.fromAnyRef(flowGroup))
+            .withValue(ConfigurationKeys.SPECEXECUTOR_INSTANCE_URI_KEY, ConfigValueFactory.fromAnyRef(
+                MySqlDagManagementStateStoreTest.TEST_SPEC_EXECUTOR_URI)));
+    JobSpec jobSpec = dag.getNodes().get(0).getValue().getJobSpec();
+    Config staleJobConfig = jobSpec.getConfig().withValue(
+        ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY,
+        ConfigValueFactory.fromAnyRef(staleStoreInsertTimeMillis));
+    jobSpec.setConfig(staleJobConfig);
+    jobSpec.setConfigAsProperties(ConfigUtils.configToProperties(staleJobConfig));
+    List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
+    dagManagementStateStore.addDag(dag);
+    doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.empty()))
+        .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
+    ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(
+        buildReevaluateDagTask(flowName, "job0", freshStoreInsertTimeMillis), ConfigFactory.empty());
+
+    reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
+
+    ArgumentCaptor<Spec> specCaptor = ArgumentCaptor.forClass(Spec.class);
+    Mockito.verify(specProducers.get(0)).addSpec(specCaptor.capture());
+    JobSpec submittedJobSpec = (JobSpec) specCaptor.getValue();
+    Assert.assertEquals(
+        submittedJobSpec.getConfig().getLong(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        freshStoreInsertTimeMillis);
+    Assert.assertEquals(
+        submittedJobSpec.getConfigAsProperties()
+            .getProperty(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        String.valueOf(freshStoreInsertTimeMillis));
   }
 
   @Test
@@ -253,10 +292,8 @@ public class ReevaluateDagProcTest {
 
     doReturn(Optional.of(dag)).when(dagManagementStateStore).getDag(any());
 
-    ReevaluateDagProc
-        reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(flowGroup, flowName,
-        flowExecutionId, "job3", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+    ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(buildReevaluateDagTask(flowName, "job3"),
+        ConfigFactory.empty());
     List<SpecProducer<Spec>> specProducers = getDagSpecProducers(dag);
     // process 4th job
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
@@ -292,9 +329,8 @@ public class ReevaluateDagProcTest {
     doReturn(new ImmutablePair<>(Optional.of(dag.getNodes().get(0)), Optional.of(jobStatus)))
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
 
-    ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(new DagActionStore.DagAction(
-        flowGroup, flowName, flowExecutionId, "job0", DagActionStore.DagActionType.REEVALUATE), null,
-        dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+    ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(buildReevaluateDagTask(flowName, "job0"),
+        ConfigFactory.empty());
     reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
     int numOfLaunchedJobs = 1; // only the current job
@@ -318,10 +354,8 @@ public class ReevaluateDagProcTest {
         .when(dagManagementStateStore).getDagNodeWithJobStatus(any());
 
     try (MockedStatic<OrchestratorIssueEmitter> emitterMock = Mockito.mockStatic(OrchestratorIssueEmitter.class)) {
-      ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(new ReevaluateDagTask(
-          new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, "job0",
-              DagActionStore.DagActionType.REEVALUATE), null,
-          dagManagementStateStore, mockedDagProcEngineMetrics), ConfigFactory.empty());
+      ReevaluateDagProc reEvaluateDagProc = new ReevaluateDagProc(buildReevaluateDagTask(flowName, "job0"),
+          ConfigFactory.empty());
       reEvaluateDagProc.process(dagManagementStateStore, mockedDagProcEngineMetrics);
 
       // Verify that a service-layer issue was emitted for dag node not found
@@ -338,5 +372,19 @@ public class ReevaluateDagProcTest {
         throw new RuntimeException(e);
       }
     }).collect(Collectors.toList());
+  }
+
+  private ReevaluateDagTask buildReevaluateDagTask(String flowName, String jobName) {
+    return buildReevaluateDagTask(flowName, jobName, DagActionStore.LeaseParams.UNKNOWN_STORE_INSERT_TIME_MILLIS);
+  }
+
+  private ReevaluateDagTask buildReevaluateDagTask(String flowName, String jobName, long storeInsertTimeMillis) {
+    DagActionStore.DagAction dagAction = new DagActionStore.DagAction(flowGroup, flowName, flowExecutionId, jobName,
+        DagActionStore.DagActionType.REEVALUATE);
+    DagActionStore.LeaseParams consensusLeaseParams = new DagActionStore.LeaseParams(
+        dagAction, false, System.currentTimeMillis(), storeInsertTimeMillis);
+    LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus = new LeaseAttemptStatus.LeaseObtainedStatus(
+        consensusLeaseParams, System.currentTimeMillis(), 0L, Mockito.mock(MultiActiveLeaseArbiter.class));
+    return new ReevaluateDagTask(dagAction, leaseObtainedStatus, dagManagementStateStore, mockedDagProcEngineMetrics);
   }
 }
