@@ -150,13 +150,20 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         recordsWritten = commitStats.getRecordsWritten();
         bytesWritten = commitStats.getBytesWritten();
       }
-      jobSuccessTimer.stop();
+      // JOB_SUCCEEDED terminal GTE. Gated by GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED (default true)
+      // so deployments that designate the GGW/Azkaban pod launcher as the single terminal-GTE source can
+      // suppress this AM-side emission and avoid duplicates.
+      if (isAmTerminalGteEmissionEnabled(temporalJobProps)) {
+        jobSuccessTimer.stop(); // update GaaS: `ExecutionStatus.COMPLETE`; `TimingEvent.JOB_END_TIME`
+      }
       isSuccessful = true;
       return new ExecGobblinStats(numWUsGenerated, numWUsCommitted, recordsWritten, bytesWritten,
           jobProps.getProperty(Help.USER_TO_PROXY_KEY));
     } catch (Exception e) {
-      // Emit a failed GobblinTrackingEvent to record job failures
-      timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).submit(); // update GaaS: `ExecutionStatus.FAILED`; `TimingEvent.JOB_END_TIME`
+      // JOB_FAILED terminal GTE, gated by the same flag as the success path above.
+      if (isAmTerminalGteEmissionEnabled(temporalJobProps)) {
+        timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).submit(); // update GaaS: `ExecutionStatus.FAILED`; `TimingEvent.JOB_END_TIME`
+      }
       throw ApplicationFailure.newNonRetryableFailureWithCause(
           String.format("Failed Gobblin job %s", jobProps.getProperty(ConfigurationKeys.JOB_NAME_KEY)),
           e.getClass().getName(), e);
@@ -179,6 +186,17 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
         log.error("Failed to cleanup work dirs", e);
       }
     }
+  }
+
+  /**
+   * @return whether the AM should emit its own terminal job-completion GTEs (JOB_SUCCEEDED / JOB_FAILED).
+   * Controlled by {@link GobblinTemporalConfigurationKeys#GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED}
+   * (default {@code true}); set {@code false} when the GGW/Azkaban pod launcher is the single terminal-GTE source.
+   */
+  private static boolean isAmTerminalGteEmissionEnabled(Properties temporalJobProps) {
+    return PropertiesUtils.getPropAsBoolean(temporalJobProps,
+        GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED,
+        String.valueOf(GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED));
   }
 
   protected ProcessWorkUnitsWorkflow createProcessWorkUnitsWorkflow(Properties jobProps) {

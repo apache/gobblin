@@ -44,6 +44,8 @@ import io.temporal.client.WorkflowClient;
 import io.temporal.client.WorkflowStub;
 import io.temporal.serviceclient.WorkflowServiceStubs;
 
+import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
+
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.example.simplejson.SimpleJsonSource;
 import org.apache.gobblin.runtime.JobState;
@@ -60,6 +62,7 @@ import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.testng.Assert.assertEquals;
 import static org.testng.Assert.assertFalse;
+import static org.testng.Assert.assertNull;
 import static org.testng.Assert.assertTrue;
 
 
@@ -96,6 +99,13 @@ public class GobblinTemporalJobLauncherTest {
     public org.apache.gobblin.runtime.JobContext getJobContext() {
       return this.jobContext;
     }
+
+    // Drive only the normal-flow status-capture half of handleLaunchFinalization. We deliberately skip the
+    // eventBus.post(ClusterManagerShutdownRequest) tail because the unit-test constructor passes a null
+    // eventBus, and the capture-vs-broadcast pieces are independent for our tests' purposes.
+    public void triggerHandleLaunchFinalizationForTest() {
+      this.captureTerminalWorkflowStatus();
+    }
   }
 
 
@@ -126,6 +136,10 @@ public class GobblinTemporalJobLauncherTest {
 
   @BeforeMethod
   public void methodSetUp() throws Exception {
+    // Reset invocation counts on the class-scoped mocks so per-test `verify(... times(N))` assertions
+    // are not polluted by interactions from earlier tests in the suite.
+    Mockito.clearInvocations(mockClient, mockExecutionInfo);
+
     mockStub = mock(WorkflowStub.class);
     when(mockClient.newUntypedWorkflowStub(Mockito.anyString())).thenReturn(mockStub);
     when(mockStub.getExecution()).thenReturn(WorkflowExecution.getDefaultInstance());
@@ -302,6 +316,128 @@ public class GobblinTemporalJobLauncherTest {
 
     assertFalse(stagingDir.exists(), "close() should trigger cleanup and delete the staging directory");
     tmpDir.delete();
+  }
+
+
+  @Test
+  public void testMapWorkflowStatusToFinalAppStatusForCompletedReturnsSucceeded() {
+    assertEquals(GobblinTemporalJobLauncher.mapWorkflowStatusToFinalAppStatus(
+            WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED),
+        FinalApplicationStatus.SUCCEEDED);
+  }
+
+  @Test
+  public void testMapWorkflowStatusToFinalAppStatusForCancelledReturnsKilled() {
+    assertEquals(GobblinTemporalJobLauncher.mapWorkflowStatusToFinalAppStatus(
+            WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CANCELED),
+        FinalApplicationStatus.KILLED);
+  }
+
+  @Test
+  public void testMapWorkflowStatusToFinalAppStatusForNullReturnsFailed() {
+    // A null captured status means the AM is going down without the workflow having reached a terminal state
+    // (preemption/error/crash mid-run) -> the job did not complete -> FAILED, consistent with computeExitCode(null)==1.
+    assertEquals(GobblinTemporalJobLauncher.mapWorkflowStatusToFinalAppStatus(null),
+        FinalApplicationStatus.FAILED);
+  }
+
+  @Test
+  public void testComputeExitCodeForNullReturnsOne() {
+    assertEquals(GobblinTemporalJobLauncher.computeExitCode(null), 1);
+  }
+
+  @Test
+  public void testMapWorkflowStatusToFinalAppStatusForFailureAndNonTerminalReturnsFailed() {
+    WorkflowExecutionStatus[] failed = new WorkflowExecutionStatus[] {
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TERMINATED,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TIMED_OUT,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED
+    };
+    for (WorkflowExecutionStatus status : failed) {
+      assertEquals(GobblinTemporalJobLauncher.mapWorkflowStatusToFinalAppStatus(status),
+          FinalApplicationStatus.FAILED, "Expected FAILED for " + status);
+    }
+  }
+
+  @Test
+  public void testComputeExitCodeForCompletedReturnsZero() {
+    assertEquals(GobblinTemporalJobLauncher.computeExitCode(
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED), 0);
+  }
+
+  @Test
+  public void testComputeExitCodeForAnyNonCompletedReturnsOne() {
+    // Every non-COMPLETED terminal status (and the non-terminal ones we collapse to JOB_FAILED) must
+    // produce a non-zero exit code so the AM JVM surfaces the failure to GGW.
+    WorkflowExecutionStatus[] nonSuccess = new WorkflowExecutionStatus[] {
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CANCELED,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TERMINATED,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_TIMED_OUT,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_RUNNING,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW,
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED
+    };
+    for (WorkflowExecutionStatus status : nonSuccess) {
+      assertEquals(GobblinTemporalJobLauncher.computeExitCode(status), 1,
+          "Expected non-zero exit code for " + status);
+    }
+  }
+
+  @Test
+  public void testHandleLaunchFinalizationPopulatesLastTerminalStatus() throws Exception {
+    jobLauncher.submitJob(null);
+    when(mockExecutionInfo.getStatus())
+        .thenReturn(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED);
+
+    jobLauncher.triggerHandleLaunchFinalizationForTest();
+
+    // The status must be cached so that AM main() can read it after close() has shut down Temporal stubs.
+    assertEquals(GobblinTemporalJobLauncher.getLastTerminalStatus(),
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED);
+  }
+
+  @Test
+  public void testLastTerminalStatusSurvivesClose() throws Exception {
+    jobLauncher.submitJob(null);
+    when(mockExecutionInfo.getStatus())
+        .thenReturn(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED);
+
+    jobLauncher.triggerHandleLaunchFinalizationForTest();
+    jobLauncher.close();
+
+    // close() shuts down Temporal stubs; the cached status must remain readable so AM main() can drive exit.
+    assertEquals(GobblinTemporalJobLauncher.getLastTerminalStatus(),
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED);
+  }
+
+  @Test
+  public void testConstructorResetsStaleTerminalStatus() throws Exception {
+    // Simulate a previous launcher in the same JVM having captured a terminal status.
+    jobLauncher.submitJob(null);
+    when(mockExecutionInfo.getStatus())
+        .thenReturn(WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED);
+    jobLauncher.triggerHandleLaunchFinalizationForTest();
+    assertEquals(GobblinTemporalJobLauncher.getLastTerminalStatus(),
+        WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_FAILED);
+
+    // A new launcher (mirrors a fresh AM JVM or test-suite reuse) must clear the static cache so a prior
+    // run's status does not leak into the new launcher's exit code. The job name + lock dir must be unique
+    // so the per-job FileBasedJobLock the parent launcher acquires doesn't reject the second construction.
+    File tmpDir = Files.createTempDir();
+    Path appWorkDir = new Path(tmpDir.getAbsolutePath(), "freshAppWorkDir");
+    String freshJobName = "freshLauncherJob";
+    Properties freshProps = (Properties) jobProperties.clone();
+    freshProps.setProperty(ConfigurationKeys.JOB_NAME_KEY, freshJobName);
+    freshProps.setProperty(ConfigurationKeys.JOB_ID_KEY, JobLauncherUtils.newJobId(freshJobName));
+    freshProps.setProperty(FileBasedJobLock.JOB_LOCK_DIR, new Path(tmpDir.getAbsolutePath(), "freshLockDir").toString());
+    freshProps.setProperty(ConfigurationKeys.STATE_STORE_ROOT_DIR_KEY, new Path(tmpDir.getAbsolutePath(), "freshStateStore").toString());
+    new GobblinTemporalJobLauncherForTest(freshProps, appWorkDir);
+
+    assertNull(GobblinTemporalJobLauncher.getLastTerminalStatus());
   }
 
   @Test

@@ -106,6 +106,7 @@ import org.apache.gobblin.yarn.GobblinYarnMetricTagNames;
 import org.apache.gobblin.yarn.YarnHelixUtils;
 import org.apache.gobblin.temporal.dynamic.WorkerProfile;
 import org.apache.gobblin.temporal.dynamic.WorkforceProfiles;
+import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 
 /**
  * This class is responsible for all Yarn-related stuffs including ApplicationMaster registration,
@@ -272,7 +273,9 @@ class YarnService extends AbstractIdleService {
         }
       }
 
-      this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, null);
+      FinalApplicationStatus finalStatus = getFinalApplicationStatusForUnregister();
+      LOGGER.info("Un-registering ApplicationMaster with FinalApplicationStatus {}", finalStatus);
+      this.amrmClientAsync.unregisterApplicationMaster(finalStatus, null, null);
     } catch (IOException | YarnException e) {
       LOGGER.error("Failed to unregister the ApplicationMaster", e);
     } finally {
@@ -284,6 +287,18 @@ class YarnService extends AbstractIdleService {
         }
       }
     }
+  }
+
+  /**
+   * Derive the {@link FinalApplicationStatus} to report to YARN on un-register from the AM's captured Temporal
+   * workflow outcome (see {@link GobblinTemporalJobLauncher#getLastTerminalStatus()}). Reporting the true status
+   * — rather than an unconditional SUCCEEDED — lets a launcher polling the {@code ApplicationReport} observe job
+   * failures/cancellations end-to-end, and keeps the YARN status consistent with the AM JVM exit code. A
+   * {@code null} captured status (no workflow ran) maps to SUCCEEDED. Overridable for tests.
+   */
+  protected FinalApplicationStatus getFinalApplicationStatusForUnregister() {
+    return GobblinTemporalJobLauncher.mapWorkflowStatusToFinalAppStatus(
+        GobblinTemporalJobLauncher.getLastTerminalStatus());
   }
 
   public void updateToken() throws IOException{

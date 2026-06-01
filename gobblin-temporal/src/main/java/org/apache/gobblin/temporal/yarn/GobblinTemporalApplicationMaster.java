@@ -27,10 +27,13 @@ import lombok.Getter;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import io.temporal.api.enums.v1.WorkflowExecutionStatus;
+
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.temporal.cluster.GobblinTemporalClusterManager;
+import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.JvmUtils;
 import org.apache.gobblin.util.PathUtils;
@@ -166,6 +169,17 @@ public class GobblinTemporalApplicationMaster extends GobblinTemporalClusterMana
 
         applicationMaster.start();
       }
+
+      // Surface the underlying workflow outcome as the AM JVM exit code so GGW/Grid Gateway dashboards see
+      // failures end-to-end. The status was captured into a static cache by GobblinTemporalJobLauncher via
+      // handleLaunchFinalization on normal completion (this is also what the temporal YarnService uses to derive
+      // the FinalApplicationStatus reported to YARN). A null cache means the workflow never reached a terminal
+      // state under this AM (preemption/error/crash mid-run) -> non-zero exit, consistent with FinalApplicationStatus.
+      WorkflowExecutionStatus terminalStatus = GobblinTemporalJobLauncher.getLastTerminalStatus();
+      int exitCode = GobblinTemporalJobLauncher.computeExitCode(terminalStatus);
+      LOGGER.info("GobblinTemporalApplicationMaster exiting with code {} (workflow terminal status: {})",
+          exitCode, terminalStatus);
+      System.exit(exitCode);
     } catch (ParseException pe) {
       printUsage(options);
       System.exit(1);

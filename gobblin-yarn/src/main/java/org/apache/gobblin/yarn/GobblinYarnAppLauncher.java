@@ -33,6 +33,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
+import java.util.concurrent.atomic.AtomicBoolean;
 import java.util.concurrent.atomic.AtomicInteger;
 
 import org.apache.avro.Schema;
@@ -103,6 +104,7 @@ import org.apache.gobblin.cluster.GobblinClusterUtils;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.metrics.GobblinMetrics;
 import org.apache.gobblin.metrics.Tag;
+import org.apache.gobblin.metrics.event.TimingEvent;
 import org.apache.gobblin.metrics.kafka.KafkaAvroSchemaRegistry;
 import org.apache.gobblin.metrics.kafka.SchemaRegistryException;
 import org.apache.gobblin.metrics.reporter.util.KafkaReporterUtils;
@@ -237,6 +239,20 @@ public class GobblinYarnAppLauncher {
 
   private volatile boolean stopped = false;
 
+  // Launcher-side exit-code propagation + terminal hooks. This launcher (the GGW/Azkaban-pod process that submits
+  // the YARN application and polls its ApplicationReport) surfaces the AM's terminal outcome as a non-zero process
+  // exit, and exposes protected no-op hooks ({@link #onTerminalApplicationStatus}, {@link #onLostAmVisibility},
+  // {@link #onApplicationLaunchFailure}) so a subclass (e.g. the GGW/Azkaban-pod launcher) can emit the single
+  // terminal GTE. The OSS class itself does not emit any GTE.
+
+  // Set non-zero on any terminal AM failure observed by the launcher; read by main() to drive System.exit.
+  @Getter
+  private volatile int exitCode = 0;
+
+  // Dispatches the terminal outcome exactly once across the report-monitor path and the cancel/forced-kill path,
+  // without relying on a (racy) ApplicationReport state check.
+  private final AtomicBoolean terminalHandled = new AtomicBoolean(false);
+
   private final boolean emailNotificationOnShutdown;
   private final boolean detachOnExitEnabled;
 
@@ -359,31 +375,39 @@ public class GobblinYarnAppLauncher {
       this.tokenRefreshManager.get().loginAndScheduleTokenRenewal();
     }
 
-    startYarnClient();
+    try {
+      startYarnClient();
 
-    this.applicationId = getReconnectableApplicationId();
+      this.applicationId = getReconnectableApplicationId();
 
-    if (!this.applicationId.isPresent()) {
-      LOGGER.info("No reconnectable application found so submitting a new application");
-      this.yarnClient = potentialYarnClients.get(this.originalYarnRMAddress);
-      this.applicationId = Optional.of(setupAndSubmitApplication());
-    }
-
-    if (helixClusterLifecycleManager.isPresent()) {
-      this.helixClusterLifecycleManager.get()
-          .getIsApplicationRunningFlag().compareAndSet(false, isApplicationRunning());
-    }
-
-    this.applicationStatusMonitor.scheduleAtFixedRate(() -> {
-      try {
-        eventBus.post(new ApplicationReportArrivalEvent(yarnClient.getApplicationReport(applicationId.get())));
-      } catch (YarnException | IOException e) {
-        LOGGER.error("Failed to get application report for Gobblin Yarn application " + applicationId.get(), e);
-        eventBus.post(new GetApplicationReportFailureEvent(e));
+      if (!this.applicationId.isPresent()) {
+        LOGGER.info("No reconnectable application found so submitting a new application");
+        this.yarnClient = potentialYarnClients.get(this.originalYarnRMAddress);
+        this.applicationId = Optional.of(setupAndSubmitApplication());
       }
-    }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
 
-    addServices();
+      if (helixClusterLifecycleManager.isPresent()) {
+        this.helixClusterLifecycleManager.get()
+            .getIsApplicationRunningFlag().compareAndSet(false, isApplicationRunning());
+      }
+
+      this.applicationStatusMonitor.scheduleAtFixedRate(() -> {
+        try {
+          eventBus.post(new ApplicationReportArrivalEvent(yarnClient.getApplicationReport(applicationId.get())));
+        } catch (YarnException | IOException e) {
+          LOGGER.error("Failed to get application report for Gobblin Yarn application " + applicationId.get(), e);
+          eventBus.post(new GetApplicationReportFailureEvent(e));
+        }
+      }, 0, this.appReportIntervalMinutes, TimeUnit.MINUTES);
+
+      addServices();
+    } catch (Exception e) {
+      // Submission/allocation failed (or the app never got far enough to be monitored). Surface this as a
+      // non-zero exit + terminal GTE before propagating, so GaaS isn't left without a terminal state.
+      LOGGER.error("Failed to launch the Gobblin Yarn application", e);
+      handleApplicationLaunchFailure(e);
+      throw e;
+    }
   }
 
   public boolean isApplicationRunning() {
@@ -496,6 +520,8 @@ public class GobblinYarnAppLauncher {
         LOGGER.error("Gobblin Yarn application failed for the following reason: " + applicationReport.getDiagnostics());
       }
 
+      handleTerminalAppStatus(applicationReport);
+
       try {
         GobblinYarnAppLauncher.this.stop();
       } catch (IOException ioe) {
@@ -510,6 +536,63 @@ public class GobblinYarnAppLauncher {
     }
   }
 
+  /**
+   * On a terminal {@link ApplicationReport}: update {@link #exitCode} so the launcher JVM surfaces the failure
+   * to GGW/Grid Gateway dashboards, then dispatch to the overridable {@link #onTerminalApplicationStatus} hook.
+   */
+  @VisibleForTesting
+  void handleTerminalAppStatus(ApplicationReport applicationReport) {
+    if (!this.terminalHandled.compareAndSet(false, true)) {
+      return;
+    }
+    FinalApplicationStatus finalStatus = applicationReport.getFinalApplicationStatus();
+    if (finalStatus != FinalApplicationStatus.SUCCEEDED) {
+      this.exitCode = 1;
+    }
+    onTerminalApplicationStatus(applicationReport, finalStatus);
+  }
+
+  /**
+   * Terminal-outcome hooks. No-op in OSS (the OSS launcher emits no GTE); a subclass (e.g. the GGW/Azkaban-pod
+   * launcher) overrides these to emit the single terminal GTE. {@code finalStatus} maps via
+   * {@link #mapFinalAppStatusToEventName}.
+   */
+  protected void onTerminalApplicationStatus(ApplicationReport applicationReport, FinalApplicationStatus finalStatus) {
+  }
+
+  /** Map a YARN {@link FinalApplicationStatus} to the {@code KafkaAvroJobStatusMonitor} event name. Public so a
+   * subclass in another module can reuse it. */
+  public static String mapFinalAppStatusToEventName(FinalApplicationStatus status) {
+    if (status == null) {
+      return TimingEvent.LauncherTimings.JOB_FAILED;
+    }
+    switch (status) {
+      case SUCCEEDED:
+        return TimingEvent.LauncherTimings.JOB_SUCCEEDED;
+      case KILLED:
+        return TimingEvent.LauncherTimings.JOB_CANCEL;
+      case FAILED:
+      case UNDEFINED:
+      default:
+        return TimingEvent.LauncherTimings.JOB_FAILED;
+    }
+  }
+
+  /** @return the YARN {@link ApplicationId} of the launched application, if it has been submitted. */
+  protected Optional<ApplicationId> getApplicationId() {
+    return this.applicationId;
+  }
+
+  /** @return the configured application name. */
+  protected String getApplicationName() {
+    return this.applicationName;
+  }
+
+  /** @return the launcher {@link Config} (carries flow/job identifiers populated by the GGW/Azkaban submitter). */
+  protected Config getConfig() {
+    return this.config;
+  }
+
   @Subscribe
   public void handleGetApplicationReportFailureEvent(
       GetApplicationReportFailureEvent getApplicationReportFailureEvent) {
@@ -518,6 +601,8 @@ public class GobblinYarnAppLauncher {
       LOGGER.warn(String
           .format("Number of consecutive failures to get the ApplicationReport %d exceeds the threshold %d",
               numConsecutiveFailures, this.maxGetApplicationReportFailures));
+
+      handleLostAmVisibility();
 
       try {
         stop();
@@ -531,6 +616,40 @@ public class GobblinYarnAppLauncher {
         }
       }
     }
+  }
+
+  /**
+   * Called when the launcher has given up polling the AM (consecutive ApplicationReport fetch failures
+   * exceeded the threshold). Flip the exit code, then dispatch to the overridable {@link #onLostAmVisibility} hook.
+   */
+  @VisibleForTesting
+  void handleLostAmVisibility() {
+    if (!this.terminalHandled.compareAndSet(false, true)) {
+      return;
+    }
+    this.exitCode = 1;
+    onLostAmVisibility();
+  }
+
+  /** Hook: launcher lost visibility of the AM (report-fetch failures exceeded the threshold). See {@link #onTerminalApplicationStatus}. */
+  protected void onLostAmVisibility() {
+  }
+
+  /**
+   * Called when the application is never successfully launched (submission/allocation failure, or the app never
+   * reaches RUNNING). Flip the exit code, then dispatch to the overridable {@link #onApplicationLaunchFailure} hook.
+   */
+  @VisibleForTesting
+  void handleApplicationLaunchFailure(Throwable cause) {
+    if (!this.terminalHandled.compareAndSet(false, true)) {
+      return;
+    }
+    this.exitCode = 1;
+    onApplicationLaunchFailure(cause);
+  }
+
+  /** Hook: the AM was never launched. See {@link #onTerminalApplicationStatus}. */
+  protected void onApplicationLaunchFailure(Throwable cause) {
   }
 
   @VisibleForTesting
@@ -970,6 +1089,14 @@ public class GobblinYarnAppLauncher {
       }
       sendGracefulShutdownSignal(amContainerId.get());
       pollForApplicationCompletionUntil(timeoutMs);
+      // Always kill so the RM cannot re-attempt the AM (no-op if the app already finished). If the terminal
+      // outcome wasn't already dispatched by the report-monitor path, this is a cancel/forced shutdown ->
+      // surface it as KILLED (the subclass emits JOB_CANCEL). The token, not a racy report read, is the gate.
+      this.yarnClient.killApplication(this.applicationId.get());
+      if (this.terminalHandled.compareAndSet(false, true)) {
+        this.exitCode = 1;
+        onTerminalApplicationStatus(null, FinalApplicationStatus.KILLED);
+      }
     } catch (YarnException | IOException e) {
       LOGGER.warn("Could not signal AM for graceful shutdown; proceeding with stop", e);
     } catch (InterruptedException e) {
@@ -1180,6 +1307,19 @@ public class GobblinYarnAppLauncher {
       }
     });
 
-    gobblinYarnAppLauncher.launch();
+    try {
+      gobblinYarnAppLauncher.launch();
+    } catch (Exception e) {
+      // launch() already invoked handleApplicationLaunchFailure (sets exitCode=1, emits terminal GTE) before
+      // rethrowing. Swallow here so we reach the explicit System.exit below with the non-zero code.
+      LOGGER.error("GobblinYarnAppLauncher launch failed", e);
+    }
+
+    // Surface AM-level failures (FAILED/KILLED/UNDEFINED FinalApplicationStatus, lost-AM-visibility on
+    // exhausted report fetches, or a never-launched application) as a non-zero launcher process exit so
+    // GGW/Grid Gateway dashboards see them end-to-end. SUCCEEDED keeps exitCode at the field's default of 0.
+    int finalExitCode = gobblinYarnAppLauncher.getExitCode();
+    LOGGER.info("GobblinYarnAppLauncher exiting with code {}", finalExitCode);
+    System.exit(finalExitCode);
   }
 }

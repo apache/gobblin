@@ -24,6 +24,7 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
+import com.google.common.annotations.VisibleForTesting;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
@@ -38,6 +39,7 @@ import io.temporal.workflow.Workflow;
 
 import org.apache.hadoop.fs.FileSystem;
 import org.apache.hadoop.fs.Path;
+import org.apache.hadoop.yarn.api.records.FinalApplicationStatus;
 import org.slf4j.Logger;
 
 import org.apache.gobblin.annotation.Alpha;
@@ -81,6 +83,14 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
   protected String namespace;
   protected String workflowId;
 
+  // In temporal-on-yarn each AM JVM launches exactly one workflow (see {@link #handleLaunchFinalization}),
+  // so a static field is the single source of terminal status for the AM. Populated by
+  // {@link #handleLaunchFinalization} -> {@link #captureTerminalWorkflowStatus} (normal completion, while
+  // Temporal stubs are still open). Read by {@code GobblinTemporalApplicationMaster.main()} after
+  // {@code start()} returns to drive {@code System.exit}, and by the temporal {@code YarnService} to derive
+  // the {@link FinalApplicationStatus} reported to YARN on un-register.
+  private static volatile WorkflowExecutionStatus lastTerminalStatus = null;
+
   public GobblinTemporalJobLauncher(Properties jobProps, Path appWorkDir,
                                     List<? extends Tag<?>> metadataTags, ConcurrentHashMap<String, Boolean> runningMap, EventBus eventBus)
           throws Exception {
@@ -97,7 +107,62 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
 
     // non-null value indicates job has been submitted
     this.workflowId = null;
+    // Reset the process-wide terminal-status cache for this fresh launcher. In a real AM JVM only one
+    // launcher ever runs, but tests re-instantiate within the same JVM and must not see leaked status.
+    lastTerminalStatus = null;
     startCancellationExecutor();
+  }
+
+  /**
+   * Query Temporal for the current execution status of {@link #workflowId}. Returns
+   * {@code WORKFLOW_EXECUTION_STATUS_UNSPECIFIED} as a safe fallback if the describe call fails, so callers
+   * downstream emit a JOB_FAILED rather than swallowing the GTE entirely.
+   */
+  private WorkflowExecutionStatus fetchWorkflowStatus() {
+    try {
+      WorkflowStub workflowStub = this.client.newUntypedWorkflowStub(this.workflowId);
+      DescribeWorkflowExecutionRequest request = DescribeWorkflowExecutionRequest.newBuilder()
+          .setNamespace(this.namespace)
+          .setExecution(workflowStub.getExecution())
+          .build();
+      DescribeWorkflowExecutionResponse response = managedWorkflowServiceStubs.getWorkflowServiceStubs()
+          .blockingStub().describeWorkflowExecution(request);
+      return response.getWorkflowExecutionInfo().getStatus();
+    } catch (Exception e) {
+      log.warn("Failed to describe workflow {} for completion GTE; treating as UNSPECIFIED (will emit JOB_FAILED)",
+          this.workflowId, e);
+      return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED;
+    }
+  }
+
+  /**
+   * Map a Temporal {@link WorkflowExecutionStatus} to the YARN {@link FinalApplicationStatus} the AM should
+   * report when it un-registers, so a launcher polling the {@code ApplicationReport} sees the true outcome
+   * instead of an unconditional SUCCEEDED. Kept in lockstep with {@link #computeExitCode}: COMPLETED -> SUCCEEDED,
+   * CANCELED -> KILLED, everything else -> FAILED. A {@code null} status means the AM is going down without ever
+   * having observed the workflow reach a terminal state (e.g. RM preemption / AMRM error mid-run, or a crash
+   * before the job finished), so the job did NOT complete successfully -> FAILED.
+   */
+  @VisibleForTesting
+  public static FinalApplicationStatus mapWorkflowStatusToFinalAppStatus(WorkflowExecutionStatus status) {
+    if (status == null) {
+      return FinalApplicationStatus.FAILED;
+    }
+    switch (status) {
+      case WORKFLOW_EXECUTION_STATUS_COMPLETED:
+        return FinalApplicationStatus.SUCCEEDED;
+      case WORKFLOW_EXECUTION_STATUS_CANCELED:
+        return FinalApplicationStatus.KILLED;
+      case WORKFLOW_EXECUTION_STATUS_FAILED:
+      case WORKFLOW_EXECUTION_STATUS_TERMINATED:
+      case WORKFLOW_EXECUTION_STATUS_TIMED_OUT:
+      case WORKFLOW_EXECUTION_STATUS_RUNNING:
+      case WORKFLOW_EXECUTION_STATUS_CONTINUED_AS_NEW:
+      case WORKFLOW_EXECUTION_STATUS_UNSPECIFIED:
+      case UNRECOGNIZED:
+      default:
+        return FinalApplicationStatus.FAILED;
+    }
   }
 
   /** @return {@link Config} now featuring all overrides rooted at {@link GobblinTemporalConfigurationKeys#GOBBLIN_TEMPORAL_JOB_LAUNCHER_CONFIG_OVERRIDES} */
@@ -114,8 +179,41 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     // for achieving batch job behavior. Given the current constraints of yarn applications requiring a static proxy user
     // during application creation, it is not possible to have multiple workflows running in the same application.
     // and so it makes sense to just kill the job after this is completed
+    // Capture the terminal workflow status now, while Temporal service stubs are guaranteed open. AM main()
+    // reads this cache to set the JVM exit code, and the temporal YarnService reads it to derive the
+    // FinalApplicationStatus reported to YARN on un-register.
+    captureTerminalWorkflowStatus();
     log.info("Requesting the AM to shutdown after the job {} completed", this.jobContext.getJobId());
     eventBus.post(new ClusterManagerShutdownRequest());
+  }
+
+  @VisibleForTesting
+  void captureTerminalWorkflowStatus() {
+    if (this.workflowId == null) {
+      return;
+    }
+    WorkflowExecutionStatus status = fetchWorkflowStatus();
+    lastTerminalStatus = status;
+    log.info("Captured terminal workflow status {} for workflow {}", status, this.workflowId);
+  }
+
+  /**
+   * @return the most recently captured terminal {@link WorkflowExecutionStatus} for the AM's single workflow,
+   * or {@code null} if {@link #handleLaunchFinalization} never ran (e.g., AM crashed before any job was
+   * submitted, or before the workflow reached a terminal state).
+   */
+  public static WorkflowExecutionStatus getLastTerminalStatus() {
+    return lastTerminalStatus;
+  }
+
+  /**
+   * Convert a {@link WorkflowExecutionStatus} into a process exit code: {@code 0} for a clean
+   * {@code COMPLETED} workflow, {@code 1} for anything else (failed, cancelled, terminated, timed out,
+   * still running at shutdown, unspecified/unknown, or {@code null} = no terminal status captured). Used by
+   * {@code GobblinTemporalApplicationMaster.main()} to surface job-level failures as non-zero AM JVM exit codes.
+   */
+  public static int computeExitCode(WorkflowExecutionStatus status) {
+    return status == WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_COMPLETED ? 0 : 1;
   }
 
   /**

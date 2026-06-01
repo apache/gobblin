@@ -50,6 +50,11 @@ public interface GobblinTemporalConfigurationKeys {
 
   String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX = GOBBLIN_TEMPORAL_JOB_LAUNCHER_PREFIX + "arg.";
   String GOBBLIN_TEMPORAL_JOB_LAUNCHER_CONFIG_OVERRIDES = GOBBLIN_TEMPORAL_JOB_LAUNCHER_PREFIX + "config.overrides";
+
+  // When true (default), the AM emits its own terminal job-completion GTEs (JOB_SUCCEEDED/JOB_FAILED).
+  // Set false when a GGW/Azkaban-pod launcher subclass is the single terminal-GTE source, to avoid duplicates.
+  String GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED = PREFIX + "job.completion.gte.emission.enabled";
+  boolean DEFAULT_GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED = true;
   String GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED = PREFIX + "work.dir.cleanup.enabled";
   String DEFAULT_GOBBLIN_TEMPORAL_WORK_DIR_CLEANUP_ENABLED = "true";
   String WORK_DIR_PATHS_TO_DELETE = PREFIX + "work.dir.paths.to.delete";
