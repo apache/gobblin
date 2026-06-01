@@ -549,6 +549,7 @@ public class GobblinYarnAppLauncher {
     if (finalStatus != FinalApplicationStatus.SUCCEEDED) {
       this.exitCode = 1;
     }
+    LOGGER.info("Application reached terminal FinalApplicationStatus {}; launcher exitCode={}", finalStatus, this.exitCode);
     onTerminalApplicationStatus(applicationReport, finalStatus);
   }
 
@@ -1092,6 +1093,7 @@ public class GobblinYarnAppLauncher {
       // Always kill so the RM cannot re-attempt the AM (no-op if the app already finished). If the terminal
       // outcome wasn't already dispatched by the report-monitor path, this is a cancel/forced shutdown ->
       // surface it as KILLED (the subclass emits JOB_CANCEL). The token, not a racy report read, is the gate.
+      LOGGER.info("Graceful-shutdown wait complete; force-killing application {} to prevent AM re-attempt", this.applicationId.get());
       this.yarnClient.killApplication(this.applicationId.get());
       if (this.terminalHandled.compareAndSet(false, true)) {
         this.exitCode = 1;

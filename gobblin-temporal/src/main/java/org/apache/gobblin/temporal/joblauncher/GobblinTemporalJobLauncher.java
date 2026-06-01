@@ -194,7 +194,8 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     }
     WorkflowExecutionStatus status = fetchWorkflowStatus();
     lastTerminalStatus = status;
-    log.info("Captured terminal workflow status {} for workflow {}", status, this.workflowId);
+    log.info("Captured terminal workflow status {} for workflow {} (drives FinalApplicationStatus and AM exit code)",
+        status, this.workflowId);
   }
 
   /**
