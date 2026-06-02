@@ -152,8 +152,8 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
       }
       // JOB_SUCCEEDED terminal GTE. Gated by GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED (default true)
       // so deployments that designate the GGW/Azkaban pod launcher as the single terminal-GTE source can
-      // suppress this AM-side emission and avoid duplicates.
-      if (isAmTerminalGteEmissionEnabled(temporalJobProps)) {
+      // suppress this Temporal-worker emission and avoid duplicates.
+      if (isWorkflowTerminalGteEmissionEnabled(temporalJobProps)) {
         jobSuccessTimer.stop(); // update GaaS: `ExecutionStatus.COMPLETE`; `TimingEvent.JOB_END_TIME`
       }
       isSuccessful = true;
@@ -161,7 +161,7 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
           jobProps.getProperty(Help.USER_TO_PROXY_KEY));
     } catch (Exception e) {
       // JOB_FAILED terminal GTE, gated by the same flag as the success path above.
-      if (isAmTerminalGteEmissionEnabled(temporalJobProps)) {
+      if (isWorkflowTerminalGteEmissionEnabled(temporalJobProps)) {
         timerFactory.create(TimingEvent.LauncherTimings.JOB_FAILED).submit(); // update GaaS: `ExecutionStatus.FAILED`; `TimingEvent.JOB_END_TIME`
       }
       throw ApplicationFailure.newNonRetryableFailureWithCause(
@@ -189,11 +189,12 @@ public class ExecuteGobblinWorkflowImpl implements ExecuteGobblinWorkflow {
   }
 
   /**
-   * @return whether the AM should emit its own terminal job-completion GTEs (JOB_SUCCEEDED / JOB_FAILED).
+   * @return whether this Temporal workflow (which executes on a Temporal worker, not the YARN ApplicationMaster)
+   * should emit its own terminal job-completion GTEs (JOB_SUCCEEDED / JOB_FAILED).
    * Controlled by {@link GobblinTemporalConfigurationKeys#GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED}
    * (default {@code true}); set {@code false} when the GGW/Azkaban pod launcher is the single terminal-GTE source.
    */
-  private static boolean isAmTerminalGteEmissionEnabled(Properties temporalJobProps) {
+  private static boolean isWorkflowTerminalGteEmissionEnabled(Properties temporalJobProps) {
     return PropertiesUtils.getPropAsBoolean(temporalJobProps,
         GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED,
         String.valueOf(GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED));

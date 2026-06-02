@@ -51,7 +51,8 @@ public interface GobblinTemporalConfigurationKeys {
   String GOBBLIN_TEMPORAL_JOB_LAUNCHER_ARG_PREFIX = GOBBLIN_TEMPORAL_JOB_LAUNCHER_PREFIX + "arg.";
   String GOBBLIN_TEMPORAL_JOB_LAUNCHER_CONFIG_OVERRIDES = GOBBLIN_TEMPORAL_JOB_LAUNCHER_PREFIX + "config.overrides";
 
-  // When true (default), the AM emits its own terminal job-completion GTEs (JOB_SUCCEEDED/JOB_FAILED).
+  // When true (default), the Temporal workflow (which runs on a Temporal worker, not the YARN AM) emits its own
+  // terminal job-completion GTEs (JOB_SUCCEEDED/JOB_FAILED).
   // Set false when a GGW/Azkaban-pod launcher subclass is the single terminal-GTE source, to avoid duplicates.
   String GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED = PREFIX + "job.completion.gte.emission.enabled";
   boolean DEFAULT_GOBBLIN_TEMPORAL_JOB_COMPLETION_GTE_EMISSION_ENABLED = true;

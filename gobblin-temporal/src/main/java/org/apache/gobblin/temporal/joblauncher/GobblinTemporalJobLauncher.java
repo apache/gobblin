@@ -109,7 +109,7 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
     this.workflowId = null;
     // Reset the process-wide terminal-status cache for this fresh launcher. In a real AM JVM only one
     // launcher ever runs, but tests re-instantiate within the same JVM and must not see leaked status.
-    lastTerminalStatus = null;
+    setLastTerminalStatus(null);
     startCancellationExecutor();
   }
 
@@ -193,7 +193,7 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
       return;
     }
     WorkflowExecutionStatus status = fetchWorkflowStatus();
-    lastTerminalStatus = status;
+    setLastTerminalStatus(status);
     log.info("Captured terminal workflow status {} for workflow {} (drives FinalApplicationStatus and AM exit code)",
         status, this.workflowId);
   }
@@ -205,6 +205,13 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
    */
   public static WorkflowExecutionStatus getLastTerminalStatus() {
     return lastTerminalStatus;
+  }
+
+  // Static mutator so the process-wide cache is written from a static context (the launcher-instance lifecycle
+  // delegates here): avoids FindBugs ST_WRITE_TO_STATIC_FROM_INSTANCE_METHOD while preserving the single-source
+  // bridge from the launcher instance to GobblinTemporalApplicationMaster.main() / the temporal YarnService.
+  private static void setLastTerminalStatus(WorkflowExecutionStatus status) {
+    lastTerminalStatus = status;
   }
 
   /**
