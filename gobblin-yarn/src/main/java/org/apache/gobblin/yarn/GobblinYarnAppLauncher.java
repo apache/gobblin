@@ -557,6 +557,12 @@ public class GobblinYarnAppLauncher {
    * Terminal-outcome hooks. No-op in OSS (the OSS launcher emits no GTE); a subclass (e.g. the GGW/Azkaban-pod
    * launcher) overrides these to emit the single terminal GTE. {@code finalStatus} maps via
    * {@link #mapFinalAppStatusToEventName}.
+   *
+   * @param applicationReport the terminal {@link ApplicationReport}, or {@code null} when no report is available
+   *                          — the forced-kill / cancel path in {@link #signalGracefulShutdownAndWaitForTerminal()}
+   *                          dispatches {@code KILLED} without one. Overriding subclasses must not assume it is
+   *                          non-null (guard before dereferencing, e.g. when enriching the emitted event).
+   * @param finalStatus the terminal {@link FinalApplicationStatus} driving the event name (never {@code null})
    */
   protected void onTerminalApplicationStatus(ApplicationReport applicationReport, FinalApplicationStatus finalStatus) {
   }
@@ -1090,8 +1096,22 @@ public class GobblinYarnAppLauncher {
       }
       sendGracefulShutdownSignal(amContainerId.get());
       pollForApplicationCompletionUntil(timeoutMs);
+      // If the app reached a terminal state on its own during the poll (e.g. SUCCEEDED/FAILED) but the
+      // report-monitor path hasn't dispatched it yet, surface the *real* outcome rather than an unconditional
+      // KILLED. Re-fetch the report once and, if it's already terminal, dispatch that status; handleTerminalAppStatus
+      // claims the same one-shot token, so this is a no-op if the monitor path won the race.
+      try {
+        ApplicationReport finalReport = this.yarnClient.getApplicationReport(this.applicationId.get());
+        if (isApplicationCompleted(finalReport)) {
+          LOGGER.info("Application {} already terminal ({}) at graceful-shutdown; dispatching real status instead of KILLED",
+              this.applicationId.get(), finalReport.getFinalApplicationStatus());
+          handleTerminalAppStatus(finalReport);
+        }
+      } catch (YarnException | IOException e) {
+        LOGGER.warn("Could not re-fetch ApplicationReport before force-kill; will fall back to KILLED if unhandled", e);
+      }
       // Always kill so the RM cannot re-attempt the AM (no-op if the app already finished). If the terminal
-      // outcome wasn't already dispatched by the report-monitor path, this is a cancel/forced shutdown ->
+      // outcome still wasn't dispatched above or by the report-monitor path, this is a cancel/forced shutdown ->
       // surface it as KILLED (the subclass emits JOB_CANCEL). The token, not a racy report read, is the gate.
       LOGGER.info("Graceful-shutdown wait complete; force-killing application {} to prevent AM re-attempt", this.applicationId.get());
       this.yarnClient.killApplication(this.applicationId.get());

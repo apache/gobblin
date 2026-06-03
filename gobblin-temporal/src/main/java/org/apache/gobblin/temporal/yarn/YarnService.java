@@ -260,17 +260,21 @@ class YarnService extends AbstractIdleService {
         this.nmClientAsync.stopContainerAsync(containerInfo.getContainer().getId(), containerInfo.getContainer().getNodeId());
       }
 
-      if (!this.containerMap.isEmpty()) {
-        synchronized (this.allContainersStopped) {
-          try {
-            // Bounded fallback only: a missed notify must not stall the AM un-register. The normal path
-            // is woken immediately by notifyIfAllContainersStopped() as soon as the last container stops.
-            Duration waitTimeout = Duration.ofMinutes(2);
-            this.allContainersStopped.wait(waitTimeout.toMillis());
-            LOGGER.info("Finished waiting for containers to stop ({} still tracked)", this.containerMap.size());
-          } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
+      synchronized (this.allContainersStopped) {
+        try {
+          // Bounded fallback only: a missed notify must not stall the AM un-register. The normal path
+          // is woken immediately by notifyIfAllContainersStopped() as soon as the last container stops.
+          // Re-check emptiness *inside* the monitor and loop on the condition: if the last container was
+          // removed (and notifyIfAllContainersStopped() fired) between entering shutDown() and acquiring
+          // this monitor, an already-empty map must not wait, and a spurious wake-up must not exit early.
+          long deadlineMs = System.currentTimeMillis() + Duration.ofMinutes(2).toMillis();
+          long remainingMs;
+          while (!this.containerMap.isEmpty() && (remainingMs = deadlineMs - System.currentTimeMillis()) > 0) {
+            this.allContainersStopped.wait(remainingMs);
           }
+          LOGGER.info("Finished waiting for containers to stop ({} still tracked)", this.containerMap.size());
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
         }
       }
 
@@ -295,7 +299,10 @@ class YarnService extends AbstractIdleService {
    * workflow outcome (see {@link GobblinTemporalJobLauncher#getLastTerminalStatus()}). Reporting the true status
    * — rather than an unconditional SUCCEEDED — lets a launcher polling the {@code ApplicationReport} observe job
    * failures/cancellations end-to-end, and keeps the YARN status consistent with the AM JVM exit code. A
-   * {@code null} captured status (no workflow ran) maps to SUCCEEDED. Overridable for tests.
+   * {@code null} captured status (no workflow ever reached a terminal state, e.g. the AM is going down before
+   * the job finished) maps to FAILED, matching
+   * {@link GobblinTemporalJobLauncher#mapWorkflowStatusToFinalAppStatus(io.temporal.api.enums.v1.WorkflowExecutionStatus)}.
+   * Overridable for tests.
    */
   protected FinalApplicationStatus getFinalApplicationStatusForUnregister() {
     io.temporal.api.enums.v1.WorkflowExecutionStatus captured = GobblinTemporalJobLauncher.getLastTerminalStatus();
