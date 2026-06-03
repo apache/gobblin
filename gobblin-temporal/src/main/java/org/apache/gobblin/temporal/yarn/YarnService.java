@@ -104,6 +104,7 @@ import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 import org.apache.gobblin.yarn.GobblinYarnEventConstants;
 import org.apache.gobblin.yarn.GobblinYarnMetricTagNames;
 import org.apache.gobblin.yarn.YarnHelixUtils;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.dynamic.WorkerProfile;
 import org.apache.gobblin.temporal.dynamic.WorkforceProfiles;
 import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
@@ -267,7 +268,10 @@ class YarnService extends AbstractIdleService {
           // Re-check emptiness *inside* the monitor and loop on the condition: if the last container was
           // removed (and notifyIfAllContainersStopped() fired) between entering shutDown() and acquiring
           // this monitor, an already-empty map must not wait, and a spurious wake-up must not exit early.
-          long deadlineMs = System.currentTimeMillis() + Duration.ofMinutes(2).toMillis();
+          int waitTimeoutMinutes = ConfigUtils.getInt(this.config,
+              GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINERS_STOP_WAIT_TIMEOUT_MINUTES,
+              GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_CONTAINERS_STOP_WAIT_TIMEOUT_MINUTES);
+          long deadlineMs = System.currentTimeMillis() + Duration.ofMinutes(waitTimeoutMinutes).toMillis();
           long remainingMs;
           while (!this.containerMap.isEmpty() && (remainingMs = deadlineMs - System.currentTimeMillis()) > 0) {
             this.allContainersStopped.wait(remainingMs);

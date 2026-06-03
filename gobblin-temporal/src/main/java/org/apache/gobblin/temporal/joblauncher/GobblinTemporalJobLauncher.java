@@ -20,19 +20,15 @@ package org.apache.gobblin.temporal.joblauncher;
 import java.io.IOException;
 import java.util.List;
 import java.util.Properties;
-import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 
 import com.google.common.annotations.VisibleForTesting;
-import com.google.common.collect.ImmutableSet;
 import com.google.common.eventbus.EventBus;
 import com.typesafe.config.Config;
 import com.typesafe.config.ConfigFactory;
 
-import io.grpc.Status;
-import io.grpc.StatusRuntimeException;
 import io.temporal.api.enums.v1.WorkflowExecutionStatus;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionRequest;
 import io.temporal.api.workflowservice.v1.DescribeWorkflowExecutionResponse;
@@ -81,14 +77,6 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
   private static final Logger log = Workflow.getLogger(GobblinTemporalJobLauncher.class);
   private static final int TERMINATION_TIMEOUT_SECONDS = 3;
 
-  // Transient gRPC failures where the workflow's true terminal status is simply unknowable *right now* (Temporal
-  // momentarily unreachable / throttled / a slow describe) rather than evidence the job failed. These are retried
-  // a bounded number of times before falling back, so a blip is not mis-reported as a terminal JOB_FAILED GTE.
-  private static final Set<Status.Code> RETRYABLE_DESCRIBE_STATUS_CODES = ImmutableSet.of(
-      Status.Code.UNAVAILABLE, Status.Code.DEADLINE_EXCEEDED, Status.Code.RESOURCE_EXHAUSTED);
-  private static final int DESCRIBE_WORKFLOW_MAX_ATTEMPTS = 3;
-  private static final long DESCRIBE_WORKFLOW_RETRY_BASE_BACKOFF_MILLIS = 2000L;
-
   protected ManagedWorkflowServiceStubs managedWorkflowServiceStubs;
   protected WorkflowClient client;
   protected String queueName;
@@ -127,48 +115,28 @@ public abstract class GobblinTemporalJobLauncher extends GobblinJobLauncher {
 
   /**
    * Query Temporal for the current execution status of {@link #workflowId}. Transient gRPC failures
-   * ({@link #RETRYABLE_DESCRIBE_STATUS_CODES}: UNAVAILABLE / DEADLINE_EXCEEDED / RESOURCE_EXHAUSTED) are retried
-   * with linear backoff up to {@link #DESCRIBE_WORKFLOW_MAX_ATTEMPTS}, so a momentary Temporal outage does not get
-   * mis-reported as a job failure. Returns {@code WORKFLOW_EXECUTION_STATUS_UNSPECIFIED} as a safe fallback only
-   * after retries are exhausted (or on a non-retryable error), so callers downstream emit a JOB_FAILED rather
-   * than swallowing the GTE entirely.
+   * (e.g. UNAVAILABLE / DEADLINE_EXCEEDED / RESOURCE_EXHAUSTED) are already retried with backoff by the Temporal
+   * service stubs' configured {@code RpcRetryOptions} (tunable via {@code gobblin.temporal.rpc.retry.options.*};
+   * see {@code TemporalWorkflowClientFactory}), so this method intentionally adds no retry loop of its own.
+   * Returns {@code WORKFLOW_EXECUTION_STATUS_UNSPECIFIED} as a safe fallback only if the describe still fails
+   * (i.e. Temporal stayed unreachable beyond those configured retries), so callers downstream emit a JOB_FAILED
+   * rather than swallowing the GTE entirely.
    */
   private WorkflowExecutionStatus fetchWorkflowStatus() {
-    for (int attempt = 1; attempt <= DESCRIBE_WORKFLOW_MAX_ATTEMPTS; attempt++) {
-      try {
-        WorkflowStub workflowStub = this.client.newUntypedWorkflowStub(this.workflowId);
-        DescribeWorkflowExecutionRequest request = DescribeWorkflowExecutionRequest.newBuilder()
-            .setNamespace(this.namespace)
-            .setExecution(workflowStub.getExecution())
-            .build();
-        DescribeWorkflowExecutionResponse response = managedWorkflowServiceStubs.getWorkflowServiceStubs()
-            .blockingStub().describeWorkflowExecution(request);
-        return response.getWorkflowExecutionInfo().getStatus();
-      } catch (StatusRuntimeException e) {
-        Status.Code code = e.getStatus().getCode();
-        boolean retryable = RETRYABLE_DESCRIBE_STATUS_CODES.contains(code) && attempt < DESCRIBE_WORKFLOW_MAX_ATTEMPTS;
-        if (!retryable) {
-          log.warn("Failed to describe workflow {} for completion GTE (gRPC {}, attempt {}/{}); treating as "
-                  + "UNSPECIFIED (will emit JOB_FAILED)", this.workflowId, code, attempt, DESCRIBE_WORKFLOW_MAX_ATTEMPTS, e);
-          return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED;
-        }
-        log.warn("Transient gRPC {} describing workflow {} for completion GTE (attempt {}/{}); retrying",
-            code, this.workflowId, attempt, DESCRIBE_WORKFLOW_MAX_ATTEMPTS, e);
-        try {
-          Thread.sleep(DESCRIBE_WORKFLOW_RETRY_BASE_BACKOFF_MILLIS * attempt);
-        } catch (InterruptedException ie) {
-          Thread.currentThread().interrupt();
-          log.warn("Interrupted while backing off to re-describe workflow {}; treating as UNSPECIFIED", this.workflowId);
-          return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED;
-        }
-      } catch (Exception e) {
-        log.warn("Failed to describe workflow {} for completion GTE; treating as UNSPECIFIED (will emit JOB_FAILED)",
-            this.workflowId, e);
-        return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED;
-      }
+    try {
+      WorkflowStub workflowStub = this.client.newUntypedWorkflowStub(this.workflowId);
+      DescribeWorkflowExecutionRequest request = DescribeWorkflowExecutionRequest.newBuilder()
+          .setNamespace(this.namespace)
+          .setExecution(workflowStub.getExecution())
+          .build();
+      DescribeWorkflowExecutionResponse response = managedWorkflowServiceStubs.getWorkflowServiceStubs()
+          .blockingStub().describeWorkflowExecution(request);
+      return response.getWorkflowExecutionInfo().getStatus();
+    } catch (Exception e) {
+      log.warn("Failed to describe workflow {} for completion GTE even after the service stubs' configured RPC "
+          + "retries; treating as UNSPECIFIED (will emit JOB_FAILED)", this.workflowId, e);
+      return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED;
     }
-    // Retries exhausted on transient errors: status genuinely unknown -> fall back so a terminal GTE is still emitted.
-    return WorkflowExecutionStatus.WORKFLOW_EXECUTION_STATUS_UNSPECIFIED;
   }
 
   /**
