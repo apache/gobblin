@@ -94,6 +94,7 @@ import org.apache.gobblin.yarn.helix.HelixMessageSubTypes;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.times;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
@@ -568,9 +569,13 @@ public class GobblinYarnAppLauncherTest implements HelixMessageTestBase {
     launcher.signalGracefulShutdownAndWaitForTerminal();
 
     verify(mockYarnClient, times(1)).signalToContainer(eq(containerId), eq(SignalContainerCommand.GRACEFUL_SHUTDOWN));
-    // getApplicationReport: once in getAmContainerId(), once in pollForApplicationCompletionUntil() when checking terminal state
-    verify(mockYarnClient, times(2)).getApplicationReport(appId);
+    // getApplicationReport: once in getAmContainerId(), once in pollForApplicationCompletionUntil() when checking
+    // terminal state, and once in the post-poll re-fetch that decides between surfacing the real terminal status
+    // versus force-killing
+    verify(mockYarnClient, times(3)).getApplicationReport(appId);
     verify(mockYarnClient, times(1)).getApplicationAttemptReport(attemptId);
+    // app is already terminal (FINISHED) after the poll, so the launcher surfaces the real status and skips the kill
+    verify(mockYarnClient, never()).killApplication(appId);
   }
 
   @Test
