@@ -17,7 +17,7 @@
 package org.apache.gobblin.converter.avro;
 
 import org.apache.avro.generic.GenericRecord;
-import org.codehaus.jackson.JsonNode;
+import org.fasterxml.jackson.JsonNode;
 import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
