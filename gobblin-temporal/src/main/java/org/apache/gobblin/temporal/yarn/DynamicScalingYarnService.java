@@ -111,6 +111,8 @@ public class DynamicScalingYarnService extends YarnService {
       log.warn("Container {} not found in containerMap. This container onContainersCompleted() likely called before onContainersAllocated()",
           completedContainerId);
       this.removedContainerIds.add(completedContainerId);
+      // Still wake shutDown()'s waiter in case this completion was the last tracked container during shutdown.
+      notifyIfAllContainersStopped();
       return;
     }
 
@@ -124,6 +126,9 @@ public class DynamicScalingYarnService extends YarnService {
 
     if (this.shutdownInProgress) {
       log.info("Ignoring container completion for container {} as shutdown is in progress", completedContainerId);
+      // The base handler skips replacement during shutdown; we still must wake the shutDown() waiter
+      // so the AM un-registers promptly instead of blocking the full container-stop wait timeout.
+      notifyIfAllContainersStopped();
       return;
     }
 

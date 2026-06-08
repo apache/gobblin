@@ -104,8 +104,10 @@ import org.apache.gobblin.yarn.GobblinYarnConfigurationKeys;
 import org.apache.gobblin.yarn.GobblinYarnEventConstants;
 import org.apache.gobblin.yarn.GobblinYarnMetricTagNames;
 import org.apache.gobblin.yarn.YarnHelixUtils;
+import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.temporal.dynamic.WorkerProfile;
 import org.apache.gobblin.temporal.dynamic.WorkforceProfiles;
+import org.apache.gobblin.temporal.joblauncher.GobblinTemporalJobLauncher;
 
 /**
  * This class is responsible for all Yarn-related stuffs including ApplicationMaster registration,
@@ -259,20 +261,30 @@ class YarnService extends AbstractIdleService {
         this.nmClientAsync.stopContainerAsync(containerInfo.getContainer().getId(), containerInfo.getContainer().getNodeId());
       }
 
-      if (!this.containerMap.isEmpty()) {
-        synchronized (this.allContainersStopped) {
-          try {
-            // Wait 5 minutes for the containers to stop
-            Duration waitTimeout = Duration.ofMinutes(5);
-            this.allContainersStopped.wait(waitTimeout.toMillis());
-            LOGGER.info("All of the containers have been stopped");
-          } catch (InterruptedException ie) {
-            Thread.currentThread().interrupt();
+      synchronized (this.allContainersStopped) {
+        try {
+          // Bounded fallback only: a missed notify must not stall the AM un-register. The normal path
+          // is woken immediately by notifyIfAllContainersStopped() as soon as the last container stops.
+          // Re-check emptiness *inside* the monitor and loop on the condition: if the last container was
+          // removed (and notifyIfAllContainersStopped() fired) between entering shutDown() and acquiring
+          // this monitor, an already-empty map must not wait, and a spurious wake-up must not exit early.
+          int waitTimeoutMinutes = ConfigUtils.getInt(this.config,
+              GobblinTemporalConfigurationKeys.GOBBLIN_TEMPORAL_CONTAINERS_STOP_WAIT_TIMEOUT_MINUTES,
+              GobblinTemporalConfigurationKeys.DEFAULT_GOBBLIN_TEMPORAL_CONTAINERS_STOP_WAIT_TIMEOUT_MINUTES);
+          long deadlineMs = System.currentTimeMillis() + Duration.ofMinutes(waitTimeoutMinutes).toMillis();
+          long remainingMs;
+          while (!this.containerMap.isEmpty() && (remainingMs = deadlineMs - System.currentTimeMillis()) > 0) {
+            this.allContainersStopped.wait(remainingMs);
           }
+          LOGGER.info("Finished waiting for containers to stop ({} still tracked)", this.containerMap.size());
+        } catch (InterruptedException ie) {
+          Thread.currentThread().interrupt();
         }
       }
 
-      this.amrmClientAsync.unregisterApplicationMaster(FinalApplicationStatus.SUCCEEDED, null, null);
+      FinalApplicationStatus finalStatus = getFinalApplicationStatusForUnregister();
+      LOGGER.info("Un-registering ApplicationMaster with FinalApplicationStatus {}", finalStatus);
+      this.amrmClientAsync.unregisterApplicationMaster(finalStatus, null, null);
     } catch (IOException | YarnException e) {
       LOGGER.error("Failed to unregister the ApplicationMaster", e);
     } finally {
@@ -284,6 +296,23 @@ class YarnService extends AbstractIdleService {
         }
       }
     }
+  }
+
+  /**
+   * Derive the {@link FinalApplicationStatus} to report to YARN on un-register from the AM's captured Temporal
+   * workflow outcome (see {@link GobblinTemporalJobLauncher#getLastTerminalStatus()}). Reporting the true status
+   * — rather than an unconditional SUCCEEDED — lets a launcher polling the {@code ApplicationReport} observe job
+   * failures/cancellations end-to-end, and keeps the YARN status consistent with the AM JVM exit code. A
+   * {@code null} captured status (no workflow ever reached a terminal state, e.g. the AM is going down before
+   * the job finished) maps to FAILED, matching
+   * {@link GobblinTemporalJobLauncher#mapWorkflowStatusToFinalAppStatus(io.temporal.api.enums.v1.WorkflowExecutionStatus)}.
+   * Overridable for tests.
+   */
+  protected FinalApplicationStatus getFinalApplicationStatusForUnregister() {
+    io.temporal.api.enums.v1.WorkflowExecutionStatus captured = GobblinTemporalJobLauncher.getLastTerminalStatus();
+    FinalApplicationStatus derived = GobblinTemporalJobLauncher.mapWorkflowStatusToFinalAppStatus(captured);
+    LOGGER.info("Derived FinalApplicationStatus {} for un-register from captured workflow status {}", derived, captured);
+    return derived;
   }
 
   public void updateToken() throws IOException{
@@ -542,6 +571,26 @@ class YarnService extends AbstractIdleService {
    */
   protected void handleContainerCompletion(ContainerStatus containerStatus) {
     this.containerMap.remove(containerStatus.getContainerId());
+    // If this completion empties the container map during shutdown, wake the shutDown() waiter
+    // immediately instead of letting it block for the full wait timeout.
+    notifyIfAllContainersStopped();
+  }
+
+  /**
+   * Wake any thread blocked in {@link #shutDown()} once the last container has been removed from
+   * {@link #containerMap}. Container teardown is observed via two asynchronous callbacks that race —
+   * AMRM {@code onContainersCompleted} (-> {@link #handleContainerCompletion}) and NM
+   * {@code onContainerStopped}. Whichever empties the map last must issue the notify; otherwise the
+   * AM un-register in {@link #shutDown()} is delayed by the full wait timeout, which in turn makes
+   * YARN observe the AM container exit before a clean {@code finishApplicationMaster} and fail the
+   * attempt despite a successful workflow.
+   */
+  protected void notifyIfAllContainersStopped() {
+    if (this.containerMap.isEmpty()) {
+      synchronized (this.allContainersStopped) {
+        this.allContainersStopped.notifyAll();
+      }
+    }
   }
 
   private ImmutableMap.Builder<String, String> buildContainerStatusEventMetadata(ContainerStatus containerStatus) {
@@ -731,11 +780,7 @@ class YarnService extends AbstractIdleService {
       }
 
       LOGGER.info(String.format("Container %s has been stopped", containerId));
-      if (containerMap.isEmpty()) {
-        synchronized (allContainersStopped) {
-          allContainersStopped.notify();
-        }
-      }
+      notifyIfAllContainersStopped();
     }
 
     @Override
