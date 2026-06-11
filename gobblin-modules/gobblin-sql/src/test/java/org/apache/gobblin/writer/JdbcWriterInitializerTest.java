@@ -144,18 +144,41 @@ public class JdbcWriterInitializerTest {
     ResultSet rs = mock(ResultSet.class);
     when(metadata.getTables(any(), anyString(), anyString(), any(String[].class))).thenReturn(rs);
     when(rs.next()).thenReturn(Boolean.FALSE);
+    when(this.commands.hasDropPrivilege(anyString())).thenReturn(Boolean.TRUE);
 
     this.initializer.initialize();
 
     Assert.assertTrue(!StringUtils.isEmpty(this.workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE)));
 
     InOrder inOrder = inOrder(this.commands);
+    // Staging table is created exactly once - the create/drop/recreate droppability probe is gone.
     inOrder.verify(this.commands, times(1)).createTableStructure(anyString(), anyString(), anyString());
-    inOrder.verify(this.commands, times(1)).drop(anyString(), anyString());
-    inOrder.verify(this.commands, times(1)).createTableStructure(anyString(), anyString(), anyString());
+    inOrder.verify(this.commands, never()).drop(anyString(), anyString());
 
     this.initializer.close();
+    // The created staging table is dropped only during cleanup.
     inOrder.verify(this.commands, times(1)).drop(anyString(), anyString());
     inOrder.verify(this.commands, never()).truncate(anyString(), anyString());
+  }
+
+  @Test(expectedExceptions = RuntimeException.class,
+        expectedExceptionsMessageRegExp = ".*lacks DROP privilege.*")
+  public void failsFastWhenNoDropPrivilege() throws SQLException {
+    when(this.commands.isEmpty(DB, STAGING_TABLE)).thenReturn(Boolean.TRUE);
+    DatabaseMetaData metadata = mock(DatabaseMetaData.class);
+    when(this.conn.getMetaData()).thenReturn(metadata);
+    ResultSet rs = mock(ResultSet.class);
+    when(metadata.getTables(any(), anyString(), anyString(), any(String[].class))).thenReturn(rs);
+    when(rs.next()).thenReturn(Boolean.FALSE);
+    when(this.commands.hasDropPrivilege(anyString())).thenReturn(Boolean.FALSE);
+
+    try {
+      this.initializer.initialize();
+    } finally {
+      // When DROP is unavailable we must bail out before creating anything, so no staging table is
+      // created and nothing is dropped - this is what prevents the orphan-table accumulation.
+      verify(this.commands, never()).createTableStructure(anyString(), anyString(), anyString());
+      verify(this.commands, never()).drop(anyString(), anyString());
+    }
   }
 }
