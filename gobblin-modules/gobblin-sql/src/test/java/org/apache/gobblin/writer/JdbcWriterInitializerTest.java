@@ -181,4 +181,25 @@ public class JdbcWriterInitializerTest {
       verify(this.commands, never()).drop(anyString(), anyString());
     }
   }
+
+  public void retriesAndCleansUpAfterFailedStagingTableCreation() throws SQLException {
+    when(this.commands.isEmpty(DB, STAGING_TABLE)).thenReturn(Boolean.TRUE);
+    when(this.commands.hasDropPrivilege(anyString())).thenReturn(Boolean.TRUE);
+    DatabaseMetaData metadata = mock(DatabaseMetaData.class);
+    when(this.conn.getMetaData()).thenReturn(metadata);
+    ResultSet rs = mock(ResultSet.class);
+    when(metadata.getTables(any(), anyString(), anyString(), any(String[].class))).thenReturn(rs);
+    when(rs.next()).thenReturn(Boolean.FALSE);
+    // First create attempt fails, second succeeds.
+    doThrow(new SQLException("boom")).doNothing()
+        .when(this.commands).createTableStructure(anyString(), anyString(), anyString());
+
+    this.initializer.initialize();
+
+    Assert.assertTrue(!StringUtils.isEmpty(this.workUnit.getProp(ConfigurationKeys.WRITER_STAGING_TABLE)));
+    // Two create attempts were made, and the failed attempt's table was dropped (cleanup) so no
+    // orphan is left behind. (close() is not called here, so the only drop is the cleanup.)
+    verify(this.commands, times(2)).createTableStructure(anyString(), anyString(), anyString());
+    verify(this.commands, times(1)).drop(anyString(), anyString());
+  }
 }
