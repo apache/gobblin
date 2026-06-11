@@ -188,16 +188,12 @@ public class JdbcWriterInitializer implements WriterInitializer {
         commands.createTableStructure(database, destinationTable, tmp);
         return tmp;
       } catch (SQLException e) {
-        // Retry on failure (as before), but never leave a partially-created table behind: do a
-        // best-effort drop of this attempt's table before the next try. DROP was verified above,
-        // so cleanup should succeed; if the table was never created, the drop is a harmless no-op.
-        LOG.warn("Failed to create staging table " + tmp + ". Cleaning up and retrying up to "
+        // Retry on failure (as before), but never leave a partially-created table behind: drop this
+        // attempt's table before the next try. drop() issues DROP TABLE IF EXISTS, so it is a no-op
+        // when the create never actually created the table.
+        LOG.warn("Failed to create staging table " + tmp + ". Dropping it and retrying up to "
             + NAMING_STAGING_TABLE_TRIAL + " times.", e);
-        try {
-          commands.drop(database, tmp);
-        } catch (SQLException dropError) {
-          LOG.warn("Best-effort cleanup of " + tmp + " failed.", dropError);
-        }
+        commands.drop(database, tmp);
       }
     }
     throw new RuntimeException("Failed to create staging table after " + NAMING_STAGING_TABLE_TRIAL

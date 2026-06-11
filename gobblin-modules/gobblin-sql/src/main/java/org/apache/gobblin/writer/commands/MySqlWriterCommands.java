@@ -44,7 +44,7 @@ public class MySqlWriterCommands implements JdbcWriterCommands {
   private static final String CREATE_TABLE_SQL_FORMAT = "CREATE TABLE %s.%s LIKE %s.%s";
   private static final String SELECT_SQL_FORMAT = "SELECT COUNT(*) FROM %s.%s";
   private static final String TRUNCATE_TABLE_FORMAT = "TRUNCATE TABLE %s.%s";
-  private static final String DROP_TABLE_SQL_FORMAT = "DROP TABLE %s.%s";
+  private static final String DROP_TABLE_SQL_FORMAT = "DROP TABLE IF EXISTS %s.%s";
   private static final String INFORMATION_SCHEMA_SELECT_SQL_PSTMT =
       "SELECT column_name, column_type FROM information_schema.columns WHERE table_schema = ? AND table_name = ?";
   private static final String COPY_INSERT_STATEMENT_FORMAT = "INSERT INTO %s.%s SELECT * FROM %s.%s";
