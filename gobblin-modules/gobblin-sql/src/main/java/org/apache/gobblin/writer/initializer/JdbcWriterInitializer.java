@@ -22,9 +22,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.util.Collection;
 import java.util.Optional;
-import java.util.Random;
 import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
@@ -79,7 +77,6 @@ public class JdbcWriterInitializer implements WriterInitializer {
   private static final Logger LOG = LoggerFactory.getLogger(JdbcWriterInitializer.class);
   private static final String STAGING_TABLE_FORMAT = "stage_%d";
   private static final int NAMING_STAGING_TABLE_TRIAL = 10;
-  private static final Random RANDOM = new Random();
 
   private final int branches;
   private final int branchId;
@@ -166,37 +163,41 @@ public class JdbcWriterInitializer implements WriterInitializer {
           + this.getClass().getSimpleName() + " for branch " + this.branchId);
     }
 
-    String stagingTable = null;
+    // Fail fast WITHOUT creating anything if the JDBC user can't drop staging tables. The staging
+    // table must be dropped at cleanup time; if we can't, the old behavior left orphaned tables
+    // behind. Previously this was checked by creating a table and dropping it as a probe, which on
+    // a no-DROP account created (but failed to drop) up to NAMING_STAGING_TABLE_TRIAL orphan tables
+    // per run. The privilege check is best-effort and fails open (see hasDropPrivilege), so it only
+    // blocks runs we can positively determine lack DROP.
+    if (!commands.hasDropPrivilege(database)) {
+      throw new RuntimeException("JDBC user lacks DROP privilege on database '" + database
+          + "', which is required to manage staging tables. Grant DROP or use an account that has it.");
+    }
+
     for (int i = 0; i < NAMING_STAGING_TABLE_TRIAL; i++) {
       String tmp = String.format(STAGING_TABLE_FORMAT, System.nanoTime());
       LOG.info("Check if staging table " + tmp + " exists.");
       ResultSet res = conn.getMetaData().getTables(null, database, tmp, new String[] { "TABLE" });
-      if (!res.next()) {
-        LOG.info("Staging table " + tmp + " does not exist. Creating.");
-        try {
-          commands.createTableStructure(database, destinationTable, tmp);
-          LOG.info("Test if staging table can be dropped. Test by dropping and Creating staging table.");
-          commands.drop(database, tmp);
-          commands.createTableStructure(database, destinationTable, tmp);
-          stagingTable = tmp;
-          break;
-        } catch (SQLException e) {
-          LOG.warn("Failed to create table. Retrying up to " + NAMING_STAGING_TABLE_TRIAL + " times", e);
-        }
-      } else {
-        LOG.info("Staging table " + tmp + " exists.");
+      if (res.next()) {
+        // Name collision (extremely unlikely with nanoTime) - retry with a fresh name.
+        LOG.info("Staging table " + tmp + " exists. Retrying with a new name.");
+        continue;
       }
+      LOG.info("Staging table " + tmp + " does not exist. Creating.");
       try {
-        TimeUnit.MILLISECONDS.sleep(RANDOM.nextInt(1000));
-      } catch (InterruptedException e) {
-        LOG.info("Sleep has been interrupted.", e);
+        commands.createTableStructure(database, destinationTable, tmp);
+        return tmp;
+      } catch (SQLException e) {
+        // Retry on failure (as before), but never leave a partially-created table behind: drop this
+        // attempt's table before the next try. drop() issues DROP TABLE IF EXISTS, so it is a no-op
+        // when the create never actually created the table.
+        LOG.warn("Failed to create staging table " + tmp + ". Dropping it and retrying up to "
+            + NAMING_STAGING_TABLE_TRIAL + " times.", e);
+        commands.drop(database, tmp);
       }
     }
-
-    if (!StringUtils.isEmpty(stagingTable)) {
-      return stagingTable;
-    }
-    throw new RuntimeException("Failed to create staging table");
+    throw new RuntimeException("Failed to create staging table after " + NAMING_STAGING_TABLE_TRIAL
+        + " attempts");
   }
 
   private static String getProp(State state, String key, int branches, int branchId) {

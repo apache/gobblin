@@ -93,4 +93,21 @@ public interface JdbcWriterCommands extends JdbcBufferedInserter {
    * @throws SQLException
    */
   public void copyTable(String databaseName, String from, String to) throws SQLException;
+
+  /**
+   * Best-effort check of whether the current JDBC user can DROP tables in the given database.
+   * Used to fail fast before creating staging tables that could not later be cleaned up.
+   *
+   * <p>Implementations should <b>fail open</b>: return {@code true} when the privilege cannot be
+   * determined, so that a check failure never blocks a legitimately-permitted run. The default
+   * returns {@code true} for dialects that do not implement a real check.
+   *
+   * @param database database/schema in which staging tables are created
+   * @return {@code true} if DROP is granted (or could not be determined), {@code false} only when
+   *         the user is positively known to lack DROP
+   * @throws SQLException on a connection-level error
+   */
+  default boolean hasDropPrivilege(String database) throws SQLException {
+    return true;
+  }
 }
