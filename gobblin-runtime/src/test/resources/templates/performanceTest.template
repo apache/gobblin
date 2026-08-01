@@ -4,3 +4,6 @@ FastSequentialSource.maxSecondsPerWorkUnit=60
 
 writer.builder.class="org.apache.gobblin.writer.test.GobblinTestEventBusWriter$Builder"
 writer.GobblinTestEventBusWriter.mode=COUNTING
+
+# Without this line there's error line being printed for missing this required configuration
+data.publisher.final.dir=/tmp/perf

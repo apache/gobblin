@@ -17,19 +17,16 @@
 
 package org.apache.gobblin.performance;
 
-import java.util.List;
-import java.util.concurrent.TimeUnit;
-
-import org.testng.Assert;
-
 import com.google.common.collect.Lists;
 import com.google.common.eventbus.EventBus;
 import com.google.common.eventbus.Subscribe;
-
+import java.util.List;
+import java.util.concurrent.TimeUnit;
 import org.apache.gobblin.runtime.embedded.EmbeddedGobblin;
 import org.apache.gobblin.util.test.FastSequentialSource;
 import org.apache.gobblin.writer.test.GobblinTestEventBusWriter;
 import org.apache.gobblin.writer.test.TestingEventBuses;
+import org.testng.Assert;
 
 
 /**
@@ -65,6 +62,10 @@ public class PerformanceTest {
     System.out.println(String.format("Task processed %d records in %d millis, qps: %f", runSummary.getRecordsWritten(),
         runSummary.getTimeElapsedMillis(),
         (double) runSummary.getRecordsWritten() * 1000 / runSummary.getTimeElapsedMillis()));
+
+    System.out.println(String.format("Task processed %d bbytes in %d millis, qps: %f", runSummary.getBytesWritten(),
+        runSummary.getTimeElapsedMillis(),
+        (double) runSummary.getBytesWritten() * 1000 / runSummary.getTimeElapsedMillis()));
   }
 
   /**
@@ -119,14 +120,15 @@ public class PerformanceTest {
 
     System.out.println(String.format("Writer consumed %d records in %d millis, qps: %f", records, elapsedMillis,
         (double) records * 1000 / elapsedMillis));
-
+    System.out.println(String.format("Writer consumed %d bytes in %d millis, qps: %f", writer.bytesWritten(), elapsedMillis,
+        (double) writer.bytesWritten() * 1000 / elapsedMillis));
   }
 
   private static class EventHandler {
     List<GobblinTestEventBusWriter.RunSummary> runSummaries = Lists.newArrayList();
 
     @Subscribe
-    public void registerCount(TestingEventBuses.Event event) {
+    public void registerSummary(TestingEventBuses.Event event) {
       this.runSummaries.add((GobblinTestEventBusWriter.RunSummary) event.getValue());
     }
   }
