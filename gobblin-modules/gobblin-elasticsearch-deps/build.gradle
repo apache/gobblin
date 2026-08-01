@@ -40,6 +40,7 @@ dependencies {
 configurations {
  compile {
     exclude group: "org.apache.hadoop"
+    exclude group: "com.fasterxml.jackson.core"
     exclude group: "com.sun.jersey.contribs"
   }
 }
