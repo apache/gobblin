@@ -50,13 +50,15 @@
         "type": "enum",
         "name": "FlowStatus",
         "symbols": [
+          "COMPILED",
+          "RUNNING",
           "SUCCEEDED",
           "COMPILATION_FAILURE",
           "SUBMISSION_FAILURE",
           "EXECUTION_FAILURE",
           "CANCELLED"
         ],
-        "doc": "Final flow status for the GaaS flow",
+        "doc": "Flow status for the GaaS flow",
         "compliance": "NONE"
       }
     },
