@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<Configuration status="warn">
+    <Appenders>
+        <Console name="consoleAppender" target="SYSTEM_OUT">
+            <PatternLayout pattern="%d{HH:mm:ss.SSS} [%t-%tid] %highlight{%level{length=5}:} [%c{-10}] %logger{1} - %msg%n "/>
+        </Console>
+
+        <Routing name="RoutingAppender">
+            <Routes pattern="$${ctx:job.name}">
+                <Route>
+                    <!--                                 fileName="/tools/gobblin-dist/logs/${ctx:job.name}/${ctx:job.name}.${ctx:job.key}.log"-->
+                    <RollingFile name="${ctx:job.name}"
+                                 fileName="${env:GOBBLIN_LOGS:-/tmp/logs}/${ctx:job.name}/${ctx:job.name}.${ctx:job.key}.log"
+                                 filePattern="${env:GOBBLIN_LOGS:-/tmp/logs}/${ctx:job.name}/${ctx:job.name}.${ctx:job.key}.%i.log.gz">
+                        <PatternLayout pattern="%d{HH:mm:ss.SSS} %level{length=5}: [%t-%tid] [%c{-10}] %logger{1} - %msg%n "/>
+                        <SizeBasedTriggeringPolicy size="100 MB" />
+                    </RollingFile>
+                </Route>
+
+                <!-- By having this set to ${ctx:logFileName} it will match when filename
+                     is not set in the context -->
+                <Route ref="consoleAppender" key="${ctx:job.name}"/>
+            </Routes>
+        </Routing>
+
+    </Appenders>
+
+    <Loggers>
+        <Root level="INFO">
+            <AppenderRef ref="RoutingAppender" />
+        </Root>
+        <Logger name="org.apache.zookeeper.ClientCnxn" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+        <Logger name="org.eclipse.jetty.util.component.Container" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+        <Logger name="org.reflections.Reflections" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+        <Logger name="org.flywaydb.core.internal.util.scanner.classpath.ClassPathScanner" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+        <Logger name="org.apache.helix" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+        <Logger name="org.quartz.core" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+        <Logger name="org.apache.gobblin.util.executors.IteratorExecutor" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+        <Logger name="org.apache.thrift" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+        <Logger name="org.apache.hadoop.conf.Configuration" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+        <Logger name="org.quartz" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+        <Logger name="org.apache.zookeeper.ZooKeeper" level="error">
+            <AppenderRef ref="RoutingAppender"/>
+        </Logger>
+    </Loggers>
+</Configuration>
