@@ -34,6 +34,7 @@ import org.apache.gobblin.metrics.Tag;
 import org.apache.gobblin.runtime.local.LocalJobLauncher;
 import org.apache.gobblin.runtime.mapreduce.MRJobLauncher;
 import org.apache.gobblin.util.JobConfigurationUtils;
+import org.apache.gobblin.util.JobLauncherUtils;
 
 
 /**
@@ -43,15 +44,6 @@ import org.apache.gobblin.util.JobConfigurationUtils;
  */
 @Slf4j
 public class JobLauncherFactory {
-
-  /**
-   * Supported types of {@link JobLauncher}.
-   */
-  public enum JobLauncherType {
-    LOCAL,
-    MAPREDUCE,
-    YARN
-  }
 
   /**
    * Create a new {@link JobLauncher}.
@@ -101,10 +93,9 @@ public class JobLauncherFactory {
    */
   public static @Nonnull JobLauncher newJobLauncher(Properties sysProps, Properties jobProps,
       SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags) throws Exception {
-
-    String launcherTypeValue =
-        sysProps.getProperty(ConfigurationKeys.JOB_LAUNCHER_TYPE_KEY, JobLauncherType.LOCAL.name());
-    return newJobLauncher(sysProps, jobProps, launcherTypeValue, instanceBroker, metadataTags);
+    Properties combinedProps = JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps);
+    String launcherTypeValue = JobLauncherUtils.getJobLauncherType(combinedProps);
+    return newJobLauncher(combinedProps, launcherTypeValue, instanceBroker, metadataTags);
   }
 
   /**
@@ -119,13 +110,13 @@ public class JobLauncherFactory {
    */
   public static JobLauncher newJobLauncher(Properties sysProps, Properties jobProps,
       String launcherTypeValue, SharedResourcesBroker<GobblinScopeTypes> instanceBroker) {
-    return newJobLauncher(sysProps, jobProps, launcherTypeValue, instanceBroker, ImmutableList.of());
+    Properties combinedProps = JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps);
+    return newJobLauncher(combinedProps, launcherTypeValue, instanceBroker, ImmutableList.of());
   }
 
   /**
    * Creates a new instance for a JobLauncher with a given type
-   * @param sysProps          the system/environment properties
-   * @param jobProps          the job properties
+   * @param combinedProps          the system/environment & job properties combined
    * @param launcherTypeValue the type of the launcher; either a {@link JobLauncherType} value or
    *        the name of the class that extends {@link AbstractJobLauncher} and has a constructor
    *        that has a single Properties parameter..
@@ -133,17 +124,18 @@ public class JobLauncherFactory {
    * @return the JobLauncher instance
    * @throws RuntimeException if the instantiation fails
    */
-  public static JobLauncher newJobLauncher(Properties sysProps, Properties jobProps,
-      String launcherTypeValue, SharedResourcesBroker<GobblinScopeTypes> instanceBroker, List<? extends Tag<?>> metadataTags) {
+  public static JobLauncher newJobLauncher(Properties combinedProps, String launcherTypeValue,
+                                           SharedResourcesBroker<GobblinScopeTypes> instanceBroker,
+                                           List<? extends Tag<?>> metadataTags) {
     Optional<JobLauncherType> launcherType = Enums.getIfPresent(JobLauncherType.class, launcherTypeValue);
 
     try {
       if (launcherType.isPresent()) {
         switch (launcherType.get()) {
           case LOCAL:
-              return new LocalJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps), instanceBroker, metadataTags);
+              return new LocalJobLauncher(combinedProps, instanceBroker, metadataTags);
           case MAPREDUCE:
-            return new MRJobLauncher(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps), instanceBroker, metadataTags);
+            return new MRJobLauncher(combinedProps, instanceBroker, metadataTags);
           default:
             throw new RuntimeException("Unsupported job launcher type: " + launcherType.get().name());
         }
@@ -153,7 +145,7 @@ public class JobLauncherFactory {
       Class<? extends AbstractJobLauncher> launcherClass =
           (Class<? extends AbstractJobLauncher>) Class.forName(launcherTypeValue);
       return launcherClass.getDeclaredConstructor(Properties.class)
-          .newInstance(JobConfigurationUtils.combineSysAndJobProperties(sysProps, jobProps));
+          .newInstance(combinedProps);
     } catch (Exception e) {
       throw new RuntimeException("Failed to create job launcher: " + e, e);
     }

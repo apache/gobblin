@@ -1,0 +1,238 @@
+diff --git a/gobblin-api/src/main/java/org/apache/gobblin/configuration/ConfigurationKeys.java b/gobblin-api/src/main/java/org/apache/gobblin/configuration/ConfigurationKeys.java
+index c438e77cb..67fb62856 100644
+--- a/gobblin-api/src/main/java/org/apache/gobblin/configuration/ConfigurationKeys.java
++++ b/gobblin-api/src/main/java/org/apache/gobblin/configuration/ConfigurationKeys.java
+@@ -154,7 +154,7 @@ public class ConfigurationKeys {
+   public static final String JOB_GROUP_KEY = "job.group";
+   public static final String JOB_DESCRIPTION_KEY = "job.description";
+   // Job launcher type
+-  public static final String JOB_LAUNCHER_TYPE_KEY = "launcher.type";
++  public static final String JOB_LAUNCHER_TYPE_KEY = "job.launcher.type";
+   public static final String JOB_SCHEDULE_KEY = "job.schedule";
+   public static final String JOB_LISTENERS_KEY = "job.listeners";
+   // Type of the job lock
+diff --git a/gobblin-docs/Gobblin-Architecture.md b/gobblin-docs/Gobblin-Architecture.md
+index 07abb01d4..6bb2d4d05 100644
+--- a/gobblin-docs/Gobblin-Architecture.md
++++ b/gobblin-docs/Gobblin-Architecture.md
+@@ -137,4 +137,4 @@ As a fault tolerance data ingestion framework, Gobblin employs multiple level of
+ 
+ Job Scheduling
+ --------------------------------
+-Like mentioned above, a Gobblin job typically runs periodically on some schedule. Gobblin can be integrated with job schedulers such as [Azkaban](http://azkaban.github.io/),[Oozie](http://oozie.apache.org/), or Crontab. Out-of-the-box, Gobblin also ships with a built-in job scheduler backed by a [Quartz](http://quartz-scheduler.org/) scheduler, which is used as the default job scheduler in the standalone deployment. An important feature of Gobblin is that it decouples the job scheduler and the jobs scheduled by the scheduler such that different jobs may run in different deployment settings. This is achieved using the  abstraction `JobLauncher` that has different implementations for different deployment settings. For example, a job scheduler may have 5 jobs scheduled: 2 of them run locally on the same host as the scheduler using the `LocalJobLauncher`, whereas the rest 3 run on a Hadoop cluster somewhere using the `MRJobLauncher`. Which `JobLauncher` to use can be simply configured using the property `launcher.type`.
++Like mentioned above, a Gobblin job typically runs periodically on some schedule. Gobblin can be integrated with job schedulers such as [Azkaban](http://azkaban.github.io/),[Oozie](http://oozie.apache.org/), or Crontab. Out-of-the-box, Gobblin also ships with a built-in job scheduler backed by a [Quartz](http://quartz-scheduler.org/) scheduler, which is used as the default job scheduler in the standalone deployment. An important feature of Gobblin is that it decouples the job scheduler and the jobs scheduled by the scheduler such that different jobs may run in different deployment settings. This is achieved using the  abstraction `JobLauncher` that has different implementations for different deployment settings. For example, a job scheduler may have 5 jobs scheduled: 2 of them run locally on the same host as the scheduler using the `LocalJobLauncher`, whereas the rest 3 run on a Hadoop cluster somewhere using the `MRJobLauncher`. Which `JobLauncher` to use can be simply configured using the property `job.launcher.type`.
+diff --git a/gobblin-docs/adaptors/Hive-Avro-To-ORC-Converter.md b/gobblin-docs/adaptors/Hive-Avro-To-ORC-Converter.md
+index 98e99bf9b..fa56cf5c7 100644
+--- a/gobblin-docs/adaptors/Hive-Avro-To-ORC-Converter.md
++++ b/gobblin-docs/adaptors/Hive-Avro-To-ORC-Converter.md
+@@ -317,6 +317,6 @@ metrics.reporting.kafka.format=avro
+ metrics.reporting.kafka.avro.use.schema.registry=true
+ metrics.reporting.kafka.topic.metrics=MetricReport
+ 
+-launcher.type=LOCAL
++job.launcher.type=LOCAL
+ classpath=lib/*
+ ```
+\ No newline at end of file
+diff --git a/gobblin-docs/user-guide/Configuration-Properties-Glossary.md b/gobblin-docs/user-guide/Configuration-Properties-Glossary.md
+index 3cbe156be..4eb38d68f 100644
+--- a/gobblin-docs/user-guide/Configuration-Properties-Glossary.md
++++ b/gobblin-docs/user-guide/Configuration-Properties-Glossary.md
+@@ -130,10 +130,10 @@ There are no configuration parameters specific to AzkabanJobLauncher. This class
+ ## Common Job Type Properties <a name="Common-Job-Type-Properties"></a>
+ | Name | Description | Required | Default Value |
+ | --- | --- | --- | --- |
+-| `launcher.type` | Job launcher type; one of LOCAL, MAPREDUCE, YARN. LOCAL mode runs on a single machine (LocalJobLauncher), MAPREDUCE runs on a Hadoop cluster (MRJobLauncher), and YARN runs on a YARN cluster (not implemented yet). | No | LOCAL |
++| `job.launcher.type` | Job launcher type; one of LOCAL, MAPREDUCE, YARN. LOCAL mode runs on a single machine (LocalJobLauncher), MAPREDUCE runs on a Hadoop cluster (MRJobLauncher), and YARN runs on a YARN cluster (not implemented yet). | No | LOCAL |
+ 
+ ## LocalJobLauncher Properties <a name="LocalJobLauncher-Properties"></a>
+-There are no configuration parameters specific to LocalJobLauncher. The LocalJobLauncher will launch a Hadoop job on a single machine. If launcher.type is set to LOCAL then this class will be used to launch the job.
++There are no configuration parameters specific to LocalJobLauncher. The LocalJobLauncher will launch a Hadoop job on a single machine. If job.launcher.type is set to LOCAL then this class will be used to launch the job.
+ Properties required by the MRJobLauncher class.
+ 
+ | Name | Description | Required | Default Value |
+diff --git a/gobblin-example/src/main/resources/avro-eventhub.job b/gobblin-example/src/main/resources/avro-eventhub.job
+index 87e2cb1d6..5591afdf3 100644
+--- a/gobblin-example/src/main/resources/avro-eventhub.job
++++ b/gobblin-example/src/main/resources/avro-eventhub.job
+@@ -1,7 +1,7 @@
+ # Required overrides
+ gobblin.workDir=gobblin
+ 
+-launcher.type=LOCAL
++job.launcher.type=LOCAL
+ 
+ job.name=TestSourceToEventhub
+ job.group=eventhubTest
+diff --git a/gobblin-modules/gobblin-kafka-08/resource/job-props/testKafkaIngest.properties b/gobblin-modules/gobblin-kafka-08/resource/job-props/testKafkaIngest.properties
+index 3300cd77c..ea3603fe9 100755
+--- a/gobblin-modules/gobblin-kafka-08/resource/job-props/testKafkaIngest.properties
++++ b/gobblin-modules/gobblin-kafka-08/resource/job-props/testKafkaIngest.properties
+@@ -25,5 +25,5 @@ taskexecutor.threadpool.size=2
+ tasktracker.threadpool.coresize=2
+ tasktracker.threadpool.maxsize=2
+ 
+-launcher.type=LOCAL
++job.launcher.type=LOCAL
+ job.lock.enabled=false
+diff --git a/gobblin-runtime/src/test/resources/gobblin.mr-test.properties b/gobblin-runtime/src/test/resources/gobblin.mr-test.properties
+index 2a57fb15d..4165082f6 100644
+--- a/gobblin-runtime/src/test/resources/gobblin.mr-test.properties
++++ b/gobblin-runtime/src/test/resources/gobblin.mr-test.properties
+@@ -31,6 +31,6 @@ writer.output.dir=/tmp/gobblin-runtime-tests/mr-test/basicTest/tmp/taskOutput
+ data.publisher.replace.final.dir=false
+ data.publisher.final.dir=/tmp/gobblin-runtime-tests/mr-test/jobOutput
+ 
+-launcher.type=MAPREDUCE
++job.launcher.type=MAPREDUCE
+ job.lock.enabled=false
+ mr.job.root.dir=/tmp/gobblin-runtime-tests/mr-test/mr-jobs
+diff --git a/gobblin-salesforce/src/main/resources/azkaban/common.properties b/gobblin-salesforce/src/main/resources/azkaban/common.properties
+index 60abddaa6..3a921dead 100644
+--- a/gobblin-salesforce/src/main/resources/azkaban/common.properties
++++ b/gobblin-salesforce/src/main/resources/azkaban/common.properties
+@@ -28,7 +28,7 @@ mapred.job.queue.name=<queue name>
+ # Azkaban config
+ type=java
+ job.class=org.apache.gobblin.azkaban.AzkabanJobLauncher
+-launcher.type=MAPREDUCE
++job.launcher.type=MAPREDUCE
+ 
+ # Job properties
+ job.jars=lib/*
+diff --git a/gobblin-service/src/test/java/org/apache/gobblin/service/modules/flow/MultiHopFlowCompilerTest.java b/gobblin-service/src/test/java/org/apache/gobblin/service/modules/flow/MultiHopFlowCompilerTest.java
+index 4bffdb156..6bccbc49e 100644
+--- a/gobblin-service/src/test/java/org/apache/gobblin/service/modules/flow/MultiHopFlowCompilerTest.java
++++ b/gobblin-service/src/test/java/org/apache/gobblin/service/modules/flow/MultiHopFlowCompilerTest.java
+@@ -262,7 +262,7 @@ public class MultiHopFlowCompilerTest {
+     Assert.assertEquals(jobConfig.getString("data.publisher.final.dir"), to);
+     Assert.assertEquals(jobConfig.getString("type"), "java");
+     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.runtime.local.LocalJobLauncher");
+-    Assert.assertEquals(jobConfig.getString("launcher.type"), "LOCAL");
++    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "LOCAL");
+     //Ensure the spec executor has the correct configurations
+     SpecExecutor specExecutor = jobSpecWithExecutor.getSpecExecutor();
+     Assert.assertEquals(specExecutor.getUri().toString(), "fs:///");
+@@ -306,7 +306,7 @@ public class MultiHopFlowCompilerTest {
+     Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "hdfs://hadoopnn03.grid.linkedin.com:8888/");
+     Assert.assertEquals(jobConfig.getString("type"), "hadoopJava");
+     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.azkaban.AzkabanJobLauncher");
+-    Assert.assertEquals(jobConfig.getString("launcher.type"), "MAPREDUCE");
++    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "MAPREDUCE");
+     //Ensure the spec executor has the correct configurations
+     specExecutor = jobSpecWithExecutor.getSpecExecutor();
+     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban01.gobblin.net:8443");
+@@ -330,7 +330,7 @@ public class MultiHopFlowCompilerTest {
+     Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "adl://azuredatalakestore.net/");
+     Assert.assertEquals(jobConfig.getString("type"), "hadoopJava");
+     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.azkaban.AzkabanJobLauncher");
+-    Assert.assertEquals(jobConfig.getString("launcher.type"), "MAPREDUCE");
++    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "MAPREDUCE");
+     Assert.assertEquals(jobConfig.getString("dfs.adls.oauth2.client.id"), "1234");
+     Assert.assertEquals(jobConfig.getString("writer.encrypted.dfs.adls.oauth2.credential"), "credential");
+     Assert.assertEquals(jobConfig.getString("encrypt.key.loc"), "/user/testUser/master.password");
+@@ -433,7 +433,7 @@ public class MultiHopFlowCompilerTest {
+     Assert.assertEquals(jobConfig.getString("data.publisher.final.dir"), to);
+     Assert.assertEquals(jobConfig.getString("type"), "java");
+     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.runtime.local.LocalJobLauncher");
+-    Assert.assertEquals(jobConfig.getString("launcher.type"), "LOCAL");
++    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "LOCAL");
+     //Ensure the spec executor has the correct configurations
+     SpecExecutor specExecutor = jobExecutionPlan.getSpecExecutor();
+     Assert.assertEquals(specExecutor.getUri().toString(), "fs:///");
+@@ -477,7 +477,7 @@ public class MultiHopFlowCompilerTest {
+     Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "hdfs://hadoopnn04.grid.linkedin.com:8888/");
+     Assert.assertEquals(jobConfig.getString("type"), "hadoopJava");
+     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.azkaban.AzkabanJobLauncher");
+-    Assert.assertEquals(jobConfig.getString("launcher.type"), "MAPREDUCE");
++    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "MAPREDUCE");
+     //Ensure the spec executor has the correct configurations
+     specExecutor = jobExecutionPlan.getSpecExecutor();
+     Assert.assertEquals(specExecutor.getUri().toString(), "https://azkaban02.gobblin.net:8443");
+@@ -502,7 +502,7 @@ public class MultiHopFlowCompilerTest {
+     Assert.assertEquals(jobConfig.getString("target.filebased.fs.uri"), "adl://azuredatalakestore.net/");
+     Assert.assertEquals(jobConfig.getString("type"), "hadoopJava");
+     Assert.assertEquals(jobConfig.getString("job.class"), "org.apache.gobblin.azkaban.AzkabanJobLauncher");
+-    Assert.assertEquals(jobConfig.getString("launcher.type"), "MAPREDUCE");
++    Assert.assertEquals(jobConfig.getString("job.launcher.type"), "MAPREDUCE");
+     Assert.assertEquals(jobConfig.getString("dfs.adls.oauth2.client.id"), "1234");
+     Assert.assertEquals(jobConfig.getString("writer.encrypted.dfs.adls.oauth2.credential"), "credential");
+     Assert.assertEquals(jobConfig.getString("encrypt.key.loc"), "/user/testUser/master.password");
+diff --git a/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsConvertToJsonAndEncrypt/jobs/hdfs-encrypt-avro-to-json.job b/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsConvertToJsonAndEncrypt/jobs/hdfs-encrypt-avro-to-json.job
+index 05fa8cd63..7b346376d 100644
+--- a/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsConvertToJsonAndEncrypt/jobs/hdfs-encrypt-avro-to-json.job
++++ b/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsConvertToJsonAndEncrypt/jobs/hdfs-encrypt-avro-to-json.job
+@@ -1,4 +1,4 @@
+ gobblin.template.uri="FS:///multihop/jobTemplates/hdfs-convert-to-json-and-encrypt.template"
+ job.class=org.apache.gobblin.azkaban.AzkabanJobLauncher
+-launcher.type=MAPREDUCE
++job.launcher.type=MAPREDUCE
+ type=hadoopJava
+\ No newline at end of file
+diff --git a/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsToAdl/jobs/distcp-hdfs-to-adl.job b/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsToAdl/jobs/distcp-hdfs-to-adl.job
+index 779044b61..c41c70f86 100644
+--- a/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsToAdl/jobs/distcp-hdfs-to-adl.job
++++ b/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsToAdl/jobs/distcp-hdfs-to-adl.job
+@@ -1,4 +1,4 @@
+ gobblin.template.uri="FS:///multihop/jobTemplates/distcp-push-hdfs-to-adl.template"
+ job.class=org.apache.gobblin.azkaban.AzkabanJobLauncher
+-launcher.type=MAPREDUCE
++job.launcher.type=MAPREDUCE
+ type=hadoopJava
+\ No newline at end of file
+diff --git a/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsToHdfs/jobs/distcp-hdfs-to-hdfs.job b/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsToHdfs/jobs/distcp-hdfs-to-hdfs.job
+index 13c067a94..aff184e39 100644
+--- a/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsToHdfs/jobs/distcp-hdfs-to-hdfs.job
++++ b/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/hdfsToHdfs/jobs/distcp-hdfs-to-hdfs.job
+@@ -1,4 +1,4 @@
+ gobblin.template.uri="FS:///multihop/jobTemplates/distcp.template"
+ job.class=org.apache.gobblin.azkaban.AzkabanJobLauncher
+-launcher.type=MAPREDUCE
++job.launcher.type=MAPREDUCE
+ type=hadoopJava
+\ No newline at end of file
+diff --git a/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/localToHdfs/jobs/distcp-local-to-hdfs.job b/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/localToHdfs/jobs/distcp-local-to-hdfs.job
+index 823b0a4a4..05740af88 100644
+--- a/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/localToHdfs/jobs/distcp-local-to-hdfs.job
++++ b/gobblin-service/src/test/resources/template_catalog/multihop/flowEdgeTemplates/localToHdfs/jobs/distcp-local-to-hdfs.job
+@@ -1,4 +1,4 @@
+ gobblin.template.uri="FS:///multihop/jobTemplates/distcp.template"
+ job.class=org.apache.gobblin.runtime.local.LocalJobLauncher
+-launcher.type=LOCAL
++job.launcher.type=LOCAL
+ type=java
+\ No newline at end of file
+diff --git a/gobblin-test-harness/resource/dataManagement/copy/job-props/copy.properties b/gobblin-test-harness/resource/dataManagement/copy/job-props/copy.properties
+index eaa97c4a0..c57fe74dc 100755
+--- a/gobblin-test-harness/resource/dataManagement/copy/job-props/copy.properties
++++ b/gobblin-test-harness/resource/dataManagement/copy/job-props/copy.properties
+@@ -27,5 +27,5 @@ writer.output.dir=gobblin-test-harness/testOutput/copy/taskOutput
+ 
+ data.publisher.final.dir=gobblin-test-harness/testOutput/copy/publish
+ 
+-launcher.type=LOCAL
++job.launcher.type=LOCAL
+ job.lock.enabled=false
+diff --git a/gobblin-test/resource/gobblin.mr-test.properties b/gobblin-test/resource/gobblin.mr-test.properties
+index b72f76a77..450ec7812 100644
+--- a/gobblin-test/resource/gobblin.mr-test.properties
++++ b/gobblin-test/resource/gobblin.mr-test.properties
+@@ -31,6 +31,6 @@ writer.output.dir=gobblin-test/basicTest/tmp/taskOutput
+ data.publisher.replace.final.dir=false
+ data.publisher.final.dir=gobblin-test/jobOutput
+ 
+-launcher.type=MAPREDUCE
++job.launcher.type=MAPREDUCE
+ job.lock.enabled=false
+ mr.job.root.dir=gobblin-test/mr-jobs
+diff --git a/gobblin-test/resource/gobblin.test.properties b/gobblin-test/resource/gobblin.test.properties
+index 6e33ef666..5ece17f1c 100644
+--- a/gobblin-test/resource/gobblin.test.properties
++++ b/gobblin-test/resource/gobblin.test.properties
+@@ -31,5 +31,5 @@ writer.output.dir=gobblin-test/basicTest/tmp/taskOutput
+ data.publisher.replace.final.dir=false
+ data.publisher.final.dir=gobblin-test/jobOutput
+ 
+-launcher.type=LOCAL
++job.launcher.type=LOCAL
+ job.lock.enabled=false

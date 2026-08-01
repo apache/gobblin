@@ -20,6 +20,7 @@ import java.io.File;
 import java.io.IOException;
 
 import org.apache.commons.io.FileUtils;
+import org.apache.gobblin.runtime.JobLauncherType;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.testng.Assert;
@@ -68,7 +69,7 @@ public class TestJobLauncherExecutionDriver {
 
       JobLauncherExecutionDriver.Launcher launcher =
           new JobLauncherExecutionDriver.Launcher()
-              .withJobLauncherType(JobLauncherFactory.JobLauncherType.LOCAL)
+              .withJobLauncherType(JobLauncherType.LOCAL)
               .withLog(log);
 
       JobLauncherExecutionDriver jled = null;
@@ -103,7 +104,7 @@ public class TestJobLauncherExecutionDriver {
       JobSpec jobSpec2 = JobSpec.builder().withConfig(jobConf2).build();
       jled = null;
       monitor = launcher
-          .withJobLauncherType(JobLauncherFactory.JobLauncherType.MAPREDUCE)
+          .withJobLauncherType(JobLauncherType.MAPREDUCE)
           .launchJob(jobSpec2);
       if (monitor instanceof JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) {
         jled = ((JobLauncherExecutionDriver.JobExecutionMonitorAndDriver) monitor).getDriver();
