@@ -189,27 +189,22 @@ public class TaskContext {
    * @return list (possibly empty) of {@link Converter}s
    */
   public List<Converter<?, ?, ?, ?>> getConverters() {
-    return getConverters(-1, this.taskState);
+    return getConverters(this.taskState);
   }
 
   /**
    * Get the list of post-fork {@link Converter}s for a given branch.
    *
-   * @param index branch index
    * @param forkTaskState a {@link TaskState} instance specific to the fork identified by the branch index
    * @return list (possibly empty) of {@link Converter}s
    */
   @SuppressWarnings("unchecked")
-  public List<Converter<?, ?, ?, ?>> getConverters(int index, TaskState forkTaskState) {
+  public List<Converter<?, ?, ?, ?>> getConverters(TaskState forkTaskState) {
     String converterClassKey =
-        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, index);
+        ForkOperatorUtils.getPropertyNameForBranch(ConfigurationKeys.CONVERTER_CLASSES_KEY, forkTaskState.getPropAsInt(ConfigurationKeys.FORK_BRANCH_ID_KEY,-1));
 
     if (!this.taskState.contains(converterClassKey)) {
       return Collections.emptyList();
-    }
-
-    if (index >= 0) {
-      forkTaskState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
     }
 
     List<Converter<?, ?, ?, ?>> converters = Lists.newArrayList();

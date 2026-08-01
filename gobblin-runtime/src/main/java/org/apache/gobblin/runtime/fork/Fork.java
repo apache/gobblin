@@ -150,13 +150,17 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
     this.taskId = this.taskState.getTaskId();
     this.taskAttemptId = this.taskState.getTaskAttemptId();
 
+    if (index >= 0) {
+      this.forkTaskState.setProp(ConfigurationKeys.FORK_BRANCH_ID_KEY, index);
+    }
+
     this.branches = branches;
     this.index = index;
     this.executionModel = executionModel;
 
     this.converter =
-        this.closer.register(new MultiConverter(this.taskContext.getConverters(this.index, this.forkTaskState)));
-    this.convertedSchema = Optional.fromNullable(this.converter.convertSchema(schema, this.taskState));
+        this.closer.register(new MultiConverter(this.taskContext.getConverters(this.forkTaskState)));
+    this.convertedSchema = Optional.fromNullable(this.converter.convertSchema(schema, this.forkTaskState));
     this.rowLevelPolicyChecker = this.closer.register(this.taskContext.getRowLevelPolicyChecker(this.index));
     this.rowLevelPolicyCheckingResult = new RowLevelPolicyCheckResults();
 
@@ -531,7 +535,7 @@ public class Fork<S, D> implements Closeable, FinalState, RecordStreamConsumer<S
         // Unpack the record from its container
         RecordEnvelope recordEnvelope = (RecordEnvelope) record;
         // Convert the record, check its data quality, and finally write it out if quality checking passes.
-        for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, recordEnvelope.getRecord(), this.taskState)) {
+        for (Object convertedRecord : this.converter.convertRecord(this.convertedSchema, recordEnvelope.getRecord(), this.forkTaskState)) {
           if (this.rowLevelPolicyChecker.executePolicies(convertedRecord, this.rowLevelPolicyCheckingResult)) {
             // for each additional record we pass down, increment the acks needed
             ((WatermarkAwareWriter) this.writer.get()).writeEnvelope(
