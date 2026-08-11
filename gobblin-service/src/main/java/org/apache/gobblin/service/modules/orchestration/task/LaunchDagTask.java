@@ -54,7 +54,15 @@ public class LaunchDagTask extends DagTask {
         FlowSpec flowSpec =
             this.dagManagementStateStore.getFlowSpec(FlowSpec.Utils.createFlowSpecUri(dagId.getFlowId()));
         if (!flowSpec.isScheduled()) {
-          dagManagementStateStore.removeFlowSpec(flowSpec.getUri(), new Properties(), false);
+          try {
+            //This can throw Runtime, IllegalState and IO Exceptions which are not caught here.
+            dagManagementStateStore.removeFlowSpec(flowSpec.getUri(), new Properties(), false);
+          } catch (Exception e) {
+            super.dagProcEngineMetrics.markDagActionsConcludeFlowSpecRemoval(this.dagAction.getDagActionType(), false);
+            log.error("Failed to Remove The FlowSpec For Adhoc Flow with URI: " + flowSpec.getUri());
+            return false;
+          }
+          super.dagProcEngineMetrics.markDagActionsConcludeFlowSpecRemoval(this.dagAction.getDagActionType(), true);
         }
         return true;
       }
