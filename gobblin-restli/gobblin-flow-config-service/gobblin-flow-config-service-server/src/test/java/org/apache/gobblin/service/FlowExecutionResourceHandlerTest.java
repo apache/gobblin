@@ -17,11 +17,37 @@
 
 package org.apache.gobblin.service;
 
+import java.util.Collections;
+
 import org.testng.Assert;
 import org.testng.annotations.Test;
 
+import org.apache.gobblin.service.monitoring.FlowStatus;
+
 
 public class FlowExecutionResourceHandlerTest {
+
+  @Test
+  public void testConvertFlowStatusCoercesUnknownToPending() {
+    FlowStatus unknownFlowStatus = new FlowStatus("flowName", "flowGroup", 123L,
+        Collections.emptyIterator(), ExecutionStatus.$UNKNOWN);
+
+    FlowExecution flowExecution = FlowExecutionResource.convertFlowStatus(unknownFlowStatus, false);
+
+    Assert.assertNotNull(flowExecution);
+    Assert.assertEquals(flowExecution.getExecutionStatus(), ExecutionStatus.PENDING);
+  }
+
+  @Test
+  public void testConvertFlowStatusPreservesValidStatus() {
+    FlowStatus runningFlowStatus = new FlowStatus("flowName", "flowGroup", 123L,
+        Collections.emptyIterator(), ExecutionStatus.RUNNING);
+
+    FlowExecution flowExecution = FlowExecutionResource.convertFlowStatus(runningFlowStatus, false);
+
+    Assert.assertNotNull(flowExecution);
+    Assert.assertEquals(flowExecution.getExecutionStatus(), ExecutionStatus.RUNNING);
+  }
 
   @Test
   public void testEstimateCopyTimeLeftSanityCheck() {
