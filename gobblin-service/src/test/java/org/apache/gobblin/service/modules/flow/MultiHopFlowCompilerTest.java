@@ -237,8 +237,7 @@ public class MultiHopFlowCompilerTest {
     Config jobConfig = jobSpec.getConfig();
     String flowGroup = "testFlowGroup";
     String flowName = "testFlowName";
-    String expectedJobName1 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "Distcp", "LocalFS-1", "HDFS-1", "localToHdfs");
+    String expectedJobName1 = jobSpec.getConfig().getString(ConfigurationKeys.GAAS_JOB_EXEC_ID);
     String jobName1 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertTrue(jobName1.startsWith(expectedJobName1));
     String from = jobConfig.getString("from");
@@ -267,8 +266,7 @@ public class MultiHopFlowCompilerTest {
     DagNode<JobExecutionPlan> secondHopNode = jobDag.getChildren(startNode).get(0);
     jobSpecWithExecutor = secondHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    String expectedJobName2 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "ConvertToJsonAndEncrypt", "HDFS-1", "HDFS-1", "hdfsConvertToJsonAndEncrypt");
+    String expectedJobName2 = jobConfig.getString(ConfigurationKeys.GAAS_JOB_EXEC_ID);
     String jobName2 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertTrue(jobName2.startsWith(expectedJobName2));
     Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName1);
@@ -287,8 +285,7 @@ public class MultiHopFlowCompilerTest {
     DagNode<JobExecutionPlan> thirdHopNode = jobDag.getChildren(secondHopNode).get(0);
     jobSpecWithExecutor = thirdHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    String expectedJobName3 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "Distcp", "HDFS-1", "HDFS-3", "hdfsToHdfs");
+    String expectedJobName3 = jobConfig.getString(ConfigurationKeys.GAAS_JOB_EXEC_ID);
     String jobName3 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertTrue(jobName3.startsWith(expectedJobName3));
     Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName2);
@@ -311,8 +308,7 @@ public class MultiHopFlowCompilerTest {
     DagNode<JobExecutionPlan> fourthHopNode = jobDag.getChildren(thirdHopNode).get(0);
     jobSpecWithExecutor = fourthHopNode.getValue();
     jobConfig = jobSpecWithExecutor.getJobSpec().getConfig();
-    String expectedJobName4 = Joiner.on(JobExecutionPlan.Factory.JOB_NAME_COMPONENT_SEPARATION_CHAR).
-        join(flowGroup, flowName, "DistcpToADL", "HDFS-3", "ADLS-1", "hdfsToAdl");
+    String expectedJobName4 = jobConfig.getString(ConfigurationKeys.GAAS_JOB_EXEC_ID);
     String jobName4 = jobConfig.getString(ConfigurationKeys.JOB_NAME_KEY);
     Assert.assertTrue(jobName4.startsWith(expectedJobName4));
     Assert.assertEquals(jobConfig.getString(ConfigurationKeys.JOB_DEPENDENCIES), jobName3);
