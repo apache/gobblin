@@ -130,6 +130,11 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       GobblinServiceJobScheduler.class);
   private static final ContextAwareMeter scheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.SCHEDULED_FLOW_METER);
   private static final ContextAwareMeter nonScheduledFlows = metricContext.contextAwareMeter(ServiceMetricNames.NON_SCHEDULED_FLOW_METER);
+  private static final ContextAwareMeter scheduledFlowTriggersFired =
+      metricContext.contextAwareMeter(ServiceMetricNames.SCHEDULED_FLOW_TRIGGER_FIRED_METER);
+  private static final ContextAwareMeter scheduledFlowTriggerFailures =
+      metricContext.contextAwareMeter(ServiceMetricNames.SCHEDULED_FLOW_TRIGGER_FAILED_METER);
+  private static volatile long lastScheduledFlowTriggerFireTimeMillis = -1L;
 
   /**
    * If current instances is nominated as a handler for DR traffic from down GaaS-Instance.
@@ -191,7 +196,31 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
           () -> totalAddSpecTimeValue));
       metricContext.register(metricContext.newContextAwareGauge(RuntimeMetrics.GOBBLIN_JOB_SCHEDULER_NUM_JOBS_SCHEDULED_DURING_STARTUP,
           () -> numJobsScheduledDuringStartupValue));
+      metricContext.register(metricContext.newContextAwareGauge(
+          ServiceMetricNames.LAST_SCHEDULED_FLOW_TRIGGER_FIRE_TIME_MILLIS,
+          GobblinServiceJobScheduler::getLastScheduledFlowTriggerFireTimeMillis));
+      metricContext.register(metricContext.newContextAwareGauge(
+          ServiceMetricNames.LAST_SCHEDULED_FLOW_TRIGGER_FIRE_AGE_MILLIS,
+          GobblinServiceJobScheduler::getLastScheduledFlowTriggerFireAgeMillis));
+      metricContext.register(metricContext.newContextAwareGauge(ServiceMetricNames.SCHEDULED_FLOW_SPECS_COUNT,
+          () -> this.scheduledFlowSpecs.size()));
     }
+  }
+
+  @VisibleForTesting
+  static long getLastScheduledFlowTriggerFireTimeMillis() {
+    return lastScheduledFlowTriggerFireTimeMillis;
+  }
+
+  @VisibleForTesting
+  static long getLastScheduledFlowTriggerFireAgeMillis() {
+    long lastFireTimeMillis = lastScheduledFlowTriggerFireTimeMillis;
+    return lastFireTimeMillis < 0 ? -1L : System.currentTimeMillis() - lastFireTimeMillis;
+  }
+
+  @VisibleForTesting
+  static void resetLastScheduledFlowTriggerFireTimeMillis() {
+    lastScheduledFlowTriggerFireTimeMillis = -1L;
   }
 
   public synchronized void setActive(boolean isActive) {
@@ -669,10 +698,12 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
 
     @Override
     public void executeImpl(JobExecutionContext context) throws JobExecutionException {
+      boolean trackScheduledFlowTrigger = false;
       try {
         // TODO: move this out of the try clause after location NPE source
         JobDetail jobDetail = context.getJobDetail();
         _log.info("Starting FlowSpec " + jobDetail.getKey());
+        trackScheduledFlowTrigger = !jobDetail.getKey().getName().contains("reminder");
 
         JobDataMap dataMap = jobDetail.getJobDataMap();
         JobScheduler jobScheduler = (JobScheduler) dataMap.get(JOB_SCHEDULER_KEY);
@@ -698,6 +729,8 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
         } else {
           jobProps.setProperty(ConfigurationKeys.ORCHESTRATOR_TRIGGER_EVENT_TIME_MILLIS_KEY,
               String.valueOf(triggerTimeMillis));
+          lastScheduledFlowTriggerFireTimeMillis = System.currentTimeMillis();
+          scheduledFlowTriggersFired.mark();
           if (trigger.getNextFireTime() == null) {
             _log.info(
                 jobSchedulerTracePrefixBuilder(jobProps) + "triggerTime: {} nextTriggerTime: NA - Job triggered by "
@@ -712,6 +745,9 @@ public class GobblinServiceJobScheduler extends JobScheduler implements SpecCata
       } catch (Throwable t) {
         if (t instanceof NullPointerException) {
           log.warn("NullPointerException encountered while trying to execute flow. Message: " + t.getMessage(), t);
+        }
+        if (trackScheduledFlowTrigger) {
+          scheduledFlowTriggerFailures.mark();
         }
         throw new JobExecutionException(t);
       } finally {
