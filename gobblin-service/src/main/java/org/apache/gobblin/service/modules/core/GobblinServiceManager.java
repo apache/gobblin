@@ -38,6 +38,8 @@ import org.slf4j.LoggerFactory;
 
 import com.google.common.collect.Lists;
 import com.google.common.collect.Maps;
+import com.google.common.base.Optional;
+import com.google.common.util.concurrent.AbstractIdleService;
 import com.google.inject.Guice;
 import com.google.inject.Inject;
 import com.google.inject.Injector;
@@ -71,6 +73,7 @@ import org.apache.gobblin.service.Schedule;
 import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.service.modules.db.ServiceDatabaseManager;
 import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
+import org.apache.gobblin.service.modules.orchestration.ForceKillHandler;
 import org.apache.gobblin.service.modules.orchestration.Orchestrator;
 import org.apache.gobblin.service.modules.orchestration.UserQuotaManager;
 import org.apache.gobblin.service.modules.restli.FlowConfigsV2ResourceHandler;
@@ -175,6 +178,9 @@ public class GobblinServiceManager implements ApplicationLauncher {
   protected DagProcessingEngine dagProcessingEngine;
 
   @Inject
+  private Optional<ForceKillHandler> forceKillHandler = Optional.absent();
+
+  @Inject
   protected GobblinServiceManager(GobblinServiceConfiguration configuration) throws Exception {
     this.configuration = Objects.requireNonNull(configuration);
 
@@ -256,6 +262,19 @@ public class GobblinServiceManager implements ApplicationLauncher {
     }
 
     this.serviceLauncher.addService(dagProcessingEngine);
+    if (this.forceKillHandler.isPresent()) {
+      // The launcher's own failure/shutdown paths must also close the backend, not just this manager's stop().
+      this.serviceLauncher.addService(new AbstractIdleService() {
+        @Override
+        protected void startUp() {
+        }
+
+        @Override
+        protected void shutDown() {
+          forceKillHandler.get().close();
+        }
+      });
+    }
 
     this.serviceLauncher.addService(databaseManager);
     this.serviceLauncher.addService(issueRepository);
@@ -297,6 +316,13 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
   @Override
   public void start() throws ApplicationException {
+    try (ForceKillStartupGuard guard = new ForceKillStartupGuard(this.forceKillHandler.orNull())) {
+      startServices();
+      guard.started = true;
+    }
+  }
+
+  private void startServices() throws ApplicationException {
     LOGGER.info("[Init] Starting the Gobblin Service Manager");
 
     configureServices();
@@ -346,7 +372,7 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
     LOGGER.info("Stopping the Gobblin Service Manager");
     this.stopInProgress = true;
-    try {
+    try (ForceKillHandler handler = this.forceKillHandler.orNull()) {
       // Stop announcing GaaS instances to d2 when services are stopped
       this.d2Announcer.markDownServer();
       this.serviceLauncher.stop();
@@ -357,7 +383,25 @@ public class GobblinServiceManager implements ApplicationLauncher {
 
   @Override
   public void close() throws IOException {
-    this.serviceLauncher.close();
+    try (ForceKillHandler handler = this.forceKillHandler.orNull()) {
+      this.serviceLauncher.close();
+    }
+  }
+
+  static final class ForceKillStartupGuard implements AutoCloseable {
+    private final ForceKillHandler handler;
+    boolean started;
+
+    ForceKillStartupGuard(ForceKillHandler handler) {
+      this.handler = handler;
+    }
+
+    @Override
+    public void close() {
+      if (!this.started && this.handler != null) {
+        this.handler.close();
+      }
+    }
   }
 
   private static String getServiceId(CommandLine cmd) {

@@ -77,6 +77,15 @@ public class MysqlJobStatusRetriever extends JobStatusRetriever {
   }
 
   @Override
+  public List<State> getJobStatusStatesForFlowExecution(String flowName, String flowGroup, long flowExecutionId)
+      throws IOException {
+    String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);
+    try (Timer.Context context = this.metricContext.contextAwareTimer(GET_LATEST_FLOW_STATUS_METRIC).time()) {
+      return this.stateStore.getAll(storeName, flowExecutionId);
+    }
+  }
+
+  @Override
   public Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup, long flowExecutionId,
       String jobName, String jobGroup) {
     String storeName = KafkaJobStatusMonitor.jobStatusStoreName(flowGroup, flowName);

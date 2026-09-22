@@ -68,6 +68,7 @@ import org.apache.gobblin.service.modules.orchestration.DagProcessingEngine;
 import org.apache.gobblin.service.modules.orchestration.DagTaskStream;
 import org.apache.gobblin.service.modules.orchestration.FlowLaunchHandler;
 import org.apache.gobblin.service.modules.orchestration.FlowLaunchMultiActiveLeaseArbiterFactory;
+import org.apache.gobblin.service.modules.orchestration.ForceKillHandler;
 import org.apache.gobblin.service.modules.orchestration.MultiActiveLeaseArbiter;
 import org.apache.gobblin.service.modules.orchestration.MySqlDagManagementStateStore;
 import org.apache.gobblin.service.modules.orchestration.MysqlDagActionStore;
@@ -164,6 +165,7 @@ public class GobblinServiceGuiceModule implements Module {
     binder.bind(DagManagement.class).to(DagManagementTaskStreamImpl.class);
     binder.bind(DagManagementStateStore.class).to(MySqlDagManagementStateStore.class);
     binder.bind(DagTaskStream.class).to(DagManagementTaskStreamImpl.class);
+    configureForceKillHandler(binder, serviceConfig.getInnerConfig());
     binder.bind(DagProcFactory.class);
     binder.bind(DagProcessingEngine.class);
     binder.bind(DagProcessingEngineMetrics.class);
@@ -254,6 +256,14 @@ public class GobblinServiceGuiceModule implements Module {
       throw new RuntimeException(
           "Cannot resolve the class '" + className + "'. Check that property '" + classPropertyName
               + "' points to a valid class name or alias.", e);
+    }
+  }
+
+  static void configureForceKillHandler(Binder binder, Config config) {
+    OptionalBinder<ForceKillHandler> optional = OptionalBinder.newOptionalBinder(binder, ForceKillHandler.class);
+    if (config.hasPath(ServiceConfigKeys.FORCE_KILL_HANDLER_CLASS_KEY)) {
+      optional.setBinding().to(getClassByNameOrAlias(ForceKillHandler.class, config,
+          ServiceConfigKeys.FORCE_KILL_HANDLER_CLASS_KEY, null)).in(Singleton.class);
     }
   }
 

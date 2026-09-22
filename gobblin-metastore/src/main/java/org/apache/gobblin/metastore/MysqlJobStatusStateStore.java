@@ -68,7 +68,8 @@ public class MysqlJobStatusStateStore<T extends State> extends MysqlStateStore<T
    * @throws IOException in case of failures
    */
   public List<T> getAll(String storeName, long flowExecutionId) throws IOException {
-    return getAll(storeName, flowExecutionId + "%", JobStateSearchColumns.TABLE_NAME_ONLY);
+    return getAll(storeName, flowExecutionId + ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER + "%",
+        JobStateSearchColumns.TABLE_NAME_ONLY);
   }
 
   /**
