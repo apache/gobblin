@@ -122,7 +122,7 @@ public class KillDagProc extends DagProc<Optional<Dag<JobExecutionPlan>>> {
       if (flowSummary || !this.shouldKillSpecificJob
           || (getDagNodeId().getJobGroup().equals(state.getProp(TimingEvent.FlowEventConstants.JOB_GROUP_FIELD))
               && getDagNodeId().getJobName().equals(state.getProp(TimingEvent.FlowEventConstants.JOB_NAME_FIELD)))) {
-        scopedStates.add(new State(state));
+        scopedStates.add(new State(state.getProperties()));
         hasJob |= !flowSummary;
       }
     }

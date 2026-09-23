@@ -24,6 +24,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import com.google.common.base.Predicate;
+import com.typesafe.config.ConfigFactory;
 
 import org.testng.Assert;
 import org.testng.annotations.Test;
@@ -32,6 +33,8 @@ import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.metastore.MysqlJobStatusStateStore;
 import org.apache.gobblin.metastore.StateStore;
 import org.apache.gobblin.metrics.RootMetricContext;
+import org.apache.gobblin.runtime.spec_executorInstance.LocalFsSpecProducer;
+import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 
 import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.eq;
@@ -82,6 +85,19 @@ public class RawJobStatusRetrieverTest {
 
     Assert.assertSame(Assert.expectThrows(IOException.class,
         () -> retriever.getJobStatusStatesForFlowExecution("flow", "group", 1234L)), failure);
+  }
+
+  @Test
+  public void testLocalFsReaderRejectsRawRetrievalWithoutStateStore() {
+    JobStatusRetriever retriever = new LocalFsJobStatusRetriever(ConfigFactory.parseMap(Collections.singletonMap(
+        LocalFsJobStatusRetriever.CONF_PREFIX + LocalFsSpecProducer.LOCAL_FS_PRODUCER_PATH_KEY, "unused")),
+        mock(MultiContextIssueRepository.class));
+
+    IOException failure = Assert.expectThrows(IOException.class,
+        () -> retriever.getJobStatusStatesForFlowExecution("flow", "group", 1234L));
+
+    Assert.assertTrue(failure.getMessage().contains("Raw job status retrieval requires a state store"));
+    Assert.assertTrue(failure.getMessage().contains(LocalFsJobStatusRetriever.class.getName()));
   }
 
   @Test

@@ -94,6 +94,8 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
    * execution handles: storage keys alone do not establish the identity of the serialized contents.
    *
    * <p>Unlike status-display APIs, read failures propagate rather than appearing as an empty result.</p>
+   *
+   * @throws IOException if this retriever has no state store or retained state cannot be read
    */
   public List<State> getJobStatusStatesForFlowExecution(String flowName, String flowGroup, long flowExecutionId)
       throws IOException {
@@ -103,6 +105,9 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
     String storeName = flowGroup + separator + flowName;
     String tablePrefix = flowExecutionId + separator;
     StateStore<State> stateStore = getStateStore();
+    if (stateStore == null) {
+      throw new IOException("Raw job status retrieval requires a state store: " + getClass().getName());
+    }
     List<State> states = new ArrayList<>();
     for (String tableName : stateStore.getTableNames(storeName, name -> name.startsWith(tablePrefix))) {
       states.addAll(stateStore.getAll(storeName, tableName));

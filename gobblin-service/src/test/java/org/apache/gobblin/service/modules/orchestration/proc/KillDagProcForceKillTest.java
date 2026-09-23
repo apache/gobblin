@@ -140,6 +140,9 @@ public class KillDagProcForceKillTest {
   @Test
   public void testAcknowledgedFallbackGetsImmutableDefensiveCopiesAndOriginalMetadata() throws IOException {
     State original = state(GROUP, "job");
+    original.getCommonProperties().setProperty("backend.common.handle", "original-common-handle");
+    original.getCommonProperties().setProperty("backend.target", "original-target");
+    original.getCommonProperties().setProperty("backend.handle", "overridden-common-handle");
     original.setProp("backend.handle", "{\"generation\":1,\"attempt\":1,\"id\":\"original\"}");
     original.setProp(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD, "3");
     original.setProp(TimingEvent.FlowEventConstants.CURRENT_ATTEMPTS_FIELD, "4");
@@ -149,9 +152,13 @@ public class KillDagProcForceKillTest {
       Assert.assertEquals(states.size(), 1);
       Assert.assertNotSame(states.get(0), original);
       Assert.assertEquals(states.get(0).getProp("backend.handle"), original.getProp("backend.handle"));
+      Assert.assertEquals(states.get(0).getProp("backend.common.handle"), "original-common-handle");
       Assert.assertEquals(states.get(0).getProp(TimingEvent.FlowEventConstants.CURRENT_GENERATION_FIELD), "3");
       Assert.expectThrows(UnsupportedOperationException.class, () -> states.add(new State()));
       states.get(0).setProp("backend.handle", "changed by handler");
+      states.get(0).getCommonProperties().setProperty("backend.common.handle", "changed by handler");
+      original.getCommonProperties().setProperty("backend.target", "changed in source");
+      Assert.assertEquals(states.get(0).getProp("backend.target"), "original-target");
       ForceKillHandler.ActiveDagCheck active = invocation.getArgument(2);
       Assert.assertFalse(active.isActive());
       return ForceKillHandler.Result.ACKNOWLEDGED;
@@ -160,6 +167,7 @@ public class KillDagProcForceKillTest {
     processor(DagActionStore.NO_JOB_NAME_DEFAULT).process(this.store, this.metrics);
 
     Assert.assertEquals(original.getProp("backend.handle"), "{\"generation\":1,\"attempt\":1,\"id\":\"original\"}");
+    Assert.assertEquals(original.getProp("backend.common.handle"), "original-common-handle");
     verify(this.metrics).markDagActionsAct(DagActionStore.DagActionType.KILL, true);
     this.dagUtils.verifyNoInteractions();
     this.issues.verifyNoInteractions();
