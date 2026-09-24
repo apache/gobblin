@@ -37,6 +37,7 @@ public class ServiceConfigKeys {
   public static final String GOBBLIN_SERVICE_FLOWSPEC = GOBBLIN_SERVICE_PREFIX + "flowSpec";
   public static final String GOBBLIN_SERVICE_FLOWGRAPH_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowGraph.class";
   public static final String GOBBLIN_SERVICE_FLOWGRAPH_HELPER_KEY = GOBBLIN_SERVICE_PREFIX + "flowGraphHelper.class";
+  public static final String GOBBLIN_SERVICE_FORCE_KILL_HANDLER_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "forceKillHandler.class";
 
   // Flow Compiler Keys
   public static final String GOBBLIN_SERVICE_FLOWCOMPILER_CLASS_KEY = GOBBLIN_SERVICE_PREFIX + "flowCompiler.class";

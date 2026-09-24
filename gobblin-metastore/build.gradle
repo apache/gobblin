@@ -39,6 +39,7 @@ dependencies {
     runtimeOnly externalDependency.mysqlConnector
 
     testCompile externalDependency.testng
+    testCompile externalDependency.mockito
     testCompile externalDependency.embeddedProcess
     testCompile externalDependency.testContainers
     testCompile externalDependency.testContainersMysql

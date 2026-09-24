@@ -17,7 +17,11 @@
 
 package org.apache.gobblin.service.modules.orchestration;
 
+import java.util.Objects;
+
+import com.google.common.base.Optional;
 import com.google.inject.Inject;
+import com.google.inject.Provider;
 import com.google.inject.Singleton;
 import com.typesafe.config.Config;
 
@@ -37,6 +41,7 @@ import org.apache.gobblin.service.modules.orchestration.task.LaunchDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ReevaluateDagTask;
 import org.apache.gobblin.service.modules.orchestration.task.ResumeDagTask;
 import org.apache.gobblin.service.modules.utils.FlowCompilationValidationHelper;
+import org.apache.gobblin.service.monitoring.JobStatusRetriever;
 
 /**
  * {@link DagTaskVisitor} for transforming a specific {@link DagTask} derived class to its companion {@link DagProc} derived class.
@@ -50,11 +55,21 @@ public class DagProcFactory implements DagTaskVisitor<DagProc<?>> {
 
   private final Config config;
   private final FlowCompilationValidationHelper flowCompilationValidationHelper;
+  private final Optional<Provider<ForceKillHandler>> forceKillHandler;
+  private final Provider<JobStatusRetriever> jobStatusRetriever;
+
+  public DagProcFactory(Config config, FlowCompilationValidationHelper flowCompilationValidationHelper) {
+    this(config, flowCompilationValidationHelper, Optional.absent(), null);
+  }
 
   @Inject
-  public DagProcFactory(Config config, FlowCompilationValidationHelper flowCompilationValidationHelper) {
+  public DagProcFactory(Config config, FlowCompilationValidationHelper flowCompilationValidationHelper,
+      Optional<Provider<ForceKillHandler>> forceKillHandler, Provider<JobStatusRetriever> jobStatusRetriever) {
     this.config = config;
     this.flowCompilationValidationHelper = flowCompilationValidationHelper;
+    this.forceKillHandler = Objects.requireNonNull(forceKillHandler, "forceKillHandler");
+    this.jobStatusRetriever = forceKillHandler.isPresent()
+        ? Objects.requireNonNull(jobStatusRetriever, "jobStatusRetriever") : jobStatusRetriever;
   }
 
   @Override
@@ -79,6 +94,9 @@ public class DagProcFactory implements DagTaskVisitor<DagProc<?>> {
 
   @Override
   public KillDagProc meet(KillDagTask killDagTask) {
+    if (this.forceKillHandler.isPresent()) {
+      return new KillDagProc(killDagTask, this.config, this.forceKillHandler.get(), this.jobStatusRetriever);
+    }
     return new KillDagProc(killDagTask, this.config);
   }
 
@@ -87,4 +105,3 @@ public class DagProcFactory implements DagTaskVisitor<DagProc<?>> {
     return new ResumeDagProc(resumeDagTask, this.config);
   }
 }
-

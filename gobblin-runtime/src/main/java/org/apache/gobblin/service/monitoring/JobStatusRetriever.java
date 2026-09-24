@@ -17,6 +17,7 @@
 
 package org.apache.gobblin.service.monitoring;
 
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -49,6 +50,7 @@ import org.apache.gobblin.runtime.troubleshooter.MultiContextIssueRepository;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterException;
 import org.apache.gobblin.runtime.troubleshooter.TroubleshooterUtils;
 import org.apache.gobblin.service.ExecutionStatus;
+import org.apache.gobblin.service.ServiceConfigKeys;
 import org.apache.gobblin.util.ConfigUtils;
 
 
@@ -85,6 +87,33 @@ public abstract class JobStatusRetriever implements LatestFlowExecutionIdTracker
 
   public abstract Iterator<JobStatus> getJobStatusesForFlowExecution(String flowName, String flowGroup,
       long flowExecutionId, String jobName, String jobGroup);
+
+  /**
+   * Read retained states without discarding backend metadata during conversion to {@link JobStatus}.
+   * Includes the flow-summary record, if present. Callers must validate the decoded identity before using
+   * execution handles: storage keys alone do not establish the identity of the serialized contents.
+   *
+   * <p>Unlike status-display APIs, read failures propagate rather than appearing as an empty result.</p>
+   *
+   * @throws IOException if this retriever has no state store or retained state cannot be read
+   */
+  public List<State> getJobStatusStatesForFlowExecution(String flowName, String flowGroup, long flowExecutionId)
+      throws IOException {
+    Objects.requireNonNull(flowName, "flowName");
+    Objects.requireNonNull(flowGroup, "flowGroup");
+    String separator = ServiceConfigKeys.STATE_STORE_KEY_SEPARATION_CHARACTER;
+    String storeName = flowGroup + separator + flowName;
+    String tablePrefix = flowExecutionId + separator;
+    StateStore<State> stateStore = getStateStore();
+    if (stateStore == null) {
+      throw new IOException("Raw job status retrieval requires a state store: " + getClass().getName());
+    }
+    List<State> states = new ArrayList<>();
+    for (String tableName : stateStore.getTableNames(storeName, name -> name.startsWith(tablePrefix))) {
+      states.addAll(stateStore.getAll(storeName, tableName));
+    }
+    return states;
+  }
 
   /**
    * Get the latest {@link FlowStatus}es of executions of flows belonging to this flow group.  Currently, latest flow execution
