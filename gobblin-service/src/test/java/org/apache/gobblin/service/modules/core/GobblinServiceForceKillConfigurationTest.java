@@ -51,7 +51,7 @@ public class GobblinServiceForceKillConfigurationTest {
 
   @Test
   public void testConfiguredBackendIsInjectedAsOneSingletonForManagerAndFactory() {
-    Config config = ConfigFactory.empty().withValue(ServiceConfigKeys.FORCE_KILL_HANDLER_CLASS_KEY,
+    Config config = ConfigFactory.empty().withValue(ServiceConfigKeys.GOBBLIN_SERVICE_FORCE_KILL_HANDLER_CLASS_KEY,
         ConfigValueFactory.fromAnyRef(TestHandler.class.getName()));
     Injector injector = injector(config);
 

@@ -261,9 +261,9 @@ public class GobblinServiceGuiceModule implements Module {
 
   static void configureForceKillHandler(Binder binder, Config config) {
     OptionalBinder<ForceKillHandler> optional = OptionalBinder.newOptionalBinder(binder, ForceKillHandler.class);
-    if (config.hasPath(ServiceConfigKeys.FORCE_KILL_HANDLER_CLASS_KEY)) {
+    if (config.hasPath(ServiceConfigKeys.GOBBLIN_SERVICE_FORCE_KILL_HANDLER_CLASS_KEY)) {
       optional.setBinding().to(getClassByNameOrAlias(ForceKillHandler.class, config,
-          ServiceConfigKeys.FORCE_KILL_HANDLER_CLASS_KEY, null)).in(Singleton.class);
+          ServiceConfigKeys.GOBBLIN_SERVICE_FORCE_KILL_HANDLER_CLASS_KEY, null)).in(Singleton.class);
     }
   }
 
