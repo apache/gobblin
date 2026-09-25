@@ -35,7 +35,6 @@ import com.typesafe.config.Config;
 import org.apache.gobblin.annotation.Alpha;
 import org.apache.gobblin.cluster.GobblinClusterConfigurationKeys;
 import org.apache.gobblin.cluster.GobblinHelixJob;
-import org.apache.gobblin.cluster.HelixJobsMapping;
 import org.apache.gobblin.cluster.event.CancelJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.DeleteJobConfigArrivalEvent;
 import org.apache.gobblin.cluster.event.NewJobConfigArrivalEvent;
@@ -52,8 +51,6 @@ import org.apache.gobblin.scheduler.JobScheduler;
 import org.apache.gobblin.scheduler.SchedulerService;
 import org.apache.gobblin.temporal.GobblinTemporalConfigurationKeys;
 import org.apache.gobblin.util.ConfigUtils;
-import org.apache.gobblin.util.PathUtils;
-import org.apache.gobblin.util.PropertiesUtils;
 import org.apache.gobblin.util.reflection.GobblinConstructorUtils;
 
 
@@ -79,8 +76,6 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
   private final MetricContext metricContext;
   final GobblinTemporalJobSchedulerMetrics jobSchedulerMetrics;
   final GobblinTemporalJobLauncherMetrics launcherMetrics;
-  final GobblinTemporalPlanningJobLauncherMetrics planningJobLauncherMetrics;
-  final HelixJobsMapping jobsMapping;
   private boolean startServicesCompleted;
 
   public GobblinTemporalJobScheduler(Config sysConfig,
@@ -108,22 +103,13 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
             this.metricContext,
             metricsWindowSizeInMin);
 
-    this.jobsMapping = new HelixJobsMapping(ConfigUtils.propertiesToConfig(properties),
-            PathUtils.getRootPath(appWorkDir).toUri(),
-            appWorkDir.toString());
-
-    this.planningJobLauncherMetrics = new GobblinTemporalPlanningJobLauncherMetrics("planningLauncherInScheduler",
-            this.metricContext,
-            metricsWindowSizeInMin, this.jobsMapping);
-
     this.startServicesCompleted = false;
   }
 
   @Override
   public Collection<StandardMetrics> getStandardMetricsCollection() {
     return ImmutableList.of(this.launcherMetrics,
-            this.jobSchedulerMetrics,
-            this.planningJobLauncherMetrics);
+            this.jobSchedulerMetrics);
   }
 
   @Override
@@ -153,18 +139,6 @@ public class GobblinTemporalJobScheduler extends JobScheduler implements Standar
 
   @Override
   protected void startServices() throws Exception {
-
-    boolean cleanAllDistJobs = PropertiesUtils.getPropAsBoolean(this.properties,
-            GobblinClusterConfigurationKeys.CLEAN_ALL_DIST_JOBS,
-            String.valueOf(GobblinClusterConfigurationKeys.DEFAULT_CLEAN_ALL_DIST_JOBS));
-
-    if (cleanAllDistJobs) {
-      for (org.apache.gobblin.configuration.State state : this.jobsMapping.getAllStates()) {
-        String jobUri = state.getId();
-        LOGGER.info("Delete mapping for job " + jobUri);
-        this.jobsMapping.deleteMapping(jobUri);
-      }
-    }
   }
 
   @Override
