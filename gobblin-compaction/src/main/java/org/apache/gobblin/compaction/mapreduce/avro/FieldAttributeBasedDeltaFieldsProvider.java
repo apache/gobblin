@@ -27,11 +27,11 @@ import org.apache.avro.Schema;
 import org.apache.avro.Schema.Field;
 import org.apache.avro.generic.GenericRecord;
 import org.apache.hadoop.conf.Configuration;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.node.ObjectNode;
+import org.fasterxml.jackson.JsonFactory;
+import org.fasterxml.jackson.JsonNode;
+import org.fasterxml.jackson.JsonParser;
+import org.fasterxml.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.node.ObjectNode;
 
 import com.google.common.base.Preconditions;
 import com.google.common.cache.CacheBuilder;
