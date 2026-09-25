@@ -129,4 +129,26 @@ public class ExecutorsUtilsTest {
 
     ExecutorsUtils.parallelize(nums, sleepAndMultiply, 2, 1, Optional.<Logger> absent());
   }
+
+  @Test
+  public void testSafeRunnableRunsSuccessfully() {
+    Runnable mockRunnable = Mockito.mock(Runnable.class);
+    ExecutorsUtils.safeRunnable(mockRunnable).run();
+    Mockito.verify(mockRunnable, Mockito.times(1)).run();
+  }
+
+  @Test
+  public void testSafeRunnableHandlesException() {
+    Runnable mockRunnable = Mockito.mock(Runnable.class);
+    Mockito.doThrow(new RuntimeException("Test exception")).when(mockRunnable).run();
+    Runnable safeRunnable = ExecutorsUtils.safeRunnable(mockRunnable);
+    try {
+      safeRunnable.run();
+      safeRunnable.run();
+      Mockito.verify(mockRunnable, Mockito.times(2)).run();
+    } catch (Exception e) {
+      Assert.fail("Exception should not be thrown from safeRunnable");
+    }
+  }
+
 }

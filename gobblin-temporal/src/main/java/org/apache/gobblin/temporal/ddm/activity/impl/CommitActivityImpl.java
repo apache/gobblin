@@ -106,7 +106,7 @@ public class CommitActivityImpl implements CommitActivity {
       JobState jobState = Help.loadJobState(workSpec, fs);
 
       int heartBeatInterval = JobStateUtils.getHeartBeatInterval(jobState);
-      heartBeatExecutor.scheduleAtFixedRate(() -> activityExecutionContext.heartbeat("Running Commit Activity"),
+      heartBeatExecutor.scheduleAtFixedRate(ExecutorsUtils.safeRunnable(() -> activityExecutionContext.heartbeat("Running Commit Activity")),
           heartBeatInterval, heartBeatInterval, TimeUnit.MINUTES);
 
       optJobName = Optional.ofNullable(jobState.getJobName());
