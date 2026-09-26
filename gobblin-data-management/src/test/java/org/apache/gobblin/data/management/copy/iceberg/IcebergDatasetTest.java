@@ -117,6 +117,17 @@ public class IcebergDatasetTest {
     copyConfigProperties.setProperty("data.publisher.final.dir", "/test");
   }
 
+  /**
+   * @return dataset properties selecting the legacy filesystem-presence copy-diff. Tests that model the destination
+   * state via the dest *filesystem* (and pass a {@code null} dest table) must use this, since the default dest-catalog
+   * diff would instead consult the (absent) destination table.
+   */
+  private static Properties legacyFsPresenceProperties() {
+    Properties properties = new Properties();
+    properties.setProperty(IcebergDatasetFinder.ICEBERG_DATASET_DETERMINE_COPY_FROM_DEST_CATALOG, Boolean.FALSE.toString());
+    return properties;
+  }
+
   @Test
   public void testGetDatasetDescriptor() throws URISyntaxException {
     TableIdentifier tableId = TableIdentifier.of(testDbName, testTblName);
@@ -222,6 +233,45 @@ public class IcebergDatasetTest {
     Mockito.verifyNoMoreInteractions(mockTable);
   }
 
+  // ---- dest-catalog-diff mode (the default): "already copied" is judged by what the DEST table commits, not the FS ----
+
+  /** when the dest catalog is already at the source's current snapshot, the whole iceberg is skipped */
+  @Test
+  public void testCatalogDiffSkipsWhenDestAtSameCurrentSnapshot() throws IOException {
+    IcebergTable destTable = MockIcebergTable.withSnapshots(destTableId(), Lists.newArrayList(SNAPSHOT_PATHS_0));
+    validateCatalogDiffGetFilePaths(Lists.newArrayList(SNAPSHOT_PATHS_0), destTable, Sets.newHashSet(), true);
+  }
+
+  /** first-ever copy: dest table absent => every source file is copied */
+  @Test
+  public void testCatalogDiffCopiesEverythingWhenDestTableAbsent() throws IOException {
+    Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), true, SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0);
+    validateCatalogDiffGetFilePaths(Lists.newArrayList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0), mockAbsentDestTable(),
+        expectedResultPaths, true);
+  }
+
+  /** dest catalog is one snapshot behind => only the newer snapshot's files are copied */
+  @Test
+  public void testCatalogDiffCopiesOnlyDeltaWhenDestBehind() throws IOException {
+    IcebergTable destTable = MockIcebergTable.withSnapshots(destTableId(), Lists.newArrayList(SNAPSHOT_PATHS_1));
+    Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), true, SNAPSHOT_PATHS_0);
+    validateCatalogDiffGetFilePaths(Lists.newArrayList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0), destTable,
+        expectedResultPaths, true);
+  }
+
+  /**
+   * THE CORRUPTION GUARD: even if a manifest + manifest-list were left on the dest *filesystem* by a prior failed run
+   * (here the dest catalog still references an unrelated snapshot), the source snapshot's files are ALL re-copied,
+   * because the dest catalog does not reference them. Filesystem-presence short-circuiting would instead skip them.
+   */
+  @Test
+  public void testCatalogDiffReCopiesFilesOrphanedOnDestFsButNotCommitted() throws IOException {
+    // dest catalog committed only SNAPSHOT_PATHS_1; SNAPSHOT_PATHS_0 (the source current) is NOT referenced by it
+    IcebergTable destTable = MockIcebergTable.withSnapshots(destTableId(), Lists.newArrayList(SNAPSHOT_PATHS_1));
+    Set<Path> expectedResultPaths = withAllSnapshotPaths(Sets.newHashSet(), true, SNAPSHOT_PATHS_0);
+    validateCatalogDiffGetFilePaths(Lists.newArrayList(SNAPSHOT_PATHS_0), destTable, expectedResultPaths, true);
+  }
+
   /** Exception wrapping is used internally--ensure that doesn't lapse into silently swallowing errors */
   @Test(expectedExceptions = IOException.class)
   public void testGetFilePathsDoesNotSwallowDestFileSystemException() throws IOException {
@@ -230,7 +280,7 @@ public class IcebergDatasetTest {
     MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI);
     FileSystem sourceFs = sourceFsBuilder.build();
     boolean shouldIncludeMetadataPathMakesNoDifference = true;
-    IcebergDataset icebergDataset = new IcebergDataset(srcIcebergTable, null, new Properties(), sourceFs, shouldIncludeMetadataPathMakesNoDifference);
+    IcebergDataset icebergDataset = new IcebergDataset(srcIcebergTable, null, legacyFsPresenceProperties(), sourceFs, shouldIncludeMetadataPathMakesNoDifference);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destFsBuilder.build();
@@ -272,7 +322,7 @@ public class IcebergDatasetTest {
     IcebergTable srcIcebergTbl = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_0));
     IcebergTable destIcebergTbl = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_1));
     boolean shouldIncludeManifestPath = true;
-    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTbl, destIcebergTbl, new Properties(), sourceFs, shouldIncludeManifestPath);
+    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTbl, destIcebergTbl, legacyFsPresenceProperties(), sourceFs, shouldIncludeManifestPath);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -299,7 +349,7 @@ public class IcebergDatasetTest {
     IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_1, SNAPSHOT_PATHS_0));
     IcebergTable destIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_1));
     boolean shouldIncludeManifestPath = false;
-    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTable, destIcebergTable, new Properties(), sourceFs, shouldIncludeManifestPath);
+    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTable, destIcebergTable, legacyFsPresenceProperties(), sourceFs, shouldIncludeManifestPath);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -331,7 +381,7 @@ public class IcebergDatasetTest {
     IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_0));
     IcebergTable destIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_1));
     boolean shouldIncludeManifestPath = true;
-    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTable, destIcebergTable, new Properties(), sourceFs, shouldIncludeManifestPath);
+    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTable, destIcebergTable, legacyFsPresenceProperties(), sourceFs, shouldIncludeManifestPath);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -361,7 +411,7 @@ public class IcebergDatasetTest {
     IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_0));
     IcebergTable destIcebergTable = MockIcebergTable.withSnapshots(tableIdInCommon, Arrays.asList(SNAPSHOT_PATHS_1));
     boolean shouldIncludeManifestPath = true;
-    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTable, destIcebergTable, new Properties(), sourceFs, shouldIncludeManifestPath);
+    IcebergDataset icebergDataset = new TrickIcebergDataset(srcIcebergTable, destIcebergTable, legacyFsPresenceProperties(), sourceFs, shouldIncludeManifestPath);
 
     MockFileSystemBuilder destBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     FileSystem destFs = destBuilder.build();
@@ -385,6 +435,14 @@ public class IcebergDatasetTest {
         expectedResultPaths, shouldIncludeMetadataPath);
   }
 
+  /** as {@link #validateGetFilePathsGivenDestState(List, List, Set, boolean)} but with explicit dataset properties */
+  protected IcebergTable validateGetFilePathsGivenDestState(List<MockIcebergTable.SnapshotPaths> sourceSnapshotPathSets,
+      List<String> existingDestPaths, Set<Path> expectedResultPaths, boolean shouldIncludeMetadataPath,
+      Properties datasetProperties) throws IOException {
+    return validateGetFilePathsGivenDestState(sourceSnapshotPathSets, Optional.empty(), existingDestPaths,
+        expectedResultPaths, shouldIncludeMetadataPath, datasetProperties);
+  }
+
   /**
    *  exercise {@link IcebergDataset::getFilePaths} and validate the result
    *  @return {@link IcebergTable} (mock!), for behavioral verification
@@ -392,12 +450,23 @@ public class IcebergDatasetTest {
   protected IcebergTable validateGetFilePathsGivenDestState(List<MockIcebergTable.SnapshotPaths> sourceSnapshotPathSets,
       Optional<List<String>> optExistingSourcePaths, List<String> existingDestPaths, Set<Path> expectedResultPaths,
       boolean shouldIncludeMetadataPath) throws IOException {
+    return validateGetFilePathsGivenDestState(sourceSnapshotPathSets, optExistingSourcePaths, existingDestPaths,
+        expectedResultPaths, shouldIncludeMetadataPath, legacyFsPresenceProperties());
+  }
+
+  /**
+   *  exercise {@link IcebergDataset::getFilePaths} and validate the result
+   *  @return {@link IcebergTable} (mock!), for behavioral verification
+   */
+  protected IcebergTable validateGetFilePathsGivenDestState(List<MockIcebergTable.SnapshotPaths> sourceSnapshotPathSets,
+      Optional<List<String>> optExistingSourcePaths, List<String> existingDestPaths, Set<Path> expectedResultPaths,
+      boolean shouldIncludeMetadataPath, Properties datasetProperties) throws IOException {
     IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(TableIdentifier.of(testDbName, testTblName), sourceSnapshotPathSets);
 
     MockFileSystemBuilder sourceFsBuilder = new MockFileSystemBuilder(SRC_FS_URI, !optExistingSourcePaths.isPresent());
     optExistingSourcePaths.ifPresent(sourceFsBuilder::addPaths);
     FileSystem sourceFs = sourceFsBuilder.build();
-    IcebergDataset icebergDataset = new IcebergDataset(srcIcebergTable, null, new Properties(), sourceFs, shouldIncludeMetadataPath);
+    IcebergDataset icebergDataset = new IcebergDataset(srcIcebergTable, null, datasetProperties, sourceFs, shouldIncludeMetadataPath);
 
     MockFileSystemBuilder destFsBuilder = new MockFileSystemBuilder(DEST_FS_URI);
     destFsBuilder.addPaths(existingDestPaths);
@@ -412,6 +481,41 @@ public class IcebergDatasetTest {
         filePathsToFileStatus.values().stream().map(FileStatus::getPath).collect(Collectors.toSet()),
         expectedResultPaths);
     return srcIcebergTable;
+  }
+
+  private TableIdentifier destTableId() {
+    return TableIdentifier.of(testDbName + "_dest", testTblName + "_dest");
+  }
+
+  /** @return a mock dest {@link IcebergTable} that behaves as not-yet-existing (no current snapshot, empty diff) */
+  private IcebergTable mockAbsentDestTable() throws IOException {
+    IcebergTable destTable = Mockito.mock(IcebergTable.class);
+    Mockito.when(destTable.getTableId()).thenReturn(destTableId());
+    Mockito.when(destTable.getCurrentSnapshotInfoOverviewOnly())
+        .thenThrow(new IcebergTable.TableNotFoundException(destTableId()));
+    Mockito.when(destTable.getIncrementalSnapshotInfosIterator())
+        .thenThrow(new IcebergTable.TableNotFoundException(destTableId()));
+    return destTable;
+  }
+
+  /**
+   * exercise {@link IcebergDataset#getFilePathsToFileStatus} in the default dest-catalog-diff mode, where the set of
+   * files to copy is the source's referenced paths minus whatever the given {@code destIcebergTable} commits
+   */
+  private void validateCatalogDiffGetFilePaths(List<MockIcebergTable.SnapshotPaths> sourceSnapshotPathSets,
+      IcebergTable destIcebergTable, Set<Path> expectedResultPaths, boolean shouldIncludeMetadataPath) throws IOException {
+    IcebergTable srcIcebergTable = MockIcebergTable.withSnapshots(TableIdentifier.of(testDbName, testTblName), sourceSnapshotPathSets);
+    FileSystem sourceFs = new MockFileSystemBuilder(SRC_FS_URI, true).build(); // every source path "exists"
+    // default properties => dest-catalog diff (ICEBERG_DATASET_DETERMINE_COPY_FROM_DEST_CATALOG defaults to true)
+    IcebergDataset icebergDataset = new IcebergDataset(srcIcebergTable, destIcebergTable, new Properties(), sourceFs, shouldIncludeMetadataPath);
+
+    // dest FS is unused by catalog diff, but a CopyConfiguration still requires a target FileSystem
+    FileSystem destFs = new MockFileSystemBuilder(DEST_FS_URI, true).build();
+    CopyConfiguration copyConfiguration = createEmptyCopyConfiguration(destFs);
+
+    IcebergDataset.GetFilePathsToFileStatusResult pathsResult =
+        icebergDataset.getFilePathsToFileStatus(destFs, copyConfiguration, shouldIncludeMetadataPath);
+    Assert.assertEquals(pathsResult.getPathsToFileStatus().keySet(), expectedResultPaths);
   }
 
   /** @return `paths` after adding to it all paths of every one of `snapshotDefs` */

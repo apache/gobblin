@@ -56,6 +56,20 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
   public static final String ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH = ICEBERG_DATASET_PREFIX + ".should.copy.metadata.path";
   public static final String DEFAULT_ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH = "false";
 
+  /**
+   * When {@code true} (default), the set of files to copy is determined by diffing the source table against what the
+   * DESTINATION Iceberg table's committed catalog references, rather than by probing each file's presence on the
+   * destination filesystem. Because the dest table is committed only after a fully successful publish, a path it
+   * references is guaranteed present and consistent -- while orphan metadata left on the dest filesystem by a prior
+   * partially-failed run is NOT referenced, so its missing data files are still re-copied. This averts the table
+   * corruption that filesystem-presence short-circuiting causes (a metadata file present on the dest FS would skip its
+   * whole subtree forever, leaving the committed table referencing data files that never get copied). Setting this to
+   * {@code false} restores the legacy filesystem-presence behavior.
+   */
+  public static final String ICEBERG_DATASET_DETERMINE_COPY_FROM_DEST_CATALOG =
+      ICEBERG_DATASET_PREFIX + ".determine.copy.from.dest.catalog";
+  public static final String DEFAULT_ICEBERG_DATASET_DETERMINE_COPY_FROM_DEST_CATALOG = "true";
+
   public static final String DEFAULT_ICEBERG_CATALOG_CLASS = "org.apache.gobblin.data.management.copy.iceberg.IcebergHiveCatalog";
   public static final String ICEBERG_CATALOG_KEY = "catalog";
   /**
@@ -172,6 +186,11 @@ public class IcebergDatasetFinder implements IterableDatasetFinder<IcebergDatase
 
   protected static boolean getConfigShouldCopyMetadataPath(Properties properties) {
     return Boolean.valueOf(properties.getProperty(ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH, DEFAULT_ICEBERG_DATASET_SHOULD_COPY_METADATA_PATH));
+  }
+
+  public static boolean getConfigShouldDetermineCopyFromDestCatalog(Properties properties) {
+    return Boolean.valueOf(properties.getProperty(ICEBERG_DATASET_DETERMINE_COPY_FROM_DEST_CATALOG,
+        DEFAULT_ICEBERG_DATASET_DETERMINE_COPY_FROM_DEST_CATALOG));
   }
 
   /** @return property value or `null` */
