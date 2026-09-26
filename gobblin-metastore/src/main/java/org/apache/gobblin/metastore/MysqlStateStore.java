@@ -241,6 +241,10 @@ public class MysqlStateStore<T extends State> implements StateStore<T> {
     //   perhaps non-zero would have desirable runtime perf, but anything >0 currently fails unit tests (even 1!);
     //   (so experimenting with a higher number would first require adjusting tests)
     dataSource.setMinimumIdle(0);
+    // Expose Hikari `maximumPoolSize` as configurable so callers (e.g. spec stores) backed by large thread pools
+    // can size connections to match concurrent `getConnection()` demand. Default preserves HikariCP's built-in (10).
+    dataSource.setMaximumPoolSize(ConfigUtils.getInt(config, ConfigurationKeys.STATE_STORE_DB_MAX_CONNECTIONS_KEY,
+        ConfigurationKeys.DEFAULT_STATE_STORE_DB_MAX_CONNECTIONS));
     dataSource.setUsername(passwordManager.readPassword(
         config.getString(ConfigurationKeys.STATE_STORE_DB_USER_KEY)));
     dataSource.setPassword(passwordManager.readPassword(
