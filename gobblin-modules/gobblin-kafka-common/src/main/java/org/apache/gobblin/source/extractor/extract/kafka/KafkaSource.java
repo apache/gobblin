@@ -642,7 +642,7 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
       } catch (StartOffsetOutOfRangeException e) {
 
         // Increment counts, which will be reported as job metrics
-        if (offsets.getStartOffset() <= offsets.getLatestOffset()) {
+        if (previousOffset <= offsets.getEarliestOffset()) {
           this.offsetTooEarlyCount.incrementAndGet();
         } else {
           this.offsetTooLateCount.incrementAndGet();
@@ -652,11 +652,11 @@ public abstract class KafkaSource<S, D> extends EventBasedSource<S, D> {
         // partition. If skipping, need to create an empty workunit so that previousOffset is persisted.
         String offsetOutOfRangeMsg = String.format(
             "Start offset for partition %s is out of range. Start offset = %d, earliest offset = %d, latest offset = %d.",
-            partition, offsets.getStartOffset(), offsets.getEarliestOffset(), offsets.getLatestOffset());
+            partition, previousOffset, offsets.getEarliestOffset(), offsets.getLatestOffset());
         String offsetOption =
             state.getProp(RESET_ON_OFFSET_OUT_OF_RANGE, DEFAULT_RESET_ON_OFFSET_OUT_OF_RANGE).toLowerCase();
         if (offsetOption.equals(LATEST_OFFSET) || (offsetOption.equals(NEAREST_OFFSET)
-            && offsets.getStartOffset() >= offsets.getLatestOffset())) {
+            && previousOffset >= offsets.getLatestOffset())) {
           LOG.warn(
               offsetOutOfRangeMsg + "This partition will start from the latest offset: " + offsets.getLatestOffset());
           offsets.startAtLatestOffset();
