@@ -40,7 +40,7 @@ public abstract class DagTask {
   @Getter public final DagActionStore.DagAction dagAction;
   protected final DagManagementStateStore dagManagementStateStore;
   private final LeaseAttemptStatus.LeaseObtainedStatus leaseObtainedStatus;
-  private final DagProcessingEngineMetrics dagProcEngineMetrics;
+  protected final DagProcessingEngineMetrics dagProcEngineMetrics;
 
   /**
    * Returns the consensus {@link DagActionStore.LeaseParams} for this task, exposing the per-event metadata that
