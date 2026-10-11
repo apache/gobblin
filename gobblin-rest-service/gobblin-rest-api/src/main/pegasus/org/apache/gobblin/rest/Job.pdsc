@@ -1,0 +1,83 @@
+{
+  "type": "record",
+  "name": "Job",
+  "namespace": "org.apache.gobblin.rest",
+  "doc": "Gobblin job configuration info",
+  "fields": [
+    {
+      "name": "id",
+      "type": "int",
+      "doc": "Job Id"
+    },
+    {
+      "name": "name",
+      "type": "string",
+      "doc": "Job name"
+    },
+    {
+      "name": "schedule",
+      "type": "string",
+      "doc": "CRON schedule"
+    },
+    {
+      "name": "description",
+      "type": "string",
+      "doc": "Job description"
+    },
+    {
+      "name": "disabled",
+      "type": "boolean",
+      "doc": "whether job should be disabled or enabled to be executed"
+    },
+    {
+      "name": "priority",
+      "type": "int",
+      "doc": "Job priority"
+    },
+    {
+      "name": "configs",
+      "type": {
+        "type": "map",
+        "values": "string"
+      },
+      "optional": true,
+      "doc": "Job properties to add"
+    },
+    {
+      "name": "ownerEmail",
+      "type": "string",
+      "doc": "Job description"
+    },
+    {
+      "name": "sourceSystem",
+      "type": "string",
+      "doc": "Job description"
+    },
+    {
+      "name": "targetSystem",
+      "type": "string",
+      "doc": "Job description"
+    },
+    {
+      "name": "createdDate",
+      "type": "long",
+      "optional": true,
+      "doc": "Job created time"
+    },
+    {
+      "name": "updatedDate",
+      "type": "long",
+      "optional": true,
+      "doc": "Job updated time"
+    },
+    {
+      "name": "configsToRemove",
+      "type": {
+        "type": "array",
+        "items": "string"
+      },
+      "optional": true,
+      "doc": "Job properties to remove"
+    }
+  ]
+}
