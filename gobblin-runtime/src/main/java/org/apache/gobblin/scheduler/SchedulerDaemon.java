@@ -17,17 +17,17 @@
 
 package org.apache.gobblin.scheduler;
 
+import java.io.File;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.Properties;
 import java.util.UUID;
-
-import org.apache.commons.configuration.ConfigurationConverter;
-import org.apache.commons.configuration.PropertiesConfiguration;
-
-import lombok.extern.slf4j.Slf4j;
-
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.apache.gobblin.runtime.app.ServiceBasedAppLauncher;
+import org.apache.gobblin.util.ConfigUtils;
 import org.apache.gobblin.util.PropertiesUtils;
-
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * A class that runs the {@link JobScheduler} in a daemon process for standalone deployment.
@@ -53,25 +53,25 @@ public class SchedulerDaemon extends ServiceBasedAppLauncher {
   }
 
   public static void main(String[] args)
-      throws Exception {
+          throws Exception {
     if (args.length < 1 || args.length > 2) {
-      System.err.println(
-          "Usage: SchedulerDaemon <default configuration properties file> [custom configuration properties file]");
+      System.err.println("Usage: SchedulerDaemon <default configuration properties file> [custom configuration properties file]");
       System.exit(1);
     }
 
     // Load default framework configuration properties
-    Properties defaultProperties = ConfigurationConverter.getProperties(new PropertiesConfiguration(args[0]));
+    Path path = Paths.get(args[0]);
+    File configFile = path.toFile();
 
-    // Load custom framework configuration properties (if any)
-    Properties customProperties = new Properties();
-    if (args.length == 2) {
-      customProperties.putAll(ConfigurationConverter.getProperties(new PropertiesConfiguration(args[1])));
+    Config config = null;
+    if (configFile.exists()){
+      config = ConfigFactory.parseFile(configFile);
+    }else{
+      System.err.println("invalid config file path: "+args[0]);
+      System.exit(1);
     }
 
-    log.debug("Scheduler Daemon::main starting with defaultProperties: {}, customProperties: {}", defaultProperties,
-        customProperties);
     // Start the scheduler daemon
-    new SchedulerDaemon(defaultProperties, customProperties).start();
+    new SchedulerDaemon(ConfigUtils.configToProperties(config)).start();
   }
 }
