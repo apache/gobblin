@@ -51,7 +51,7 @@ public class GobblinTrackingEventFlattenFilterConverterTest {
             + "{\"name\":\"namespace\",\"type\":[\"string\",\"null\"],\"doc\":\"Namespace used for filtering of events.\"},"
             + "{\"name\":\"name\",\"type\":\"string\",\"doc\":\"Event name.\"},{\"name\":\"field1\",\"type\":\"string\",\"doc\":\"\"},"
             + "{\"name\":\"field2\",\"type\":\"string\",\"doc\":\"\"}]}");
-    Assert.assertEquals(output.toString(), parsedSchema.toString());
+    Assert.assertEquals(output, parsedSchema);
 
     props.put(GobblinTrackingEventFlattenFilterConverter.class.getSimpleName() + "."
         + GobblinTrackingEventFlattenFilterConverter.FIELDS_RENAME_MAP, "name:eventName,field1:field3");
@@ -68,6 +68,6 @@ public class GobblinTrackingEventFlattenFilterConverterTest {
             + "{\"name\":\"namespace\",\"type\":[\"string\",\"null\"],\"doc\":\"Namespace used for filtering of events.\"},"
             + "{\"name\":\"eventName\",\"type\":\"string\",\"doc\":\"Event name.\"},{\"name\":\"field3\",\"type\":\"string\",\"doc\":\"\"},"
             + "{\"name\":\"field2\",\"type\":\"string\",\"doc\":\"\"}]}");
-    Assert.assertEquals(output2.toString(), parsedSchema.toString());
+    Assert.assertEquals(output2, parsedSchema);
   }
 }
