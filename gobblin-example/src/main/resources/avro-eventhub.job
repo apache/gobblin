@@ -1,7 +1,7 @@
 # Required overrides
 gobblin.workDir=gobblin
 
-launcher.type=LOCAL
+job.launcher.type=LOCAL
 
 job.name=TestSourceToEventhub
 job.group=eventhubTest
