@@ -167,6 +167,8 @@ public class GobblinServiceJobSchedulerTest {
     doNothing().when(mockJobScheduler)
         .runJob(any(Properties.class), any(JobListener.class));
 
+    GobblinServiceJobScheduler.resetLastScheduledFlowTriggerFireTimeMillis();
+    long beforeExecute = System.currentTimeMillis();
     try {
       // This should not throw a NullPointerException if the code is properly handling null values
       job.executeImpl(mockContext);
@@ -175,6 +177,10 @@ public class GobblinServiceJobSchedulerTest {
       // Verify that runJob was called
       verify(mockJobScheduler, times(1)).runJob(any(Properties.class),
           any(JobListener.class));
+      Assert.assertTrue(GobblinServiceJobScheduler.getLastScheduledFlowTriggerFireTimeMillis() >= beforeExecute,
+          "Regular scheduled flow trigger executions should refresh the scheduler liveness timestamp");
+      Assert.assertTrue(GobblinServiceJobScheduler.getLastScheduledFlowTriggerFireAgeMillis() >= 0,
+          "Regular scheduled flow trigger executions should expose a non-negative liveness age");
     } catch (JobExecutionException e) {
       // Check if the cause is a NullPointerException
       if (e.getCause() instanceof NullPointerException) {
@@ -185,6 +191,40 @@ public class GobblinServiceJobSchedulerTest {
         throw e;
       }
     }
+  }
+
+  @Test
+  public void testReminderJobDoesNotRefreshScheduledFlowTriggerLiveness()
+      throws Exception {
+    JobExecutionContext mockContext = mock(JobExecutionContext.class);
+    JobDetail mockJobDetail = mock(JobDetail.class);
+    JobDataMap mockJobDataMap = mock(JobDataMap.class);
+    Trigger mockTrigger = mock(Trigger.class);
+
+    Properties jobProps = new Properties();
+    jobProps.setProperty(ConfigurationKeys.FLOW_NAME_KEY, "testFlow");
+    jobProps.setProperty(ConfigurationKeys.FLOW_GROUP_KEY, "testGroup");
+    jobProps.setProperty(ConfigurationKeys.SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY, "12345");
+    jobProps.setProperty(ConfigurationKeys.SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY, "23456");
+
+    JobScheduler mockJobScheduler = mock(JobScheduler.class);
+    JobListener mockJobListener = mock(JobListener.class);
+
+    when(mockContext.getJobDetail()).thenReturn(mockJobDetail);
+    when(mockContext.getTrigger()).thenReturn(mockTrigger);
+    when(mockJobDetail.getJobDataMap()).thenReturn(mockJobDataMap);
+    when(mockJobDetail.getKey()).thenReturn(new org.quartz.JobKey("testFlow-reminder_for_12345", "testGroup"));
+    when(mockJobDataMap.get(GobblinServiceJobScheduler.JOB_SCHEDULER_KEY)).thenReturn(mockJobScheduler);
+    when(mockJobDataMap.get(GobblinServiceJobScheduler.PROPERTIES_KEY)).thenReturn(jobProps);
+    when(mockJobDataMap.get(GobblinServiceJobScheduler.JOB_LISTENER_KEY)).thenReturn(mockJobListener);
+    when(mockTrigger.getPreviousFireTime()).thenReturn(new java.util.Date());
+    doNothing().when(mockJobScheduler).runJob(any(Properties.class), any(JobListener.class));
+
+    GobblinServiceJobScheduler.resetLastScheduledFlowTriggerFireTimeMillis();
+    new GobblinServiceJobScheduler.GobblinServiceJob().executeImpl(mockContext);
+
+    Assert.assertEquals(GobblinServiceJobScheduler.getLastScheduledFlowTriggerFireTimeMillis(), -1L,
+        "Reminder triggers should not mask liveness failures for regular scheduled-flow Quartz triggers");
   }
 
   /**
