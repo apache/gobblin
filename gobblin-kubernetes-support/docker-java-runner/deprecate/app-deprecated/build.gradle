@@ -1,0 +1,17 @@
+plugins {
+    id 'application'
+}
+
+application {
+    mainClass = 'com.trivago.de.kubernetes.javarunner.AppDepr'
+    applicationDefaultJvmArgs = [
+            '-Djava.system.class.loader=com.trivago.de.kubernetes.javarunner.TrvClassLoader'
+    ]
+}
+
+repositories {
+    mavenCentral()
+}
+
+dependencies {
+}
