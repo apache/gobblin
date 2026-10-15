@@ -51,11 +51,27 @@ public class DatasetTaskSummary {
   // run can commit more than one snapshot/partition); null = unsupported/unreported.
   private String snapshotsCommitted;
   private String partitionsCommitted;
+  // Retention (data-deletion) counts, likewise not @NonNull and populated during JSON deserialization of
+  // events that carry them (e.g. DDM retention runs); null = not a deletion job.
+  private Long versionsTotal;
+  private Long versionsDeleted;
+  private Long directoriesPruned;
 
   /**
    * Convert a {@link DatasetTaskSummary} to a {@link DatasetMetric}.
    */
   public static DatasetMetric toDatasetMetric(DatasetTaskSummary datasetTaskSummary) {
-    return new DatasetMetric(datasetTaskSummary.getDatasetUrn(), datasetTaskSummary.getBytesWritten(), datasetTaskSummary.getRecordsWritten(), datasetTaskSummary.isSuccessfullyCommitted(), datasetTaskSummary.getDataQualityStatus(), datasetTaskSummary.getSnapshotsCommitted(), datasetTaskSummary.getPartitionsCommitted());
+    return DatasetMetric.newBuilder()
+        .setDatasetUrn(datasetTaskSummary.getDatasetUrn())
+        .setBytesWritten(datasetTaskSummary.getBytesWritten())
+        .setEntitiesWritten(datasetTaskSummary.getRecordsWritten())
+        .setSuccessfullyCommitted(datasetTaskSummary.isSuccessfullyCommitted())
+        .setDataQualityStatus(datasetTaskSummary.getDataQualityStatus())
+        .setSnapshotsCommitted(datasetTaskSummary.getSnapshotsCommitted())
+        .setPartitionsCommitted(datasetTaskSummary.getPartitionsCommitted())
+        .setVersionsTotal(datasetTaskSummary.getVersionsTotal())
+        .setVersionsDeleted(datasetTaskSummary.getVersionsDeleted())
+        .setDirectoriesPruned(datasetTaskSummary.getDirectoriesPruned())
+        .build();
   }
 }

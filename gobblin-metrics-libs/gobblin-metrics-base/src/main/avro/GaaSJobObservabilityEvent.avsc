@@ -276,6 +276,24 @@
                 "type": ["null","string"],
                 "doc": "Comma-separated list of the partitions committed for the dataset in this run, null if the writer does not commit partitions or does not report them",
                 "default": null
+              },
+              {
+                "name": "versionsTotal",
+                "type": ["null","long"],
+                "doc": "Retention (data-deletion) jobs only: number of dataset versions considered under the dataset root (deletable + retained), null for jobs that do not delete",
+                "default": null
+              },
+              {
+                "name": "versionsDeleted",
+                "type": ["null","long"],
+                "doc": "Retention (data-deletion) jobs only: number of dataset versions deleted (or, on a dry run, that would be deleted), null for jobs that do not delete",
+                "default": null
+              },
+              {
+                "name": "directoriesPruned",
+                "type": ["null","long"],
+                "doc": "Retention (data-deletion) jobs only: number of now-empty parent directories pruned after the versions were deleted, null for jobs that do not delete",
+                "default": null
               }
             ]
           }
