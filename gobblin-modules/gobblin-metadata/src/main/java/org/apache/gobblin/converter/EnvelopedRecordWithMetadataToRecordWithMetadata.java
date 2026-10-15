@@ -23,11 +23,11 @@ import java.util.Map;
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metadata.types.Metadata;
 import org.apache.gobblin.type.RecordWithMetadata;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.JsonParser;
-import org.codehaus.jackson.map.DeserializationConfig;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.JsonFactory;
+import org.fasterxml.jackson.JsonNode;
+import org.fasterxml.jackson.JsonParser;
+import org.fasterxml.jackson.map.DeserializationConfig;
+import org.fasterxml.jackson.map.ObjectMapper;
 
 /**
  * A converter that takes a {@link RecordWithMetadata} and deserializes it by trying to parse it into a

@@ -23,8 +23,8 @@ import java.nio.charset.StandardCharsets;
 import java.util.Base64;
 import java.util.List;
 
-import org.codehaus.jackson.map.ObjectMapper;
-import org.codehaus.jackson.type.TypeReference;
+import org.fasterxml.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.type.TypeReference;
 
 import com.google.gson.Gson;
 import com.google.gson.JsonSyntaxException;

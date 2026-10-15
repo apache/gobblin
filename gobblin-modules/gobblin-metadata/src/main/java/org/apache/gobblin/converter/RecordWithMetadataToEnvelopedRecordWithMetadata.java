@@ -21,10 +21,10 @@ import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.Collections;
 
-import org.codehaus.jackson.JsonEncoding;
-import org.codehaus.jackson.JsonFactory;
-import org.codehaus.jackson.JsonGenerator;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.JsonEncoding;
+import org.fasterxml.jackson.JsonFactory;
+import org.fasterxml.jackson.JsonGenerator;
+import org.fasterxml.jackson.map.ObjectMapper;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.metadata.types.GlobalMetadata;

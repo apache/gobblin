@@ -22,8 +22,8 @@ import java.util.HashMap;
 import java.util.Iterator;
 import org.apache.gobblin.metadata.types.Metadata;
 import org.apache.gobblin.type.RecordWithMetadata;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.JsonNode;
+import org.fasterxml.jackson.map.ObjectMapper;
 import org.testng.Assert;
 import org.testng.annotations.Test;
 

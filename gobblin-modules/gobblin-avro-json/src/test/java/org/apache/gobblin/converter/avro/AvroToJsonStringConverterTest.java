@@ -21,8 +21,8 @@ import java.io.IOException;
 import java.util.Iterator;
 
 import org.apache.avro.generic.GenericRecord;
-import org.codehaus.jackson.JsonNode;
-import org.codehaus.jackson.map.ObjectMapper;
+import org.fasterxml.jackson.JsonNode;
+import org.fasterxml.jackson.map.ObjectMapper;
 import org.testng.Assert;
 import org.testng.annotations.BeforeTest;
 import org.testng.annotations.Test;
