@@ -18,3 +18,7 @@
 #
 
 # Set Gobblin specific environment variables here.
+export GOBBLIN_HOME
+export GOBBLIN_LOGS
+export GOBBLIN_WORK_DIR=$GOBBLIN_HOME/gobblin-cluster-data
+export GOBBLIN_JOB_CONFIG_DIR=$GOBBLIN_HOME/gobblin-jobs
