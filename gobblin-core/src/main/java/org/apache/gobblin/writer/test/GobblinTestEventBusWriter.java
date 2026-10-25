@@ -16,20 +16,17 @@
  */
 package org.apache.gobblin.writer.test;
 
-import java.io.IOException;
-import java.util.concurrent.atomic.AtomicLong;
-
 import com.google.common.base.Optional;
 import com.google.common.eventbus.EventBus;
-
+import java.io.IOException;
+import java.util.concurrent.atomic.AtomicLong;
+import lombok.Data;
 import org.apache.gobblin.configuration.ConfigurationKeys;
 import org.apache.gobblin.configuration.State;
 import org.apache.gobblin.util.ForkOperatorUtils;
 import org.apache.gobblin.util.WriterUtils;
 import org.apache.gobblin.writer.DataWriter;
 import org.apache.gobblin.writer.DataWriterBuilder;
-
-import lombok.Data;
 
 
 /**
@@ -47,7 +44,10 @@ import lombok.Data;
 public class GobblinTestEventBusWriter implements DataWriter<Object> {
   private final EventBus _eventBus;
   private final AtomicLong _recordCount = new AtomicLong();
+  private final AtomicLong _bytesCount = new AtomicLong();
   private final Mode _mode;
+  private boolean _isRecordSizeReused = true;
+  private long _reusedRecordSize = 0;
 
   private long _firstRecordTimestamp;
   private long _lastRecordTimestamp;
@@ -56,7 +56,14 @@ public class GobblinTestEventBusWriter implements DataWriter<Object> {
     /** Will post every record to eventbus. */
     POST_RECORDS,
     /** Will count records and post a summary to eventbus at commit time. */
-    COUNTING
+    COUNTING,
+    /** Will count total number of types of records being passed through.
+     * Measured by {@link java.lang.instrument.Instrumentation}
+     * To use the feature, one needs to add jvm arguments when running java program as below:
+     *
+     * -javaagent:"/<PATH_TO_YOUR_MULTIPRODUCT>/gobblin-proxy_trunk/gobblin-github/build/gobblin-core/libs/gobblin-core-<VERSION>.jar"
+     * */
+    POST_BYTES
   }
 
   /** The topic to use for writing */
@@ -67,6 +74,10 @@ public class GobblinTestEventBusWriter implements DataWriter<Object> {
       ConfigurationKeys.WRITER_PREFIX + "." + EVENTBUSID_KEY;
   public static final String FULL_MODE_KEY = ConfigurationKeys.WRITER_PREFIX + "." + MODE_KEY;
 
+  // Turn this on when there's need to reuse the object size when measuring total amount of bytes being flowing through Gobblin.
+  // Most of the case when we do profiling, the fake object should have similar in-memory size.
+  public static final String RECORD_SIZE_BEING_REUSED = "GobblinTestEventBusWriter.recordSizeReused";
+
   public GobblinTestEventBusWriter(EventBus eventBus, Mode mode) {
     _eventBus = eventBus;
     _mode = mode;
@@ -74,6 +85,12 @@ public class GobblinTestEventBusWriter implements DataWriter<Object> {
 
   public GobblinTestEventBusWriter(String eventBusId, Mode mode) {
     this(TestingEventBuses.getEventBus(eventBusId), mode);
+  }
+
+  public GobblinTestEventBusWriter(State state, String eventBusId, Mode mode) {
+    this(TestingEventBuses.getEventBus(eventBusId), mode);
+    _isRecordSizeReused = state.getPropAsBoolean(RECORD_SIZE_BEING_REUSED)
+        || state.getPropAsBoolean(RECORD_SIZE_BEING_REUSED);
   }
 
   @Override
@@ -85,18 +102,21 @@ public class GobblinTestEventBusWriter implements DataWriter<Object> {
   public void write(Object record) throws IOException {
     if (_firstRecordTimestamp == 0) {
       _firstRecordTimestamp = System.currentTimeMillis();
+      _reusedRecordSize = InstrumentationAgent.getObjectSize(record);
     }
-    if (this._mode == Mode.POST_RECORDS) {
+    if (this._mode == Mode.POST_RECORDS || this._mode == Mode.POST_BYTES) {
       _eventBus.post(new TestingEventBuses.Event(record));
     }
     _lastRecordTimestamp = System.currentTimeMillis();
     _recordCount.incrementAndGet();
+    _bytesCount.addAndGet(_isRecordSizeReused ? _reusedRecordSize : InstrumentationAgent.getObjectSize(record));
   }
 
   @Override
   public void commit() throws IOException {
     if (this._mode == Mode.COUNTING) {
-      _eventBus.post(new TestingEventBuses.Event(new RunSummary(_recordCount.get(), _lastRecordTimestamp - _firstRecordTimestamp)));
+      _eventBus.post(new TestingEventBuses.Event(new RunSummary(_recordCount.get(),
+          _lastRecordTimestamp - _firstRecordTimestamp, _bytesCount.get())));
     }
   }
 
@@ -112,8 +132,7 @@ public class GobblinTestEventBusWriter implements DataWriter<Object> {
 
   @Override
   public long bytesWritten() throws IOException {
-    // Not meaningful
-    return _recordCount.get();
+    return _bytesCount.get();
   }
 
   public static Builder builder() {
@@ -172,6 +191,7 @@ public class GobblinTestEventBusWriter implements DataWriter<Object> {
   public static class RunSummary {
     private final long recordsWritten;
     private final long timeElapsedMillis;
+    private final long bytesWritten;
   }
 
 }
