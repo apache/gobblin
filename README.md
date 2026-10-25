@@ -82,4 +82,24 @@ The distribution will be created in build/gobblin-distribution/distributions dir
   * [List of companies known to use Gobblin](https://gobblin.apache.org/docs/Powered-By/) 
   * [Sample project](https://github.com/apache/gobblin/tree/master/gobblin-example)
   * [How to build Gobblin from source code](https://gobblin.apache.org/docs/user-guide/Building-Gobblin/)
-  * [Issue tracker - Apache Jira](https://issues.apache.org/jira/projects/GOBBLIN/issues/)
+  * [Issue tracker - Apache Jira](https://issues.apache.org/jira/projects/GOBBLIN/issues/)This PR looks like a spam/placeholder submission rather than a real code contribution.
+
+- PR: apache/gobblin #4210
+- Title: "Hackrs"
+- State: open, not merged, no reviews
+- Scope: 1 file changed
+- File added: .github/workflows/scala.yml
+- Change size: +35 / -0
+
+What stands out:
+- The PR body is mostly a template with unchecked boxes and placeholder text like "GOBBLIN-XXX"
+- It contains obvious junk text such as "bcb.gov.br", "7bilhoes de dólares", and "livros 6bilhoes de dólares"
+- There is no actual product change described, no linked issue, and no meaningful test rationale
+- The only code change is a GitHub Actions Scala CI workflow, not a source patch to Gobblin itself
+
+So the practical assessment is:
+- This is not a legitimate, reviewable feature/fix PR as written
+- It appears to be a bot/spam or empty placeholder PR
+- For triage, it should likely be closed or asked to resubmit with a proper description and meaningful commit changes
+
+If you want, I can also help draft a short maintainer comment to reject or request changes on this PR.
