@@ -1,0 +1,11 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: dummy-pod
+spec:
+  restartPolicy: Never
+  containers:
+      - name: my-dummy
+        image: debian:latest
+        command: ["/bin/bash", "-c", "sleep infinity"]
+
