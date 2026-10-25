@@ -20,10 +20,12 @@ import org.apache.avro.Schema;
 
 import org.apache.gobblin.configuration.WorkUnitState;
 import org.apache.gobblin.data.management.conversion.hive.dataset.ConvertibleHiveDataset.ConversionConfig;
+import org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSource;
 import org.apache.gobblin.util.AvroFlattener;
 
 /**
- * An Avro to ORC converter for avro to flattened ORC. {@link OrcFormats#FLATTENED_ORC}
+ * An Avro to ORC converter for avro to flattened ORC.
+ * {@link org.apache.gobblin.data.management.conversion.hive.source.HiveAvroToOrcSource.OrcFormats#FLATTENED_ORC}
  */
 public class HiveAvroToFlattenedOrcConverter extends AbstractAvroToOrcConverter {
 
@@ -46,11 +48,11 @@ public class HiveAvroToFlattenedOrcConverter extends AbstractAvroToOrcConverter 
    */
   @Override
   protected boolean hasConversionConfig() {
-    return super.hiveDataset.getConversionConfigForFormat(OrcFormats.FLATTENED_ORC.getConfigPrefix()).isPresent();
+    return super.hiveDataset.getConversionConfigForFormat(HiveAvroToOrcSource.OrcFormats.FLATTENED_ORC.getConfigPrefix()).isPresent();
   }
 
   @Override
   protected ConversionConfig getConversionConfig() {
-    return super.hiveDataset.getConversionConfigForFormat(OrcFormats.FLATTENED_ORC.getConfigPrefix()).get();
+    return super.hiveDataset.getConversionConfigForFormat(HiveAvroToOrcSource.OrcFormats.FLATTENED_ORC.getConfigPrefix()).get();
   }
 }
