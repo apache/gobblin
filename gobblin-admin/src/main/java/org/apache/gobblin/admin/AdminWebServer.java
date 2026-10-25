@@ -18,7 +18,11 @@ package org.apache.gobblin.admin;
 
 import com.google.common.base.Preconditions;
 import com.google.common.util.concurrent.AbstractIdleService;
+import com.typesafe.config.Config;
+import com.typesafe.config.ConfigFactory;
 import org.apache.gobblin.configuration.ConfigurationKeys;
+import org.apache.gobblin.rest.JobExecutionInfoServer;
+import org.apache.gobblin.util.ConfigUtils;
 import org.eclipse.jetty.server.Handler;
 import org.eclipse.jetty.server.Request;
 import org.eclipse.jetty.server.Server;
@@ -126,5 +130,22 @@ public class AdminWebServer extends AbstractIdleService {
     return Long.parseLong(
         properties.getProperty(ConfigurationKeys.ADMIN_SERVER_REFRESH_INTERVAL_KEY,
                 "" + ConfigurationKeys.DEFAULT_ADMIN_SERVER_REFRESH_INTERVAL));
+  }
+
+  /*
+  Main method to start the AdminWebServer separately anywhere in the environment that has access to the metadata
+  instead of clubbing it under main Gobblin process.
+   */
+  public static void main(String[] argv){
+    try {
+      Config config = ConfigFactory.load();
+      Properties gobblinProperties = ConfigUtils.configToProperties(config);
+      JobExecutionInfoServer executionInfoServer = new JobExecutionInfoServer(gobblinProperties);
+      executionInfoServer.startUp();
+      new AdminWebServer(ConfigUtils.configToProperties(config), executionInfoServer.getAdvertisedServerUri()).startUp();
+    }catch (Exception e){
+      LOGGER.error("Error: "+ e.getMessage());
+      System.exit(1);
+    }
   }
 }
