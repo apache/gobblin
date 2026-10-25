@@ -22,6 +22,7 @@ import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.List;
 import java.util.Random;
+import java.util.concurrent.ThreadLocalRandom;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.TimeoutException;
 import java.util.concurrent.atomic.AtomicInteger;
@@ -62,6 +63,10 @@ import lombok.extern.slf4j.Slf4j;
 public class RedirectAwareRestClientRequestSender extends RestClientRequestSender {
 
   private static final int MIN_RETRIES = 3;
+
+  private static final long RETRY_MAX_DELAY_MILLIS = 10000L;
+  private static final long RETRY_MIN_INITIAL_DELAY_MILLIS = 500L;
+  private static final long RETRY_INITIAL_DELAY_RANGE_MILLIS = 500L;
 
   /**
    * A {@link SharedResourceFactory} that creates {@link RedirectAwareRestClientRequestSender}s.
@@ -195,7 +200,18 @@ public class RedirectAwareRestClientRequestSender extends RestClientRequestSende
   private class CallbackDecorator implements Callback<Response<PermitAllocation>> {
     private final PermitRequest originalRequest;
     private final Callback<Response<PermitAllocation>> underlying;
-    private final ExponentialBackoff exponentialBackoff = ExponentialBackoff.builder().maxDelay(10000L).initialDelay(500L).build();
+    // The initial delay is randomised so that clients which lose the throttling server do not all
+    // retry at the same instants. Every subsequent delay is a multiple of this one, so spreading the
+    // initial value decorrelates the whole sequence rather than just the first retry.
+    //
+    // The random amount is added to the 500ms floor rather than centred on it, so a client never
+    // retries the throttling service sooner than the fixed delay already allowed. This mirrors
+    // MysqlMultiActiveLeaseArbiter, which randomises its initial delay the same way.
+    private final ExponentialBackoff exponentialBackoff = ExponentialBackoff.builder()
+        .maxDelay(RETRY_MAX_DELAY_MILLIS)
+        .initialDelay(RETRY_MIN_INITIAL_DELAY_MILLIS
+            + ThreadLocalRandom.current().nextLong(RETRY_INITIAL_DELAY_RANGE_MILLIS))
+        .build();
     private int redirects = 0;
     private int retries = 0;
 
