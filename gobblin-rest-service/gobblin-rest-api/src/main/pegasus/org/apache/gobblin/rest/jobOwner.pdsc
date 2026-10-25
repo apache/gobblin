@@ -1,0 +1,46 @@
+{
+  "type": "record",
+  "name": "jobOwner",
+  "namespace" : "org.apache.gobblin.rest",
+  "doc": "Gobblin job owner info definition",
+  "fields": [
+    {
+      "name": "name",
+      "type": "string",
+      "optional": true,
+      "doc": "Name of the requester or user"
+    },
+    {
+      "name": "email",
+      "type": "string",
+      "doc": "Email address of the requester or user"
+    },
+    {
+      "name": "team_name",
+      "type": "string",
+      "doc": "Team name"
+    },
+    {
+      "name": "team_email",
+      "type": "string",
+      "doc": "Team email"
+    },
+    {
+      "name": "org_name",
+      "type": "string",
+      "doc": "ORG name"
+    },
+    {
+      "name": "createdDate",
+      "type": "long",
+      "optional": true,
+      "doc": "Job created time"
+    },
+    {
+      "name": "updatedDate",
+      "type": "long",
+      "optional": true,
+      "doc": "Job updated time"
+    }
+  ]
+}
