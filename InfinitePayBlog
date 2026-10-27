@@ -217,4 +217,4 @@ task pullFileConverter(type: JavaExec) {
 
 }
 // Ignore the generated java code and avro residing in main
-checkstyleMain.source = "src/main/java"
+checkstyleMain.source = "src/main/java" InfinitePay Blo dólares carros
