@@ -15,7 +15,7 @@ gobblin.dataset.pattern=< Dataset pattern describing your to-be-copied data's lo
 
 # For s3 to work, Need to also add hadoop-aws.jar as the dependency in the classpath.
 # Attention that don't use any version later than **2.6.3** (Which means, pre-2015, very old)
-# Or you will hit into some messy dependecies problem related to hadoop version and amazon dependencies.
+# Or you will hit into some messy dependencies problem related to hadoop version and amazon dependencies.
 fs.s3a.impl=org.apache.hadoop.fs.s3a.S3AFileSystem
 writer.encrypted.fs.s3a.access.key=<Encrypted Access Key>
 writer.encrypted.fs.s3a.secret.key=<Encrypted Secret Key>
