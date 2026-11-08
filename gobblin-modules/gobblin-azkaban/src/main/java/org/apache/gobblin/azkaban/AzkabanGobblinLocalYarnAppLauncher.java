@@ -29,8 +29,7 @@ import org.apache.hadoop.yarn.conf.YarnConfiguration;
  * capability of changing yarn-resource related configuration in the way that could work with lighter hardware.
  */
 public class AzkabanGobblinLocalYarnAppLauncher extends AzkabanGobblinYarnAppLauncher {
-  public AzkabanGobblinLocalYarnAppLauncher(String jobId, Properties gobblinProps)
-      throws IOException {
+  public AzkabanGobblinLocalYarnAppLauncher(String jobId, Properties gobblinProps) throws Exception {
     super(jobId, gobblinProps);
   }
 
