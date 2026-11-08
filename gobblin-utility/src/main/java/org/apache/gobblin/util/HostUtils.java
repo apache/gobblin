@@ -16,6 +16,7 @@
  */
 package org.apache.gobblin.util;
 
+import com.google.common.base.Optional;
 import java.net.InetAddress;
 import java.net.UnknownHostException;
 
@@ -31,5 +32,17 @@ public class HostUtils {
 
   public static String getPrincipalUsingHostname(String name, String realm) {
     return name + "/" + getHostName() + "@" + realm;
+  }
+
+  /**
+   * Given a host name return an optional containing the InetAddress object if one can be constructed for the input
+   * // TODO: provide details about expected hostName format
+   */
+  public static Optional<InetAddress> getAddressForHostName(String hostName) {
+    try {
+      return Optional.of(InetAddress.getByName(hostName));
+    } catch (UnknownHostException e) {
+      return Optional.absent();
+    }
   }
 }

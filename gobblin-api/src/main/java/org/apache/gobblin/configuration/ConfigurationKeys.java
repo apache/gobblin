@@ -123,6 +123,11 @@ public class ConfigurationKeys {
   public static final long DEFAULT_LEASE_DETERMINATION_TABLE_RETENTION_PERIOD_MILLIS = 3 * 24 * 60 * 60 * 1000; // (3 days in ms)
   // Refers to the event we originally tried to acquire a lease which achieved `consensus` among participants through
   // the database
+  public static final String MULTI_ACTIVE_LEASE_ARBITER_HOST_TO_BIT_MASK_MAP = MYSQL_LEASE_ARBITER_PREFIX + ".hostToBitMaskMap";
+  public static final String MULTI_ACTIVE_LEASE_ARBITER_BIT_MASK_LENGTH = MYSQL_LEASE_ARBITER_PREFIX + ".bitMaskLength";
+  public static final int DEFAULT_MULTI_ACTIVE_LEASE_ARBITER_BIT_MASK_LENGTH = 4;
+  public static final String MULTI_ACTIVE_LEASE_ARBITER_TESTING_DECORATOR_NUM_HOSTS = MYSQL_LEASE_ARBITER_PREFIX + ".numHosts";
+  public static final int DEFAULT_MULTI_ACTIVE_LEASE_ARBITER_TESTING_DECORATOR_NUM_HOSTS = 4;
   public static final String SCHEDULER_PRESERVED_CONSENSUS_EVENT_TIME_MILLIS_KEY = "preservedConsensusEventTimeMillis";
   // Time the reminder event Trigger is supposed to fire from the scheduler
   public static final String SCHEDULER_EXPECTED_REMINDER_TIME_MILLIS_KEY = "expectedReminderTimeMillis";
