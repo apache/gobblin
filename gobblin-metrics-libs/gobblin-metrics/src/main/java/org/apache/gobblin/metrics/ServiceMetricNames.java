@@ -68,6 +68,16 @@ public class ServiceMetricNames {
   public static final String SCHEDULED_FLOW_METER = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "ScheduledFlows";
   public static final String NON_SCHEDULED_FLOW_METER = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "NonScheduledFlows";
   public static final String SKIPPED_FLOWS = GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "SkippedFlows";
+  public static final String SCHEDULED_FLOW_TRIGGER_FIRED_METER =
+      GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowScheduler.scheduledFlowTriggersFired";
+  public static final String SCHEDULED_FLOW_TRIGGER_FAILED_METER =
+      GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowScheduler.scheduledFlowTriggerFailures";
+  public static final String LAST_SCHEDULED_FLOW_TRIGGER_FIRE_TIME_MILLIS =
+      GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowScheduler.lastScheduledFlowTriggerFireTimeMillis";
+  public static final String LAST_SCHEDULED_FLOW_TRIGGER_FIRE_AGE_MILLIS =
+      GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowScheduler.lastScheduledFlowTriggerFireAgeMillis";
+  public static final String SCHEDULED_FLOW_SPECS_COUNT =
+      GOBBLIN_SERVICE_PREFIX_WITH_DELIMITER + "flowScheduler.scheduledFlowSpecsCount";
   public static final String RUNNING_FLOWS_COUNTER = "RunningFlows";
   public static final String SERVICE_USERS = "ServiceUsers";
   public static final String COMPILED = "Compiled";
