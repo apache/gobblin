@@ -25,6 +25,7 @@ import java.util.List;
 
 import org.apache.hadoop.fs.Path;
 import org.junit.runner.RunWith;
+import org.mockito.ArgumentCaptor;
 import org.mockito.MockedStatic;
 import org.mockito.Mockito;
 import org.powermock.core.classloader.annotations.PrepareForTest;
@@ -216,10 +217,13 @@ public class LaunchDagProcTest {
     String flowName = "fn-stamp";
     long flowExecutionId = 12345L;
     long storeInsertTimeMillis = 1730000000000L;
+    long staleStoreInsertTimeMillis = storeInsertTimeMillis - 1000L;
 
-    // Override the default getFlowSpec stub with a captured instance so we can inspect the post-initialize config.
-    FlowSpec capturedFlowSpec = FlowSpec.builder("/test/flow/spec").withVersion("1").build();
-    doReturn(capturedFlowSpec).when(this.dagManagementStateStore).getFlowSpec(any());
+    FlowSpec sourceFlowSpec = FlowSpec.builder("/test/flow/spec").withVersion("1")
+        .withConfig(ConfigFactory.empty().withValue(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY,
+            ConfigValueFactory.fromAnyRef(staleStoreInsertTimeMillis)))
+        .build();
+    doReturn(sourceFlowSpec).when(this.dagManagementStateStore).getFlowSpec(any());
 
     Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId,
         DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 1, "user5", ConfigFactory.empty()
@@ -237,12 +241,17 @@ public class LaunchDagProcTest {
 
     launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
 
+    ArgumentCaptor<FlowSpec> flowSpecCaptor = ArgumentCaptor.forClass(FlowSpec.class);
+    verify(flowCompilationValidationHelper).createExecutionPlanIfValid(flowSpecCaptor.capture());
+    FlowSpec launchFlowSpec = flowSpecCaptor.getValue();
     Assert.assertTrue(
-        capturedFlowSpec.getConfig().hasPath(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
-        "FlowSpec config should carry the storeInsertTimeMillis stamp when LeaseParams provides a non-UNKNOWN value");
+        launchFlowSpec.getConfig().hasPath(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        "Launch FlowSpec config should carry the storeInsertTimeMillis stamp when LeaseParams provides a non-UNKNOWN value");
     Assert.assertEquals(
-        capturedFlowSpec.getConfig().getLong(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        launchFlowSpec.getConfig().getLong(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
         storeInsertTimeMillis);
+    Assert.assertEquals(sourceFlowSpec.getConfig().getLong(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        staleStoreInsertTimeMillis, "Source FlowSpec should not be mutated with per-launch metadata");
   }
 
   @Test
@@ -250,9 +259,13 @@ public class LaunchDagProcTest {
     String flowGroup = "fg";
     String flowName = "fn-skip";
     long flowExecutionId = 12345L;
+    long staleStoreInsertTimeMillis = 1730000000000L;
 
-    FlowSpec capturedFlowSpec = FlowSpec.builder("/test/flow/spec").withVersion("1").build();
-    doReturn(capturedFlowSpec).when(this.dagManagementStateStore).getFlowSpec(any());
+    FlowSpec sourceFlowSpec = FlowSpec.builder("/test/flow/spec").withVersion("1")
+        .withConfig(ConfigFactory.empty().withValue(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY,
+            ConfigValueFactory.fromAnyRef(staleStoreInsertTimeMillis)))
+        .build();
+    doReturn(sourceFlowSpec).when(this.dagManagementStateStore).getFlowSpec(any());
 
     Dag<JobExecutionPlan> dag = DagTestUtils.buildDag("1", flowExecutionId,
         DagProcessingEngine.FailureOption.FINISH_ALL_POSSIBLE.name(), 1, "user5", ConfigFactory.empty()
@@ -271,9 +284,14 @@ public class LaunchDagProcTest {
 
     launchDagProc.process(this.dagManagementStateStore, mockedDagProcEngineMetrics);
 
+    ArgumentCaptor<FlowSpec> flowSpecCaptor = ArgumentCaptor.forClass(FlowSpec.class);
+    verify(flowCompilationValidationHelper).createExecutionPlanIfValid(flowSpecCaptor.capture());
+    FlowSpec launchFlowSpec = flowSpecCaptor.getValue();
     Assert.assertFalse(
-        capturedFlowSpec.getConfig().hasPath(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
-        "FlowSpec config should NOT carry the storeInsertTimeMillis stamp when LeaseParams carries UNKNOWN");
+        launchFlowSpec.getConfig().hasPath(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        "Launch FlowSpec config should NOT carry stale storeInsertTimeMillis when LeaseParams carries UNKNOWN");
+    Assert.assertEquals(sourceFlowSpec.getConfig().getLong(ConfigurationKeys.DAG_ACTION_LAUNCH_STORE_INSERT_TIME_MILLIS_KEY),
+        staleStoreInsertTimeMillis, "Source FlowSpec should not be mutated when launch storeInsertTimeMillis is UNKNOWN");
   }
 
   private static LaunchDagTask buildLaunchDagTask(String flowGroup, String flowName, long flowExecutionId,
